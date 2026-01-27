@@ -1,3 +1,4 @@
+from typing import Any
 from .reaction import Reaction
 from .species import Species
 import numpy as np
@@ -6,7 +7,6 @@ import re
 import os
 from tqdm import tqdm
 import sympy
-from typing import Literal
 from sympy import parse_expr, symbols, sympify, lambdify, srepr, \
     MatrixSymbol, Idx, Function, Piecewise
 from sympy.core.function import UndefinedFunction
@@ -1019,7 +1019,16 @@ class Network:
         return sode
 
     # *****************
-    def get_symbolic_ode_and_jacobian(self, idx_offset: int = 0, use_cse: bool = True, language: Literal["c++", "cxx", "cpp", "python", "fortran"]="c++", ode_var: str="f", jac_var: str="J"):
+    def get_symbolic_ode_and_jacobian(
+        self,
+        idx_offset: int = 0,
+        use_cse: bool = True,
+        language: str ="c++",
+        ode_var: str="f",
+        jac_var: str="J",
+        matrix_format: str ="",
+        brac_format: str = ""
+    ):
         """
         Generate symbolic ODE expressions and compute the analytical Jacobian.
 
@@ -1030,6 +1039,100 @@ class Network:
         """
         import sympy as sp
         from sympy import symbols, Matrix, diff, cse, numbered_symbols
+
+        # Supported language inputs
+        __lang_aliases: dict[str, str] = {
+            "c++": "cxx",
+            "cpp": "cxx",
+            "cxx": "cxx",
+            "fortran": "fortran",
+            "f90": "fortran",
+            "python": "python",
+            "py": "python"
+        }
+
+        # Modifiers for each language
+        __lang_modifiers: dict[str, dict[str, Any]] = {
+            "cxx": {
+                "brac": "[]",
+                "assignment_op": "=",
+                "line_end": ";",
+                "matrix_sep": "][",
+                "code_gen": sp.cxxcode,
+            },
+            "fortran": {
+                "brac": "()",
+                "assignment_op": "=",
+                "line_end": "",
+                "matrix_sep": ")(",
+                "code_gen": str,
+            },
+            "python": {
+                "brac": "[]",
+                "assignment_op": "=",
+                "line_end": "",
+                "matrix_sep": ", ",
+                "code_gen": str,
+            }
+        }
+
+        # 2D array formats.
+        # Implemented as a dictionary to keep things flexible for the future
+        __matrix_formats: dict[str, dict[str, str]] = {
+            "()": {"brac": "()", "sep": ")("},
+            "(,)": {"brac": "()", "sep": ", "},
+            "[]": {"brac": "[]", "sep": "]["},
+            "[,]": {"brac": "[]", "sep": ", "},
+            "{}": {"brac": "{}", "sep": "}{"},
+            "{,}": {"brac": "{}", "sep": ", "},
+            "<>": {"brac": "<>", "sep": "><"},
+            "<,>": {"brac": "<>", "sep": ", "},
+        }
+
+        # 1D array format
+        __brack_formats: list[str] = ["()", "{}", "[]", "<>"]
+
+        # Check if language is supported
+        if language and language not in __lang_aliases.keys():
+            raise ValueError(
+                f"\n\nUnsupported language: \'{language}\'"
+                f"\nSupported languages: {[key for key in __lang_aliases]}\n"
+            )
+
+        # Check if 2D array format is supported
+        if matrix_format and matrix_format not in __matrix_formats.keys():
+            raise ValueError(
+                f"\n\nUnsupported matrix format: \'{matrix_format}\'"
+                f"\nSupported matrix formats: {[key for key in __matrix_formats]}\n"
+            )
+
+        # Check if 1D array format is supported
+        if brac_format and brac_format not in __brack_formats:
+            raise ValueError(
+                f"\n\nUnsupported bracket format: \'{brac_format}\'"
+                f"\nSupported bracket formats: {[key for key in __brack_formats]}\n"
+            )
+
+        # Set language
+        language = __lang_aliases.get(language, "cxx")
+
+        # Set brackets for 1D array
+        bracs = brac_format if brac_format in __brack_formats else __lang_modifiers[language]["brac"]
+
+        # Set brackets for 2D array
+        mbracs = __matrix_formats[matrix_format]["brac"] if matrix_format else __lang_modifiers[language]["brac"]
+
+        # Set 2D array separator
+        matrix_sep = __matrix_formats[matrix_format]["sep"] if matrix_format else __lang_modifiers[language]["matrix_sep"]
+
+        # Assigen other required variables
+        assignment_op = __lang_modifiers[language]["assignment_op"]
+        line_end = __lang_modifiers[language]["line_end"]
+        code_gen = __lang_modifiers[language]["code_gen"]
+
+        # Set left and right brackets for 1D and 2D arrays
+        lb, rb = bracs
+        mlb, mrb = mbracs
 
         # Create symbolic variables representing species concentrations for Jacobian
         # We use temporary scalar symbols y_i for robust SymPy manipulation, then
@@ -1102,18 +1205,6 @@ class Network:
         # Compute the Jacobian matrix d(f)/d(y)
         jacobian_matrix = Matrix(ode_symbols).jacobian(y_syms)
 
-        # Generate code strings
-        if language in ["c++", "cpp", "cxx"]:
-            brackets = "[]"
-            assignment_op = "="
-            line_end = ";"
-        else:  # Default to Python/Fortran style
-            brackets = "[]" if language == "python" else "()"
-            assignment_op = "="
-            line_end = ""
-
-        lb, rb = brackets[0], brackets[1]
-
         # Apply common subexpression elimination if requested
         if use_cse:
             # Collect all expressions for CSE
@@ -1160,7 +1251,9 @@ class Network:
             # Generate ODE code with only the needed CSE assignments
             ode_code = ""
             for i, (var, expr) in enumerate(repls_ode):
-                expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                # expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+
+                expr_str = code_gen(expr)
                 import re as _re
                 for j in range(n_species):
                     expr_str = _re.sub(rf"\by_{j}\b", f"nden{lb}{j}{rb}", expr_str)
@@ -1168,7 +1261,9 @@ class Network:
                 ode_code += f"const double {var} {assignment_op} {expr_str}{line_end}\n"
 
             for i, expr in enumerate(ode_reduced):
-                expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                # expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+
+                expr_str = code_gen(expr)
                 import re as _re
                 for j in range(n_species):
                     expr_str = _re.sub(rf"\by_{j}\b", f"nden{lb}{j}{rb}", expr_str)
@@ -1178,7 +1273,8 @@ class Network:
             # Generate Jacobian code with only the needed CSE assignments
             jac_code = ""
             for i, (var, expr) in enumerate(repls_jac):
-                expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                # expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                expr_str = code_gen(expr)
                 import re as _re
                 for j in range(n_species):
                     expr_str = _re.sub(rf"\by_{j}\b", f"nden{lb}{j}{rb}", expr_str)
@@ -1189,21 +1285,21 @@ class Network:
                     idx = i * n_species + j
                     expr = jac_reduced[idx]
                     if expr != 0:
-                        expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                        # expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                        expr_str = code_gen(expr)
                         import re as _re
                         for m in range(n_species):
                             expr_str = _re.sub(rf"\by_{m}\b", f"nden{lb}{m}{rb}", expr_str)
                         expr_str = expr_str.replace('[', lb).replace(']', rb)
-                        # Use parentheses for Jacobian matrix access in C++ (Kokkos views)
-                        if language in ["c++", "cpp", "cxx"]:
-                            jac_code += f"{jac_var}({i}, {j}) {assignment_op} {expr_str}{line_end}\n"
-                        else:
-                            jac_code += f"{jac_var}{lb}{i}{rb}{lb}{j}{rb} {assignment_op} {expr_str}{line_end}\n"
+
+                        # Write jacobian
+                        jac_code += f"{jac_var}{mlb}{i}{matrix_sep}{j}{mrb} {assignment_op} {expr_str}{line_end}\n"
         else:
             # Generate ODE code without CSE
             ode_code = ""
             for i, expr in enumerate(ode_symbols):
-                expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                # expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                expr_str = code_gen(expr)
                 import re as _re
                 for j in range(n_species):
                     expr_str = _re.sub(rf"\by_{j}\b", f"nden{lb}{j}{rb}", expr_str)
@@ -1216,16 +1312,15 @@ class Network:
                 for j in range(n_species):
                     expr = jacobian_matrix[i, j]
                     if expr != 0:
-                        expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                        # expr_str = sp.cxxcode(expr) if language in ["c++", "cpp", "cxx"] else str(expr)
+                        expr_str = code_gen(expr)
                         import re as _re
                         for m in range(n_species):
                             expr_str = _re.sub(rf"\by_{m}\b", f"nden{lb}{m}{rb}", expr_str)
                         expr_str = expr_str.replace('[', lb).replace(']', rb)
-                        # Use parentheses for Jacobian matrix access in C++ (Kokkos views)
-                        if language in ["c++", "cpp", "cxx"]:
-                            jac_code += f"{jac_var}({i}, {j}) {assignment_op} {expr_str}{line_end}\n"
-                        else:
-                            jac_code += f"{jac_var}{lb}{i}{rb}{lb}{j}{rb} {assignment_op} {expr_str}{line_end}\n"
+
+                        # Write jacobian
+                        jac_code += f"{jac_var}{mlb}{i}{matrix_sep}{j}{mrb} {assignment_op} {expr_str}{line_end}\n"
 
         return ode_code, jac_code
 
