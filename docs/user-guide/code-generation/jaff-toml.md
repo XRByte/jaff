@@ -143,23 +143,23 @@ min_vdisp = 1.0e-20
 
 Common key:
 
-| Key    | Type  | Default    | Description                                                       |
-| ------ | ----- | ---------- | ---------------------------------------------------------------- |
+| Key    | Type  | Default    | Description                                                                 |
+| ------ | ----- | ---------- | --------------------------------------------------------------------------- |
 | `type` | `str` | `"leiden"` | Shielding function: `"leiden"`, `"db1996"`, or `"hg2015"`. Case-insensitive |
 
 `type = "leiden"` keys:
 
-| Key           | Type   | Default  | Description                                                                                     |
-| ------------- | ------ | -------- | --------------------------------------------------------------------------------------------- |
+| Key           | Type   | Default  | Description                                                                                                    |
+| ------------- | ------ | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `shielded_by` | `list` | required | Shielding species; allowed: `"self"`, `"H2"`, `"H"`, `"C"`, `"N2"`, `"CO"`. Per-species factors are multiplied |
-| `radiation`   | `str`  | `"ISRF"` | Radiation-field subgroup in the Leiden table                                                    |
+| `radiation`   | `str`  | `"ISRF"` | Radiation-field subgroup in the Leiden table                                                                   |
 
 `type = "db1996"` / `"hg2015"` keys (only on the `H2._PHOTON__H.H` reaction):
 
-| Key         | Type    | Default | Description                                            |
-| ----------- | ------- | ------- | ----------------------------------------------------- |
-| `min_ncol`  | `float` | `1e-50` | Lower floor used in the fit (cm⁻²)                     |
-| `min_vdisp` | `float` | `1e-50` | Lower floor used in the fit (cm s⁻¹)                   |
+| Key         | Type    | Default | Description                          |
+| ----------- | ------- | ------- | ------------------------------------ |
+| `min_ncol`  | `float` | `1e-50` | Lower floor used in the fit (cm⁻²)   |
+| `min_vdisp` | `float` | `1e-50` | Lower floor used in the fit (cm s⁻¹) |
 
 ## `[[table]]` section
 

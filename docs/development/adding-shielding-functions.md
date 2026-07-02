@@ -16,10 +16,10 @@ and dropping it under `physics/photo_reactions/shielding/`.
 
 There are two flavours, distinguished by the class's `reaction` attribute:
 
-| Flavour    | Scope                        | `reaction` attr            | Location                                                       |
-| ---------- | ---------------------------- | -------------------------- | -------------------------------------------------------------- |
-| **Local**  | A single reaction            | the serialized reaction    | `shielding/<sanitized_reaction>/<type>.py`                     |
-| **Global** | Any reaction that selects it | `None`                     | `shielding/global_/<type>.py`                                  |
+| Flavour    | Scope                        | `reaction` attr         | Location                                   |
+| ---------- | ---------------------------- | ----------------------- | ------------------------------------------ |
+| **Local**  | A single reaction            | the serialized reaction | `shielding/<sanitized_reaction>/<type>.py` |
+| **Global** | Any reaction that selects it | `None`                  | `shielding/global_/<type>.py`              |
 
 In both cases the class's `name` attribute is the keyword a reaction selects via
 the TOML `shielding.type` option (matched case-insensitively).
@@ -84,11 +84,11 @@ class MyModel(ShieldingFunction):
         return shielding_expr
 ```
 
-| Member             | Purpose                                                                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------ |
-| `name`             | Shielding-type identifier, matched case-insensitively against `shielding.type`.                  |
-| `reaction`         | Serialized reaction this model is bound to (local), or `None` for a global model.                |
-| `get_shielding`    | Returns the dimensionless `sympy.Expr`. Read model params off `reaction.metadata["shielding"]`.  |
+| Member          | Purpose                                                                                         |
+| --------------- | ----------------------------------------------------------------------------------------------- |
+| `name`          | Shielding-type identifier, matched case-insensitively against `shielding.type`.                 |
+| `reaction`      | Serialized reaction this model is bound to (local), or `None` for a global model.               |
+| `get_shielding` | Returns the dimensionless `sympy.Expr`. Read model params off `reaction.metadata["shielding"]`. |
 
 The returned `Expr` may reference free symbols the code generator resolves at
 runtime, by convention:

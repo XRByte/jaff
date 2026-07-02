@@ -171,16 +171,16 @@ flowchart TD
 
 The table below traces a single `jaffgen` invocation from command line to output files.
 
-| Step | Component                   | What happens                                                                                       |
-| ---- | --------------------------- | -------------------------------------------------------------------------------------------------- |
-| 1    | `cli/_jaffgen.py`           | Parse CLI args, read `jaff.toml` via `_config_engine.py`                                           |
-| 2    | `core/parsers/network/_engine.py`        | Auto-detect format via registered plugins; convert each reaction line to a `parsedListProps` dict |
+| Step | Component                                | What happens                                                                                       |
+| ---- | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1    | `cli/_jaffgen.py`                        | Parse CLI args, read `jaff.toml` via `_config_engine.py`                                           |
+| 2    | `core/parsers/network/_engine.py`        | Auto-detect format via registered plugins; convert each reaction line to a `parsedListProps` dict  |
 | 3    | `core/parsers/auxiliary_func/_engine.py` | Parse `.jfunc` file (if present); resolve `@var`/`@function` blocks into SymPy expressions         |
-| 4    | `core/network.py`           | Build `Species`, `Reactions`, `Elements` catalogues; validate duplicates, sinks, isomers           |
-| 5    | `physics/_equations.py`     | Compute symbolic fluxes (`sfluxes`) and ODE RHS (`sodes`) using SymPy                              |
-| 6    | `codegen/codegen.py`        | Translate SymPy expressions into assignment strings for the chosen language                        |
-| 7    | `codegen/preprocessor.py`   | Walk template files; replace `!! PREPROCESS_KEY … !! PREPROCESS_END` blocks with generated strings |
-| 8    | `codegen/builder.py`        | Invoke the named plugin's `#!python main()` to write final output files to the build directory     |
+| 4    | `core/network.py`                        | Build `Species`, `Reactions`, `Elements` catalogues; validate duplicates, sinks, isomers           |
+| 5    | `physics/_equations.py`                  | Compute symbolic fluxes (`sfluxes`) and ODE RHS (`sodes`) using SymPy                              |
+| 6    | `codegen/codegen.py`                     | Translate SymPy expressions into assignment strings for the chosen language                        |
+| 7    | `codegen/preprocessor.py`                | Walk template files; replace `!! PREPROCESS_KEY … !! PREPROCESS_END` blocks with generated strings |
+| 8    | `codegen/builder.py`                     | Invoke the named plugin's `#!python main()` to write final output files to the build directory     |
 
 ## Key Design Decisions
 
@@ -207,15 +207,15 @@ The cross-section scripts are ordered as a pipeline: download raw NORAD data,
 collapse the per-reaction files into combined HDF5 files, then build the
 SQLite lookup tables that JAFF queries at runtime.
 
-| Script                          | Purpose                                                                                                                                           |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `generate_mass_table.py`        | Read `data/atom_mass.csv` and (re)build the element mass tables inside `db/jaff.db`.                                                              |
-| `download_nahar_xsecs.py`       | Download NORAD/OP (Nahar, OSU) ground-state photoionisation cross sections (Z = 1..26) into `data/xsecs/op/` using serialized reaction names.     |
-| `collapse_xsecs_hdf5.py`        | Merge the per-reaction Leiden and NORAD files into combined `leiden.hdf5` / `norad.hdf5` (one group per reaction, photon energy in eV, σ in cm²). |
-| `split_xsecs_photodecay.py`     | Split the source dissociation/ionisation datasets into the single `photodecay` channel used by the collapsed HDF5 files.                          |
+| Script                          | Purpose                                                                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generate_mass_table.py`        | Read `data/atom_mass.csv` and (re)build the element mass tables inside `db/jaff.db`.                                                                                   |
+| `download_nahar_xsecs.py`       | Download NORAD/OP (Nahar, OSU) ground-state photoionisation cross sections (Z = 1..26) into `data/xsecs/op/` using serialized reaction names.                          |
+| `collapse_xsecs_hdf5.py`        | Merge the per-reaction Leiden and NORAD files into combined `leiden.hdf5` / `norad.hdf5` (one group per reaction, photon energy in eV, σ in cm²).                      |
+| `split_xsecs_photodecay.py`     | Split the source dissociation/ionisation datasets into the single `photodecay` channel used by the collapsed HDF5 files.                                               |
 | `generate_photo_xsecs_table.py` | Build the `photo_reaction_cross_sections` table in `db/jaff.db` from the collapsed HDF5 files (`photo_absorption` flag, `decay_type` + `file.hdf5::<group>` pointers). |
-| `generate_ion_xsecs_table.py`   | Build the `verner_cross_sections` table in `db/jaff.db` from the Verner (1996) analytic-fit parameters in `data/xsecs/verner_1996.csv`.          |
-| `build_shielding_hdf5.py`       | Collapse the per-species Leiden line-shielding tables into `data/shielding/leiden.hdf5` (one group per reaction).                                 |
+| `generate_ion_xsecs_table.py`   | Build the `verner_cross_sections` table in `db/jaff.db` from the Verner (1996) analytic-fit parameters in `data/xsecs/verner_1996.csv`.                                |
+| `build_shielding_hdf5.py`       | Collapse the per-species Leiden line-shielding tables into `data/shielding/leiden.hdf5` (one group per reaction).                                                      |
 
 Run a script as a module from the project root, e.g.:
 

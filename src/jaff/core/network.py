@@ -75,6 +75,19 @@ def _parse_rate_expr(rate: str) -> Expr:
     return parse_expr(rate, evaluate=False)
 
 
+@lru_cache(maxsize=200000)
+def _parse_rate_expr(rate: str) -> Expr:
+    """Parse a rate string into a (non-evaluated) SymPy expression, memoized.
+
+    Large networks contain many reactions with identical rate strings (≈40% of
+    KIDA-2024 rates repeat), and the parsed expression depends only on the
+    string — species substitution happens later in ``_standardize_symbols`` —
+    so results are cached across reactions and networks.  SymPy expressions are
+    immutable, making the shared objects safe to reuse.
+    """
+    return parse_expr(rate, evaluate=False)
+
+
 class Network:
     """Astrochemical reaction network loaded from a file.
 
@@ -538,6 +551,27 @@ class Network:
             raise ParserError(f"Rate expression is not an Expr: {rate_expr}")
 
         return rate_expr, n_photo
+
+    def __parse_reaction_metadata(self, reaction: Reaction) -> None:
+        if reaction.serialized not in self._metadata["reaction_props"]:
+            return
+
+        rprops = self._metadata["reaction_props"][reaction.serialized]
+        if "shielding" in rprops:
+            if reaction.rtype() != "photo":
+                raise ParserError(f"{reaction} is not a photo reaction")
+
+            shielding_props = rprops["shielding"]
+            if "type" not in shielding_props:
+                shielding_props["type"] = "leiden"
+
+            reaction.metadata["shielding"] = {
+                k: (v.lower() if isinstance(v, str) else v)
+                for k, v in shielding_props.items()
+            }
+            reaction.metadata["jaffgen"] = {
+                "jaffgen_object": self._metadata["jaffgen_object"]
+            }
 
     def __parse_reaction_metadata(self, reaction: Reaction) -> None:
         if reaction.serialized not in self._metadata["reaction_props"]:
