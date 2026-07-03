@@ -496,15 +496,10 @@ class Codegen:
         """
         out = IndexedList()
         for i, rea in enumerate(self.net.reactions):
-            # Build the flux string by iterating over all reactants.
-            # The loop body overwrites `flux` on each iteration so only the
-            # last reactant's contribution survives — this is intentional
-            # because `rea.reactants` always yields the same reactant list and
-            # we need the full product expression, not individual terms.
-            for rr in rea.reactants:
-                flux = f"k{self.lb}$IDX${self.rb} * " + " * ".join(
-                    [f"y{self.lb}{x.fidx}{self.rb}" for x in rea.reactants.core]
-                )
+            # Rate coefficient times the product of all reactant densities.
+            flux = f"k{self.lb}$IDX${self.rb} * " + " * ".join(
+                [f"y{self.lb}{r.fidx}{self.rb}" for r in rea.reactants.core]
+            )
 
             out.append(IndexedValue([i], flux))
 
