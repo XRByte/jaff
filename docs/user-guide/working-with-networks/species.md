@@ -282,7 +282,8 @@ A few are easy to misread:
 
 - **`normalized_names()`** makes each name a legal lowercase identifier:
   `'+' → 'p'`, `'-' → 'n'`. So `H+` becomes `'hp'` and `e-` becomes `'en'`.
-  (This is _not_ the same as `fidx`, which uses `j`/`k`.)
+  Pass `pos`/`neg` to override the replacement strings. (This is _not_ the same
+  as `fidx`, which uses `j`/`k`.)
 - **`charge_truths()`** is a 0/1 mask, `1` where the specie is charged — useful
   for charge-conservation terms.
 - **`latex()`** on the catalogue defaults to `dollars=True` (wrapped in `$…$`),

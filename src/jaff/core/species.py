@@ -665,17 +665,24 @@ class Species(Catalogue[Specie]):
         if "e-" in self:
             return self["e-"].index
 
-    def normalized_names(self) -> Vector[str]:
+    def normalized_names(self, pos: str = "p", neg: str = "n") -> Vector[str]:
         """Return species names normalized for use as code identifiers.
 
-        All characters are lower-cased; ``"+"`` is replaced with ``"p"`` and
-        ``"-"`` with ``"n"``.
+        All characters are lower-cased; ``"+"`` is replaced with *pos* and
+        ``"-"`` with *neg*.
+
+        Parameters
+        ----------
+        pos : str, optional
+            Replacement for ``"+"``, by default ``"p"``.
+        neg : str, optional
+            Replacement for ``"-"``, by default ``"n"``.
 
         Returns
         -------
         Vector[str]
         """
-        return Vector([s.name.lower().replace("+", "p").replace("-", "n") for s in self])
+        return Vector([s.name.lower().replace("+", pos).replace("-", neg) for s in self])
 
     def neutral(self, attr: str = "") -> Vector[Specie | int]:
         """Return neutral (charge == 0) species or one of their attributes.
