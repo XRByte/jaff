@@ -145,7 +145,7 @@ class Photochemistry:
         """Build the symbolic shielding factor for a photo-reaction.
 
         The shielding function named by
-        ``reaction.metadata["shielding"]["type"]`` is resolved from the
+        ``reaction._metadata["shielding"]["type"]`` is resolved from the
         shielding registry via
         :func:`~jaff.physics.photo_reactions.shielding._get_shielding_function`.
         Lookup is keyed by ``(type, reaction.serialized)`` and prefers a
@@ -154,7 +154,7 @@ class Photochemistry:
         :class:`~jaff.physics.photo_reactions.shielding._base.ShieldingFunction`
         instance's ``get_shielding(reaction, network)`` produces the factor.
 
-        The result is cached on ``reaction.metadata["shielding"]["value"]`` so
+        The result is cached on ``reaction._metadata["shielding"]["value"]`` so
         repeated calls (e.g. once per radiation band) reuse it.
 
         Parameters
@@ -177,10 +177,10 @@ class Photochemistry:
             If no shielding function is registered for ``type`` either locally
             (for this reaction) or as a global fallback.
         """
-        sprops = reaction.metadata["shielding"]
+        sprops = reaction._metadata["shielding"]
 
         shielding_fn = _get_shielding_function(sprops["type"], reaction.serialized)
         shielding_expr = shielding_fn.get_shielding(reaction, network)
-        reaction.metadata["shielding"]["value"] = shielding_expr
+        reaction._metadata["shielding"]["value"] = shielding_expr
 
         return shielding_expr

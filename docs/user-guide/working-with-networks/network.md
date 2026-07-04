@@ -184,7 +184,7 @@ as a weighted `nden` sum (note `2*nden[3, 0]` — H₂ contributes two H atoms):
 
 ```python
 g = Network("networks/GOW/GOW.jet")
-g.reactions.with_rtype("cosmic_ray")[0].rate
+g.reactions.with_type("cosmic_ray")[0].rate
 # crate*(1.5*nden[0, 0]/(nden[0, 0] + nden[1, 0] + 2*nden[3, 0] + ...) + ...)
 ```
 

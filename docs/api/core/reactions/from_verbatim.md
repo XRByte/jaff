@@ -6,7 +6,7 @@ tags:
 
 # from_verbatim
 
-`#!python from_verbatim(verbatim, rtype=None)`
+`#!python from_verbatim(verbatim, type=None)`
 
 Looks up a reaction by its verbatim string, optionally filtering by type.
 
@@ -15,7 +15,7 @@ Looks up a reaction by its verbatim string, optionally filtering by type.
 **verbatim** : _str_
 : Verbatim reaction string to look up.
 
-**rtype** : _str or None, optional_
+**type** : _str or None, optional_
 : If given, only returns the reaction if its type matches.
 
 **Returns**

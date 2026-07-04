@@ -100,9 +100,6 @@ class Reaction:
     serialized_exploded : str
         Like ``serialized`` but built from the atom-level serialized forms of
         each species (isomer-insensitive comparison).
-    metadata : dict
-        Arbitrary key/value store for parser- and physics-supplied extras
-        (e.g. ``metadata["shielding"]``).
     custom_rad_rate : bool
         ``True`` when the radiation rate was supplied via a ``.jfunc`` aux
         function rather than computed from cross-sections.
@@ -186,7 +183,9 @@ class Reaction:
         # The reaction type is concluded by the parser and supplied here, not
         # inferred from the rate expression.
         self.type: str = type
-        self.metadata: dict = {}
+        # Private key/value store for parser- and physics-supplied extras
+        # (e.g. shielding model props). Not part of the public API.
+        self._metadata: dict = {}
 
     def __repr__(self):
         """Return detailed string representation of this reaction.

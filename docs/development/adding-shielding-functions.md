@@ -27,13 +27,13 @@ the TOML `shielding.type` option (matched case-insensitively).
 ## How Shielding Is Resolved
 
 When a reaction carries a `[reaction."<serialized>".shielding]` block, the
-network parser copies it onto `reaction.metadata["shielding"]`, and
+network parser copies it onto `reaction._metadata["shielding"]`, and
 `Photochemistry.shielding` (`src/jaff/physics/photo_reactions/_photochemistry.py`)
 asks the registry for the model named by `type`. Lookup is keyed by
 `(name, reaction.serialized)` and prefers a reaction-specific (local) model,
 falling back to a global one registered with `reaction = None`. The resolved
 instance's `get_shielding` method is called; the returned expression is cached
-on `reaction.metadata["shielding"]["value"]` and folded into the rate.
+on `reaction._metadata["shielding"]["value"]` and folded into the rate.
 
 ```mermaid
 flowchart TD
@@ -88,7 +88,7 @@ class MyModel(ShieldingFunction):
 | --------------- | ----------------------------------------------------------------------------------------------- |
 | `name`          | Shielding-type identifier, matched case-insensitively against `shielding.type`.                 |
 | `reaction`      | Serialized reaction this model is bound to (local), or `None` for a global model.               |
-| `get_shielding` | Returns the dimensionless `sympy.Expr`. Read model params off `reaction.metadata["shielding"]`. |
+| `get_shielding` | Returns the dimensionless `sympy.Expr`. Read model params off `reaction._metadata["shielding"]`. |
 
 The returned `Expr` may reference free symbols the code generator resolves at
 runtime, by convention:
@@ -99,7 +99,7 @@ runtime, by convention:
 | `vdisp`          | Velocity dispersion (cm s⁻¹)                         |
 
 The `shielding` block from the TOML is available verbatim (lower-cased strings)
-on `reaction.metadata["shielding"]`, so any extra option you add — floors,
+on `reaction._metadata["shielding"]`, so any extra option you add — floors,
 tolerances, a radiation-field selector — is read straight from there. **Validate
 your inputs** and raise `jaff.errors.ParserError` with a reaction-tagged message
 on bad values; the existing models all do this.
@@ -168,7 +168,7 @@ class HG2015(ShieldingFunction):
     reaction = "H2._PHOTON__H.H"
 
     def get_shielding(self, reaction, network) -> Expr:
-        sprops: dict[str, Any] = reaction.metadata["shielding"]
+        sprops: dict[str, Any] = reaction._metadata["shielding"]
         if "min_ncol" in sprops and not isinstance(sprops["min_ncol"], (float, int)):
             raise ParserError(
                 f"Minimum column density must be a float or int for: {reaction}"
@@ -237,7 +237,7 @@ interpolation call per shielding species.
 - [x] Local model placed under the **sanitised** folder
       (`shielding/<sanitized_reaction>/<type>.py`); global under `shielding/global_/`
 - [x] Implements `get_shielding(self, reaction, network) -> sympy.Expr`
-- [x] Reads model options from `reaction.metadata["shielding"]`
+- [x] Reads model options from `reaction._metadata["shielding"]`
 - [x] Validates inputs and raises `ParserError` (reaction-tagged) on bad values
 - [x] Returns a dimensionless expression using the `ncol_<species>` / `vdisp`
       symbol conventions

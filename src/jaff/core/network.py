@@ -565,11 +565,11 @@ class Network:
             if "type" not in shielding_props:
                 shielding_props["type"] = "leiden"
 
-            reaction.metadata["shielding"] = {
+            reaction._metadata["shielding"] = {
                 k: (v.lower() if isinstance(v, str) else v)
                 for k, v in shielding_props.items()
             }
-            reaction.metadata["jaffgen"] = {
+            reaction._metadata["jaffgen"] = {
                 "jaffgen_object": self._metadata["jaffgen_object"]
             }
 
@@ -586,11 +586,11 @@ class Network:
             if "type" not in shielding_props:
                 shielding_props["type"] = "leiden"
 
-            reaction.metadata["shielding"] = {
+            reaction._metadata["shielding"] = {
                 k: (v.lower() if isinstance(v, str) else v)
                 for k, v in shielding_props.items()
             }
-            reaction.metadata["jaffgen"] = {
+            reaction._metadata["jaffgen"] = {
                 "jaffgen_object": self._metadata["jaffgen_object"]
             }
 

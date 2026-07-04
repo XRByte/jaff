@@ -272,7 +272,7 @@ inputs are the H2 column density `ncol_H2` and velocity dispersion `vdisp`.
 !!! note "Shielding is exposed programmatically too"
     `jaff.physics.Photochemistry.shielding(reaction, network)` returns the
     symbolic factor and caches it on
-    `reaction.metadata["shielding"]["value"]`; the radiation integrator reuses
+    `reaction._metadata["shielding"]["value"]`; the radiation integrator reuses
     that cached value across bands.
 
 ---

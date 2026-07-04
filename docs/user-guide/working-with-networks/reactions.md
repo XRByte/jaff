@@ -118,7 +118,7 @@ net.reactions[0].rate       # photorates(1, 13.6, 1.0e+99)
 | `index`               | `int`           | Zero-based position of this reaction inside `net.reactions`               |
 | `serialized`          | `str`           | Canonical **name-level** identity (isomer-sensitive)                      |
 | `serialized_exploded` | `str`           | Canonical **atom-level** identity (isomer-insensitive)                    |
-| `metadata`            | `dict`          | Key/value store; `metadata["type"]` holds the parser-concluded reaction type |
+| `type`                | `str`           | Reaction type concluded by the parser: `"photo"`, `"cosmic_ray"`, `"3_body"`, `"unknown"` |
 | `custom_rad_rate`     | `bool`          | `True` when the radiation rate came from a `.jfunc`, not cross-sections   |
 | `xsecs_dict`          | `XsecsProps or None` | Photo cross-section data for the reaction's single decay channel: `photon_energy` (eV) plus `photo_absorption` and `photodecay` (cm²); else `None` |
 
@@ -228,11 +228,11 @@ print(net.reactions[0])  # H + _PHOTON -> H+ + e-
 
 ## Reaction types
 
-`rtype()` returns the type **concluded by the network-format parser** as it read
-the file — it does not inspect the rate expression. The parser decides
+The `type` attribute holds the type **concluded by the network-format parser**
+as it read the file — it does not inspect the rate expression. The parser decides
 structurally (a `_PHOTON` reactant → photo, a `_CR`/`_CRP`/`_CRPHOT` reactant →
 cosmic-ray, three or more real reactants → 3-body), so the type survives even
-custom rates. The value is stored in `metadata["type"]`.
+custom rates.
 
 | Type           | Meaning                                          |
 | -------------- | ------------------------------------------------ |
@@ -242,9 +242,9 @@ custom rates. The value is stored in `metadata["type"]`.
 | `"unknown"`    | Unclassified                                     |
 
 ```python
-net.reactions[0].rtype()   # 'photo'
-net.reactions[1].rtype()   # 'unknown'
-net.reactions.rtypes()     # ['photo', 'unknown']
+net.reactions[0].type   # 'photo'
+net.reactions[1].type   # 'unknown'
+net.reactions.types()     # ['photo', 'unknown']
 ```
 
 ### Photo-reactions, a special citizen
@@ -305,7 +305,7 @@ The typed helpers do the same with an optional type filter:
 ```python
 net.reactions.from_verbatim("H + _PHOTON -> H+ + e-")
 net.reactions.from_serialized("H._PHOTON__H+.e-")
-net.reactions.get("H + _PHOTON -> H+ + e-", rtype="photo")   # None if type mismatches
+net.reactions.get("H + _PHOTON -> H+ + e-", type="photo")   # None if type mismatches
 ```
 
 ### Iteration and count
@@ -318,7 +318,7 @@ equals `rxn.reactants.count`.)
 
 ```python
 for rxn in net.reactions:
-    print(f"{rxn.index:>3}  {rxn.verbatim:<16}  {rxn.rtype()}")
+    print(f"{rxn.index:>3}  {rxn.verbatim:<16}  {rxn.type}")
 
 net.reactions.count   # 2
 len(net.reactions)    # 2   — identical
@@ -331,7 +331,7 @@ Each returns a `Vector` aligned to catalogue order.
 | Method                  | Returns                 | h_photo result                       |
 | ----------------------- | ----------------------- | ------------------------------------ |
 | `verbatim()`            | `Vector[str]`           | `['H + _PHOTON -> H+ + e-', 'H+ + e- -> H']` |
-| `rtypes()`              | `Vector[str]`           | `['photo', 'unknown']`               |
+| `types()`              | `Vector[str]`           | `['photo', 'unknown']`               |
 | `rates()`               | `Vector[Basic]`         | the two symbolic rate expressions    |
 | `reactants()`           | `Vector[Species]`       | one `Species` catalogue per reaction |
 | `products()`            | `Vector[Species]`       | one `Species` catalogue per reaction |
@@ -349,8 +349,8 @@ Each returns a `Vector` aligned to catalogue order.
 
 ```python
 net.reactions.photo_reactions()              # the photo subset
-net.reactions.with_rtype("cosmic_ray")       # cosmic-ray reactions
-net.reactions.with_rtype("unknown")          # everything unclassified
+net.reactions.with_type("cosmic_ray")       # cosmic-ray reactions
+net.reactions.with_type("unknown")          # everything unclassified
 ```
 
 Note the type keys are `"photo"`, `"cosmic_ray"`, `"3_body"`, `"unknown"` —
@@ -471,7 +471,7 @@ pathways(net, "H+")
 ```python
 from collections import Counter
 
-Counter(net.reactions.rtypes())     # Counter({'photo': 1, 'unknown': 1})
+Counter(net.reactions.types())     # Counter({'photo': 1, 'unknown': 1})
 ```
 
 ### Export to CSV
@@ -484,7 +484,7 @@ with open("reactions.csv", "w", newline="") as f:
     w.writerow(["index", "reaction", "type", "tmin", "tmax",
                 "n_reactants", "n_products"])
     for rxn in net.reactions:
-        w.writerow([rxn.index, rxn.verbatim, rxn.rtype(),
+        w.writerow([rxn.index, rxn.verbatim, rxn.type,
                     rxn.tmin, rxn.tmax,
                     len(rxn.reactants), len(rxn.products)])
 ```

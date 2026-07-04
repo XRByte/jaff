@@ -152,7 +152,7 @@ an energy budget.
 rxn = net.reactions[0]
 
 rxn.verbatim      # 'H + _PHOTON -> H+ + e-'   ← verbatim is an attribute
-rxn.rtype()       # 'photo'                     ← rtype() is a method
+rxn.type          # 'photo'                     ← type is an attribute
 rxn.rate          # a SymPy expression for the rate coefficient
 rxn.reactants     # species consumed
 rxn.products      # species created
@@ -162,7 +162,7 @@ rxn.products      # species created
 - `rate` — the rate coefficient as a **SymPy expression**, not a number; it
   still contains the temperature symbol so it can be differentiated and emitted
   as code;
-- `rtype()` — the classification (`photo`, `cosmic_ray`, `3_body`, `unknown`),
+- `type` — the classification (`photo`, `cosmic_ray`, `3_body`, `unknown`),
   concluded by the network-format parser as it reads the file;
 - `tmin` / `tmax` — the temperature window the rate is valid over (`None` means
   unbounded);
@@ -176,7 +176,7 @@ with $\alpha$ the pre-exponential factor, $\beta$ the temperature exponent,
 $\gamma$ the activation parameter, and $T$ the temperature in Kelvin.
 Photo-reactions instead carry a `photorates(...)` call and a `_PHOTON`
 pseudo-reactant — the parser uses the latter to classify them as photo-reactions
-(`rtype()` no longer inspects the rate). The
+(the `type` attribute no longer inspects the rate). The
 [Reactions page](../user-guide/working-with-networks/reactions.md)
 goes through every reaction type and the catalogue API.
 
@@ -336,7 +336,7 @@ for sp in net.species:
     print(f"{sp.name}: {sp.mass:.3e} g  charge {sp.charge:+d}")
 
 for rxn in net.reactions:
-    print(f"{rxn.verbatim}  [{rxn.rtype()}]")
+    print(f"{rxn.verbatim}  [{rxn.type}]")
 ```
 
 The code-generation pass is a `jaffgen` invocation over your templates, exactly

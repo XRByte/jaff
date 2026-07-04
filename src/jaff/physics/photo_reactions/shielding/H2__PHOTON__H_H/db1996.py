@@ -38,7 +38,7 @@ class DB1996(ShieldingFunction):
         ParserError
             If ``min_ncol`` or ``min_vdisp`` is set to a non-numeric value.
         """
-        sprops: dict[str, Any] = reaction.metadata["shielding"]
+        sprops: dict[str, Any] = reaction._metadata["shielding"]
         if "min_ncol" in sprops and not isinstance(sprops["min_ncol"], (float, int)):
             raise ParserError(
                 f"Minimum column density must be a float or int for: {reaction}"
