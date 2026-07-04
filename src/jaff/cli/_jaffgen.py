@@ -55,6 +55,7 @@ import pandas as pd
 
 from .. import Network
 from ..cli import ConfigTable
+from ..config import JAFF_DIR, NETWORK_DIR, TEMPLATES_DIR
 from ..codegen import Codegen as cg
 from ..codegen import TemplateParser
 from ..common import motd
@@ -134,12 +135,10 @@ class JaffGen:
 
         # Locate JAFF package directory and built-in template directories.
         # Templates are stored inside jaff/templates/{generator,preprocessor}/.
-        self.jaff_dir: Path = Path(__file__).parent.parent
-        self.network_dir: Path = self.jaff_dir.parent.parent / "networks"
-        self.generator_template_dir: Path = self.jaff_dir / "templates" / "generator"
-        self.preprocessor_template_dir: Path = (
-            self.jaff_dir / "templates" / "preprocessor"
-        )
+        self.jaff_dir: Path = JAFF_DIR
+        self.network_dir: Path = NETWORK_DIR
+        self.generator_template_dir: Path = TEMPLATES_DIR / "generator"
+        self.preprocessor_template_dir: Path = TEMPLATES_DIR / "preprocessor"
         self.files: list[Path] = []
         self.jaffgen_config: JaffgenProps = {"netprops": {}}  # type: ignore
         self.jaffgen_config_raw: Toml | None = None

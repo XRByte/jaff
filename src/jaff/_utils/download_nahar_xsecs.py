@@ -62,6 +62,7 @@ from pathlib import Path
 
 import numpy as np
 
+from jaff.config import XSECS_DATA_DIR
 from jaff.io import JaffLogger
 
 #: Rydberg energy in eV (CODATA), for Ry -> eV photon-energy conversion.
@@ -456,7 +457,7 @@ def main(download: bool = True, do_parse: bool = True) -> None:
         Parse the local raw store into ``op/<serialized>.dat`` files.
     """
     logger = JaffLogger().get_logger()
-    op_dir = Path(__file__).parent.parent / "data" / "xsecs" / "op"
+    op_dir = XSECS_DATA_DIR / "op"
     raw_dir = op_dir / "raw"
 
     if download:

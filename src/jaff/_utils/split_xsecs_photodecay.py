@@ -41,13 +41,14 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+from jaff.config import XSECS_DATA_DIR
 from jaff.io import JaffLogger
 
 _STR_DT = h5py.string_dtype(encoding="utf-8")
 COMPRESSION_KW: dict = {"compression": "gzip", "compression_opts": 4, "chunks": True}
 
 #: Package data directory holding the collapsed xsec files.
-XSECS_DIR: Path = Path(__file__).parent.parent / "data" / "xsecs"
+XSECS_DIR: Path = XSECS_DATA_DIR
 
 
 def _ionize(species: str) -> str:
@@ -118,7 +119,8 @@ def split_leiden(h5_path: Path, logger) -> int:
             reactant = g.attrs["reactants"][0]
             reactant = reactant.decode() if isinstance(reactant, bytes) else str(reactant)
             stem_products = [
-                p.decode() if isinstance(p, bytes) else str(p) for p in g.attrs["products"]
+                p.decode() if isinstance(p, bytes) else str(p)
+                for p in g.attrs["products"]
             ]
             energy = g["photon_energy"][:]
             photoabs = (
@@ -170,8 +172,14 @@ def split_leiden(h5_path: Path, logger) -> int:
         )
         for e in emitted:
             _write_group(
-                f, e["key"], e["reactants"], e["products"], e["decay_type"],
-                e["energy"], e["photodecay"], e["photoabsorption"],
+                f,
+                e["key"],
+                e["reactants"],
+                e["products"],
+                e["decay_type"],
+                e["energy"],
+                e["photodecay"],
+                e["photoabsorption"],
             )
     logger.info(f"Split {h5_path} into {len(emitted)} per-channel reactions")
     return len(emitted)
@@ -188,10 +196,12 @@ def split_norad(h5_path: Path, logger) -> int:
         root_attrs = dict(f.attrs)
         for name, g in f.items():
             reactants = [
-                r.decode() if isinstance(r, bytes) else str(r) for r in g.attrs["reactants"]
+                r.decode() if isinstance(r, bytes) else str(r)
+                for r in g.attrs["reactants"]
             ]
             products = [
-                p.decode() if isinstance(p, bytes) else str(p) for p in g.attrs["products"]
+                p.decode() if isinstance(p, bytes) else str(p)
+                for p in g.attrs["products"]
             ]
             groups.append(
                 {
@@ -201,7 +211,8 @@ def split_norad(h5_path: Path, logger) -> int:
                     "energy": g["photon_energy"][:],
                     "photodecay": g["photoionization"][:],
                     "attrs": {
-                        k: v for k, v in g.attrs.items()
+                        k: v
+                        for k, v in g.attrs.items()
                         if k not in ("reactants", "products")
                     },
                 }
@@ -212,8 +223,14 @@ def split_norad(h5_path: Path, logger) -> int:
             f.attrs[k] = v
         for grp in groups:
             _write_group(
-                f, grp["key"], grp["reactants"], grp["products"], "ionization",
-                grp["energy"], grp["photodecay"], None,
+                f,
+                grp["key"],
+                grp["reactants"],
+                grp["products"],
+                "ionization",
+                grp["energy"],
+                grp["photodecay"],
+                None,
             )
             for k, v in grp["attrs"].items():
                 f[grp["key"]].attrs[k] = v

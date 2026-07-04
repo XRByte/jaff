@@ -45,6 +45,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+from jaff.config import XSECS_DATA_DIR
 from jaff.io import JaffLogger
 from jaff.physics import constants
 
@@ -143,8 +144,14 @@ def collapse_leiden(leiden_dir: Path, out_path: Path, logger) -> int:
                     pd_xs = src["photodissociation"][:].astype(float)[order]
                     if _has_signal(pd_xs):
                         _write_channel(
-                            h5, stem, reactants, products, "dissociation",
-                            energy, pd_xs, photoabs,
+                            h5,
+                            stem,
+                            reactants,
+                            products,
+                            "dissociation",
+                            energy,
+                            pd_xs,
+                            photoabs,
                         )
                         emitted += 1
 
@@ -159,8 +166,14 @@ def collapse_leiden(leiden_dir: Path, out_path: Path, logger) -> int:
                     if _has_signal(pi_xs) and ion_key not in ionis_seen:
                         ionis_seen.add(ion_key)
                         _write_channel(
-                            h5, ion_key, reactants, ion_products, "ionization",
-                            energy, pi_xs, photoabs,
+                            h5,
+                            ion_key,
+                            reactants,
+                            ion_products,
+                            "ionization",
+                            energy,
+                            pi_xs,
+                            photoabs,
                         )
                         emitted += 1
     logger.info(f"Wrote {emitted} Leiden channel groups to {out_path}")
@@ -228,7 +241,7 @@ def collapse_op(op_dir: Path, out_path: Path, logger) -> int:
 def main() -> None:
     """Build ``leiden.h5`` and ``op.h5`` in ``data/xsecs/``."""
     logger = JaffLogger().get_logger()
-    xsecs = Path(__file__).parent.parent / "data" / "xsecs"
+    xsecs = XSECS_DATA_DIR
     collapse_leiden(xsecs / "leiden", xsecs / "leiden.h5", logger)
     collapse_op(xsecs / "op", xsecs / "op.h5", logger)
 

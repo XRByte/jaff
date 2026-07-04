@@ -1,13 +1,12 @@
-from pathlib import Path
-
 import pandas as pd
 
+from jaff.config import DATA_DIR
 from jaff.drivers.sqlite import JaffDb
 from jaff.io import JaffLogger
 
 
 def main():
-    masses = Path(__file__).parent.parent / "data" / "atom_mass.csv"
+    masses = DATA_DIR / "atom_mass.csv"
     df = pd.read_csv(
         masses,
         sep=r"\s+",

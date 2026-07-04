@@ -23,6 +23,7 @@ from pathlib import Path
 import h5py
 import pandas as pd
 
+from jaff.config import JAFF_DIR
 from jaff.drivers.sqlite import JaffDb
 from jaff.io import JaffLogger
 
@@ -30,7 +31,7 @@ from jaff.io import JaffLogger
 H2_DISSOCIATION: str = "H2._PHOTON__H.H"
 
 #: Package root (``src/jaff``) -- HDF5 paths are stored relative to this.
-PKG_ROOT: Path = Path(__file__).parent.parent
+PKG_ROOT: Path = JAFF_DIR
 
 #: source name -> collapsed HDF5 file (relative to ``PKG_ROOT``).
 XSEC_FILES: dict[str, Path] = {

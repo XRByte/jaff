@@ -6,6 +6,7 @@ import pooch
 from rich.filesize import decimal
 from rich.progress import TaskID
 
+from ..config import DATA_DIR
 from ..io._logger import jaff_progress
 
 pooch.get_logger().setLevel(logging.WARNING)
@@ -147,7 +148,7 @@ def download_xsecs() -> None:
     """
     pooch = Pooch(
         "https://www.mso.anu.edu.au/~anishs",
-        Path(__file__).parent.parent / "data",
+        DATA_DIR,
     )
     for file in ["xsecs/leiden.hdf5", "xsecs/norad.hdf5", "xsecs/verner_1996.csv"]:
         pooch.fetch_file(file)
@@ -162,7 +163,7 @@ def download_shielding() -> None:
     """
     pooch = Pooch(
         "https://www.mso.anu.edu.au/~anishs",
-        Path(__file__).parent.parent / "data",
+        DATA_DIR,
     )
 
     for file in ["shielding/leiden.hdf5"]:

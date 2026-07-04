@@ -1,8 +1,7 @@
-from pathlib import Path
-
 import pandas as pd
 from sympy import Expr, Piecewise, Symbol, srepr
 
+from jaff.config import XSECS_DATA_DIR
 from jaff.drivers.sqlite import JaffDb
 from jaff.io import JaffLogger
 
@@ -34,9 +33,7 @@ def verner_xsecs(
 
 
 def main():
-    verner_data = (
-        Path(__file__).parent.parent / "data" / "xsecs" / "verner_1996.csv"
-    )
+    verner_data = XSECS_DATA_DIR / "verner_1996.csv"
     df = pd.read_csv(verner_data, sep=r"\s+", index_col=0)
     rows = [
         {

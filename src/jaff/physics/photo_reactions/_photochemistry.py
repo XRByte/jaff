@@ -14,11 +14,11 @@ Both are keyed by ``reaction.serialized``.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sympy import Basic, Expr, sympify
 
+from ...config import JAFF_DIR
 from ...drivers import HDF5, JaffDb
 from ...drivers.pooch import download_shielding, download_xsecs
 from ._typing import XsecsProps
@@ -121,8 +121,7 @@ class Photochemistry:
 
         row = rows[0]
         loc: str = row["leiden"] if row["leiden"] else row["norad"]
-        jaff_dir = Path(__file__).parent.parent.parent.resolve()
-        h5group = str(jaff_dir / loc)
+        h5group = str(JAFF_DIR.resolve() / loc)
         pr_xsec = HDF5().to_dict(h5group)
 
         xsecs: XsecsProps = {
