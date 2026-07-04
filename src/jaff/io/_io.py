@@ -199,7 +199,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 "dRad": encode_maybe_sympy(r.dRad),
                 "custom_rad_rate": r.custom_rad_rate,
                 "original_string": r.original_string,
-                "type": r.rtype(),
+                "type": r.type,
             }
             for r in net.reactions
         ],
@@ -801,10 +801,10 @@ def write_data_table(
     reactants = []
     products = []
     for i in react_list:
-        if reactions[i].rtype() == "unknown":
+        if reactions[i].type == "unknown":
             rtype.append("2_body")
         else:
-            rtype.append(reactions[i].rtype())
+            rtype.append(reactions[i].type)
         reactants_ = {}
         for r in reactions[i].reactants:
             if r.name in reactants_.keys():

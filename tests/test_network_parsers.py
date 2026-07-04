@@ -191,7 +191,7 @@ class TestNetworkParsers:
 
         # Verify the photo reactions are correctly identified
         for reaction in photo_reactions:
-            assert reaction.rtype() == "photo"
+            assert reaction.type == "photo"
 
     def test_temperature_limits_application(self, fixtures_dir):
         """Test that temperature limits (tmin/tmax) are correctly applied."""

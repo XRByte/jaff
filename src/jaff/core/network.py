@@ -373,13 +373,13 @@ class Network:
                 self.__parse_reaction_metadata(rea)
             self.reactions.add(rea)
 
-            if rea.rtype() == "photo":
+            if rea.type == "photo":
                 if self.__photochemistry is None:
                     self.__photochemistry = Photochemistry()
 
                 rea.xsecs_dict = self.__photochemistry.get_xsec(rea)
 
-            if rea.rtype() == "photo" and self.radiation is not None:
+            if rea.type == "photo" and self.radiation is not None:
                 if aux_chem_rate not in aux_funcs:
                     self.radiation.set_reaction_rate_coefficient(rea)
                 elif aux_chem_rate in aux_funcs and aux_delta_rad:
@@ -440,14 +440,14 @@ class Network:
             rea.custom_rad_rate = reaction["custom_rad_rate"]
             self.reactions.add(rea)
 
-            if rea.rtype() == "photo":
+            if rea.type == "photo":
                 if self.__photochemistry is None:
                     self.__photochemistry = Photochemistry()
                 rea.xsecs_dict = self.__photochemistry.get_xsec(rea) or reaction.get(
                     "xsecs_dict"
                 )
 
-            if rea.rtype() == "photo" and self.radiation is not None:
+            if rea.type == "photo" and self.radiation is not None:
                 if rea.custom_rad_rate:
                     self.radiation.set_custom_rate(rea)
                     continue
@@ -558,7 +558,7 @@ class Network:
 
         rprops = self._metadata["reaction_props"][reaction.serialized]
         if "shielding" in rprops:
-            if reaction.rtype() != "photo":
+            if reaction.type != "photo":
                 raise ParserError(f"{reaction} is not a photo reaction")
 
             shielding_props = rprops["shielding"]
@@ -579,7 +579,7 @@ class Network:
 
         rprops = self._metadata["reaction_props"][reaction.serialized]
         if "shielding" in rprops:
-            if reaction.rtype() != "photo":
+            if reaction.type != "photo":
                 raise ParserError(f"{reaction} is not a photo reaction")
 
             shielding_props = rprops["shielding"]
@@ -899,7 +899,7 @@ class Network:
                         continue
                     if rea1.is_isomer_version(rea2):
                         continue
-                    if rea1.rtype() != rea2.rtype():
+                    if rea1.type != rea2.type:
                         continue
                     self.logger.warning(
                         f"Duplicate reaction found: [cyan]{rea1.get_verbatim()}[/]"

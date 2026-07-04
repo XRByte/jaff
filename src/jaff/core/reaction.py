@@ -24,8 +24,8 @@ would collide with those and make the form ambiguous.
 Reaction types
 --------------
 The reaction type is concluded by the network-format parser and passed to the
-``Reaction`` constructor; ``rtype()`` returns that stored value (it no longer
-inspects the rate expression).  One of:
+``Reaction`` constructor; the ``type`` attribute holds that stored value (it no
+longer inspects the rate expression).  One of:
 
 - ``"photo"``       — radiation-driven (photodissociation/ionisation)
 - ``"cosmic_ray"``  — cosmic-ray driven
@@ -92,14 +92,17 @@ class Reaction:
         Human-readable string ``"R1 + R2 -> P1 + P2"``.
     index : int
         Position of this reaction in the parent ``Reactions`` catalogue.
+    type : str
+        Reaction type concluded by the parser (``"photo"``, ``"cosmic_ray"``,
+        ``"3_body"``, ``"unknown"``).
     serialized : str
         Canonical form ``"<sorted_reactants>__<sorted_products>"``.
     serialized_exploded : str
         Like ``serialized`` but built from the atom-level serialized forms of
         each species (isomer-insensitive comparison).
     metadata : dict
-        Arbitrary key/value store; ``metadata["type"]`` holds the
-        parser-supplied reaction type returned by ``rtype()``.
+        Arbitrary key/value store for parser- and physics-supplied extras
+        (e.g. ``metadata["shielding"]``).
     custom_rad_rate : bool
         ``True`` when the radiation rate was supplied via a ``.jfunc`` aux
         function rather than computed from cross-sections.
@@ -149,7 +152,7 @@ class Reaction:
         type : str, optional
             Reaction type as concluded by the network-format parser (e.g.
             ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``).
-            Stored verbatim and returned by :meth:`rtype`; defaults to
+            Stored verbatim on the ``type`` attribute; defaults to
             ``"unknown"``.
         errors : bool, optional
             If ``True``, terminate the process on mass or charge conservation
@@ -182,7 +185,8 @@ class Reaction:
         self.serialized: str = self.serialize()
         # The reaction type is concluded by the parser and supplied here, not
         # inferred from the rate expression.
-        self.metadata: dict = {"type": type}
+        self.type: str = type
+        self.metadata: dict = {}
 
     def __repr__(self):
         """Return detailed string representation of this reaction.
@@ -280,21 +284,6 @@ class Reaction:
         Elements
         """
         return Elements(self.reactants._list + self.products._list)
-
-    def rtype(self) -> str:
-        """Return the reaction type concluded by the network-format parser.
-
-        The type is no longer inferred from the rate expression; each parser
-        classifies the reaction and supplies the type via the ``type``
-        constructor argument, which is stored in ``self.metadata["type"]``.
-
-        Returns
-        -------
-        str
-            One of ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, or
-            ``"unknown"``.
-        """
-        return self.metadata.get("type", "unknown")
 
     def is_isomer_version(self, other: "Reaction") -> bool:
         """Check whether *other* is an isomer variant of this reaction.
@@ -843,14 +832,14 @@ class Reactions(Catalogue[Reaction]):
         """
         return self._by_serialized[serialized]
 
-    def from_verbatim(self, verbatim: str, rtype: str | None = None) -> Reaction | None:
+    def from_verbatim(self, verbatim: str, type: str | None = None) -> Reaction | None:
         """Look up a reaction by its verbatim string.
 
         Parameters
         ----------
         verbatim : str
             Human-readable string (e.g. ``"H + H2O+ -> H2 + OH+"``).
-        rtype : str or None, optional
+        type : str or None, optional
             If supplied, return ``None`` when the reaction type does not match.
 
         Returns
@@ -858,7 +847,7 @@ class Reactions(Catalogue[Reaction]):
         Reaction or None
         """
         rea = self._by_name[verbatim]
-        if rtype is None or rea.rtype() == rtype:
+        if type is None or rea.type == type:
             return rea
 
     def get_list(self) -> list[Reaction]:
@@ -870,14 +859,14 @@ class Reactions(Catalogue[Reaction]):
         """
         return self._list
 
-    def get(self, reaction: str, rtype: str | None = None) -> Reaction | None:
+    def get(self, reaction: str, type: str | None = None) -> Reaction | None:
         """Look up a reaction by name or serialized form, with optional type filter.
 
         Parameters
         ----------
         reaction : str
             Verbatim string or serialized form.
-        rtype : str or None, optional
+        type : str or None, optional
             If given, return ``None`` when the reaction type does not match.
 
         Returns
@@ -885,22 +874,22 @@ class Reactions(Catalogue[Reaction]):
         Reaction or None
         """
         rea = self[reaction]
-        if rtype is None or rea.rtype() == rtype:
+        if type is None or rea.type == type:
             return rea
 
-    def with_rtype(self, rtype: str):
+    def with_type(self, type: str):
         """Return all reactions matching the given reaction type.
 
         Parameters
         ----------
-        rtype : str
+        type : str
             One of ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``.
 
         Returns
         -------
         Vector[Reaction]
         """
-        return Vector([r for r in self if r.rtype() == rtype])
+        return Vector([r for r in self if r.type == type])
 
     def verbatim(self) -> Vector[str]:
         """Return a ``Vector`` of verbatim reaction strings.
@@ -911,14 +900,14 @@ class Reactions(Catalogue[Reaction]):
         """
         return Vector([r.verbatim for r in self])
 
-    def rtypes(self) -> Vector[str]:
+    def types(self) -> Vector[str]:
         """Return a ``Vector`` of reaction type strings.
 
         Returns
         -------
         Vector[str]
         """
-        return Vector([r.rtype() for r in self])
+        return Vector([r.type for r in self])
 
     def reactants(self) -> Vector[Species]:
         """Return a ``Vector`` of reactant ``Species`` catalogues.
@@ -1002,13 +991,13 @@ class Reactions(Catalogue[Reaction]):
         return Vector([r.serialized_exploded for r in self])
 
     def photo_reactions(self) -> Vector[Reaction]:
-        """Return all photo-reactions (``rtype == "photo"``).
+        """Return all photo-reactions (``type == "photo"``).
 
         Returns
         -------
         Vector[Reaction]
         """
-        return Vector([r for r in self if r.rtype() == "photo"])
+        return Vector([r for r in self if r.type == "photo"])
 
     def photo_reaction_truths(self) -> Vector[int]:
         """Return a binary ``Vector`` marking photo-reactions with ``1``.
@@ -1017,7 +1006,7 @@ class Reactions(Catalogue[Reaction]):
         -------
         Vector[int]
         """
-        return Vector([int(reaction.rtype() == "photo") for reaction in self])
+        return Vector([int(reaction.type == "photo") for reaction in self])
 
     def photo_reaction_indices(self) -> Vector[int]:
         """Return the integer indices of photo-reactions within this catalogue.
@@ -1027,5 +1016,5 @@ class Reactions(Catalogue[Reaction]):
         Vector[int]
         """
         return Vector(
-            [i for i, reaction in enumerate(self) if reaction.rtype() == "photo"]
+            [i for i, reaction in enumerate(self) if reaction.type == "photo"]
         )
