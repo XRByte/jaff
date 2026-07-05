@@ -2,9 +2,10 @@
 
 The theme is built from seaborn's own style machinery
 (:func:`seaborn.axes_style` + :func:`seaborn.plotting_context`) so figures get
-the genuine seaborn look -- soft whitegrid, scaled typography, muted spines --
-rather than the boxy matplotlib default.  A thin layer of JAFF overrides
-(palette, figure size, save DPI) sits on top.
+the genuine seaborn look -- soft grid, scaled typography, muted spines --
+rather than the boxy matplotlib default.  The default style is ``"darkgrid"``
+(see :data:`DEFAULT_STYLE`) with the JAFF brand palette; a thin layer of JAFF
+overrides (palette, figure size, save DPI) sits on top.
 
 By default the theme is applied *scoped* (only while a JAFF plot is being
 drawn, via :func:`theme_context`), so importing or instantiating the plotter

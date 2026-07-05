@@ -128,6 +128,10 @@ class Reaction:
         ``photon_energy`` (eV), optional ``photo_absorption`` and the
         ``photodecay`` array (cm²), plus ``_equations`` metadata.  ``None`` for
         non-photo reactions.
+    rad_groups : list[RadiationGroup]
+        Back-references to the radiation bands this reaction contributes to,
+        populated when a radiation field is configured.  Empty otherwise.  See
+        the :attr:`band_xsecs` property for the band-averaged cross sections.
     """
 
     def __init__(
@@ -679,11 +683,12 @@ class Reaction:
         show: bool = True,
         save: bool = False,
         filename: str = "",
-    ) -> tuple[plt.Figure, plt.Axes]:
+    ) -> tuple[plt.Figure, plt.Axes] | None:
         """Plot the rate coefficient as a function of gas temperature.
 
-        The styled :class:`jaff.plotting.Plotter` is used so the figure
-        matches the publication house style.
+        A thin wrapper around :func:`jaff.plotting.plot_rates`, which applies
+        the publication house style.  To compare several reactions on one axes,
+        call ``plot_rates`` (or :meth:`Reactions.plot_rates`) directly.
 
         Parameters
         ----------
@@ -702,7 +707,10 @@ class Reaction:
 
         Returns
         -------
-        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
+            ``None`` if the rate cannot be evaluated numerically (e.g. a photo
+            reaction, whose rate carries the symbolic radiation-density
+            variable).
 
         Notes
         -----
