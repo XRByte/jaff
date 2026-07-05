@@ -30,13 +30,13 @@
 
 **JAFF** is an astrochemical network parser that reads multiple network formats, validates and analyses them, generates simulation code, and handles explicit photochemistry — all from a single tool.
 
-- 🔀 **Multi-format** — parse KIDA, UDFA, PRIZMO, KROME, and UCLCHEM networks
-- ✅ **Automatic validation** — catch malformed reactions and inconsistent species
-- 🔬 **Analysis** — inspect species, reactions, masses, charges, and rates
-- ⚙️ **Code generation** — emit ODE solvers in C, C++, Python, Fortran, Rust, Julia, and R
-- ☀️ **Explicit photochemistry** — first-class treatment of photoreactions
+- **Multi-format** — parse KIDA, UDFA, PRIZMO, KROME, and UCLCHEM networks
+- **Automatic validation** — catch malformed reactions and inconsistent species
+- **Analysis** — inspect species, reactions, masses, charges, and rates
+- **Code generation** — emit ODE solvers in C, C++, Python, Fortran, Rust, Julia, and R
+- **Explicit photochemistry** — first-class treatment of photoreactions
 
-> 📖 Full guides and API reference live in the [Documentation](https://jaff-chemistry.github.io/jaff/).
+> Full guides and API reference live in the [Documentation](https://jaff-chemistry.github.io/jaff/).
 
 ## Installation
 
