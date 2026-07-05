@@ -22,7 +22,13 @@ import numpy as np
 import seaborn.objects as so
 
 from . import _frames, _units, _xsec
-from ._theme import DEEP_PALETTE, apply_global_theme, theme_context, theme_rc
+from ._theme import (
+    MUTED_PALETTE,
+    apply_global_theme,
+    despine,
+    theme_context,
+    theme_rc,
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -36,9 +42,10 @@ class Plotter:
     Parameters
     ----------
     palette : list[str] or None, optional
-        Colour cycle for curves.  Defaults to the seaborn "deep" palette
-        (:data:`jaff.plotting._theme.DEEP_PALETTE`).  Pass
-        :data:`jaff.plotting._theme.LOGO_PALETTE` for the brand palette.
+        Colour cycle for curves.  Defaults to the seaborn "muted" palette
+        (:data:`jaff.plotting._theme.MUTED_PALETTE`).  Pass
+        :data:`jaff.plotting._theme.DEEP_PALETTE` for a more saturated cycle,
+        or :data:`jaff.plotting._theme.LOGO_PALETTE` for the brand palette.
     global_theme : bool, optional
         If ``True``, apply the house theme globally and persistently on
         construction (mutating ``matplotlib.rcParams``).  If ``False``
@@ -62,7 +69,7 @@ class Plotter:
         global_theme: bool = False,
         **rc_overrides: Any,
     ) -> None:
-        self._palette = palette if palette is not None else DEEP_PALETTE
+        self._palette = palette if palette is not None else MUTED_PALETTE
         self._rc = theme_rc(self._palette, **rc_overrides)
         self._global = global_theme
         if global_theme:
@@ -161,6 +168,7 @@ class Plotter:
             self._apply_plot_theme(plot).on(ax).plot()
 
             ax.grid(grid)
+            despine(ax)
             if label:
                 # Objects marks carry no legend label for a single group; attach
                 # the entry to the drawn line directly.
@@ -367,6 +375,7 @@ class Plotter:
         self._apply_plot_theme(plot).on(ax).plot()
 
         ax.grid(grid)
+        despine(ax)
         if trim and lo is not None and hi is not None and hi > lo:
             ax.set_xlim(*_xsec.padded_limits(lo, hi, log_x))
 
