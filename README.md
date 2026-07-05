@@ -114,7 +114,8 @@ Example network files can be found in the [`networks/`](networks/) directory.
 
 ## Contributing
 
-Contributions are welcome! To contribute or modify JAFF, please refer to our contributing guide.
+Contributions are welcome! To contribute or modify JAFF, please refer to our
+[Contributing Guide](CONTRIBUTING.md).
 
 ## License
 
