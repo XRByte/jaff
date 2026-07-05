@@ -48,7 +48,6 @@ from sympy import (
     cxxcode,
     fcode,
     julia_code,
-    lambdify,
     pycode,
     rcode,
     rust_code,
@@ -709,32 +708,22 @@ class Reaction:
         -----
         The temperature axis spans [``tmin``, ``tmax``] on a log scale.
         When ``tmin`` or ``tmax`` is ``None``, defaults of 2.73 K and 1e6 K
-        are used respectively.
+        are used respectively.  Drawing is delegated to
+        :func:`jaff.plotting.plot_rates`, which also plots lists of reactions
+        on shared axes.
         """
-        from ..plotting import Plotter
+        from ..plotting import plot_rates
 
-        tmin = 2.73 if self.tmin is None else self.tmin
-        tmax = 1e6 if self.tmax is None else self.tmax
-
-        tgas = np.logspace(np.log10(tmin), np.log10(tmax), 100)
-        r = lambdify("tgas", self.rate, "numpy")
-        y = np.array([r(t) for t in tgas])
-
-        return Plotter().plot(
-            x=tgas,
-            y=y,
+        return plot_rates(
+            [self],
             fig=fig,
             ax=ax,
-            xlabel="Temperature (K)",
-            ylabel=r"Rate coefficient $k$",
-            xscale="log",
-            yscale="log",
             title=title or self.get_latex(),
             grid=grid,
             show=show,
             save=save,
             filename=filename or f"{self}_rate.png",
-        )
+        )  # type: ignore
 
     def plot_xsecs(
         self,
@@ -793,58 +782,24 @@ class Reaction:
         -----
         Does nothing (logs a message) if ``self.xsecs_dict`` is ``None`` or no
         requested process has data.  Drawing, unit conversion and labelling are
-        delegated to :meth:`jaff.plotting.Plotter.plot_xsec`.
+        delegated to :func:`jaff.plotting.plot_xsecs`, which also plots lists of
+        reactions on shared axes.
         """
-        from ..plotting import Plotter
+        from ..plotting import plot_xsecs
 
-        if self.xsecs_dict is None:
-            self.logger.info(f"No cross sections available for: {self}")
-            return None
-
-        _XSEC_PROCESSES = (
-            "photo_absorption",
-            "photodecay",
-        )
-
-        # Normalise the process selection to a list of valid keys.
-        if processes is None or processes == "all":
-            procs = list(_XSEC_PROCESSES)
-        elif isinstance(processes, str):
-            procs = [processes]
-        else:
-            procs = list(processes)
-
-        invalid = [p for p in procs if p not in _XSEC_PROCESSES]
-        if invalid:
-            raise KeyError(
-                f"Invalid cross-section(s) {invalid}. Supported: "
-                f"{', '.join(_XSEC_PROCESSES)}"
-            )
-
-        # Keep only processes that actually carry data for this reaction.
-        available = [p for p in procs if self.xsecs_dict.get(p) is not None]
-        if not available:
-            self.logger.info(f"No data for requested cross-section(s) {procs} in: {self}")
-            return
-
-        if not filename:
-            stem = available[0] if len(available) == 1 else "cross_sections"
-            filename = f"{self}_{stem}.png"
-
-        return Plotter().plot_xsec(
-            self.xsecs_dict,
-            processes=available,
+        return plot_xsecs(
+            [self],
+            processes=processes,
             layout=layout,
             fig=fig,
             ax=ax,
             energy_unit=energy_unit,
             xsec_unit=xsec_unit,
             energy_log=energy_log,
-            xsec_log=xsecs_log,
+            xsecs_log=xsecs_log,
             shade=shade,
             show_bands=show_bands,
-            bands=self.band_xsecs if show_bands else None,
-            title=title or self.get_latex(),
+            title=title,
             grid=grid,
             show=show,
             save=save,
@@ -1098,3 +1053,36 @@ class Reactions(Catalogue[Reaction]):
         Vector[int]
         """
         return Vector([i for i, reaction in enumerate(self) if reaction.type == "photo"])
+
+    def plot_rates(self, **kwargs: Any) -> tuple[plt.Figure, Any] | None:
+        """Plot the rate coefficients of every reaction in the catalogue.
+
+        Thin wrapper over :func:`jaff.plotting.plot_rates` that passes all
+        reactions in this catalogue as one overlay.  Accepts the same keyword
+        arguments (``tmin``, ``tmax``, ``shade``, ``save``, ``filename`` ...).
+
+        Reactions whose rate cannot be evaluated numerically (e.g. photo
+        reactions) are skipped with a warning.
+
+        Returns
+        -------
+        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
+        """
+        from ..plotting import plot_rates
+
+        return plot_rates(list(self._list), **kwargs)
+
+    def plot_xsecs(self, **kwargs: Any) -> tuple[plt.Figure, Any] | None:
+        """Plot the photo cross sections of the catalogue's reactions.
+
+        Thin wrapper over :func:`jaff.plotting.plot_xsecs`.  Reactions without
+        cross-section data are skipped.  Accepts the same keyword arguments
+        (``processes``, ``energy_unit``, ``shade``, ``show_bands`` ...).
+
+        Returns
+        -------
+        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
+        """
+        from ..plotting import plot_xsecs
+
+        return plot_xsecs(list(self._list), **kwargs)
