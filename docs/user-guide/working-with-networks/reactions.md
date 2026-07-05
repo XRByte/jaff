@@ -414,8 +414,10 @@ rec.get_flux_expression(idx=1, rate_variable="k",
 
 ### Plotting
 
-Both plotters use the styled `jaff.plotting.Plotter` house style and return the
-`(fig, ax)` they drew on, so plots can be composed or saved.
+The `Reaction` plot methods are thin wrappers over the
+[`jaff.plotting`](../../api/plotting/index.md) free functions `plot_rates` and
+`plot_xsecs`, applying the house style. They return the `(fig, ax)` they drew
+on, so plots can be composed or saved.
 
 ```python
 rec.plot_rate_coefficient()         # rate vs temperature (log–log)
@@ -425,13 +427,36 @@ photo.plot_xsecs()                              # all processes, overlay, eV vs 
 photo.plot_xsecs(processes="photodecay")        # one process only
 photo.plot_xsecs(layout="subplots")             # one stacked panel per process
 photo.plot_xsecs(energy_unit="nm", xsec_unit="cm^2")  # wavelength + cm² axes
+photo.plot_xsecs(shade=True, show_bands=True)         # shade + band-averaged bars
 photo.plot_xsecs(save=True, filename="h_xsec.pdf")    # write to disk
 ```
 
 `plot_rate_coefficient` spans `[tmin, tmax]`, defaulting to `2.73 K` and `1e6 K`
 when a bound is `None`. `plot_xsecs` is a no-op (returns `None`) for non-photo
 reactions (those with `xsecs_dict is None`) or when no requested process has
-data.
+data. `plot_rate_coefficient` returns `None` for photo reactions, whose rate
+carries a symbolic radiation-density variable that cannot be evaluated against
+temperature.
+
+#### Comparing several reactions
+
+To overlay multiple reactions on one axes, call the free functions (or the
+`Reactions` catalogue methods) with a list:
+
+```python
+from jaff.plotting import plot_rates, plot_xsecs
+
+plot_rates(list(net.reactions))                 # every rate on shared axes
+net.reactions.plot_rates()                      # equivalent, via the catalogue
+
+# The free functions accept any list of reactions (photo_reactions() returns one).
+plot_xsecs(net.reactions.photo_reactions(), show_bands=True)
+net.reactions.plot_xsecs()                      # all reactions; non-photo skipped
+```
+
+Each curve gets a distinct line width (thinner in front) and a legend entry.
+See the [`jaff.plotting`](../../api/plotting/index.md) reference for the full
+options, palettes, and theming.
 
 ---
 

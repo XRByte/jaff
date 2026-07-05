@@ -48,8 +48,13 @@ src/jaff/
 │   ├── _typing/                # TypedDicts (Numeric, ...)
 │   └── constants.py            # Physical constants (astropy Quantities)
 │
-├── plotting/                   # Publication-style matplotlib wrapper
-│   └── plotter.py              # Plotter — plot / plot_xsec (house rcParams)
+├── plotting/                   # Publication-style seaborn plotting
+│   ├── _api.py                 # plot_rates / plot_xsecs — free functions (reactions, exprs, arrays)
+│   ├── plotter.py              # Plotter.render_series — seaborn-objects renderer
+│   ├── _theme.py               # seaborn theme, palettes, scoped/global application
+│   ├── _frames.py              # tidy DataFrame builders
+│   ├── _units.py               # energy/xsec unit conversion + axis labels
+│   └── _xsec.py                # trim / dynamic-scale helpers
 │
 ├── codegen/                    # Code generation pipeline
 │   ├── codegen.py              # SymPy → C/C++/Fortran/Python/Rust/Julia/R

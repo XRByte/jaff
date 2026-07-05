@@ -8,7 +8,7 @@ tags:
 
 `#!python plot_rate_coefficient(fig=None, ax=None, title=None, grid=True, show=True, save=False, filename="")`
 
-Plots the rate coefficient as a function of gas temperature on a log-log scale, using the styled `jaff.plotting.Plotter` house style. The temperature axis spans \[`tmin`, `tmax`\]; when either is `None`, defaults of 2.73 K and 1e6 K are used respectively.
+Plots the rate coefficient as a function of gas temperature on a log-log scale. A thin wrapper around the [`jaff.plotting.plot_rates`](../../plotting/plot_rates.md) free function (call that directly to overlay several reactions on shared axes). The temperature axis spans \[`tmin`, `tmax`\]; when either is `None`, defaults of 2.73 K and 1e6 K are used respectively.
 
 **Parameters**
 
@@ -32,5 +32,5 @@ Plots the rate coefficient as a function of gas temperature on a log-log scale, 
 
 **Returns**
 
-_tuple\[matplotlib.figure.Figure, matplotlib.axes.Axes\]_
-: The figure and axes drawn on.
+_tuple\[matplotlib.figure.Figure, matplotlib.axes.Axes\] or None_
+: The figure and axes drawn on, or `None` if the rate cannot be evaluated numerically (e.g. a photo reaction, whose rate carries the symbolic radiation-density variable).
