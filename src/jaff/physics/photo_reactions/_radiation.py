@@ -276,7 +276,9 @@ class Radiation:
         -------
         None
             Results are stored in ``reaction.rate``, ``reaction.rad_xsecs``,
-            and ``self.groups[i].props[reaction]`` in-place.
+            ``self.groups[i].props[reaction]``, and ``reaction.rad_groups``
+            (back-references to the bands this reaction contributes to)
+            in-place.
 
         Notes
         -----
@@ -326,6 +328,9 @@ class Radiation:
             "radeden" if self.energy_density else "photden", self.nbands, 1
         )
 
+        # Reset any back-references from a previous run before repopulating.
+        reaction.rad_groups = []
+
         for i, lower in enumerate(self.bands[:-1]):
             upper = self.bands[i + 1]
 
@@ -363,6 +368,7 @@ class Radiation:
                 "xsec_frac": rad_xsec_avg / xsec_tot,  # fraction of total cross section
                 "delta_rad": delta_rad_band,
             }
+            reaction.rad_groups.append(self.groups[i])
 
             # Compute the band-average photon energy once per band (shared
             # across all reactions): <E>_i = ∫ E n(E) dE / ∫ n(E) dE
@@ -402,7 +408,8 @@ class Radiation:
         Returns
         -------
         None
-            Results are stored in ``self.groups[i].props[reaction]`` in-place.
+            Results are stored in ``self.groups[i].props[reaction]`` and
+            ``reaction.rad_groups`` in-place.
 
         Notes
         -----
@@ -422,6 +429,9 @@ class Radiation:
         # Guard against zero-denominator case (no radiation coupling).
         delta_rad_total_is_zero = delta_rad_total == 0.0
 
+        # Reset any back-references from a previous run before repopulating.
+        reaction.rad_groups = []
+
         for i, lower in enumerate(self.bands[:-1]):
             upper = self.bands[i + 1]
             # Band-integrated dRad (numerator of the fraction).
@@ -439,6 +449,7 @@ class Radiation:
                 "xsec_frac": xsec_frac,
                 "delta_rad": delta_rad_band,
             }
+            reaction.rad_groups.append(self.groups[i])
 
     def ordered_index(self, idx: int, order: int) -> tuple[int, int]:
         """

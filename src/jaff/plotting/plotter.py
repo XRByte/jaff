@@ -10,7 +10,7 @@ import numpy as np
 from cycler import cycler
 
 if TYPE_CHECKING:
-    from ..physics._typing import XsecsProps
+    from ..physics.photo_reactions._photochemistry import XsecsProps
 
 
 # Mapping from JAFF unit strings to astropy units.
@@ -28,7 +28,9 @@ _XSEC_UNITS: dict[str, u.UnitBase] = {
 }
 
 
-def _convert_energy(value: float | np.ndarray, from_unit: str, to_unit: str) -> float | np.ndarray:
+def _convert_energy(
+    value: float | np.ndarray, from_unit: str, to_unit: str
+) -> float | np.ndarray:
     """Convert between photon energies and wavelengths via astropy.
 
     Energy <-> wavelength conversions use the :func:`astropy.units.spectral`
@@ -43,7 +45,9 @@ def _convert_energy(value: float | np.ndarray, from_unit: str, to_unit: str) -> 
     return q.to(_ENERGY_UNITS[to_unit], equivalencies=u.spectral()).value
 
 
-def _convert_xsec(value: float | np.ndarray, from_unit: str, to_unit: str) -> float | np.ndarray:
+def _convert_xsec(
+    value: float | np.ndarray, from_unit: str, to_unit: str
+) -> float | np.ndarray:
     """Convert a cross section between area units via astropy."""
     if from_unit not in _XSEC_UNITS:
         raise ValueError(f"Unknown cross-section unit: {from_unit}")

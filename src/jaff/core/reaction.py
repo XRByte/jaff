@@ -63,6 +63,27 @@ from .species import Specie, Species
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
+    import pandas as pd
+
+    from ..physics.photo_reactions._radiation import RadiationGroup
+
+
+def _to_float_or_none(value: Any) -> float | None:
+    """Coerce a band quantity to ``float``, or ``None`` when not representable.
+
+    Band edges and averages may be plain numbers, SymPy numeric objects, or
+    ``sympy.oo`` (open upper band, which casts to ``float('inf')``).  A value
+    of ``None`` (e.g. the cross section of a custom-rate reaction) or a
+    still-symbolic expression maps to ``None`` so it becomes ``NaN`` in a
+    :class:`pandas.DataFrame`.
+    """
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 class Reaction:
@@ -171,6 +192,7 @@ class Reaction:
         self.dRad: Basic = dRad
         self.custom_rad_rate: bool = False
         self.rad_xsecs: float | None = None
+        self.rad_groups: list[RadiationGroup] = []
         self.xsecs_dict: XsecsProps | None = None
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
@@ -600,6 +622,55 @@ class Reaction:
         """
         return sympify(self.rate)
 
+    @property
+    def band_xsecs(self) -> pd.DataFrame:
+        """Band-averaged cross sections for this reaction, one row per band.
+
+        Assembles a tidy table from the :class:`~jaff.physics.photo_reactions._radiation.RadiationGroup`
+        back-references in :attr:`rad_groups` (populated when a radiation field
+        is configured).  Intended as the data source for band bar plots.
+
+        Returns
+        -------
+        pandas.DataFrame
+            One row per radiation band this reaction contributes to, with
+            columns:
+
+            - ``lower`` : lower band edge in eV.
+            - ``upper`` : upper band edge in eV (``inf`` for an open top band).
+            - ``eavg``  : photon-number-weighted band-average energy in eV.
+            - ``xsec``  : photon-number-weighted band-average cross section in
+              cm² (``NaN`` for custom-rate reactions, which carry no tabulated
+              cross section).
+            - ``xsec_frac`` : fraction of the total cross section (or ``dRad``)
+              attributed to the band.
+
+            Empty (with the columns above) when the reaction contributes to no
+            band, e.g. no radiation field is configured.
+
+        Notes
+        -----
+        The rows are ordered by ascending band index, matching
+        :attr:`rad_groups`.
+        """
+        import pandas as pd
+
+        columns = ["lower", "upper", "eavg", "xsec", "xsec_frac"]
+        rows = [
+            {
+                "lower": _to_float_or_none(group.lower),
+                "upper": _to_float_or_none(group.upper),
+                "eavg": _to_float_or_none(group.eavg),
+                "xsec": _to_float_or_none(group.props.get(self, {}).get("xsec")),
+                "xsec_frac": _to_float_or_none(
+                    group.props.get(self, {}).get("xsec_frac")
+                ),
+            }
+            for group in self.rad_groups
+        ]
+
+        return pd.DataFrame(rows, columns=columns)
+
     def plot_rate_coefficient(
         self,
         fig: plt.Figure | None = None,
@@ -1014,6 +1085,4 @@ class Reactions(Catalogue[Reaction]):
         -------
         Vector[int]
         """
-        return Vector(
-            [i for i, reaction in enumerate(self) if reaction.type == "photo"]
-        )
+        return Vector([i for i, reaction in enumerate(self) if reaction.type == "photo"])
