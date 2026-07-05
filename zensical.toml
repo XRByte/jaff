@@ -121,6 +121,7 @@ nav = [
         "api/core/reaction/has_product.md",
         "api/core/reaction/get_code.md",
         "api/core/reaction/get_sympy.md",
+        "api/core/reaction/band_xsecs.md",
         "api/core/reaction/plot_rate_coefficient.md",
         "api/core/reaction/plot_xsecs.md"
       ] },
@@ -244,6 +245,12 @@ nav = [
     { "Physics" = [
       "api/physics/index.md",
       { "physics.Constants" = ["api/physics/constants/index.md"] },
+    ] },
+    { "Plotting" = [
+      "api/plotting/index.md",
+      "api/plotting/plot_rates.md",
+      "api/plotting/plot_xsecs.md",
+      { "plotting.Plotter" = ["api/plotting/plotter.md"] },
     ] }
   ] },
   { "Development" = [
