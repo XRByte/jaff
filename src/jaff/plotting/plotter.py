@@ -1,69 +1,51 @@
+"""Publication-quality plotting for JAFF, built on the seaborn objects API.
+
+:class:`Plotter` draws line data (rate coefficients) and photo cross sections.
+Curves are rendered with the seaborn objects interface (``seaborn.objects``)
+onto caller-supplied or freshly created matplotlib axes via ``Plot.on(ax)``;
+band bars and shaded fills are drawn with matplotlib directly (the objects
+``Area`` mark does not render reliably onto an existing axes).
+
+By default the house theme is applied *scoped* -- only while a figure is being
+drawn -- so instantiating :class:`Plotter` never mutates global matplotlib
+state.  Pass ``global_theme=True`` (or call
+:func:`jaff.plotting.apply_global_theme`) to opt into a sticky session theme.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import astropy.units as u
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from cycler import cycler
+import seaborn.objects as so
+
+from . import _frames, _units, _xsec
+from ._theme import DEEP_PALETTE, apply_global_theme, theme_context, theme_rc
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from ..physics.photo_reactions._photochemistry import XsecsProps
 
 
-# Mapping from JAFF unit strings to astropy units.
-_ENERGY_UNITS: dict[str, u.UnitBase] = {
-    "eV": u.eV,
-    "erg": u.erg,
-    "nm": u.nm,
-    "um": u.um,
-}
-_XSEC_UNITS: dict[str, u.UnitBase] = {
-    "cm2": u.cm**2,
-    "cm^2": u.cm**2,
-    "Mb": u.Mbarn,
-    "barn": u.barn,
-}
-
-
-def _convert_energy(
-    value: float | np.ndarray, from_unit: str, to_unit: str
-) -> float | np.ndarray:
-    """Convert between photon energies and wavelengths via astropy.
-
-    Energy <-> wavelength conversions use the :func:`astropy.units.spectral`
-    equivalency.
-    """
-    if from_unit not in _ENERGY_UNITS:
-        raise ValueError(f"Unknown energy unit: {from_unit}")
-    if to_unit not in _ENERGY_UNITS:
-        raise ValueError(f"Unknown energy unit: {to_unit}")
-
-    q = np.asarray(value) * _ENERGY_UNITS[from_unit]
-    return q.to(_ENERGY_UNITS[to_unit], equivalencies=u.spectral()).value
-
-
-def _convert_xsec(
-    value: float | np.ndarray, from_unit: str, to_unit: str
-) -> float | np.ndarray:
-    """Convert a cross section between area units via astropy."""
-    if from_unit not in _XSEC_UNITS:
-        raise ValueError(f"Unknown cross-section unit: {from_unit}")
-    if to_unit not in _XSEC_UNITS:
-        raise ValueError(f"Unknown cross-section unit: {to_unit}")
-
-    q = np.asarray(value) * _XSEC_UNITS[from_unit]
-    return q.to(_XSEC_UNITS[to_unit]).value
-
-
 class Plotter:
-    """Publication-quality matplotlib wrapper with a clean, seaborn-like style.
+    """Publication-quality plotter using the seaborn objects interface.
 
-    Instantiating applies the house ``rcParams`` globally.  Any keyword
-    arguments override individual ``rcParams`` entries, e.g.
-    ``Plotter(**{"font.size": 13})``.
+    Parameters
+    ----------
+    palette : list[str] or None, optional
+        Colour cycle for curves.  Defaults to the seaborn "deep" palette
+        (:data:`jaff.plotting._theme.DEEP_PALETTE`).  Pass
+        :data:`jaff.plotting._theme.LOGO_PALETTE` for the brand palette.
+    global_theme : bool, optional
+        If ``True``, apply the house theme globally and persistently on
+        construction (mutating ``matplotlib.rcParams``).  If ``False``
+        (default), the theme is applied only for the duration of each plot
+        call, leaving global state untouched.
+    **rc_overrides
+        Individual ``rcParams`` entries to override in the theme.
     """
 
     #: Display labels for the cross-section processes.
@@ -72,98 +54,37 @@ class Plotter:
         "photodecay": "Photodecay",
     }
 
-    _PALETTE: list[str] = [
-        "#4C72B0",
-        "#DD8452",
-        "#55A868",
-        "#C44E52",
-        "#8172B3",
-        "#937860",
-        "#DA8BC3",
-        "#8C8C8C",
-        "#CCB974",
-        "#64B5CD",
-    ]
-
     _RASTER: frozenset[str] = frozenset({"png", "jpg", "jpeg", "tif", "tiff"})
 
-    _UNIT_TEX: dict[str, str] = {
-        "cm^2": r"cm$^2$",
-        "cm2": r"cm$^2$",
-        "Mb": "Mb",
-        "barn": "barn",
-        "eV": "eV",
-        "erg": "erg",
-        "nm": "nm",
-        "um": r"$\mu$m",
-    }
+    def __init__(
+        self,
+        palette: list[str] | None = None,
+        global_theme: bool = False,
+        **rc_overrides: Any,
+    ) -> None:
+        self._palette = palette if palette is not None else DEEP_PALETTE
+        self._rc = theme_rc(self._palette, **rc_overrides)
+        self._global = global_theme
+        if global_theme:
+            apply_global_theme(self._palette, **rc_overrides)
 
-    _ENERGY_LABELS: dict[str, str] = {
-        "eV": "Photon energy (eV)",
-        "erg": "Photon energy (erg)",
-        "nm": "Wavelength (nm)",
-        "um": r"Wavelength ($\mu$m)",
-    }
+    # -- theming -----------------------------------------------------------
 
-    _RC_PARAMS: dict[str, Any] = {
-        # Figure.
-        "figure.figsize": (6.4, 4.0),
-        "figure.dpi": 110,
-        "savefig.dpi": 300,
-        "savefig.bbox": "tight",
-        # Fonts -- sans-serif body, mathtext for math.
-        "font.family": "sans-serif",
-        "font.size": 11,
-        "mathtext.fontset": "dejavusans",
-        "axes.titlesize": 13,
-        "axes.titleweight": "bold",
-        "axes.labelsize": 12,
-        "legend.fontsize": 10,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10,
-        # Lines + colour cycle.
-        "lines.linewidth": 2.0,
-        "lines.markersize": 5,
-        "axes.prop_cycle": cycler(color=_PALETTE),
-        # Spines -- full box (all four sides drawn).
-        "axes.spines.top": True,
-        "axes.spines.right": True,
-        "axes.linewidth": 0.9,
-        "axes.edgecolor": "#333333",
-        # Grid.
-        "axes.grid": True,
-        "grid.color": "#B0B0B0",
-        "grid.linestyle": "-",
-        "grid.linewidth": 0.6,
-        "grid.alpha": 0.35,
-        "axes.axisbelow": True,
-        # Ticks.
-        "xtick.direction": "out",
-        "ytick.direction": "out",
-        "xtick.major.size": 4,
-        "ytick.major.size": 4,
-        # Legend.
-        "legend.frameon": False,
-        "legend.loc": "best",
-    }
+    def _theme_scope(self):
+        """Context manager that scopes the theme unless it is applied globally."""
+        if self._global:
+            # Already applied globally; no scoping needed.
+            from contextlib import nullcontext
 
-    def __init__(self, **kwargs: Any) -> None:
-        mpl.rcParams.update({**self._RC_PARAMS, **kwargs})
+            return nullcontext()
+        return theme_context(self._rc)
 
-    def __fmt_unit(self, unit: str) -> str:
-        """Render a unit string with mathtext superscripts where known."""
+    def _apply_plot_theme(self, plot: so.Plot) -> so.Plot:
+        """Attach the house rc theme to a seaborn ``Plot`` (objects color cycle
+        is independent of rcParams, so it is set separately via ``.scale``)."""
+        return plot.theme(self._rc)
 
-        return self._UNIT_TEX.get(unit, unit)
-
-    def __energy_label(self, unit: str) -> str:
-        """Axis label for a photon energy/wavelength *unit*."""
-
-        return self._ENERGY_LABELS.get(unit, f"Photon energy ({self.__fmt_unit(unit)})")
-
-    def __xsec_label(self, unit: str) -> str:
-        """Axis label for a cross-section *unit*."""
-
-        return rf"Cross section $\sigma$ ({self.__fmt_unit(unit)})"
+    # -- output ------------------------------------------------------------
 
     def __finish(
         self,
@@ -187,6 +108,8 @@ class Plotter:
         if show:
             plt.show()
 
+    # -- generic line plot -------------------------------------------------
+
     def plot(
         self,
         x: list | float | np.ndarray,
@@ -203,7 +126,7 @@ class Plotter:
         show: bool = True,
         save: bool = False,
         filename: str = "plot.png",
-        **plot_kw: Any,
+        **line_kw: Any,
     ) -> tuple[plt.Figure, plt.Axes]:
         """Generic line plot.
 
@@ -218,107 +141,48 @@ class Plotter:
         save
             Write to ``filename``.  Output format is inferred from the
             extension (``.png``, ``.pdf``, ``.svg``, ``.jpg`` ...).
-        **plot_kw
-            Forwarded to :meth:`matplotlib.axes.Axes.plot`.
+        **line_kw
+            Forwarded to :class:`seaborn.objects.Line` (e.g. ``linewidth``,
+            ``linestyle``, ``marker``).
         """
-        if fig is None or ax is None:
-            fig, ax = plt.subplots()
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        df = _frames.line_frame(x, y)
 
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.set_xscale(xscale)
-        ax.set_yscale(yscale)
-        ax.set_title(title)
-        ax.grid(grid)
-        ax.plot(x, y, label=label, **plot_kw)
+        with self._theme_scope():
+            if fig is None or ax is None:
+                fig, ax = plt.subplots()
 
-        if label:
-            ax.legend()
+            plot = so.Plot(df, x="x", y="y").add(
+                so.Line(color=self._palette[0], **line_kw)
+            )
+            plot = self.__scale_axes(plot, xscale, yscale)
+            plot = plot.label(x=xlabel, y=ylabel, title=title)
+            self._apply_plot_theme(plot).on(ax).plot()
 
-        self.__finish(fig, show, save, filename)
+            ax.grid(grid)
+            if label:
+                # Objects marks carry no legend label for a single group; attach
+                # the entry to the drawn line directly.
+                if ax.lines:
+                    ax.lines[-1].set_label(label)
+                    ax.legend()
+
+            self.__finish(fig, show, save, filename)
 
         return fig, ax
 
-    def __draw_xsec_axes(
-        self,
-        ax: plt.Axes,
-        x: np.ndarray,
-        series: list[tuple[str, np.ndarray]],
-        *,
-        energy_unit: str,
-        xsec_unit: str,
-        energy_log: bool,
-        xsec_log: bool,
-        trim: bool,
-        grid: bool,
-        legend: bool,
-        set_xlabel: bool = True,
-        title: str = "",
-        **plot_kw: Any,
-    ) -> None:
-        """Draw one or more cross-section curves onto a single axes.
+    @staticmethod
+    def __scale_axes(plot: so.Plot, xscale: str, yscale: str) -> so.Plot:
+        """Apply log scales to a ``Plot`` where requested (linear is the default)."""
+        scales: dict[str, str] = {}
+        if xscale == "log":
+            scales["x"] = "log"
+        if yscale == "log":
+            scales["y"] = "log"
+        return plot.scale(**scales) if scales else plot
 
-        Shared by both the overlay and subplot layouts.  *series* is a list of
-        ``(label, sigma)`` pairs already converted to *xsec_unit*; *x* is the
-        photon energy already converted to *energy_unit*.
-        """
-        x = np.asarray(x)
-        x_lo: float | None = None
-        x_hi: float | None = None
-
-        for label, y in series:
-            y = np.asarray(y)
-            ax.plot(x, y, label=label, **plot_kw)
-
-            # Track the energy span where this curve has positive data.
-            mask = np.isfinite(y) & (y > 0)
-            if mask.any():
-                lo, hi = float(x[mask].min()), float(x[mask].max())
-                x_lo = lo if x_lo is None else min(x_lo, lo)
-                x_hi = hi if x_hi is None else max(x_hi, hi)
-
-        # Slight padding on the sides
-        if trim and x_lo is not None and x_hi is not None and x_hi > x_lo:
-            xr_lo, xr_hi = x_lo, x_hi
-        else:
-            finite = x[np.isfinite(x)]
-            xr_lo = float(finite.min()) if finite.size else None
-            xr_hi = float(finite.max()) if finite.size else None
-
-        # Dynamic x-scale
-        use_log_x = energy_log
-        if (
-            energy_log
-            and xr_lo is not None
-            and xr_hi is not None
-            and xr_lo > 0
-            and np.log10(xr_hi / xr_lo) < 1.0
-        ):
-            use_log_x = False
-
-        ax.set_xscale("log" if use_log_x else "linear")
-        ax.set_yscale("log" if xsec_log else "linear")
-        if set_xlabel:
-            ax.set_xlabel(self.__energy_label(energy_unit))
-        ax.set_ylabel(self.__xsec_label(xsec_unit))
-        if title:
-            ax.set_title(title)
-        ax.grid(grid)
-
-        if trim and x_lo is not None and x_hi is not None and x_hi > x_lo:
-            # Pad the limits by a few percent so the data does not sit flush
-            # against the spines.  Pad multiplicatively on a log axis,
-            # additively on a linear one.
-            pad = 0.03
-            if use_log_x:
-                factor = (x_hi / x_lo) ** pad
-                ax.set_xlim(x_lo / factor, x_hi * factor)
-            else:
-                margin = pad * (x_hi - x_lo)
-                ax.set_xlim(x_lo - margin, x_hi + margin)
-
-        if legend and len(series) > 1:
-            ax.legend()
+    # -- cross-section plot ------------------------------------------------
 
     def plot_xsec(
         self,
@@ -332,17 +196,19 @@ class Plotter:
         energy_log: bool = True,
         xsec_log: bool = True,
         trim: bool = True,
+        shade: bool | float = False,
+        show_bands: bool = False,
+        bands: pd.DataFrame | None = None,
         title: str = "",
         grid: bool = True,
         show: bool = True,
         save: bool = False,
         filename: str = "xsec.png",
-        **plot_kw: Any,
     ) -> tuple[plt.Figure, Any]:
         """Plot photo cross sections sigma(E) on log-log axes.
 
-        Single home for cross-section plotting: handles unit conversion,
-        axis scaling and labelling.  ``Reaction.plot_xsecs`` delegates here.
+        Single home for cross-section plotting: handles unit conversion, axis
+        scaling and labelling.  ``Reaction.plot_xsecs`` delegates here.
 
         Parameters
         ----------
@@ -351,8 +217,8 @@ class Plotter:
             ``photon_energy`` (eV) plus any of ``photo_absorption``,
             ``photodecay`` (all in cm^2).
         processes
-            Subset of the process keys to draw.  Default: every
-            process present (non-``None``) in ``xsecs``.
+            Subset of the process keys to draw.  Default: every process
+            present (non-``None``) in ``xsecs``.
         layout
             ``"overlay"`` (default) draws every process on one axes;
             ``"subplots"`` draws one stacked panel per process sharing the
@@ -365,11 +231,21 @@ class Plotter:
             Log-scale the respective axis (default ``True``).
         trim
             Tighten the energy axis to the range where the cross section is
-            positive (default ``True``).  Cross-section grids often pad the
-            high-energy tail with zeros, which would otherwise stretch the
-            axis far past the meaningful data.
-        **plot_kw
-            Forwarded to :meth:`matplotlib.axes.Axes.plot`.
+            positive (default ``True``).
+        shade
+            Shade the region under each curve.  ``True`` uses a default alpha;
+            a float sets the alpha explicitly.  On a log y-axis the fill runs
+            down to the bottom of the axis.
+        show_bands
+            Overlay the band-averaged cross section as bars (requires
+            *bands*).  See :attr:`jaff.core.reaction.Reaction.band_xsecs`.
+        bands
+            Band-averaged cross-section table (``lower``/``upper``/``eavg`` in
+            eV, ``xsec`` in cm²) used when *show_bands* is ``True``.
+        title
+            Axes/figure title.
+        grid, show, save, filename
+            Standard rendering controls.
 
         Returns
         -------
@@ -391,51 +267,213 @@ class Plotter:
         if not processes:
             raise ValueError("xsecs has no cross-section data to plot.")
 
-        # Data are stored as eV + cm^2; convert to the requested units.
-        x = np.asarray(_convert_energy(energy, "eV", energy_unit))
-        series = [
-            (
-                self._PROC_LABELS.get(k, k),
-                np.asarray(_convert_xsec(xsecs[k], "cm2", xsec_unit)),  # type: ignore
-            )
-            for k in processes
-        ]
+        # (label, sigma_cm2) pairs in the requested process order.
+        series = [(self._PROC_LABELS.get(k, k), np.asarray(xsecs[k])) for k in processes]
+        df = _frames.xsec_frame(np.asarray(energy), series, energy_unit, xsec_unit)
 
-        common = dict(
-            energy_unit=energy_unit,
-            xsec_unit=xsec_unit,
-            energy_log=energy_log,
-            xsec_log=xsec_log,
-            trim=trim,
-            grid=grid,
-            **plot_kw,
+        band_df = (
+            _frames.band_frame(bands, energy_unit, xsec_unit)
+            if show_bands and bands is not None
+            else None
         )
 
-        if layout == "subplots":
-            n = len(series)
-            fig, axes = plt.subplots(
-                n, 1, sharex=True, figsize=(6.4, 2.6 * n), squeeze=False
-            )
-            axes = axes[:, 0]
-            for i, (a, (label, y)) in enumerate(zip(axes, series)):
-                self.__draw_xsec_axes(
-                    a,
-                    x,
-                    [(label, y)],
-                    legend=False,
-                    set_xlabel=(i == n - 1),  # only the bottom panel
-                    title=label,
-                    **common,  # type: ignore
+        with self._theme_scope():
+            if layout == "subplots":
+                return self.__plot_subplots(
+                    df,
+                    energy_unit=energy_unit,
+                    xsec_unit=xsec_unit,
+                    energy_log=energy_log,
+                    xsec_log=xsec_log,
+                    trim=trim,
+                    shade=shade,
+                    grid=grid,
+                    band_df=band_df,
+                    title=title,
+                    show=show,
+                    save=save,
+                    filename=filename,
                 )
-            if title:
-                fig.suptitle(title)
-            self.__finish(fig, show, save, filename)
-            return fig, axes
+            return self.__plot_overlay(
+                df,
+                fig=fig,
+                ax=ax,
+                energy_unit=energy_unit,
+                xsec_unit=xsec_unit,
+                energy_log=energy_log,
+                xsec_log=xsec_log,
+                trim=trim,
+                shade=shade,
+                grid=grid,
+                band_df=band_df,
+                title=title,
+                show=show,
+                save=save,
+                filename=filename,
+            )
 
-        # overlay
+    # -- cross-section rendering helpers -----------------------------------
+
+    def __draw_xsec(
+        self,
+        ax: plt.Axes,
+        df: pd.DataFrame,
+        *,
+        energy_unit: str,
+        xsec_unit: str,
+        energy_log: bool,
+        xsec_log: bool,
+        trim: bool,
+        shade: bool | float,
+        grid: bool,
+        set_xlabel: bool,
+        title: str,
+    ) -> bool:
+        """Draw the cross-section curves in *df* onto a single axes.
+
+        Returns the effective log-x decision so a shared subplot x-axis can be
+        scaled consistently.
+        """
+        labels = list(dict.fromkeys(df["process"]))
+        multi = len(labels) > 1
+
+        # Trim / dynamic-scale decisions from the positive data span.
+        lo, hi = _xsec.positive_span(df)
+        if lo is None:
+            lo, hi = _xsec.finite_span(df)
+        log_x = _xsec.use_log_x(energy_log, lo, hi)
+
+        plot = so.Plot(df, x="energy", y="xsec")
+        if multi:
+            plot = plot.add(so.Line(), color="process").scale(
+                color=so.Nominal(self._palette[: len(labels)], order=labels)
+            )
+        else:
+            plot = plot.add(so.Line(color=self._palette[0]))
+
+        scales: dict[str, str] = {}
+        if log_x:
+            scales["x"] = "log"
+        if xsec_log:
+            scales["y"] = "log"
+        if scales:
+            plot = plot.scale(**scales)
+
+        plot = plot.label(
+            x=_units.energy_label(energy_unit) if set_xlabel else "",
+            y=_units.xsec_label(xsec_unit),
+            title=title,
+        )
+        self._apply_plot_theme(plot).on(ax).plot()
+
+        ax.grid(grid)
+        if trim and lo is not None and hi is not None and hi > lo:
+            ax.set_xlim(*_xsec.padded_limits(lo, hi, log_x))
+
+        if shade:
+            self.__shade(ax, df, labels, multi, alpha=shade)
+        if not set_xlabel:
+            ax.set_xlabel("")
+        return log_x
+
+    def __shade(
+        self,
+        ax: plt.Axes,
+        df: pd.DataFrame,
+        labels: list[str],
+        multi: bool,
+        *,
+        alpha: bool | float,
+    ) -> None:
+        """Fill the area under each process curve down to the axis bottom."""
+        a = 0.18 if alpha is True else float(alpha)
+        base = ax.get_ylim()[0]
+        for i, label in enumerate(labels):
+            sub = df[df["process"] == label]
+            color = self._palette[i % len(self._palette)] if multi else self._palette[0]
+            ax.fill_between(
+                sub["energy"].to_numpy(),
+                base,
+                sub["xsec"].to_numpy(),
+                color=color,
+                alpha=a,
+                linewidth=0,
+            )
+
+    def __draw_bands(self, ax: plt.Axes, band_df: pd.DataFrame) -> None:
+        """Overlay band-averaged cross sections as bars, clipping open bands."""
+        if band_df is None or band_df.empty:
+            return
+        xmin, xmax = ax.get_xlim()
+        ybottom = ax.get_ylim()[0]
+        lower = band_df["lower"].to_numpy(dtype=float)
+        upper = band_df["upper"].to_numpy(dtype=float)
+        # Clip an open (inf) or over-wide top edge to the visible axis range.
+        upper = np.where(np.isfinite(upper), upper, xmax)
+        upper = np.minimum(upper, xmax)
+        width = np.clip(upper - lower, a_min=0.0, a_max=None)
+        ax.bar(
+            lower,
+            band_df["xsec"].to_numpy(dtype=float),
+            width=width,
+            bottom=ybottom,
+            align="edge",
+            facecolor="none",
+            edgecolor="#555555",
+            linewidth=1.1,
+            alpha=0.9,
+            zorder=1.5,
+            label="Band average",
+        )
+
+    def __plot_overlay(
+        self,
+        df: pd.DataFrame,
+        *,
+        fig: plt.Figure | None,
+        ax: plt.Axes | None,
+        band_df: pd.DataFrame | None,
+        title: str,
+        show: bool,
+        save: bool,
+        filename: str,
+        **draw_kw: Any,
+    ) -> tuple[plt.Figure, plt.Axes]:
+        """Overlay layout: all processes on one axes."""
         if fig is None or ax is None:
             fig, ax = plt.subplots()
-        self.__draw_xsec_axes(ax, x, series, legend=True, title=title, **common)  # type: ignore
+        self.__draw_xsec(ax, df, set_xlabel=True, title=title, **draw_kw)
+        self.__draw_bands(ax, band_df)
         self.__finish(fig, show, save, filename)
-
         return fig, ax
+
+    def __plot_subplots(
+        self,
+        df: pd.DataFrame,
+        *,
+        band_df: pd.DataFrame | None,
+        title: str,
+        show: bool,
+        save: bool,
+        filename: str,
+        **draw_kw: Any,
+    ) -> tuple[plt.Figure, Any]:
+        """Subplots layout: one stacked panel per process, shared energy axis."""
+        labels = list(dict.fromkeys(df["process"]))
+        n = len(labels)
+        fig, axes = plt.subplots(n, 1, sharex=True, figsize=(6.4, 2.6 * n), squeeze=False)
+        axes = axes[:, 0]
+        for i, (a, label) in enumerate(zip(axes, labels)):
+            sub = df[df["process"] == label].reset_index(drop=True)
+            self.__draw_xsec(
+                a,
+                sub,
+                set_xlabel=(i == n - 1),  # only the bottom panel
+                title=label,
+                **draw_kw,
+            )
+            self.__draw_bands(a, band_df)
+        if title:
+            fig.suptitle(title)
+        self.__finish(fig, show, save, filename)
+        return fig, axes

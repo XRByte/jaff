@@ -746,6 +746,8 @@ class Reaction:
         xsec_unit: str = "Mb",
         energy_log: bool = True,
         xsecs_log: bool = True,
+        shade: bool | float = False,
+        show_bands: bool = False,
         title: str | None = None,
         grid: bool = True,
         show: bool = True,
@@ -774,6 +776,13 @@ class Reaction:
             (megabarn); ``"cm^2"`` and ``"barn"`` are also accepted.
         energy_log, xsecs_log : bool, optional
             Log-scale the energy / cross-section axis (default ``True``).
+        shade : bool or float, optional
+            Shade the area under each curve.  ``True`` uses a default alpha; a
+            float sets the alpha explicitly.  Default ``False``.
+        show_bands : bool, optional
+            Overlay the band-averaged cross section (from :attr:`band_xsecs`)
+            as bars.  Only meaningful when a radiation field is configured;
+            silently draws nothing otherwise.  Default ``False``.
 
         Returns
         -------
@@ -832,6 +841,9 @@ class Reaction:
             xsec_unit=xsec_unit,
             energy_log=energy_log,
             xsec_log=xsecs_log,
+            shade=shade,
+            show_bands=show_bands,
+            bands=self.band_xsecs if show_bands else None,
             title=title or self.get_latex(),
             grid=grid,
             show=show,
