@@ -8,11 +8,11 @@
   <p>A fast, multi-format astrochemical network parser with analysis, code generation, and explicit photochemistry.</p>
 
   <p>
-    <a href="https://github.com/jaff-chemistry/jaff/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-8b6cff?style=flat-square&labelColor=241b2f&logo=opensourceinitiative&logoColor=white"></a>
-    <a href="https://www.python.org/downloads/"><img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-e05fb0?style=flat-square&labelColor=241b2f&logo=python&logoColor=white"></a>
-    <img alt="Version" src="https://img.shields.io/badge/Version-0.1.5-ff6a5a?style=flat-square&labelColor=241b2f">
-    <img alt="Status" src="https://img.shields.io/badge/Status-alpha-ffc24b?style=flat-square&labelColor=241b2f">
-    <a href="https://jaff-chemistry.github.io/jaff/"><img alt="Docs" src="https://img.shields.io/badge/Docs-online-8b6cff?style=flat-square&labelColor=241b2f&logo=readthedocs&logoColor=white"></a>
+    <a href="https://github.com/jaff-chemistry/jaff/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-8b6cff?style=for-the-badge&labelColor=241b2f&logo=opensourceinitiative&logoColor=EDE4FF"></a>
+    <a href="https://www.python.org/downloads/"><img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-e05fb0?style=for-the-badge&labelColor=241b2f&logo=python&logoColor=EDE4FF"></a>
+    <img alt="Version" src="https://img.shields.io/badge/Version-0.1.5-ff6a5a?style=for-the-badge&labelColor=241b2f&logo=semanticrelease&logoColor=EDE4FF">
+    <img alt="Status" src="https://img.shields.io/badge/Status-alpha-ffc24b?style=for-the-badge&labelColor=241b2f&logo=rocket&logoColor=EDE4FF">
+    <a href="https://jaff-chemistry.github.io/jaff/"><img alt="Docs" src="https://img.shields.io/badge/Docs-online-8b6cff?style=for-the-badge&labelColor=241b2f&logo=readthedocs&logoColor=EDE4FF"></a>
   </p>
 
   <p>
