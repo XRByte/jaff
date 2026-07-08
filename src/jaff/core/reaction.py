@@ -44,13 +44,6 @@ from sympy import (
     Basic,
     Expr,
     Function,
-    ccode,
-    cxxcode,
-    fcode,
-    julia_code,
-    pycode,
-    rcode,
-    rust_code,
     sympify,
 )
 
@@ -587,23 +580,13 @@ class Reaction:
 
         Raises
         ------
-        ValueError
+        InvalidLanguageError
             If *lang* is not one of the supported language keys.
         """
-        fmap = {
-            "python": pycode,
-            "c": ccode,
-            "cxx": cxxcode,
-            "fortran": fcode,
-            "rust": rust_code,
-            "julia": julia_code,
-            "r": rcode,
-        }
+        from ..codegen import Language
 
-        if not fmap.get(lang, ""):
-            raise ValueError(
-                f"{lang} is not supported. Supported languages are:\n\n{fmap.keys()}"
-            )
+        language = Language(lang)
+
         if (
             hasattr(self.rate, "func")
             and isinstance(self.rate.func, type(Function("f")))
@@ -614,7 +597,7 @@ class Reaction:
                 f"photorates($IDX$, {', '.join(str(arg) for arg in self.rate.args[1:])})"
             )
 
-        return fmap[lang](self.get_sympy(), strict=False)
+        return language.code_gen(self.get_sympy(), strict=False)
 
     def get_sympy(self) -> Basic:
         """Return the rate as a canonical SymPy expression.
