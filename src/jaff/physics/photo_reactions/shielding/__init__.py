@@ -1,6 +1,5 @@
 from jaff.common._helper import import_subpackages
-from jaff.errors import ParserError
-from jaff.errors._shielding import RegistrationError
+from jaff.errors import ParserError, RegistrationError
 
 from ._base import ShieldingFunction
 

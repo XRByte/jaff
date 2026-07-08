@@ -56,11 +56,9 @@ import pandas as pd
 from .. import Network
 from ..cli import ConfigTable
 from ..config import JAFF_DIR, NETWORK_DIR, TEMPLATES_DIR
-from ..codegen import Codegen as cg
-from ..codegen import TemplateParser
+from ..codegen import Language, TemplateParser
 from ..common import motd
 from ..drivers import HDF5, Toml
-from ..errors import ParserError
 from ..io import JaffLogger, jaff_progress
 from ..types import HDF5Dict
 from ._typing import JaffgenProps
@@ -421,10 +419,10 @@ class JaffGen:
         Raises
         ------
         ValueError
-            If *default_lang* is not recognised by
-            :meth:`~jaff.codegen.Codegen.get_language_tokens`.
+            If *default_lang* is not a recognised
+            :class:`~jaff.codegen.Language` alias.
         """
-        if default_lang and default_lang not in cg.get_language_tokens():
+        if default_lang and default_lang not in Language.LOOKUP:
             raise ValueError(f"Unsupported language specified: {default_lang}")
 
         self.jaffgen_config["default_lang"] = default_lang

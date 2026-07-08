@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from ..errors import ParserError
 from ..types import IndexedList
+from ._languages import Language
 from ._typing import CommandProps, IdxSpanResult, IndexedReturn
 from .codegen import Codegen
 
@@ -202,10 +203,7 @@ class TemplateParser:
         line : str
             Line of text to parse.
         """
-        valid_comments: set[str] = {
-            self.cg.get_language_tokens()[lang]["comment"]
-            for lang in self.cg.get_language_tokens().keys()
-        } | {"--", "%"}
+        valid_comments: set[str] = Language.comments() | {"--", "%"}
 
         # Extract indentation from the original line
         self.indent = line[: len(line) - len(line.lstrip(" "))]
@@ -224,7 +222,7 @@ class TemplateParser:
             self.modified += self.og_line
             return
 
-        comment = tokens[0] if tokens else self.cg.comment
+        comment = tokens[0] if tokens else self.cg.lang.comment
 
         # Preserve the original line and process the command if JAFF is found
         self.modified += self.og_line

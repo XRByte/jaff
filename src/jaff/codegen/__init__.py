@@ -1,3 +1,4 @@
+from ._languages import Language
 from ._template_engine import TemplateParser
 from ._typing import CommandProps, ExtrasDict, IdxSpanResult, IndexedReturn
 from .builder import Builder
@@ -7,6 +8,7 @@ from .preprocessor import Preprocessor
 __all__ = [
     Builder,
     Codegen,
+    Language,
     IndexedReturn,
     Preprocessor,
     TemplateParser,
