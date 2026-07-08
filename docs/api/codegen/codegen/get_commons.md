@@ -22,7 +22,7 @@ const int nreactions = 5;
 **Parameters**
 
 **idx_offset** : _int, optional_
-: Base index added to each species position. `-1` uses the language default stored in `self.ioff`. Default `-1`.
+: Base index added to each species position. `-1` uses the language default stored in `self.lang.idx_offset`. Default `-1`.
 
 **idx_prefix** : _str, optional_
 : Prefix for index names, e.g. `"idx_"`. Default `""`.

@@ -1095,7 +1095,6 @@ class Codegen:
             Multi-line string of radiation ODE assignments including any CSE
             temporaries.
         """
-        # Set overrides
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         prefix = (
             def_prefix

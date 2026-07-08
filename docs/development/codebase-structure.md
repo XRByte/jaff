@@ -193,7 +193,7 @@ The table below traces a single `jaffgen` invocation from command line to output
 Each network format is a `NetworkFormat` subclass living in its own subpackage under `core/parsers/network/_formats/`. A class registers itself with the `@register` decorator; `NetworkParser` discovers all formats via `all_formats()`, ordered by each format's `priority` (not file or import order). Every format exposes a fast `_global_re` filter and a detailed `_local_re` extractor, and writes results through a shared `ParseContext`. Adding a new format means adding one subpackage — no edits to the engine or shared code. See [Adding a Parser](adding-parsers.md).
 
 **SymPy as the intermediate representation.**
-All rate expressions, fluxes, and ODEs live as SymPy objects inside `Network`. Code generation (`Codegen`) calls SymPy's language-specific printers (`ccode`, `cxxcode`, `fcode`, etc.), so adding a new target language is isolated to `LangModifier` token tables.
+All rate expressions, fluxes, and ODEs live as SymPy objects inside `Network`. Code generation (`Codegen`) calls SymPy's language-specific printers (`ccode`, `cxxcode`, `fcode`, etc.), so adding a new target language is a single `Language` subclass in `jaff/codegen/_languages.py`.
 
 **Plugin-based code generation.**
 `Builder` discovers plugins at `jaff.plugins.<name>.plugin` and calls their `#!python main()`. Each plugin owns its template files and knows nothing about the parser. This keeps solver-specific logic out of the core library.

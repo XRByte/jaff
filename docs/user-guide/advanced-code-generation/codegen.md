@@ -54,19 +54,21 @@ brackets, whether indices start at `0` or `1`, the comment marker, and the
 assignment operator. Pick it with a name or any common alias.
 
 ```python
-Codegen(network, lang="c++", brac_format="", matrix_format="")
+Codegen(network, lang="c++")
 ```
 
-| Parameter       | Type      | Default | Description                                                                                   |
-| --------------- | --------- | ------- | --------------------------------------------------------------------------------------------- |
-| `network`       | `Network` | —       | Parsed chemical reaction network                                                              |
-| `lang`          | `str`     | `"c++"` | Target language — name or alias (see table)                                                   |
-| `brac_format`   | `str`     | `""`    | Override the 1-D array brackets: `"[]"`, `"()"`, `"{}"`, `"<>"`                               |
-| `matrix_format` | `str`     | `""`    | Override the 2-D Jacobian brackets/separator (see [Jacobian](#the-jacobian-get_jacobian_str)) |
+| Parameter       | Type      | Default | Description                                 |
+| --------------- | --------- | ------- | ------------------------------------------- |
+| `network`       | `Network` | —       | Parsed chemical reaction network            |
+| `lang`          | `str`     | `"c++"` | Target language — name or alias (see table) |
 
-An unsupported `lang`, `brac_format`, or `matrix_format` raises `ValueError`
-listing what _is_ supported, so a typo fails loudly at construction rather than
-producing wrong code.
+An unsupported `lang` raises `InvalidLanguageError` listing what _is_ supported,
+so a typo fails loudly at construction rather than producing wrong code.
+
+Bracket and token formatting are **not** fixed at construction — each
+`get_*_str` method accepts per-call overrides (`brac_format`, `matrix_format`,
+`assignment_op`, `line_end`) that apply only to that call and reset afterwards.
+See [the Jacobian](#the-jacobian-get_jacobian_str) for a `matrix_format` example.
 
 | Alias(es)           | Canonical | Brackets | Index base | Comment | Assignment |
 | ------------------- | --------- | -------- | ---------- | ------- | ---------- |
@@ -291,7 +293,7 @@ A few specifics:
     | `"{,}"`         | `J{i, j}` |
 
     (`"()"`, `"[][]"`, `"<>"`, and their `,`-variants follow the same pattern.) An
-    unsupported value raises `ValueError`.
+    unsupported value raises `InvalidLanguageError`.
 
 ---
 
@@ -345,19 +347,27 @@ for idx, expr in ir["expressions"]:
 
 ---
 
-## Inspecting the language tables
+## Inspecting the language tokens
 
-`get_language_tokens()` is a static method exposing the raw syntax table behind
-every language — useful if you're matching JAFF's output to a hand-written file.
+Each language's syntax lives on a `Language` singleton. Resolve one by alias and
+read its attributes — useful if you're matching JAFF's output to a hand-written
+file.
 
 ```python
-tokens = Codegen.get_language_tokens()
-tokens["python"]["comment"]      # '#'
-tokens["fortran"]["idx_offset"]  # 1
+from jaff.codegen import Language
+
+py = Language("python")
+py.comment                       # '#'
+Language("fortran").idx_offset   # 1
+
+Language.registered()            # every registered language singleton
+Language.comments()              # {'#', '//', '!'}
 ```
 
-Each entry is a `LangModifier` with `brac`, `assignment_op`, `line_end`,
-`matrix_sep`, `code_gen`, `idx_offset`, `comment`, `types`, and `extras`.
+A `Language` carries `lb`/`rb`, `mlb`/`mrb`, `sep`, `assignment_op`, `line_end`,
+`code_gen`, `idx_offset`, `comment`, `types`, and `extras`. Add a new target
+language by subclassing `Language` with those class attributes — no central
+edits required.
 
 ---
 
