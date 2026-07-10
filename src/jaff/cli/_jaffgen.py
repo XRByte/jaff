@@ -20,8 +20,8 @@ Template lookup
 Built-in templates live inside ``jaff/templates/generator/<name>/`` and
 ``jaff/templates/preprocessor/<name>/``.  When ``--template <name>`` is
 given, all files from the *generator* subdirectory are collected first; any
-preprocessor file whose name does not clash with a generator file is appended
-afterwards, so the generator always wins on name collisions.
+preprocessor file whose relative path does not clash with a generator file is
+appended afterwards, so the generator always wins on path collisions.
 
 Usage
 -----
@@ -294,7 +294,8 @@ class JaffGen:
 
         Iterates over ``self.files``, instantiates a
         :class:`~jaff.codegen.TemplateParser` for each, and writes the
-        generated text to ``output_dir / <filename>``.
+        generated text to ``output_dir / <relative_path>``, recreating any
+        source subdirectories under the output directory.
 
         Returns
         -------
@@ -311,7 +312,7 @@ class JaffGen:
             lines: str = fparser.parse_file()
 
             # Write the generated code into the output directory, preserving
-            # the original filename.
+            # the file's path relative to its source directory.
             outfile: Path = self.jaffgen_config["output_dir"] / file.relpath
             outfile.parent.mkdir(parents=True, exist_ok=True)
             outfile.write_text(lines)
@@ -355,9 +356,9 @@ class JaffGen:
         Resolve a named built-in template and collect its files.
 
         Looks up *template* inside ``jaff/templates/generator/``.  Generator
-        files are always preferred; any preprocessor file whose name does not
-        match an existing generator file is appended to ``self.files`` as a
-        fallback.
+        files are always preferred; any preprocessor file whose relative path
+        does not match an existing generator file is appended to ``self.files``
+        as a fallback.
 
         Parameters
         ----------
@@ -402,7 +403,7 @@ class JaffGen:
         self.files.extend(generator_files)
 
         # Add preprocessor files only when there is no generator file with the
-        # same name — generator files take precedence.
+        # same relative path — generator files take precedence.
         generator_files_relative = [f.relpath for f in generator_files]
         for file in preprocessor_files:
             if file.relpath not in generator_files_relative:
@@ -556,7 +557,8 @@ class JaffGen:
 
         indir = indir.resolve()
 
-        # Add all regular files in the directory
+        # Add all regular files in the directory (recursive), keeping each
+        # file's path relative to indir so the structure is preserved.
         self.files.extend(
             [FileStruct(f, f.relative_to(indir)) for f in indir.rglob("*") if f.is_file()]
         )
