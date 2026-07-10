@@ -47,6 +47,7 @@ Examples
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from inspect import signature
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -55,9 +56,9 @@ import pandas as pd
 
 from .. import Network
 from ..cli import ConfigTable
-from ..config import JAFF_DIR, NETWORK_DIR, TEMPLATES_DIR
 from ..codegen import Language, TemplateParser
 from ..common import motd
+from ..config import JAFF_DIR, NETWORK_DIR, TEMPLATES_DIR
 from ..drivers import HDF5, Toml
 from ..io import JaffLogger, jaff_progress
 from ..types import HDF5Dict
@@ -137,7 +138,7 @@ class JaffGen:
         self.network_dir: Path = NETWORK_DIR
         self.generator_template_dir: Path = TEMPLATES_DIR / "generator"
         self.preprocessor_template_dir: Path = TEMPLATES_DIR / "preprocessor"
-        self.files: list[Path] = []
+        self.files: list[FileStruct] = []
         self.jaffgen_config: JaffgenProps = {"netprops": {}}  # type: ignore
         self.jaffgen_config_raw: Toml | None = None
 
@@ -303,7 +304,7 @@ class JaffGen:
         for file in jaff_progress.track(self.files, description="Processing files"):
             # Instantiate the parser for this single template.
             fparser: TemplateParser = TemplateParser(
-                self.net, file, self.jaffgen_config["default_lang"]
+                self.net, file.abspath, self.jaffgen_config["default_lang"]
             )
 
             # Generate the full output text for this file.
@@ -311,12 +312,12 @@ class JaffGen:
 
             # Write the generated code into the output directory, preserving
             # the original filename.
-            outfile: Path = self.jaffgen_config["output_dir"] / file.name
-            with open(outfile, "w") as f:
-                f.write(lines)
+            outfile: Path = self.jaffgen_config["output_dir"] / file.relpath
+            outfile.parent.mkdir(parents=True, exist_ok=True)
+            outfile.write_text(lines)
 
             self.logger.info(
-                f"[cyan]{file.name}[/] created at {self.jaffgen_config['output_dir']}"
+                f"[cyan]{file.relpath.name}[/] created at {self.jaffgen_config['output_dir']}"
             )
 
         self.logger.info("[green]Successfully generated files[/]")
@@ -343,11 +344,11 @@ class JaffGen:
 
         # Search for a jaff.toml among the already-collected template files.
         jaff_config_index: int | None = next(
-            (i for i, f in enumerate(self.files) if f.name == "jaff.toml"), None
+            (i for i, f in enumerate(self.files) if f.abspath.name == "jaff.toml"), None
         )
 
         if jaff_config_index is not None:
-            self.__set_config(self.files[jaff_config_index])
+            self.__set_config(self.files[jaff_config_index].abspath)
 
     def __set_template(self, template: str | None) -> None:
         """
@@ -389,18 +390,22 @@ class JaffGen:
         generator_template_path: Path = self.generator_template_dir / template
         preprocessor_template_path: Path = self.preprocessor_template_dir / template
         generator_files = [
-            file for file in generator_template_path.rglob("*") if not file.is_dir()
+            FileStruct(f, f.relative_to(generator_template_path))
+            for f in generator_template_path.rglob("*")
+            if not f.is_dir()
         ]
-        preprocesor_files = [
-            file for file in preprocessor_template_path.rglob("*") if not file.is_dir()
+        preprocessor_files = [
+            FileStruct(f, f.relative_to(preprocessor_template_path))
+            for f in preprocessor_template_path.rglob("*")
+            if not f.is_dir()
         ]
         self.files.extend(generator_files)
 
         # Add preprocessor files only when there is no generator file with the
         # same name — generator files take precedence.
-        generator_file_names = [file.name for file in generator_files]
-        for file in preprocesor_files:
-            if file.name not in generator_file_names:
+        generator_files_relative = [f.relpath for f in generator_files]
+        for file in preprocessor_files:
+            if file.relpath not in generator_files_relative:
                 self.files.append(file)
 
         self.jaffgen_config["template"] = template
@@ -519,7 +524,7 @@ class JaffGen:
             if not infile.is_file():
                 raise FileNotFoundError(f"{file} is not a file")
 
-            self.files.append(infile)
+            self.files.append(FileStruct(infile, Path(infile.name)))
             self.jaffgen_config["input_files"].append(infile)
 
     def __set_input_dir(self, input_dir: str | None) -> None:
@@ -551,8 +556,10 @@ class JaffGen:
 
         indir = indir.resolve()
 
-        # Add all regular files in the directory (non-recursive).
-        self.files.extend([f for f in indir.iterdir() if f.is_file()])
+        # Add all regular files in the directory
+        self.files.extend(
+            [FileStruct(f, f.relative_to(indir)) for f in indir.rglob("*") if f.is_file()]
+        )
         self.jaffgen_config["input_dir"] = indir
 
     def __set_funcfile(self, funcfile: str | None) -> None:
@@ -629,8 +636,7 @@ class JaffGen:
         outdir = outdir.resolve()
 
         # Create the directory on first use if it does not yet exist.
-        if not outdir.exists():
-            outdir.mkdir()
+        outdir.mkdir(parents=True, exist_ok=True)
 
         if not outdir.is_dir():
             raise NotADirectoryError(f"Output path is not a directory: {outdir}")
@@ -842,6 +848,12 @@ class JaffGen:
                     self.jaffgen_config["output_dir"] / ct.target_props["path"],
                     sep=ct.target_props["delimiter"],
                 )
+
+
+@dataclass(frozen=True)
+class FileStruct:
+    abspath: Path
+    relpath: Path
 
 
 def main():
