@@ -12,7 +12,7 @@ The `Reaction` class represents a single chemical reaction, holding its reactant
 
 ## Constructor
 
-`#!python Reaction(reactants, products, rate, tmin, tmax, dE, dRad_dt, original_string, index, errors=False)`
+`#!python Reaction(reactants, products, rate, tmin, tmax, dE, dRad, original_string, index, type="unknown", errors=False)`
 
 **Parameters**
 
@@ -43,6 +43,9 @@ The `Reaction` class represents a single chemical reaction, holding its reactant
 **index** : _int_
 : Position in the network reaction list.
 
+**type** : _str, optional_
+: Reaction type concluded by the network-format parser. One of `"photo"`, `"cosmic_ray"`, `"3_body"`, `"unknown"`. Default `"unknown"`.
+
 **errors** : _bool, optional_
 : If `True`, terminate the process on mass or charge conservation violations instead of merely logging a warning. Default `False`.
 
@@ -61,6 +64,7 @@ The `Reaction` class represents a single chemical reaction, holding its reactant
 | `serialized`          | `str`           | Canonical name-level form `"<sorted_reactants>__<sorted_products>"`                                                                              |
 | `serialized_exploded` | `str`           | Like `serialized` but built from atom-level serialized forms of each species (isomer-insensitive)                                                |
 | `index`               | `int`           | Zero-based position in the parent `Reactions` catalogue                                                                                          |
-| `metadata`            | `dict`          | Arbitrary key/value store. `metadata["type"]` is populated by `rtype()`                                                                          |
+| `type`                | `str`           | Reaction type concluded by the parser: `"photo"`, `"cosmic_ray"`, `"3_body"`, or `"unknown"`                                                     |
 | `custom_rad_rate`     | `bool`          | `True` when the radiation rate was supplied via a `.jfunc` aux function rather than computed from cross-sections                                 |
 | `xsecs_dict`          | `XsecsProps or None` | Photo cross-section data for the reaction's single decay channel. Holds `units`, `_equations` (`pa` photo-absorption flag and `decay_type`, either `"ionization"` or `"dissociation"`), `photon_energy` (eV), and the `photo_absorption` / `photodecay` arrays (cm², or `None` where absent). `None` for non-photo reactions |
+| `rad_groups`          | `list[RadiationGroup]` | Back-references to the radiation bands this reaction contributes to, populated when a radiation field is configured (empty otherwise). See the [`band_xsecs`](band_xsecs.md) property for the band-averaged cross sections |

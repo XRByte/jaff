@@ -14,7 +14,7 @@ Supported languages: C++ (`cxx`, `cpp`, `c++`), C (`c`), Fortran 90 (`f90`, `for
 
 ## Constructor
 
-`#!python Codegen(network, lang="c++", brac_format="", matrix_format="")`
+`#!python Codegen(network, lang="c++")`
 
 **Parameters**
 
@@ -22,32 +22,38 @@ Supported languages: C++ (`cxx`, `cpp`, `c++`), C (`c`), Fortran 90 (`f90`, `for
 :   The chemical reaction network.
 
 **lang** : *str, optional*
-:   Target language. Default `"c++"`.
-
-**brac_format** : *str, optional*
-:   Override 1D bracket style: `"[]"`, `"()"`, `"{}"`, `"<>"`. Default `""` (language default).
-
-**matrix_format** : *str, optional*
-:   Override 2D format: `"[]"`, `"[,]"`, `"()"`, `"(,)"`, `"{}"`, `"{,}"`, `"<>"`, `"<,>"`. Default `""`.
+:   Target language alias. Default `"c++"`. Resolved to a `Language` via its alias table.
 
 **Raises**
 
-*ValueError*
-:   If `lang`, `brac_format`, or `matrix_format` is not recognized.
+*InvalidLanguageError*
+:   If `lang` is not a recognized language.
 
 ## Attributes
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `net` | `Network` | The reaction network being code-generated |
-| `lang` | `str` | Canonical language identifier (e.g. `"cxx"`, `"fortran"`, `"python"`) |
-| `lb`, `rb` | `str` | Left and right bracket characters for 1-D array indexing (e.g. `"["` and `"]"`) |
-| `mlb`, `mrb` | `str` | Left and right bracket characters for 2-D array indexing |
-| `matrix_sep` | `str` | Index separator for 2-D arrays (e.g. `"]["` for C-style, `", "` for Fortran) |
-| `assignment_op` | `str` | Assignment operator for the target language (`"="` for most, `"<-"` for R) |
-| `line_end` | `str` | Statement terminator for the target language (`";"` for C/C++/Rust, `""` for others) |
-| `code_gen` | `Callable` | SymPy printer function used to serialise symbolic expressions |
-| `ioff` | `int` | Default array index offset (`0` for C/C++/Python/Rust, `1` for Fortran/Julia/R) |
-| `comment` | `str` | Single-line comment prefix for the target language (`"//"`, `"!!"`, or `"#"`) |
-| `types` | `dict` | Mapping from generic type names to language-specific spellings (e.g. `{"double": "double "}` for C++) |
-| `extras` | `dict` | Additional language-specific tokens such as type qualifiers and class specifiers |
+| `lang` | `Language` | The resolved language config carrying every syntax token (see below) |
+
+### Language tokens (`cg.lang`)
+
+All per-language syntax lives on the `Language` object at `cg.lang`. Per-method
+bracket/token overrides (`brac_format`, `matrix_format`, `assignment_op`,
+`line_end` on the `get_*_str` methods) are applied by the `scoped_tokens`
+decorator, which transiently swaps `cg.lang` for a `Language.derive`-d view for
+the duration of that call and restores it afterwards.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `lang.name` | `str` | Canonical language identifier (e.g. `"cxx"`, `"fortran"`, `"python"`) |
+| `lang.lb`, `lang.rb` | `str` | Left and right bracket characters for 1-D array indexing (e.g. `"["` and `"]"`) |
+| `lang.mlb`, `lang.mrb` | `str` | Left and right bracket characters for 2-D array indexing |
+| `lang.sep` | `str` | Index separator for 2-D arrays (e.g. `"]["` for C-style, `", "` for Fortran) |
+| `lang.assignment_op` | `str` | Assignment operator for the target language (`"="` for most, `"<-"` for R) |
+| `lang.line_end` | `str` | Statement terminator for the target language (`";"` for C/C++/Rust, `""` for others) |
+| `lang.code_gen` | `Callable` | SymPy printer function used to serialise symbolic expressions |
+| `lang.idx_offset` | `int` | Default array index offset (`0` for C/C++/Python/Rust, `1` for Fortran/Julia/R) |
+| `lang.comment` | `str` | Single-line comment prefix for the target language (`"//"`, `"!"`, or `"#"`) |
+| `lang.types` | `dict` | Mapping from generic type names to language-specific spellings (e.g. `{"double": "double "}` for C++) |
+| `lang.extras` | `dict` | Additional language-specific tokens such as type qualifiers and class specifiers |

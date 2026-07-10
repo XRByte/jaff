@@ -11,20 +11,26 @@ The serialized form of a reaction is::
 
     "<sorted_reactant_names>__<sorted_product_names>"
 
-where species names are sorted alphabetically and joined with ``"_"``.
-For example ``H + H2O+ -> H2O + H+`` serializes as
-``"H_H2O+__H+_H2O"``.  This canonical form is used for equality testing,
-hashing, and duplicate detection.
+where species names are sorted alphabetically and joined with ``"."``, and
+the two sides are separated by ``"__"``.  For example
+``H + H2O+ -> H2O + H+`` serializes as ``"H.H2O+__H+.H2O"``.  This canonical
+form is used for equality testing, hashing, and duplicate detection.
+
+The ``"."`` species joiner (rather than ``"_"``) is required because special
+pseudo-species names start with an underscore (e.g. ``_PHOTON``, ``_GRAIN``)
+and underscore-suffixed grain/ice species exist (``X_DUST``); a ``"_"`` joiner
+would collide with those and make the form ambiguous.
 
 Reaction types
 --------------
-``rtype()`` classifies reactions by inspecting the symbolic rate expression:
+The reaction type is concluded by the network-format parser and passed to the
+``Reaction`` constructor; the ``type`` attribute holds that stored value (it no
+longer inspects the rate expression).  One of:
 
-- ``"photo"``       — rate contains a ``photorates(...)`` function call
-- ``"cosmic_ray"``  — rate contains the symbol ``crate``
-- ``"photo_av"``    — rate contains the symbol ``av``
-- ``"3_body"``      — rate contains the symbol ``ntot``
-- ``"unknown"``     — none of the above
+- ``"photo"``       — radiation-driven (photodissociation/ionisation)
+- ``"cosmic_ray"``  — cosmic-ray driven
+- ``"3_body"``      — three-body reaction
+- ``"unknown"``     — unclassified
 """
 
 from __future__ import annotations
@@ -38,15 +44,6 @@ from sympy import (
     Basic,
     Expr,
     Function,
-    ccode,
-    cxxcode,
-    fcode,
-    julia_code,
-    lambdify,
-    pycode,
-    rcode,
-    rust_code,
-    symbols,
     sympify,
 )
 
@@ -58,6 +55,27 @@ from .species import Specie, Species
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
+    import pandas as pd
+
+    from ..physics.photo_reactions._radiation import RadiationGroup
+
+
+def _to_float_or_none(value: Any) -> float | None:
+    """Coerce a band quantity to ``float``, or ``None`` when not representable.
+
+    Band edges and averages may be plain numbers, SymPy numeric objects, or
+    ``sympy.oo`` (open upper band, which casts to ``float('inf')``).  A value
+    of ``None`` (e.g. the cross section of a custom-rate reaction) or a
+    still-symbolic expression maps to ``None`` so it becomes ``NaN`` in a
+    :class:`pandas.DataFrame`.
+    """
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 class Reaction:
@@ -87,14 +105,14 @@ class Reaction:
         Human-readable string ``"R1 + R2 -> P1 + P2"``.
     index : int
         Position of this reaction in the parent ``Reactions`` catalogue.
+    type : str
+        Reaction type concluded by the parser (``"photo"``, ``"cosmic_ray"``,
+        ``"3_body"``, ``"unknown"``).
     serialized : str
         Canonical form ``"<sorted_reactants>__<sorted_products>"``.
     serialized_exploded : str
         Like ``serialized`` but built from the atom-level serialized forms of
         each species (isomer-insensitive comparison).
-    metadata : dict
-        Arbitrary key/value store; ``metadata["type"]`` is populated by
-        ``rtype()``.
     custom_rad_rate : bool
         ``True`` when the radiation rate was supplied via a ``.jfunc`` aux
         function rather than computed from cross-sections.
@@ -103,6 +121,10 @@ class Reaction:
         ``photon_energy`` (eV), optional ``photo_absorption`` and the
         ``photodecay`` array (cm²), plus ``_equations`` metadata.  ``None`` for
         non-photo reactions.
+    rad_groups : list[RadiationGroup]
+        Back-references to the radiation bands this reaction contributes to,
+        populated when a radiation field is configured.  Empty otherwise.  See
+        the :attr:`band_xsecs` property for the band-averaged cross sections.
     """
 
     def __init__(
@@ -116,6 +138,7 @@ class Reaction:
         dRad: Basic,
         original_string: str,
         index: int,
+        type: str = "unknown",
         errors: bool = False,
     ):
         """Construct a ``Reaction`` and validate mass/charge conservation.
@@ -140,6 +163,11 @@ class Reaction:
             The raw network-file line that produced this reaction.
         index : int
             Zero-based position in the parent ``Reactions`` catalogue.
+        type : str, optional
+            Reaction type as concluded by the network-format parser (e.g.
+            ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``).
+            Stored verbatim on the ``type`` attribute; defaults to
+            ``"unknown"``.
         errors : bool, optional
             If ``True``, terminate the process on mass or charge conservation
             violations instead of merely logging a warning, by default
@@ -160,6 +188,7 @@ class Reaction:
         self.dRad: Basic = dRad
         self.custom_rad_rate: bool = False
         self.rad_xsecs: float | None = None
+        self.rad_groups: list[RadiationGroup] = []
         self.xsecs_dict: XsecsProps | None = None
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
@@ -169,10 +198,12 @@ class Reaction:
         self.check(errors)
         self.serialized_exploded: str = self.serialize_exploded()
         self.serialized: str = self.serialize()
-        self.metadata: dict = {}
-
-        # Eagerly classify the reaction so metadata["type"] is populated.
-        self.rtype()
+        # The reaction type is concluded by the parser and supplied here, not
+        # inferred from the rate expression.
+        self.type: str = type
+        # Private key/value store for parser- and physics-supplied extras
+        # (e.g. shielding model props). Not part of the public API.
+        self._metadata: dict = {}
 
     def __repr__(self):
         """Return detailed string representation of this reaction.
@@ -271,57 +302,6 @@ class Reaction:
         """
         return Elements(self.reactants._list + self.products._list)
 
-    def rtype(self) -> str:
-        """Classify this reaction by inspecting its rate expression.
-
-        Returns
-        -------
-        str
-            One of ``"photo"``, ``"cosmic_ray"``, ``"photo_av"``,
-            ``"3_body"``, or ``"unknown"``.
-
-        Notes
-        -----
-        Classification rules (evaluated in order):
-
-        - ``"photo"``       — rate is or contains ``photorates(...)``
-        - ``"cosmic_ray"``  — rate contains the free symbol ``crate``
-        - ``"photo_av"``    — rate contains the free symbol ``av``
-        - ``"3_body"``      — rate contains the free symbol ``ntot``
-        - ``"unknown"``     — none of the above match
-
-        The result is also cached in ``self.metadata["type"]``.
-        """
-        if "type" in self.metadata:
-            return self.metadata["type"]
-
-        rtype = "unknown"
-
-        if type(self.rate) is str:
-            if "photo" in self.rate:
-                rtype = "photo"
-        else:
-            if hasattr(self.rate, "func") and isinstance(
-                self.rate.func, type(Function("f"))
-            ):
-                if self.rate.func.__name__ == "photorates":
-                    rtype = "photo"
-            elif any(
-                getattr(s, "name", None) in ("photden", "radeden")
-                for s in self.rate.free_symbols
-            ):
-                rtype = "photo"
-            elif self.rate.has(symbols("crate")):
-                rtype = "cosmic_ray"
-            elif self.rate.has(symbols("av")):
-                rtype = "photo_av"
-            elif self.rate.has(symbols("ntot")):
-                rtype = "3_body"
-
-        self.metadata["type"] = rtype
-
-        return rtype
-
     def is_isomer_version(self, other: "Reaction") -> bool:
         """Check whether *other* is an isomer variant of this reaction.
 
@@ -353,29 +333,29 @@ class Reaction:
 
         Each species is replaced by its ``Specie.serialized`` form (e.g.
         H2O+ → ``"+/H/H/O"``), then species tokens are sorted and joined
-        with ``"_"``.  Reactants and products are separated by ``"__"``.
+        with ``"."``.  Reactants and products are separated by ``"__"``.
 
         Returns
         -------
         str
         """
-        sr = "_".join(sorted([x.serialized for x in self.reactants]))
-        sp = "_".join(sorted([x.serialized for x in self.products]))
+        sr = ".".join(sorted([x.serialized for x in self.reactants]))
+        sp = ".".join(sorted([x.serialized for x in self.products]))
 
         return f"{sr}__{sp}"
 
     def serialize(self) -> str:
         """Build the name-level serialized form (isomer-sensitive).
 
-        Species names are sorted alphabetically and joined with ``"_"``.
+        Species names are sorted alphabetically and joined with ``"."``.
         Reactants and products are separated by ``"__"``.
 
         Returns
         -------
         str
         """
-        sr = "_".join(sorted([x.name for x in self.reactants]))
-        sp = "_".join(sorted([x.name for x in self.products]))
+        sr = ".".join(sorted([x.name for x in self.reactants]))
+        sp = ".".join(sorted([x.name for x in self.products]))
 
         return f"{sr}__{sp}"
 
@@ -467,7 +447,9 @@ class Reaction:
         """Return a source-code string for the reaction flux.
 
         The flux has the form ``k[idx] * y[idx_R1] * y[idx_R2] * ...``,
-        where ``idx_Ri`` is derived from each reactant's ``fidx`` attribute.
+        where ``idx_Ri`` is derived from each core reactant's ``fidx``
+        attribute.  Special pseudo-species (``_PHOTON``, ``_CR``, ...) are
+        excluded — they carry the reaction's identity but not its kinetics.
 
         Parameters
         ----------
@@ -500,7 +482,10 @@ class Reaction:
 
         lb, rb = brackets[0], brackets[1]
         flux = f"{rate_variable}{lb}{idx}{rb} * " + " * ".join(
-            [f"{species_variable}{lb}{idx_prefix + x.fidx}{rb}" for x in self.reactants]
+            [
+                f"{species_variable}{lb}{idx_prefix + x.fidx}{rb}"
+                for x in self.reactants.core
+            ]
         )
 
         return flux
@@ -595,23 +580,13 @@ class Reaction:
 
         Raises
         ------
-        ValueError
+        InvalidLanguageError
             If *lang* is not one of the supported language keys.
         """
-        fmap = {
-            "python": pycode,
-            "c": ccode,
-            "cxx": cxxcode,
-            "fortran": fcode,
-            "rust": rust_code,
-            "julia": julia_code,
-            "r": rcode,
-        }
+        from ..codegen import Language
 
-        if not fmap.get(lang, ""):
-            raise ValueError(
-                f"{lang} is not supported. Supported languages are:\n\n{fmap.keys()}"
-            )
+        language = Language(lang)
+
         if (
             hasattr(self.rate, "func")
             and isinstance(self.rate.func, type(Function("f")))
@@ -622,7 +597,7 @@ class Reaction:
                 f"photorates($IDX$, {', '.join(str(arg) for arg in self.rate.args[1:])})"
             )
 
-        return fmap[lang](self.get_sympy(), strict=False)
+        return language.code_gen(self.get_sympy(), strict=False)
 
     def get_sympy(self) -> Basic:
         """Return the rate as a canonical SymPy expression.
@@ -633,6 +608,55 @@ class Reaction:
         """
         return sympify(self.rate)
 
+    @property
+    def band_xsecs(self) -> pd.DataFrame:
+        """Band-averaged cross sections for this reaction, one row per band.
+
+        Assembles a tidy table from the :class:`~jaff.physics.photo_reactions._radiation.RadiationGroup`
+        back-references in :attr:`rad_groups` (populated when a radiation field
+        is configured).  Intended as the data source for band bar plots.
+
+        Returns
+        -------
+        pandas.DataFrame
+            One row per radiation band this reaction contributes to, with
+            columns:
+
+            - ``lower`` : lower band edge in eV.
+            - ``upper`` : upper band edge in eV (``inf`` for an open top band).
+            - ``eavg``  : photon-number-weighted band-average energy in eV.
+            - ``xsec``  : photon-number-weighted band-average cross section in
+              cm² (``NaN`` for custom-rate reactions, which carry no tabulated
+              cross section).
+            - ``xsec_frac`` : fraction of the total cross section (or ``dRad``)
+              attributed to the band.
+
+            Empty (with the columns above) when the reaction contributes to no
+            band, e.g. no radiation field is configured.
+
+        Notes
+        -----
+        The rows are ordered by ascending band index, matching
+        :attr:`rad_groups`.
+        """
+        import pandas as pd
+
+        columns = ["lower", "upper", "eavg", "xsec", "xsec_frac"]
+        rows = [
+            {
+                "lower": _to_float_or_none(group.lower),
+                "upper": _to_float_or_none(group.upper),
+                "eavg": _to_float_or_none(group.eavg),
+                "xsec": _to_float_or_none(group.props.get(self, {}).get("xsec")),
+                "xsec_frac": _to_float_or_none(
+                    group.props.get(self, {}).get("xsec_frac")
+                ),
+            }
+            for group in self.rad_groups
+        ]
+
+        return pd.DataFrame(rows, columns=columns)
+
     def plot_rate_coefficient(
         self,
         fig: plt.Figure | None = None,
@@ -642,11 +666,12 @@ class Reaction:
         show: bool = True,
         save: bool = False,
         filename: str = "",
-    ) -> tuple[plt.Figure, plt.Axes]:
+    ) -> tuple[plt.Figure, plt.Axes] | None:
         """Plot the rate coefficient as a function of gas temperature.
 
-        The styled :class:`jaff.plotting.Plotter` is used so the figure
-        matches the publication house style.
+        A thin wrapper around :func:`jaff.plotting.plot_rates`, which applies
+        the publication house style.  To compare several reactions on one axes,
+        call ``plot_rates`` (or :meth:`Reactions.plot_rates`) directly.
 
         Parameters
         ----------
@@ -665,38 +690,31 @@ class Reaction:
 
         Returns
         -------
-        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
+            ``None`` if the rate cannot be evaluated numerically (e.g. a photo
+            reaction, whose rate carries the symbolic radiation-density
+            variable).
 
         Notes
         -----
         The temperature axis spans [``tmin``, ``tmax``] on a log scale.
         When ``tmin`` or ``tmax`` is ``None``, defaults of 2.73 K and 1e6 K
-        are used respectively.
+        are used respectively.  Drawing is delegated to
+        :func:`jaff.plotting.plot_rates`, which also plots lists of reactions
+        on shared axes.
         """
-        from ..plotting import Plotter
+        from ..plotting import plot_rates
 
-        tmin = 2.73 if self.tmin is None else self.tmin
-        tmax = 1e6 if self.tmax is None else self.tmax
-
-        tgas = np.logspace(np.log10(tmin), np.log10(tmax), 100)
-        r = lambdify("tgas", self.rate, "numpy")
-        y = np.array([r(t) for t in tgas])
-
-        return Plotter().plot(
-            x=tgas,
-            y=y,
+        return plot_rates(
+            [self],
             fig=fig,
             ax=ax,
-            xlabel="Temperature (K)",
-            ylabel=r"Rate coefficient $k$",
-            xscale="log",
-            yscale="log",
             title=title or self.get_latex(),
             grid=grid,
             show=show,
             save=save,
             filename=filename or f"{self}_rate.png",
-        )
+        )  # type: ignore
 
     def plot_xsecs(
         self,
@@ -708,6 +726,8 @@ class Reaction:
         xsec_unit: str = "Mb",
         energy_log: bool = True,
         xsecs_log: bool = True,
+        shade: bool | float = False,
+        show_bands: bool = False,
         title: str | None = None,
         grid: bool = True,
         show: bool = True,
@@ -736,6 +756,13 @@ class Reaction:
             (megabarn); ``"cm^2"`` and ``"barn"`` are also accepted.
         energy_log, xsecs_log : bool, optional
             Log-scale the energy / cross-section axis (default ``True``).
+        shade : bool or float, optional
+            Shade the area under each curve.  ``True`` uses a default alpha; a
+            float sets the alpha explicitly.  Default ``False``.
+        show_bands : bool, optional
+            Overlay the band-averaged cross section (from :attr:`band_xsecs`)
+            as bars.  Only meaningful when a radiation field is configured;
+            silently draws nothing otherwise.  Default ``False``.
 
         Returns
         -------
@@ -746,55 +773,24 @@ class Reaction:
         -----
         Does nothing (logs a message) if ``self.xsecs_dict`` is ``None`` or no
         requested process has data.  Drawing, unit conversion and labelling are
-        delegated to :meth:`jaff.plotting.Plotter.plot_xsec`.
+        delegated to :func:`jaff.plotting.plot_xsecs`, which also plots lists of
+        reactions on shared axes.
         """
-        from ..plotting import Plotter
+        from ..plotting import plot_xsecs
 
-        if self.xsecs_dict is None:
-            self.logger.info(f"No cross sections available for: {self}")
-            return None
-
-        _XSEC_PROCESSES = (
-            "photo_absorption",
-            "photodecay",
-        )
-
-        # Normalise the process selection to a list of valid keys.
-        if processes is None or processes == "all":
-            procs = list(_XSEC_PROCESSES)
-        elif isinstance(processes, str):
-            procs = [processes]
-        else:
-            procs = list(processes)
-
-        invalid = [p for p in procs if p not in _XSEC_PROCESSES]
-        if invalid:
-            raise KeyError(
-                f"Invalid cross-section(s) {invalid}. Supported: "
-                f"{', '.join(_XSEC_PROCESSES)}"
-            )
-
-        # Keep only processes that actually carry data for this reaction.
-        available = [p for p in procs if self.xsecs_dict.get(p) is not None]
-        if not available:
-            self.logger.info(f"No data for requested cross-section(s) {procs} in: {self}")
-            return
-
-        if not filename:
-            stem = available[0] if len(available) == 1 else "cross_sections"
-            filename = f"{self}_{stem}.png"
-
-        return Plotter().plot_xsec(
-            self.xsecs_dict,
-            processes=available,
+        return plot_xsecs(
+            [self],
+            processes=processes,
             layout=layout,
             fig=fig,
             ax=ax,
             energy_unit=energy_unit,
             xsec_unit=xsec_unit,
             energy_log=energy_log,
-            xsec_log=xsecs_log,
-            title=title or self.get_latex(),
+            xsecs_log=xsecs_log,
+            shade=shade,
+            show_bands=show_bands,
+            title=title,
             grid=grid,
             show=show,
             save=save,
@@ -864,14 +860,14 @@ class Reactions(Catalogue[Reaction]):
         """
         return self._by_serialized[serialized]
 
-    def from_verbatim(self, verbatim: str, rtype: str | None = None) -> Reaction | None:
+    def from_verbatim(self, verbatim: str, type: str | None = None) -> Reaction | None:
         """Look up a reaction by its verbatim string.
 
         Parameters
         ----------
         verbatim : str
             Human-readable string (e.g. ``"H + H2O+ -> H2 + OH+"``).
-        rtype : str or None, optional
+        type : str or None, optional
             If supplied, return ``None`` when the reaction type does not match.
 
         Returns
@@ -879,7 +875,7 @@ class Reactions(Catalogue[Reaction]):
         Reaction or None
         """
         rea = self._by_name[verbatim]
-        if rtype is None or rea.rtype() == rtype:
+        if type is None or rea.type == type:
             return rea
 
     def get_list(self) -> list[Reaction]:
@@ -891,14 +887,14 @@ class Reactions(Catalogue[Reaction]):
         """
         return self._list
 
-    def get(self, reaction: str, rtype: str | None = None) -> Reaction | None:
+    def get(self, reaction: str, type: str | None = None) -> Reaction | None:
         """Look up a reaction by name or serialized form, with optional type filter.
 
         Parameters
         ----------
         reaction : str
             Verbatim string or serialized form.
-        rtype : str or None, optional
+        type : str or None, optional
             If given, return ``None`` when the reaction type does not match.
 
         Returns
@@ -906,23 +902,22 @@ class Reactions(Catalogue[Reaction]):
         Reaction or None
         """
         rea = self[reaction]
-        if rtype is None or rea.rtype() == rtype:
+        if type is None or rea.type == type:
             return rea
 
-    def with_rtype(self, rtype: str):
+    def with_type(self, type: str):
         """Return all reactions matching the given reaction type.
 
         Parameters
         ----------
-        rtype : str
-            One of ``"photo"``, ``"cosmic_ray"``, ``"photo_av"``,
-            ``"3_body"``, ``"unknown"``.
+        type : str
+            One of ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``.
 
         Returns
         -------
         Vector[Reaction]
         """
-        return Vector([r for r in self if r.rtype() == rtype])
+        return Vector([r for r in self if r.type == type])
 
     def verbatim(self) -> Vector[str]:
         """Return a ``Vector`` of verbatim reaction strings.
@@ -933,14 +928,14 @@ class Reactions(Catalogue[Reaction]):
         """
         return Vector([r.verbatim for r in self])
 
-    def rtypes(self) -> Vector[str]:
+    def types(self) -> Vector[str]:
         """Return a ``Vector`` of reaction type strings.
 
         Returns
         -------
         Vector[str]
         """
-        return Vector([r.rtype() for r in self])
+        return Vector([r.type for r in self])
 
     def reactants(self) -> Vector[Species]:
         """Return a ``Vector`` of reactant ``Species`` catalogues.
@@ -1024,13 +1019,13 @@ class Reactions(Catalogue[Reaction]):
         return Vector([r.serialized_exploded for r in self])
 
     def photo_reactions(self) -> Vector[Reaction]:
-        """Return all photo-reactions (``rtype == "photo"``).
+        """Return all photo-reactions (``type == "photo"``).
 
         Returns
         -------
         Vector[Reaction]
         """
-        return Vector([r for r in self if r.rtype() == "photo"])
+        return Vector([r for r in self if r.type == "photo"])
 
     def photo_reaction_truths(self) -> Vector[int]:
         """Return a binary ``Vector`` marking photo-reactions with ``1``.
@@ -1039,7 +1034,7 @@ class Reactions(Catalogue[Reaction]):
         -------
         Vector[int]
         """
-        return Vector([int(reaction.rtype() == "photo") for reaction in self])
+        return Vector([int(reaction.type == "photo") for reaction in self])
 
     def photo_reaction_indices(self) -> Vector[int]:
         """Return the integer indices of photo-reactions within this catalogue.
@@ -1048,6 +1043,37 @@ class Reactions(Catalogue[Reaction]):
         -------
         Vector[int]
         """
-        return Vector(
-            [i for i, reaction in enumerate(self) if reaction.rtype() == "photo"]
-        )
+        return Vector([i for i, reaction in enumerate(self) if reaction.type == "photo"])
+
+    def plot_rates(self, **kwargs: Any) -> tuple[plt.Figure, Any] | None:
+        """Plot the rate coefficients of every reaction in the catalogue.
+
+        Thin wrapper over :func:`jaff.plotting.plot_rates` that passes all
+        reactions in this catalogue as one overlay.  Accepts the same keyword
+        arguments (``tmin``, ``tmax``, ``shade``, ``save``, ``filename`` ...).
+
+        Reactions whose rate cannot be evaluated numerically (e.g. photo
+        reactions) are skipped with a warning.
+
+        Returns
+        -------
+        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
+        """
+        from ..plotting import plot_rates
+
+        return plot_rates(list(self._list), **kwargs)
+
+    def plot_xsecs(self, **kwargs: Any) -> tuple[plt.Figure, Any] | None:
+        """Plot the photo cross sections of the catalogue's reactions.
+
+        Thin wrapper over :func:`jaff.plotting.plot_xsecs`.  Reactions without
+        cross-section data are skipped.  Accepts the same keyword arguments
+        (``processes``, ``energy_unit``, ``shade``, ``show_bands`` ...).
+
+        Returns
+        -------
+        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
+        """
+        from ..plotting import plot_xsecs
+
+        return plot_xsecs(list(self._list), **kwargs)

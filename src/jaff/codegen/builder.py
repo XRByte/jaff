@@ -15,6 +15,8 @@ corresponds to a sub-directory under
 import sys
 from pathlib import Path
 
+from jaff.config import TEMPLATES_DIR
+
 
 class Builder:
     """Orchestrate plugin-based code generation for a chemical network.
@@ -81,7 +83,7 @@ class Builder:
         print("Building network with template:", template)
 
         # Resolve the template directory bundled with the jaff.codegen package
-        templates_dir = Path(__file__).parent.parent / "templates" / "preprocessor"
+        templates_dir = TEMPLATES_DIR / "preprocessor"
         path_template = str(templates_dir / template)
 
         # Resolve the output directory (default: current working directory)

@@ -107,7 +107,6 @@ nav = [
         "api/core/reaction/index.md",
         "api/core/reaction/species.md",
         "api/core/reaction/elements.md",
-        "api/core/reaction/rtype.md",
         "api/core/reaction/is_isomer_version.md",
         "api/core/reaction/serialize_exploded.md",
         "api/core/reaction/serialize.md",
@@ -122,6 +121,7 @@ nav = [
         "api/core/reaction/has_product.md",
         "api/core/reaction/get_code.md",
         "api/core/reaction/get_sympy.md",
+        "api/core/reaction/band_xsecs.md",
         "api/core/reaction/plot_rate_coefficient.md",
         "api/core/reaction/plot_xsecs.md"
       ] },
@@ -132,9 +132,9 @@ nav = [
         "api/core/reactions/from_verbatim.md",
         "api/core/reactions/get_list.md",
         "api/core/reactions/get.md",
-        "api/core/reactions/with_rtype.md",
+        "api/core/reactions/with_type.md",
         "api/core/reactions/verbatim.md",
-        "api/core/reactions/rtypes.md",
+        "api/core/reactions/types.md",
         "api/core/reactions/reactants.md",
         "api/core/reactions/products.md",
         "api/core/reactions/rates.md",
@@ -245,6 +245,12 @@ nav = [
     { "Physics" = [
       "api/physics/index.md",
       { "physics.Constants" = ["api/physics/constants/index.md"] },
+    ] },
+    { "Plotting" = [
+      "api/plotting/index.md",
+      "api/plotting/plot_rates.md",
+      "api/plotting/plot_xsecs.md",
+      { "plotting.Plotter" = ["api/plotting/plotter.md"] },
     ] }
   ] },
   { "Development" = [

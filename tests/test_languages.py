@@ -30,20 +30,20 @@ class TestCLanguage:
     def test_c_initialization(self, simple_network):
         """Test that C codegen initializes correctly."""
         cg = Codegen(simple_network, lang="c")
-        assert cg.lang == "c"
-        assert cg.lb == "["
-        assert cg.rb == "]"
-        assert cg.ioff == 0  # C uses 0-based indexing
-        assert cg.line_end == ";"
-        assert cg.comment == "//"
+        assert cg.lang.name == "c"
+        assert cg.lang.lb == "["
+        assert cg.lang.rb == "]"
+        assert cg.lang.idx_offset == 0  # C uses 0-based indexing
+        assert cg.lang.line_end == ";"
+        assert cg.lang.comment == "//"
 
     def test_c_types(self, simple_network):
         """Test C type declarations."""
         cg = Codegen(simple_network, lang="c")
-        assert cg.types.get("int") == "int "
-        assert cg.types.get("float") == "float "
-        assert cg.types.get("double") == "double "
-        assert cg.types.get("bool") == "_Bool "
+        assert cg.lang.types.get("int") == "int "
+        assert cg.lang.types.get("float") == "float "
+        assert cg.lang.types.get("double") == "double "
+        assert cg.lang.types.get("bool") == "_Bool "
 
     def test_c_rate_generation(self, simple_network):
         """Test basic rate code generation for C."""
@@ -58,7 +58,7 @@ class TestCLanguage:
     def test_c_matrix_separator(self, simple_network):
         """Test that C uses ][ for matrix indexing."""
         cg = Codegen(simple_network, lang="c")
-        assert cg.matrix_sep == "]["
+        assert cg.lang.sep == "]["
 
 
 class TestCxxLanguage:
@@ -67,28 +67,28 @@ class TestCxxLanguage:
     def test_cxx_initialization(self, simple_network):
         """Test that C++ codegen initializes correctly."""
         cg = Codegen(simple_network, lang="cxx")
-        assert cg.lang == "cxx"
-        assert cg.lb == "["
-        assert cg.rb == "]"
-        assert cg.ioff == 0  # C++ uses 0-based indexing
-        assert cg.line_end == ";"
-        assert cg.comment == "//"
+        assert cg.lang.name == "cxx"
+        assert cg.lang.lb == "["
+        assert cg.lang.rb == "]"
+        assert cg.lang.idx_offset == 0  # C++ uses 0-based indexing
+        assert cg.lang.line_end == ";"
+        assert cg.lang.comment == "//"
 
     def test_cxx_aliases(self, simple_network):
         """Test that 'c++' and 'cpp' aliases work for C++."""
         cg_cpp = Codegen(simple_network, lang="cpp")
-        assert cg_cpp.lang == "cxx"
+        assert cg_cpp.lang.name == "cxx"
 
         cg_cplus = Codegen(simple_network, lang="c++")
-        assert cg_cplus.lang == "cxx"
+        assert cg_cplus.lang.name == "cxx"
 
     def test_cxx_types(self, simple_network):
         """Test C++ type declarations."""
         cg = Codegen(simple_network, lang="cxx")
-        assert cg.types.get("int") == "int "
-        assert cg.types.get("float") == "float "
-        assert cg.types.get("double") == "double "
-        assert cg.types.get("bool") == "bool "
+        assert cg.lang.types.get("int") == "int "
+        assert cg.lang.types.get("float") == "float "
+        assert cg.lang.types.get("double") == "double "
+        assert cg.lang.types.get("bool") == "bool "
 
     def test_cxx_rate_generation(self, simple_network):
         """Test basic rate code generation for C++."""
@@ -103,7 +103,7 @@ class TestCxxLanguage:
     def test_cxx_matrix_separator(self, simple_network):
         """Test that C++ uses ][ for matrix indexing."""
         cg = Codegen(simple_network, lang="cxx")
-        assert cg.matrix_sep == "]["
+        assert cg.lang.sep == "]["
 
 
 class TestFortranLanguage:
@@ -112,25 +112,25 @@ class TestFortranLanguage:
     def test_fortran_initialization(self, simple_network):
         """Test that Fortran codegen initializes correctly."""
         cg = Codegen(simple_network, lang="fortran")
-        assert cg.lang == "fortran"
-        assert cg.lb == "("
-        assert cg.rb == ")"
-        assert cg.ioff == 1  # Fortran uses 1-based indexing
-        assert cg.line_end == ""  # No semicolons
-        assert cg.comment == "!"
+        assert cg.lang.name == "fortran"
+        assert cg.lang.lb == "("
+        assert cg.lang.rb == ")"
+        assert cg.lang.idx_offset == 1  # Fortran uses 1-based indexing
+        assert cg.lang.line_end == ""  # No semicolons
+        assert cg.lang.comment == "!"
 
     def test_fortran_alias(self, simple_network):
         """Test that 'f90' alias works for Fortran."""
         cg = Codegen(simple_network, lang="f90")
-        assert cg.lang == "fortran"
+        assert cg.lang.name == "fortran"
 
     def test_fortran_types(self, simple_network):
         """Test Fortran type declarations."""
         cg = Codegen(simple_network, lang="fortran")
-        assert cg.types.get("int") is None
-        assert cg.types.get("float") is None
-        assert cg.types.get("double") is None
-        assert cg.types.get("bool") is None
+        assert cg.lang.types.get("int") is None
+        assert cg.lang.types.get("float") is None
+        assert cg.lang.types.get("double") is None
+        assert cg.lang.types.get("bool") is None
 
     def test_fortran_indexing(self, simple_network):
         """Test that Fortran uses 1-based indexing."""
@@ -153,7 +153,7 @@ class TestFortranLanguage:
     def test_fortran_matrix_separator(self, simple_network):
         """Test that Fortran uses comma for matrix indexing."""
         cg = Codegen(simple_network, lang="fortran")
-        assert cg.matrix_sep == ", "
+        assert cg.lang.sep == ", "
 
 
 class TestPythonLanguage:
@@ -162,26 +162,26 @@ class TestPythonLanguage:
     def test_python_initialization(self, simple_network):
         """Test that Python codegen initializes correctly."""
         cg = Codegen(simple_network, lang="python")
-        assert cg.lang == "python"
-        assert cg.lb == "["
-        assert cg.rb == "]"
-        assert cg.ioff == 0  # Python uses 0-based indexing
-        assert cg.line_end == ""  # No semicolons
-        assert cg.comment == "#"
+        assert cg.lang.name == "python"
+        assert cg.lang.lb == "["
+        assert cg.lang.rb == "]"
+        assert cg.lang.idx_offset == 0  # Python uses 0-based indexing
+        assert cg.lang.line_end == ""  # No semicolons
+        assert cg.lang.comment == "#"
 
     def test_python_alias(self, simple_network):
         """Test that 'py' alias works for Python."""
         cg = Codegen(simple_network, lang="py")
-        assert cg.lang == "python"
+        assert cg.lang.name == "python"
 
     def test_python_types(self, simple_network):
         """Test Python type declarations."""
         cg = Codegen(simple_network, lang="python")
         # Python uses empty string for types (dynamically typed)
-        assert cg.types.get("int") is None
-        assert cg.types.get("float") is None
-        assert cg.types.get("double") is None
-        assert cg.types.get("bool") is None
+        assert cg.lang.types.get("int") is None
+        assert cg.lang.types.get("float") is None
+        assert cg.lang.types.get("double") is None
+        assert cg.lang.types.get("bool") is None
 
     def test_python_rate_generation(self, simple_network):
         """Test basic rate code generation for Python."""
@@ -195,7 +195,7 @@ class TestPythonLanguage:
     def test_python_matrix_separator(self, simple_network):
         """Test that Python uses ][ for matrix indexing."""
         cg = Codegen(simple_network, lang="python")
-        assert cg.matrix_sep == "]["
+        assert cg.lang.sep == "]["
 
 
 class TestRustLanguage:
@@ -204,25 +204,25 @@ class TestRustLanguage:
     def test_rust_initialization(self, simple_network):
         """Test that Rust codegen initializes correctly."""
         cg = Codegen(simple_network, lang="rust")
-        assert cg.lang == "rust"
-        assert cg.lb == "["
-        assert cg.rb == "]"
-        assert cg.ioff == 0  # Rust uses 0-based indexing
-        assert cg.line_end == ";"
-        assert cg.comment == "//"
+        assert cg.lang.name == "rust"
+        assert cg.lang.lb == "["
+        assert cg.lang.rb == "]"
+        assert cg.lang.idx_offset == 0  # Rust uses 0-based indexing
+        assert cg.lang.line_end == ";"
+        assert cg.lang.comment == "//"
 
     def test_rust_alias(self, simple_network):
         """Test that 'rs' alias works for Rust."""
         cg = Codegen(simple_network, lang="rs")
-        assert cg.lang == "rust"
+        assert cg.lang.name == "rust"
 
     def test_rust_types(self, simple_network):
         """Test Rust type declarations."""
         cg = Codegen(simple_network, lang="rust")
-        assert cg.types.get("int") == "i32 "
-        assert cg.types.get("float") == "f32 "
-        assert cg.types.get("double") == "f64 "
-        assert cg.types.get("bool") == "bool "
+        assert cg.lang.types.get("int") == "i32 "
+        assert cg.lang.types.get("float") == "f32 "
+        assert cg.lang.types.get("double") == "f64 "
+        assert cg.lang.types.get("bool") == "bool "
 
     def test_rust_rate_generation(self, simple_network):
         """Test basic rate code generation for Rust."""
@@ -241,25 +241,25 @@ class TestJuliaLanguage:
     def test_julia_initialization(self, simple_network):
         """Test that Julia codegen initializes correctly."""
         cg = Codegen(simple_network, lang="julia")
-        assert cg.lang == "julia"
-        assert cg.lb == "["
-        assert cg.rb == "]"
-        assert cg.ioff == 1  # Julia uses 1-based indexing
-        assert cg.line_end == ""  # No semicolons
-        assert cg.comment == "#"
+        assert cg.lang.name == "julia"
+        assert cg.lang.lb == "["
+        assert cg.lang.rb == "]"
+        assert cg.lang.idx_offset == 1  # Julia uses 1-based indexing
+        assert cg.lang.line_end == ""  # No semicolons
+        assert cg.lang.comment == "#"
 
     def test_julia_alias(self, simple_network):
         """Test that 'jl' alias works for Julia."""
         cg = Codegen(simple_network, lang="jl")
-        assert cg.lang == "julia"
+        assert cg.lang.name == "julia"
 
     def test_julia_types(self, simple_network):
         """Test Julia type declarations."""
         cg = Codegen(simple_network, lang="julia")
-        assert cg.types.get("int") == "Int64 "
-        assert cg.types.get("float") == "Float32 "
-        assert cg.types.get("double") == "Float64 "
-        assert cg.types.get("bool") == "Bool "
+        assert cg.lang.types.get("int") == "Int64 "
+        assert cg.lang.types.get("float") == "Float32 "
+        assert cg.lang.types.get("double") == "Float64 "
+        assert cg.lang.types.get("bool") == "Bool "
 
     def test_julia_indexing(self, simple_network):
         """Test that Julia uses 1-based indexing."""
@@ -287,17 +287,17 @@ class TestRLanguage:
     def test_r_initialization(self, simple_network):
         """Test that R codegen initializes correctly."""
         cg = Codegen(simple_network, lang="r")
-        assert cg.lang == "r"
-        assert cg.lb == "["
-        assert cg.rb == "]"
-        assert cg.ioff == 1  # R uses 1-based indexing
-        assert cg.line_end == ""  # No semicolons
-        assert cg.comment == "#"
+        assert cg.lang.name == "r"
+        assert cg.lang.lb == "["
+        assert cg.lang.rb == "]"
+        assert cg.lang.idx_offset == 1  # R uses 1-based indexing
+        assert cg.lang.line_end == ""  # No semicolons
+        assert cg.lang.comment == "#"
 
     def test_r_assignment_operator(self, simple_network):
         """Test that R uses <- assignment operator."""
         cg = Codegen(simple_network, lang="r")
-        assert cg.assignment_op == "<-"
+        assert cg.lang.assignment_op == "<-"
 
     def test_r_indexing(self, simple_network):
         """Test that R uses 1-based indexing."""
@@ -326,24 +326,24 @@ class TestLanguageComparison:
         # 0-based languages
         for lang in ["cxx", "c", "python", "rust"]:
             cg = Codegen(simple_network, lang=lang)
-            assert cg.ioff == 0, f"{lang} should use 0-based indexing"
+            assert cg.lang.idx_offset == 0, f"{lang} should use 0-based indexing"
 
         # 1-based languages
         for lang in ["fortran", "julia", "r"]:
             cg = Codegen(simple_network, lang=lang)
-            assert cg.ioff == 1, f"{lang} should use 1-based indexing"
+            assert cg.lang.idx_offset == 1, f"{lang} should use 1-based indexing"
 
     def test_semicolon_usage(self, simple_network):
         """Compare semicolon usage across languages."""
         # Languages with semicolons
         for lang in ["cxx", "c", "rust"]:
             cg = Codegen(simple_network, lang=lang)
-            assert cg.line_end == ";", f"{lang} should use semicolons"
+            assert cg.lang.line_end == ";", f"{lang} should use semicolons"
 
         # Languages without semicolons
         for lang in ["python", "fortran", "julia", "r"]:
             cg = Codegen(simple_network, lang=lang)
-            assert cg.line_end == "", f"{lang} should not require semicolons"
+            assert cg.lang.line_end == "", f"{lang} should not require semicolons"
 
     def test_matrix_separator(self, simple_network):
         """Compare matrix indexing across languages."""
@@ -352,10 +352,10 @@ class TestLanguageComparison:
         cg_r = Codegen(simple_network, lang="r")
 
         # C++ uses ][
-        assert cg_cxx.matrix_sep == "]["
+        assert cg_cxx.lang.sep == "]["
         # Julia and R use comma separation
-        assert cg_julia.matrix_sep == ", "
-        assert cg_r.matrix_sep == ", "
+        assert cg_julia.lang.sep == ", "
+        assert cg_r.lang.sep == ", "
 
 
 def test_all_languages_aliases(simple_network):
@@ -378,7 +378,7 @@ def test_all_languages_aliases(simple_network):
 
     for alias, canonical in aliases.items():
         cg = Codegen(simple_network, lang=alias)
-        assert cg.lang == canonical, f"Alias '{alias}' should map to '{canonical}'"
+        assert cg.lang.name == canonical, f"Alias '{alias}' should map to '{canonical}'"
 
 
 @pytest.mark.parametrize("lang", ["c", "cxx", "fortran", "python", "rust", "julia", "r"])

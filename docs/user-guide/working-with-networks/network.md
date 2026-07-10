@@ -173,7 +173,7 @@ expanded into this form:
 
 | Shorthand           | Expands to                                                             |
 | ------------------- | ---------------------------------------------------------------------- |
-| `ntot`              | sum of `nden[i, 0]` over **all** species                               |
+| `ntot`              | sum of `nden[i, 0]` over **all core** species                          |
 | `nh` / `n_H`        | sum over H-bearing species, **weighted** by atom count                 |
 | `nhe` / `n_He`      | sum over He-bearing species, weighted                                  |
 | `n_X` (e.g. `n_CO`) | `nden[idx_X, 0]` for that one species (`Xp`→`X+`, `Xm`→`X-`, `X0`→`X`) |
@@ -184,7 +184,7 @@ as a weighted `nden` sum (note `2*nden[3, 0]` — H₂ contributes two H atoms):
 
 ```python
 g = Network("networks/GOW/GOW.jet")
-g.reactions.with_rtype("cosmic_ray")[0].rate
+g.reactions.with_type("cosmic_ray")[0].rate
 # crate*(1.5*nden[0, 0]/(nden[0, 0] + nden[1, 0] + 2*nden[3, 0] + ...) + ...)
 ```
 

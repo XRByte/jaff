@@ -3,7 +3,7 @@
 The Leiden (``data/xsecs/leiden/*.h5``) and NORAD/OP (``data/xsecs/op/*.dat``)
 folders each hold one file per reaction.  This utility merges each folder into a
 single HDF5 file -- ``data/xsecs/leiden.h5`` and ``data/xsecs/op.h5`` -- with one
-group per reaction (group name = the serialized stem, e.g. ``"CH__C_H"``).
+group per reaction (group name = the serialized stem, e.g. ``"CH__C.H"``).
 
 Schema
 ------
@@ -20,8 +20,8 @@ Each group has datasets, all co-sorted by **ascending photon energy**:
 
 Each source Leiden file bundles both decay channels, so it is split into one
 group per channel: the dissociation reaction keeps the serialized stem, while
-the ionisation reaction is keyed ``<R>__<R+>_e-``.  NORAD files are
-photoionisation only.
+the ionisation reaction is keyed ``<R>._PHOTON__<R+>.e-`` (the ``_PHOTON``
+agent is injected on the reactant side).  NORAD files are photoionisation only.
 
 Every dataset has a ``unit`` attr ("eV" or "cm2").
 
@@ -45,6 +45,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+from jaff.config import XSECS_DATA_DIR
 from jaff.io import JaffLogger
 from jaff.physics import constants
 
@@ -64,10 +65,10 @@ COMPRESSION_KW: dict = {"compression": "gzip", "compression_opts": 4, "chunks": 
 def split_reaction(stem: str) -> tuple[list[str], list[str]]:
     """Split a serialized stem into ``(reactants, products)`` string lists.
 
-    ``"CH__C_H"`` -> ``(["CH"], ["C", "H"])``.
+    ``"CH__C.H"`` -> ``(["CH"], ["C", "H"])``.
     """
     react, _, prod = stem.partition("__")
-    return react.split("_"), prod.split("_")
+    return react.split("."), prod.split(".")
 
 
 def wavelength_nm_to_eV(wavelength_nm: np.ndarray) -> np.ndarray:
@@ -143,8 +144,14 @@ def collapse_leiden(leiden_dir: Path, out_path: Path, logger) -> int:
                     pd_xs = src["photodissociation"][:].astype(float)[order]
                     if _has_signal(pd_xs):
                         _write_channel(
-                            h5, stem, reactants, products, "dissociation",
-                            energy, pd_xs, photoabs,
+                            h5,
+                            stem,
+                            reactants,
+                            products,
+                            "dissociation",
+                            energy,
+                            pd_xs,
+                            photoabs,
                         )
                         emitted += 1
 
@@ -152,12 +159,21 @@ def collapse_leiden(leiden_dir: Path, out_path: Path, logger) -> int:
                 if "photoionisation" in src:
                     pi_xs = src["photoionisation"][:].astype(float)[order]
                     ion_products = sorted([_ionize(reactant), "e-"])
-                    ion_key = f"{reactant}__{'_'.join(ion_products)}"
+                    ion_key = (
+                        f"{'.'.join(sorted([reactant, '_PHOTON']))}"
+                        f"__{'.'.join(ion_products)}"
+                    )
                     if _has_signal(pi_xs) and ion_key not in ionis_seen:
                         ionis_seen.add(ion_key)
                         _write_channel(
-                            h5, ion_key, reactants, ion_products, "ionization",
-                            energy, pi_xs, photoabs,
+                            h5,
+                            ion_key,
+                            reactants,
+                            ion_products,
+                            "ionization",
+                            energy,
+                            pi_xs,
+                            photoabs,
                         )
                         emitted += 1
     logger.info(f"Wrote {emitted} Leiden channel groups to {out_path}")
@@ -225,7 +241,7 @@ def collapse_op(op_dir: Path, out_path: Path, logger) -> int:
 def main() -> None:
     """Build ``leiden.h5`` and ``op.h5`` in ``data/xsecs/``."""
     logger = JaffLogger().get_logger()
-    xsecs = Path(__file__).parent.parent / "data" / "xsecs"
+    xsecs = XSECS_DATA_DIR
     collapse_leiden(xsecs / "leiden", xsecs / "leiden.h5", logger)
     collapse_op(xsecs / "op", xsecs / "op.h5", logger)
 

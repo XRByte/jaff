@@ -4,9 +4,9 @@ tags:
     - Reaction
 ---
 
-# rtypes
+# types
 
-`#!python rtypes()`
+`#!python types()`
 
 Returns the reaction-type label (e.g. `"photo"`, `"cosmic_ray"`) for every reaction in the catalogue, in catalogue order.
 

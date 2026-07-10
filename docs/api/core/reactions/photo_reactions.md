@@ -8,7 +8,7 @@ tags:
 
 `#!python photo_reactions()`
 
-Returns every photo-reaction in the catalogue (i.e. reactions with `rtype == "photo"`), preserving their relative catalogue order.
+Returns every photo-reaction in the catalogue (i.e. reactions with `type == "photo"`), preserving their relative catalogue order.
 
 **Returns**
 

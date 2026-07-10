@@ -2,7 +2,7 @@
 
 One row per serialized reaction found in the collapsed cross-section HDF5
 files (``data/xsecs/leiden.hdf5`` and ``data/xsecs/norad.hdf5``), keyed by the
-HDF5 group name (the serialized reaction stem, e.g. ``"CO__C_O"``).
+HDF5 group name (the serialized reaction stem, e.g. ``"CO__C.O"``).
 
 Each HDF5 group is a single decay channel carrying one ``photodecay`` dataset
 (plus an optional ``photoabsorption``) and a ``decay_type`` attribute, so a
@@ -11,7 +11,7 @@ reaction is unambiguously either a dissociation or an ionisation -- never both.
 Columns
 -------
 - ``reaction``          -- PK, serialized reaction / HDF5 group name.
-- ``photo_absorption``  -- 1 only for the H2 dissociation ``H2__H_H``, else 0.
+- ``photo_absorption``  -- 1 only for the H2 dissociation ``H2._PHOTON__H.H``, else 0.
 - ``decay_type``        -- ``"dissociation"`` or ``"ionization"`` (from the
   group's ``decay_type`` attribute).
 - ``leiden``            -- ``data/xsecs/leiden.hdf5::<group>`` if present, else NULL.
@@ -23,14 +23,15 @@ from pathlib import Path
 import h5py
 import pandas as pd
 
+from jaff.config import JAFF_DIR
 from jaff.drivers.sqlite import JaffDb
 from jaff.io import JaffLogger
 
 #: Reaction stem flagged as photo-absorption (H2 dissociation).
-H2_DISSOCIATION: str = "H2__H_H"
+H2_DISSOCIATION: str = "H2._PHOTON__H.H"
 
 #: Package root (``src/jaff``) -- HDF5 paths are stored relative to this.
-PKG_ROOT: Path = Path(__file__).parent.parent
+PKG_ROOT: Path = JAFF_DIR
 
 #: source name -> collapsed HDF5 file (relative to ``PKG_ROOT``).
 XSEC_FILES: dict[str, Path] = {

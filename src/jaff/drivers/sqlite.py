@@ -34,6 +34,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..config import DB_DIR
 from .csv import csv_to_df
 
 
@@ -763,5 +764,5 @@ class JaffDb(Db):
         The path is resolved automatically relative to the JAFF package
         directory; no arguments are required.
         """
-        jaff_db_path = Path(__file__).parent.parent / "db" / "jaff.db"
+        jaff_db_path = DB_DIR / "jaff.db"
         super().__init__(jaff_db_path)

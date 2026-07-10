@@ -17,82 +17,29 @@ Typical workflow
 4. Insert those strings into template files via the
    :class:`~jaff.codegen.preprocessor.Preprocessor`.
 
-The module also defines :class:`LangModifier`, a :class:`~typing.TypedDict`
-that captures all syntax differences between languages (bracket style,
-assignment operator, line terminator, index offset, etc.).
+Per-language syntax conventions live on :class:`~jaff.codegen._languages.Language`;
+per-method bracket/token overrides are applied by the
+:func:`~jaff.codegen._languages.scoped_tokens` decorator.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
 from functools import cache, reduce
 from itertools import product
-from typing import TYPE_CHECKING, Any, List, Set, Tuple, TypedDict, cast
+from typing import TYPE_CHECKING, List, Set, Tuple, cast
 
 import sympy as sp
 
 from ..io._logger import JaffLogger, jaff_progress
 from ..types import IndexedList, IndexedValue
+from ._languages import Language, scoped_tokens
 from ._typing import IndexedReturn
 
 if TYPE_CHECKING:
     import logging
 
     from ..core.network import Network
-
-
-class LangModifier(TypedDict):
-    """Language-specific syntax and code-generation parameters.
-
-    Each field captures a syntax convention that differs between target
-    languages.  Instances are produced by :meth:`Codegen.get_language_tokens`
-    and stored on the :class:`Codegen` instance during construction.
-
-    Attributes
-    ----------
-    brac : str
-        Two-character string containing the left and right brackets used for
-        1-D array indexing, e.g. ``"[]"`` for C/C++/Python or ``"()"`` for
-        Fortran.
-    assignment_op : str
-        Assignment operator string, e.g. ``"="`` or ``"<-"`` (R).
-    line_end : str
-        Statement terminator appended after each assignment, e.g. ``";"``
-        for C/C++ or ``""`` for Python/Fortran.
-    matrix_sep : str
-        Separator between the row and column indices in 2-D array access,
-        e.g. ``"]["`` for C-style ``J[i][j]`` or ``", "`` for Julia/Fortran
-        ``J[i, j]``.
-    code_gen : Callable[..., str]
-        SymPy printer function used to serialise expressions into target-
-        language syntax, e.g. :func:`sympy.cxxcode` or :func:`sympy.fcode`.
-    idx_offset : int
-        Base index added to all array subscripts.  ``0`` for 0-based
-        languages (C, Python, Rust), ``1`` for 1-based languages (Fortran,
-        Julia, R).
-    comment : str
-        Single-line comment prefix, e.g. ``"//"`` or ``"!"`` or ``"#"``.
-    types : dict[str, str]
-        Mapping from generic type names (``"int"``, ``"float"``,
-        ``"double"``, ``"bool"``) to their language-specific spellings,
-        e.g. ``{"double": "f64 "}`` for Rust.  Empty for dynamically typed
-        languages (Python, R, Fortran).
-    extras : dict[str, Any]
-        Language-specific miscellaneous tokens such as ``"type_qualifier"``
-        (``"const "`` in C/C++) or ``"class_specifier"`` (``"static "`` in
-        C/C++, ``"save "`` in Fortran).
-    """
-
-    brac: str
-    assignment_op: str
-    line_end: str
-    matrix_sep: str
-    code_gen: Callable[..., str]
-    idx_offset: int
-    comment: str
-    types: dict[str, str]
-    extras: dict[str, Any]
 
 
 class Codegen:
@@ -109,10 +56,10 @@ class Codegen:
     * **Energy derivative** — ``dE/dt`` (optional, with EOS coupling)
     * **Radiation ODEs** — moment-equations for radiation fields (optional)
 
-    All ``get_*_str()`` methods accept formatting overrides (bracket style,
-    assignment operator, line terminator, index offset) so the same
-    :class:`Codegen` object can be used to produce code for slightly
-    non-standard target conventions without re-instantiation.
+    Per-method ``get_*_str()`` overrides (bracket style, assignment operator,
+    line terminator) are applied by the :func:`~jaff.codegen._languages.scoped_tokens`
+    decorator, which temporarily swaps ``self.lang`` for a
+    :meth:`~jaff.codegen._languages.Language.derive`-d view for the call.
 
     Common subexpression elimination (CSE) is performed via
     :func:`sympy.cse` when ``use_cse=True`` (the default for most methods).
@@ -128,107 +75,23 @@ class Codegen:
         ``"cxx"``, ``"c"``, ``"fortran"``, ``"f90"``, ``"python"``,
         ``"py"``, ``"rust"``, ``"rs"``, ``"julia"``, ``"jl"``, ``"r"``.
         Default is ``"c++"``.
-    brac_format : str, optional
-        Override the 1-D array bracket style.  One of ``"()"``, ``"[]"``,
-        ``"{}"`` or ``"<>"``.  When empty the language default is used.
-    matrix_format : str, optional
-        Override the 2-D array bracket/separator style.  Accepted values:
-        ``"()"``, ``"(,)"``, ``"[]"``, ``"[,]"``, ``"{}"`` ``"{,}"``,
-        ``"<>"``, ``"<,>"``, and their doubled equivalents (``"()()"``,
-        etc.).  When empty the language default is used.
 
     Raises
     ------
-    ValueError
-        If *lang*, *brac_format* or *matrix_format* is not in the set of
-        supported values.
+    InvalidLanguageError
+        If *lang* is not a supported language.
     """
 
     def __init__(
         self,
         network: Network,
         lang: str = "c++",
-        brac_format: str = "",
-        matrix_format: str = "",
     ) -> None:
-        # Resolve static lookup tables once — they are @cache'd so the cost
-        # is paid only on the very first instantiation.
-        __lang_aliases = self.__get_language_aliases()
-        __lang_tokens = self.get_language_tokens()
-        __matrix_formats = self.__get_matrix_formats()
-        __brack_formats = self.__get_bracket_formats()
-
-        # ------------------------------------------------------------------ #
-        # Input validation                                                     #
-        # ------------------------------------------------------------------ #
-
-        # Check if language is supported
-        if lang and lang not in __lang_aliases.keys():
-            raise ValueError(
-                f"\n\nUnsupported language: '{lang}'"
-                f"\nSupported languages: {[key for key in __lang_aliases]}\n"
-            )
-
-        # Check if 2D array format is supported
-        if matrix_format and matrix_format not in __matrix_formats.keys():
-            raise ValueError(
-                f"\n\nUnsupported matrix format: '{matrix_format}'"
-                f"\nSupported matrix formats: {[key for key in __matrix_formats]}\n"
-            )
-
-        # Check if 1D array format is supported
-        if brac_format and brac_format not in __brack_formats:
-            raise ValueError(
-                f"\n\nUnsupported bracket format: '{brac_format}'"
-                f"\nSupported bracket formats: {[key for key in __brack_formats]}\n"
-            )
-
-        # ------------------------------------------------------------------ #
-        # Language token resolution                                            #
-        # ------------------------------------------------------------------ #
-
-        # Normalise alias (e.g. "c++" -> "cxx", "py" -> "python")
-        language = __lang_aliases.get(lang, "cxx")
-
-        # Resolve 1-D bracket pair (lb, rb) — caller override takes priority
-        bracs: str = (
-            brac_format
-            if brac_format in __brack_formats
-            else __lang_tokens[language]["brac"]
-        )
-
-        # Resolve 2-D bracket pair used for matrix/Jacobian indexing
-        mbracs: str = (
-            __matrix_formats[matrix_format]["brac"]
-            if matrix_format
-            else __lang_tokens[language]["brac"]
-        )
-
-        # Separator between row and column indices in 2-D access (e.g. "][" or ", ")
-        self.matrix_sep: str = (
-            __matrix_formats[matrix_format]["sep"]
-            if matrix_format
-            else __lang_tokens[language]["matrix_sep"]
-        )
-
-        # Store language-specific syntax tokens as instance attributes so
-        # every get_*_str() method can access them without extra lookup.
-        self.assignment_op: str = __lang_tokens[language]["assignment_op"]
-        self.line_end: str = __lang_tokens[language]["line_end"]
-        self.code_gen: Callable[..., str] = __lang_tokens[language]["code_gen"]
-        self.ioff: int = __lang_tokens[language]["idx_offset"]
-        self.comment: str = __lang_tokens[language]["comment"]
-        self.types: dict[str, str] = __lang_tokens[language]["types"]
-        self.extras: dict[str, Any] = __lang_tokens[language]["extras"]
-        self.lang = language
-
-        # Unpack bracket pairs for convenient use in f-strings below
-        self.lb, self.rb = bracs
-        self.mlb, self.mrb = mbracs
-
+        self.lang = Language(lang)
         self.net: Network = network
         self.logger: logging.Logger = JaffLogger().get_logger()
 
+    @scoped_tokens("lang")
     def get_commons(
         self,
         idx_offset: int = -1,
@@ -255,16 +118,16 @@ class Codegen:
         ----------
         idx_offset : int, optional
             Base index added to each species position.  ``-1`` uses the
-            language default stored in ``self.ioff``.
+            language default stored in ``self.lang.idx_offset``.
         idx_prefix : str, optional
             String prepended to each species index name, e.g. ``"idx_"``.
         definition_prefix : str, optional
             String prepended to each definition line, e.g. ``"const int "``
             for C/C++.
         assignment_op : str, optional
-            Assignment operator override.  Empty string uses ``self.assignment_op``.
+            Assignment operator override.  Empty string uses ``self.lang.assignment_op``.
         line_end : str, optional
-            Line terminator override.  Empty string uses ``self.line_end``.
+            Line terminator override.  Empty string uses ``self.lang.line_end``.
 
         Returns
         -------
@@ -272,22 +135,16 @@ class Codegen:
             Multi-line string of index definitions followed by the size
             constants ``nspecs`` and ``nreactions``.
         """
-        ioff = idx_offset if idx_offset >= 0 else self.ioff
-        assign_op = assignment_op or self.assignment_op
-        lend = line_end or self.line_end
+        ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         scommons = ""
 
         # One definition per species: <prefix><prefix_idx><fidx> = <offset + i>
         for i, s in enumerate(self.net.species):
-            scommons += (
-                f"{definition_prefix}{idx_prefix}{s.fidx} {assign_op} {ioff + i}{lend}\n"
-            )
+            scommons += f"{definition_prefix}{idx_prefix}{s.fidx} {self.lang.assignment_op} {ioff + i}{self.lang.line_end}\n"
 
         # Append network-size constants used by solver loops
-        scommons += (
-            f"{definition_prefix}nspecs {assign_op} {self.net.species.count}{lend}\n"
-        )
-        scommons += f"{definition_prefix}nreactions {assign_op} {self.net.reactions.count}{lend}\n"
+        scommons += f"{definition_prefix}nspecs {self.lang.assignment_op} {self.net.species.count}{self.lang.line_end}\n"
+        scommons += f"{definition_prefix}nreactions {self.lang.assignment_op} {self.net.reactions.count}{self.lang.line_end}\n"
 
         return scommons
 
@@ -368,14 +225,16 @@ class Codegen:
                     for var, expr in replacements:
                         match = pattern.search(str(var))
                         idx: int = int(match.group(0)) if match is not None else 0
-                        expr = self.code_gen(
+                        expr = self.lang.code_gen(
                             expr, strict=False, allow_unknown_functions=True
                         )
                         out["extras"]["cse"].append(IndexedValue([idx], expr))
 
                 # Overwrite the original symbolic rates with their CSE-reduced forms
                 for key, expr in zip(cse_dict.keys(), reduced_exprs):
-                    expr = self.code_gen(expr, strict=False, allow_unknown_functions=True)
+                    expr = self.lang.code_gen(
+                        expr, strict=False, allow_unknown_functions=True
+                    )
                     cse_dict[key] = expr
 
         # Build the final expression list for all reactions.
@@ -383,11 +242,12 @@ class Codegen:
         # their get_code() representation, which handles $IDX$ substitution
         # and string-rate passthrough.
         for i, rea in enumerate(self.net.reactions):
-            rate = cse_dict[i] if cse_dict.get(i, "") else rea.get_code(self.lang)
+            rate = cse_dict[i] if cse_dict.get(i, "") else rea.get_code(self.lang.name)
             out["expressions"].append(IndexedValue([i], rate))
 
         return out
 
+    @scoped_tokens("lang")
     def get_rates_str(
         self,
         idx_offset: int = -1,
@@ -441,15 +301,12 @@ class Codegen:
             Multi-line string of rate-coefficient assignments, including any
             CSE temporary definitions.
         """
-        ioff = idx_offset if idx_offset >= 0 else self.ioff
+        ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         # Construct the type prefix for CSE temporary declarations
         prefix = (
             var_prefix
-            or f"{self.extras.get('type_qualifier', '')}{self.types.get('double', '')}"
+            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
         )
-        lb, rb = brac_format or (self.lb, self.rb)
-        assign_op = assignment_op or self.assignment_op
-        lend = line_end or self.line_end
         rates = ""
 
         rate_expressions = self.get_indexed_rates(use_cse=use_cse, cse_var=cse_var)
@@ -459,7 +316,7 @@ class Codegen:
         if use_cse:
             for idx, expression in rate_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                rates += f"{prefix}{cse_var}{_idx} {assign_op} {expression}{lend}\n"
+                rates += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         for idx, expression in rate_expressions["expressions"]:
             _idx = idx[0]
@@ -467,9 +324,7 @@ class Codegen:
             # the actual zero/one-based reaction index.
             if "$IDX$" in expression:
                 expression = expression.replace("$IDX$", str(ioff + _idx))
-            rates += (
-                f"{rate_variable}{lb}{ioff + _idx}{rb} {assign_op} {expression}{lend}\n"
-            )
+            rates += f"{rate_variable}{self.lang.lb}{ioff + _idx}{self.lang.rb} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         return rates
 
@@ -496,20 +351,16 @@ class Codegen:
         """
         out = IndexedList()
         for i, rea in enumerate(self.net.reactions):
-            # Build the flux string by iterating over all reactants.
-            # The loop body overwrites `flux` on each iteration so only the
-            # last reactant's contribution survives — this is intentional
-            # because `rea.reactants` always yields the same reactant list and
-            # we need the full product expression, not individual terms.
-            for rr in rea.reactants:
-                flux = f"k{self.lb}$IDX${self.rb} * " + " * ".join(
-                    [f"y{self.lb}{x.fidx}{self.rb}" for x in rea.reactants]
-                )
+            # Rate coefficient times the product of all reactant densities.
+            flux = f"k{self.lang.lb}$IDX${self.lang.rb} * " + " * ".join(
+                [f"y{self.lang.lb}{r.fidx}{self.lang.rb}" for r in rea.reactants.core]
+            )
 
             out.append(IndexedValue([i], flux))
 
         return out
 
+    @scoped_tokens("lang")
     def get_flux_expressions_str(
         self,
         rate_var: str = "k",
@@ -557,10 +408,7 @@ class Codegen:
         str
             Multi-line string of flux assignments, one per reaction.
         """
-        ioff = idx_offset if idx_offset >= 0 else self.ioff
-        lb, rb = brac_format or (self.lb, self.rb)
-        assign_op = assignment_op or self.assignment_op
-        lend = line_end or self.line_end
+        ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         fluxes = ""
 
         for i, rea in enumerate(self.net.reactions):
@@ -570,10 +418,10 @@ class Codegen:
                 idx=ioff + i,
                 rate_variable=rate_var,
                 species_variable=species_var,
-                brackets=f"{self.lb}{self.rb}",
+                brackets=f"{self.lang.lb}{self.lang.rb}",
                 idx_prefix=idx_prefix,
             )
-            fluxes += f"{flux_var}{lb}{ioff + i}{rb} {assign_op} {flux}{lend}\n"
+            fluxes += f"{flux_var}{self.lang.lb}{ioff + i}{self.lang.rb} {self.lang.assignment_op} {flux}{self.lang.line_end}\n"
 
         return fluxes
 
@@ -608,11 +456,15 @@ class Codegen:
             ode = {specie.index: "" for specie in self.net.species}
             for i, rea in enumerate(self.net.reactions):
                 # Consumption: each reactant loses density at the reaction flux rate
-                for rr in rea.reactants:
-                    ode[rr.index] += f" - flux{self.lb}{i + self.ioff}{self.rb}"
+                for rr in rea.reactants.core:
+                    ode[rr.index] += (
+                        f" - flux{self.lang.lb}{i + self.lang.idx_offset}{self.lang.rb}"
+                    )
                 # Production: each product gains density at the reaction flux rate
-                for pp in rea.products:
-                    ode[pp.index] += f" + flux{self.lb}{i + self.ioff}{self.rb}"
+                for pp in rea.products.core:
+                    ode[pp.index] += (
+                        f" + flux{self.lang.lb}{i + self.lang.idx_offset}{self.lang.rb}"
+                    )
 
             out = IndexedList()
             for idx, expr in ode.items():
@@ -620,6 +472,7 @@ class Codegen:
 
         return out
 
+    @scoped_tokens("lang")
     def get_ode_expressions_str(
         self,
         idx_offset: int = -1,
@@ -648,7 +501,7 @@ class Codegen:
         ----------
         idx_offset : int, optional
             Base index for flux array subscripts.  ``-1`` uses the language
-            default stored in ``self.ioff``.
+            default stored in ``self.lang.idx_offset``.
         flux_var : str, optional
             Name of the pre-computed flux array.  Default ``"flux"``.
         species_var : str, optional
@@ -675,32 +528,29 @@ class Codegen:
         str
             Multi-line string of derivative assignments, one per active species.
         """
-        ioff = idx_offset if idx_offset >= 0 else self.ioff
+        ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         # Construct the derivative variable name (e.g. "dy") unless overridden
         derivative_var = derivative_var or f"{derivative_prefix}{species_var}"
-        assign_op = assignment_op or self.assignment_op
-        lend = line_end or self.line_end
-        lb, rb = brac_format or (self.lb, self.rb)
 
         # Accumulate signed flux contributions into a dict keyed by species fidx
         ode = {}
         for i, rea in enumerate(self.net.reactions):
-            for rr in rea.reactants:
+            for rr in rea.reactants.core:
                 rrfidx = idx_prefix + rr.fidx
                 if rrfidx not in ode:
                     ode[rrfidx] = ""
                 # Reactants are consumed: negative contribution
-                ode[rrfidx] += f" - {flux_var}{self.lb}{ioff + i}{self.rb}"
-            for pp in rea.products:
+                ode[rrfidx] += f" - {flux_var}{self.lang.lb}{ioff + i}{self.lang.rb}"
+            for pp in rea.products.core:
                 ppfidx = idx_prefix + pp.fidx
                 if ppfidx not in ode:
                     ode[ppfidx] = ""
                 # Products are created: positive contribution
-                ode[ppfidx] += f" + {flux_var}{self.lb}{ioff + i}{self.rb}"
+                ode[ppfidx] += f" + {flux_var}{self.lang.lb}{ioff + i}{self.lang.rb}"
 
         sode = ""
         for name, expr in ode.items():
-            sode += f"{derivative_var}{lb}{name}{rb} {assign_op} {expr}{lend}\n"
+            sode += f"{derivative_var}{self.lang.lb}{name}{self.lang.rb} {self.lang.assignment_op} {expr}{self.lang.line_end}\n"
 
         return sode
 
@@ -793,7 +643,7 @@ class Codegen:
         str
             Single-expression code string (no assignment or line terminator).
         """
-        expr = self.code_gen(
+        expr = self.lang.code_gen(
             self.__gen_sdedt(specific_eint, norm),
             strict=False,
             allow_unknown_functions=True,
@@ -865,7 +715,9 @@ class Codegen:
                 for var, expr in replacements:
                     match = pattern.search(str(var))
                     idx: int = int(match.group(0)) if match is not None else 0
-                    expr = self.code_gen(expr, strict=False, allow_unknown_functions=True)
+                    expr = self.lang.code_gen(
+                        expr, strict=False, allow_unknown_functions=True
+                    )
                     ir["extras"]["cse"].append(IndexedValue([idx], expr))
 
                 # Switch to CSE-reduced forms for the main expression list
@@ -874,11 +726,12 @@ class Codegen:
         for i, expr in enumerate(
             jaff_progress.track(ode_symbols, description="Generating ode code")
         ):
-            expr = self.code_gen(expr, strict=False, allow_unknown_functions=True)
+            expr = self.lang.code_gen(expr, strict=False, allow_unknown_functions=True)
             ir["expressions"].append(IndexedValue([i], expr))
 
         return ir
 
+    @scoped_tokens("lang")
     def get_ode_str(
         self,
         idx_offset: int = 0,
@@ -924,14 +777,11 @@ class Codegen:
         str
             Multi-line string of ODE assignments, including any CSE temporaries.
         """
-        ioff = idx_offset if idx_offset >= 0 else self.ioff
+        ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         prefix = (
             def_prefix
-            or f"{self.extras.get('type_qualifier', '')}{self.types.get('double', '')}"
+            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
         )
-        lb, rb = brac_format or (self.lb, self.rb)
-        assign_op = assignment_op or self.assignment_op
-        lend = line_end or self.line_end
 
         ode_code: str = ""
         ode_expressions = self.get_indexed_odes(use_cse=use_cse, cse_var=cse_var)
@@ -940,11 +790,11 @@ class Codegen:
         if use_cse:
             for idx, expression in ode_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                ode_code += f"{prefix}{cse_var}{_idx} {assign_op} {expression}{lend}\n"
+                ode_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         for idx, expression in ode_expressions["expressions"]:
             _idx = idx[0]
-            ode_code += f"{ode_var}{lb}{ioff + _idx}{rb} {assign_op} {expression}{lend}\n"
+            ode_code += f"{ode_var}{self.lang.lb}{ioff + _idx}{self.lang.rb} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         return ode_code
 
@@ -1030,7 +880,9 @@ class Codegen:
                 for var, expr in replacements:
                     match = pattern.search(str(var))
                     idx: int = int(match.group(0)) if match is not None else 0
-                    expr = self.code_gen(expr, strict=False, allow_unknown_functions=True)
+                    expr = self.lang.code_gen(
+                        expr, strict=False, allow_unknown_functions=True
+                    )
                     ir["extras"]["cse"].append(IndexedValue([idx], expr))
 
                 rhs_symbols = reduced_exprs
@@ -1038,11 +890,12 @@ class Codegen:
         for i, expr in enumerate(
             jaff_progress.track(rhs_symbols, description="Generating RHS code")
         ):
-            expr = self.code_gen(expr, strict=False, allow_unknown_functions=True)
+            expr = self.lang.code_gen(expr, strict=False, allow_unknown_functions=True)
             ir["expressions"].append(IndexedValue([i], expr))
 
         return ir
 
+    @scoped_tokens("lang")
     def get_rhs_str(
         self,
         idx_offset: int = 0,
@@ -1102,14 +955,11 @@ class Codegen:
         str
             Multi-line string of all RHS assignments including CSE temporaries.
         """
-        ioff = idx_offset if idx_offset >= 0 else self.ioff
+        ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         prefix = (
             def_prefix
-            or f"{self.extras.get('type_qualifier', '')}{self.types.get('double', '')}"
+            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
         )
-        lb, rb = brac_format or (self.lb, self.rb)
-        assign_op = assignment_op or self.assignment_op
-        lend = line_end or self.line_end
 
         rhs_code = ""
         rhs_expressions = self.get_indexed_rhs(
@@ -1125,11 +975,11 @@ class Codegen:
         if use_cse:
             for idx, expression in rhs_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                rhs_code += f"{prefix}{cse_var}{_idx} {assign_op} {expression}{lend}\n"
+                rhs_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         for idx, expression in rhs_expressions["expressions"]:
             _idx = idx[0]
-            rhs_code += f"{ode_var}{lb}{ioff + _idx}{rb} {assign_op} {expression}{lend}\n"
+            rhs_code += f"{ode_var}{self.lang.lb}{ioff + _idx}{self.lang.rb} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         return rhs_code
 
@@ -1181,7 +1031,9 @@ class Codegen:
                 for var, expr in replacements:
                     match = pattern.search(str(var))
                     idx: int = int(match.group(0)) if match is not None else 0
-                    expr = self.code_gen(expr, strict=False, allow_unknown_functions=True)
+                    expr = self.lang.code_gen(
+                        expr, strict=False, allow_unknown_functions=True
+                    )
                     ir["extras"]["cse"].append(IndexedValue([idx], expr))
 
                 radode_symbols = reduced_exprs
@@ -1191,11 +1043,12 @@ class Codegen:
                 radode_symbols, description="Generating radiaton ode code"
             )
         ):
-            expr = self.code_gen(expr, strict=False, allow_unknown_functions=True)
+            expr = self.lang.code_gen(expr, strict=False, allow_unknown_functions=True)
             ir["expressions"].append(IndexedValue([i], expr))
 
         return ir
 
+    @scoped_tokens("lang")
     def get_radode_str(
         self,
         idx_offset: int = 0,
@@ -1242,15 +1095,11 @@ class Codegen:
             Multi-line string of radiation ODE assignments including any CSE
             temporaries.
         """
-        # Set overrides
-        ioff = idx_offset if idx_offset >= 0 else self.ioff
+        ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         prefix = (
             def_prefix
-            or f"{self.extras.get('type_qualifier', '')}{self.types.get('double', '')}"
+            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
         )
-        lb, rb = brac_format or (self.lb, self.rb)
-        assign_op = assignment_op or self.assignment_op
-        lend = line_end or self.line_end
 
         radode_code: str = ""
         radode_expressions = self.get_indexed_radodes(order, use_cse, cse_var)
@@ -1258,13 +1107,11 @@ class Codegen:
         if use_cse:
             for idx, expression in radode_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                radode_code += f"{prefix}{cse_var}{_idx} {assign_op} {expression}{lend}\n"
+                radode_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         for idx, expression in radode_expressions["expressions"]:
             _idx = idx[0]
-            radode_code += (
-                f"{radode_var}{lb}{ioff + _idx}{rb} {assign_op} {expression}{lend}\n"
-            )
+            radode_code += f"{radode_var}{self.lang.lb}{ioff + _idx}{self.lang.rb} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         return radode_code
 
@@ -1458,7 +1305,7 @@ class Codegen:
         def _replace_y(match: re.Match[str], var) -> str:
             """Regex replacement helper: ``y_N`` → ``var[N]``."""
             idx = int(match.group(1))
-            return f"{var}{self.lb}{idx}{self.rb}"
+            return f"{var}{self.lang.lb}{idx}{self.lang.rb}"
 
         if use_cse:
             with jaff_progress.indeterminate("Generating cse expressions"):
@@ -1479,7 +1326,7 @@ class Codegen:
                     expr = self.__convert_unknown_derivatives(expr, replacements_dict)
                     match = pattern.search(str(var))
                     idx: int = int(match.group(0)) if match is not None else 0
-                    expr_str = self.code_gen(
+                    expr_str = self.lang.code_gen(
                         expr, strict=False, allow_unknown_functions=True
                     )
                     # Back-substitute scalar symbols to array notation
@@ -1515,7 +1362,9 @@ class Codegen:
             expr = self.__convert_unknown_derivatives(
                 expr, replacements_dict if use_cse else None
             )
-            expr_str = self.code_gen(expr, strict=False, allow_unknown_functions=True)
+            expr_str = self.lang.code_gen(
+                expr, strict=False, allow_unknown_functions=True
+            )
             # Back-substitute scalar y_i -> nden[i] and radiation symbols
             expr_str = dpattern.sub(lambda m: _replace_y(m, "nden"), expr_str)
 
@@ -1534,6 +1383,7 @@ class Codegen:
 
         return ir
 
+    @scoped_tokens("lang")
     def get_jacobian_str(
         self,
         use_dedt: bool = False,
@@ -1587,35 +1437,14 @@ class Codegen:
 
         Raises
         ------
-        ValueError
+        InvalidLanguageError
             If *matrix_format* is not a supported format string.
         """
-        ioff = idx_offset if idx_offset >= 0 else self.ioff
+        ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
         prefix = (
             var_prefix
-            or f"{self.extras.get('type_qualifier', '')}{self.types.get('double', '')}"
+            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
         )
-
-        __matrix_formats = self.__get_matrix_formats()
-        if matrix_format and matrix_format not in __matrix_formats.keys():
-            raise ValueError(
-                f"\n\nUnsupported matrix format: '{matrix_format}'"
-                f"\nSupported matrix formats: {[key for key in __matrix_formats]}\n"
-            )
-
-        mlb, mrb = (
-            (self.mlb, self.mrb)
-            if not matrix_format
-            else (
-                __matrix_formats[matrix_format]["brac"][0],
-                __matrix_formats[matrix_format]["brac"][1],
-            )
-        )
-        matrix_sep: str = (
-            __matrix_formats[matrix_format]["sep"] if matrix_format else self.matrix_sep
-        )
-        assign_op = assignment_op or self.assignment_op
-        lend = line_end or self.line_end
 
         jac_expressions = self.get_indexed_jacobian(
             cse_var=cse_var, use_cse=use_cse, use_dedt=use_dedt
@@ -1626,11 +1455,11 @@ class Codegen:
         if use_cse:
             for idx, expr in jac_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                jac_code += f"{prefix}{cse_var}{_idx} {assign_op} {expr}{lend}\n"
+                jac_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expr}{self.lang.line_end}\n"
 
         # Generate Jacobian code without CSE
         for [i, j], expr in jac_expressions["expressions"]:
-            jac_code += f"{jac_var}{mlb}{ioff + i}{matrix_sep}{ioff + j}{mrb} {assign_op} {expr}{lend}\n"
+            jac_code += f"{jac_var}{self.lang.mlb}{ioff + i}{self.lang.sep}{ioff + j}{self.lang.mrb} {self.lang.assignment_op} {expr}{self.lang.line_end}\n"
 
         return jac_code
 
@@ -1835,228 +1664,3 @@ class Codegen:
         tgas = sp.symbols("tgas")
 
         return _R / (gamma - 1) * tgas
-
-    @staticmethod
-    @cache
-    def __get_language_aliases() -> dict[str, str]:
-        """Return the mapping from user-facing language aliases to canonical names.
-
-        Allows callers to use common shorthand spellings (``"c++"``, ``"py"``,
-        ``"rs"``, ``"f90"``, …) and normalise them to the internal canonical
-        name used as a key in :meth:`get_language_tokens`.
-
-        Returns
-        -------
-        dict[str, str]
-            Mapping of alias -> canonical language name.
-        """
-        aliases: dict[str, str] = {
-            "c++": "cxx",
-            "cpp": "cxx",
-            "cxx": "cxx",
-            "c": "c",
-            "fortran": "fortran",
-            "f90": "fortran",
-            "python": "python",
-            "py": "python",
-            "rust": "rust",
-            "rs": "rust",
-            "julia": "julia",
-            "jl": "julia",
-            "r": "r",
-        }
-
-        return aliases
-
-    @staticmethod
-    @cache
-    def get_language_tokens() -> dict[str, LangModifier]:
-        """Return the :class:`LangModifier` configuration for every supported language.
-
-        Each entry in the returned dict captures the syntax conventions needed
-        to emit valid code for that language: brackets, assignment operator,
-        line terminator, 2-D matrix separator, SymPy code-gen function, index
-        base offset, comment character, type keywords, and miscellaneous extras.
-
-        The result is cached (via :func:`functools.cache`) because it is a
-        pure constant table.  Callers should use canonical language names
-        (``"cxx"``, ``"c"``, ``"fortran"``, ``"python"``, ``"rust"``,
-        ``"julia"``, ``"r"``) as keys; use :meth:`__get_language_aliases` to
-        map user-facing aliases first.
-
-        Returns
-        -------
-        dict[str, LangModifier]
-            Mapping of canonical language name -> :class:`LangModifier`.
-
-        Notes
-        -----
-        Index offsets:
-            * ``0`` for 0-based languages: C, C++, Python, Rust.
-            * ``1`` for 1-based languages: Fortran, Julia, R.
-        """
-        tokens: dict[str, LangModifier] = {
-            "cxx": {
-                "brac": "[]",
-                "assignment_op": "=",
-                "line_end": ";",
-                "matrix_sep": "][",
-                "code_gen": sp.cxxcode,
-                "idx_offset": 0,
-                "comment": "//",
-                "types": {
-                    "int": "int ",
-                    "float": "float ",
-                    "double": "double ",
-                    "bool": "bool ",
-                },
-                "extras": {
-                    "type_qualifier": "const ",
-                    "class_specifier": "static ",
-                },
-            },
-            # c
-            "c": {
-                "brac": "[]",
-                "assignment_op": "=",
-                "line_end": ";",
-                "matrix_sep": "][",
-                "code_gen": sp.ccode,
-                "idx_offset": 0,
-                "comment": "//",
-                "types": {
-                    "int": "int ",
-                    "float": "float ",
-                    "double": "double ",
-                    "bool": "_Bool ",
-                },
-                "extras": {
-                    "type_qualifier": "const ",
-                    "class_specifier": "static ",
-                },
-            },
-            "fortran": {
-                "brac": "()",
-                "assignment_op": "=",
-                "line_end": "",
-                "matrix_sep": ", ",
-                "code_gen": sp.fcode,
-                "idx_offset": 1,
-                "comment": "!",
-                "types": {},
-                "extras": {
-                    "class_specifier": "save ",
-                },
-            },
-            "python": {
-                "brac": "[]",
-                "assignment_op": "=",
-                "line_end": "",
-                "matrix_sep": "][",
-                "code_gen": sp.pycode,
-                "idx_offset": 0,
-                "comment": "#",
-                "types": {},
-                "extras": {},
-            },
-            "rust": {
-                "brac": "[]",
-                "assignment_op": "=",
-                "line_end": ";",
-                "matrix_sep": "][",
-                "code_gen": sp.rust_code,
-                "idx_offset": 0,
-                "comment": "//",
-                "types": {
-                    "int": "i32 ",
-                    "float": "f32 ",
-                    "double": "f64 ",
-                    "bool": "bool ",
-                },
-                "extras": {
-                    "type_qualifier": "const ",
-                    "class_specifier": "",
-                },
-            },
-            "julia": {
-                "brac": "[]",
-                "assignment_op": "=",
-                "line_end": "",
-                "matrix_sep": ", ",
-                "code_gen": sp.julia_code,
-                "idx_offset": 1,
-                "comment": "#",
-                "types": {
-                    "int": "Int64 ",
-                    "float": "Float32 ",
-                    "double": "Float64 ",
-                    "bool": "Bool ",
-                },
-                "extras": {
-                    "type_qualifier": "const ",
-                    "class_specifier": "",
-                },
-            },
-            "r": {
-                "brac": "[]",
-                "assignment_op": "<-",
-                "line_end": "",
-                "matrix_sep": ", ",
-                "code_gen": sp.rcode,
-                "idx_offset": 1,
-                "comment": "#",
-                "types": {},
-                "extras": {},
-            },
-        }
-
-        return tokens
-
-    @staticmethod
-    @cache
-    def __get_matrix_formats() -> dict[str, dict[str, str]]:
-        """Return supported 2-D array bracket/separator format strings.
-
-        Each entry maps a format key (as accepted by the *matrix_format*
-        constructor argument) to a ``{"brac": "…", "sep": "…"}`` dict where
-        ``brac`` is the two-character bracket pair and ``sep`` is the string
-        inserted between the row and column indices.
-
-        For example, ``"(,)"`` yields ``J(i, j)`` while ``"[]"`` yields
-        ``J[i][j]``.
-
-        Returns
-        -------
-        dict[str, dict[str, str]]
-            Mapping of format key -> ``{"brac": str, "sep": str}``.
-        """
-        formats: dict[str, dict[str, str]] = {
-            "()": {"brac": "()", "sep": ")("},
-            "()()": {"brac": "()", "sep": ")("},
-            "(,)": {"brac": "()", "sep": ", "},
-            "[]": {"brac": "[]", "sep": "]["},
-            "[][]": {"brac": "[]", "sep": "]["},
-            "[,]": {"brac": "[]", "sep": ", "},
-            "{}": {"brac": "{}", "sep": "}{"},
-            "{}{}": {"brac": "{}", "sep": "}{"},
-            "{,}": {"brac": "{}", "sep": ", "},
-            "<>": {"brac": "<>", "sep": "><"},
-            "<><>": {"brac": "<>", "sep": "><"},
-            "<,>": {"brac": "<>", "sep": ", "},
-        }
-        return formats
-
-    @staticmethod
-    @cache
-    def __get_bracket_formats() -> list[str]:
-        """Return the list of supported 1-D array bracket styles.
-
-        Returns
-        -------
-        list[str]
-            Each string is a two-character bracket pair accepted by the
-            *brac_format* constructor argument.
-        """
-        formats: list[str] = ["()", "{}", "[]", "<>"]
-
-        return formats

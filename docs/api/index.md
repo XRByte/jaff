@@ -37,11 +37,17 @@ This is a complete reference for all public APIs in JAFF.
 
     [:octicons-arrow-right-24: jaff.physics](physics/index.md)
 
+- :phosphor-chart-line:{ .sm .middle } **Plotting**
+
+    Publication-quality plots of rates and cross sections: `plot_rates`, `plot_xsecs`, `Plotter`.
+
+    [:octicons-arrow-right-24: jaff.plotting](plotting/index.md)
+
 </div>
 
 ## Module Overview
 
-JAFF's public API is organized into four subpackages: `core` (network data model), `codegen` (source code generation), `drivers` (file I/O), and `physics` (constants and photochemistry).
+JAFF's public API is organized into five subpackages: `core` (network data model), `codegen` (source code generation), `drivers` (file I/O), `physics` (constants and photochemistry), and `plotting` (rate and cross-section plots).
 
 ```mermaid
 classDiagram
@@ -66,8 +72,14 @@ classDiagram
         constants
         Photochemistry
     }
+    class plotting {
+        plot_rates
+        plot_xsecs
+        Plotter
+    }
     jaff --> core
     jaff --> codegen
     jaff --> drivers
     jaff --> physics
+    jaff --> plotting
 ```

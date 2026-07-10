@@ -14,18 +14,15 @@ Both are keyed by ``reaction.serialized``.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sympy import Basic, Expr, sympify
 
-from ...common._helper import load_module_from_path
-from ...config import SHIELDING_FUNCTIONS_DIR, SRC_DIR
+from ...config import JAFF_DIR
 from ...drivers import HDF5, JaffDb
 from ...drivers.pooch import download_shielding, download_xsecs
-from ...errors import ParserError
 from ._typing import XsecsProps
+from .shielding import _get_shielding_function
 
 if TYPE_CHECKING:
     from ...core import Reaction
@@ -124,8 +121,7 @@ class Photochemistry:
 
         row = rows[0]
         loc: str = row["leiden"] if row["leiden"] else row["norad"]
-        jaff_dir = Path(__file__).parent.parent.parent.resolve()
-        h5group = str(jaff_dir / loc)
+        h5group = str(JAFF_DIR.resolve() / loc)
         pr_xsec = HDF5().to_dict(h5group)
 
         xsecs: XsecsProps = {
@@ -148,15 +144,17 @@ class Photochemistry:
     def shielding(reaction: Reaction, network: Network) -> Expr:
         """Build the symbolic shielding factor for a photo-reaction.
 
-        The ``photo_reaction_shielding`` table records, per reaction, the
-        available shielding function names split into ``global`` (shared across
-        reactions, loaded from ``SHIELDING_FUNCTIONS_DIR/<type>.py``) and
-        ``local`` (reaction-specific, loaded from
-        ``SHIELDING_FUNCTIONS_DIR/<reaction>/<type>.py``).  The function named by
-        ``reaction.metadata["shielding"]["type"]`` is loaded dynamically and its
-        ``get_shielding(reaction, network)`` is called to produce the factor.
+        The shielding function named by
+        ``reaction._metadata["shielding"]["type"]`` is resolved from the
+        shielding registry via
+        :func:`~jaff.physics.photo_reactions.shielding._get_shielding_function`.
+        Lookup is keyed by ``(type, reaction.serialized)`` and prefers a
+        reaction-specific (local) function, falling back to a global one
+        registered with ``reaction=None``.  The resolved
+        :class:`~jaff.physics.photo_reactions.shielding._base.ShieldingFunction`
+        instance's ``get_shielding(reaction, network)`` produces the factor.
 
-        The result is cached on ``reaction.metadata["shielding"]["value"]`` so
+        The result is cached on ``reaction._metadata["shielding"]["value"]`` so
         repeated calls (e.g. once per radiation band) reuse it.
 
         Parameters
@@ -176,32 +174,13 @@ class Photochemistry:
         Raises
         ------
         ParserError
-            If the reaction has no shielding entry, or ``type`` is not listed in
-            the reaction's ``global`` or ``local`` shielding functions.
+            If no shielding function is registered for ``type`` either locally
+            (for this reaction) or as a global fallback.
         """
-        with JaffDb() as jdb:
-            table = jdb.table("photo_reaction_shielding")
-            rows: list = table.rows(conditions=f"reaction = '{reaction.serialized}'")
+        sprops = reaction._metadata["shielding"]
 
-        if not rows:
-            raise ParserError(f"{reaction} doesn't have a shielding function")
-
-        row = rows[0]
-        sprops = reaction.metadata["shielding"]
-
-        global_types = json.loads(row["global"])
-        local_types = json.loads(row["local"])
-
-        if sprops["type"] in global_types:
-            fpath = SHIELDING_FUNCTIONS_DIR / f"{sprops['type']}.py"
-        elif sprops["type"] in local_types:
-            fpath = SHIELDING_FUNCTIONS_DIR / reaction.serialized / f"{sprops['type']}.py"
-        else:
-            raise ParserError(f"Invalid shielding type: {sprops['type']}")
-
-        module_name = ".".join(fpath.resolve().relative_to(SRC_DIR).with_suffix("").parts)
-        smod = load_module_from_path(fpath, module_name)
-        shielding_expr = smod.get_shielding(reaction, network)
-        reaction.metadata["shielding"]["value"] = shielding_expr
+        shielding_fn = _get_shielding_function(sprops["type"], reaction.serialized)
+        shielding_expr = shielding_fn.get_shielding(reaction, network)
+        reaction._metadata["shielding"]["value"] = shielding_expr
 
         return shielding_expr

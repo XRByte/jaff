@@ -6,16 +6,16 @@ tags:
 
 # get
 
-`#!python get(reaction, rtype=None)`
+`#!python get(reaction, type=None)`
 
 Look up a reaction by verbatim string or serialized form, with optional type filter.
 
 **Parameters**
 
 **reaction** : _str_
-: Verbatim string (e.g. `"H + H2O+ -> H2 + OH+"`) or serialized form (e.g. `"H_H2Oj__H2_OHj"`).
+: Verbatim string (e.g. `"H + H2O+ -> H2 + OH+"`) or serialized form (e.g. `"H.H2O+__H2.OH+"`).
 
-**rtype** : _str or None, optional_
+**type** : _str or None, optional_
 : If given, only returns the reaction if its type matches.
 
 **Returns**

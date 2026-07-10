@@ -6,9 +6,9 @@ tags:
 
 # plot_xsecs
 
-`#!python plot_xsecs(processes="all", layout="overlay", fig=None, ax=None, energy_unit="eV", xsec_unit="Mb", energy_log=True, xsecs_log=True, title=None, grid=True, show=True, save=False, filename="")`
+`#!python plot_xsecs(processes="all", layout="overlay", fig=None, ax=None, energy_unit="eV", xsec_unit="Mb", energy_log=True, xsecs_log=True, shade=False, show_bands=False, title=None, grid=True, show=True, save=False, filename="")`
 
-Plots photo cross sections against photon energy or wavelength. Drawing, unit conversion, and labelling are delegated to `jaff.plotting.Plotter.plot_xsec`. Does nothing (logs a message and returns `None`) if `xsecs_dict` is `None` or no requested process has data. Cross-section data are stored as photon energies in eV and cross sections in cm²; both are converted to the requested units before plotting.
+Plots photo cross sections against photon energy or wavelength. Drawing, unit conversion, and labelling are delegated to the [`jaff.plotting.plot_xsecs`](../../plotting/plot_xsecs.md) free function (call that directly to overlay several reactions on shared axes). Does nothing (logs a message and returns `None`) if `xsecs_dict` is `None` or no requested process has data. Cross-section data are stored as photon energies in eV and cross sections in cm²; both are converted to the requested units before plotting.
 
 **Parameters**
 
@@ -33,6 +33,12 @@ Plots photo cross sections against photon energy or wavelength. Drawing, unit co
 **xsecs_log** : _bool, optional_
 : Log-scale the cross-section axis. Default `True`.
 
+**shade** : _bool or float, optional_
+: Shade the area under each curve. `True` uses a default alpha; a float sets the alpha explicitly. Default `False`.
+
+**show_bands** : _bool, optional_
+: Overlay the band-averaged cross section (from the [`band_xsecs`](band_xsecs.md) property) as bars. Only meaningful when a radiation field is configured; silently draws nothing otherwise. Default `False`.
+
 **title** : _str or None, optional_
 : Plot title. Defaults to the LaTeX reaction equation.
 
@@ -46,7 +52,7 @@ Plots photo cross sections against photon energy or wavelength. Drawing, unit co
 : Save to `filename` (format inferred from the extension). Default `False`.
 
 **filename** : _str, optional_
-: Output path. Defaults to `"<reaction>_<process>.png"`.
+: Output path. Defaults to `"<reaction>_cross_sections.png"`.
 
 **Returns**
 
