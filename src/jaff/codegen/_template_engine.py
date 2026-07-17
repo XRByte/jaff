@@ -1501,6 +1501,12 @@ class TemplateParser:
                         "func": lambda: self.net.species.charged("mass"),
                         "vars": ["idx", "charged_specie_mass"],
                     },
+                    "radiation_boundaries": {
+                        "func": lambda: (
+                            self.net.radiation.bands if self.net.radiation else []
+                        ),
+                        "vars": ["idx", "radiation_boundary"],
+                    },
                 },
             },
             "REDUCE": {

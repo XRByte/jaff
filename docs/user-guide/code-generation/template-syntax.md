@@ -303,6 +303,14 @@ These iterate plain value lists.
 | `element_density_matrix` | `element` |
 | `element_truth_matrix`   | `element` |
 
+**Radiation:**
+
+| Collection             | Variable             |
+| ---------------------- | -------------------- |
+| `radiation_boundaries` | `radiation_boundary` |
+
+Band edges, of length `nbands + 1`. Empty if the network has no radiation.
+
 ---
 
 ## GET
