@@ -23,7 +23,7 @@ JAFF can turn any loaded network into ready-to-compile/run source files in C, C+
 
     ***
 
-    Configure `jaffgen` runs declaratively with a `jaff.toml` file: set network paths, template names, output directories, radiation bands, and data-table conversions.
+    Configure `jaffgen` runs declaratively with a `jaffgen.toml` file: set network paths, template names, output directories, radiation bands, and data-table conversions.
 
     [:octicons-arrow-right-24: Configuration File](jaff-toml.md)
 

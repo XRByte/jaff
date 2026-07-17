@@ -4,11 +4,11 @@ tags:
     - Code-generation
 ---
 
-# Configuration File (`jaff.toml`)
+# Configuration File (`jaffgen.toml`)
 
-A `jaff.toml` declares a [`jaffgen`](jaffgen.md) run once, so you don't repeat
+A `jaffgen.toml` declares a [`jaffgen`](jaffgen.md) run once, so you don't repeat
 CLI flags every time. It is loaded when you pass `--config <file>`, **or**
-automatically when a file named `jaff.toml` turns up among the gathered template
+automatically when a file named `jaffgen.toml` turns up among the gathered template
 files — which is how a bundled template (like `microphysics`) can ship its own
 settings.
 
@@ -20,13 +20,13 @@ Every setting is resolved highest-wins, so the config file fills gaps the CLI
 leaves and overrides constructor defaults:
 
 1. Explicit CLI argument (e.g. `--network`)
-2. `jaff.toml` value
+2. `jaffgen.toml` value
 3. `Network` constructor default
 
 <!-- prettier-ignore -->
 !!! note "Relative paths are resolved from the config file's directory"
-    Any path that comes from the `jaff.toml` (network, funcfile, input/output
-    dirs, table files) is resolved relative to **where the `jaff.toml` lives**,
+    Any path that comes from the `jaffgen.toml` (network, funcfile, input/output
+    dirs, table files) is resolved relative to **where the `jaffgen.toml` lives**,
     not the current working directory. Paths passed on the CLI are resolved
     relative to the CWD.
 

@@ -42,7 +42,7 @@ where $\rho_i$ is the radiation energy or photon density in band $i$ and $k_i$ i
 
 ## Radiation Field Discretisation
 
-The radiation field is divided into contiguous energy bands. You specify the band boundaries in `jaff.toml` (see [Configuration File](../code-generation/jaff-toml.md)):
+The radiation field is divided into contiguous energy bands. You specify the band boundaries in `jaffgen.toml` (see [Configuration File](../code-generation/jaff-toml.md)):
 
 ```toml
 [radiation]
@@ -199,7 +199,7 @@ $$
 
 ### Enabling shielding
 
-Shielding is opt-in per reaction, declared in `jaff.toml` under
+Shielding is opt-in per reaction, declared in `jaffgen.toml` under
 `[reaction."<serialized>".shielding]` (see the
 [configuration reference](../code-generation/jaff-toml.md#reactionserializedshielding-section)).
 The reaction **must be a photo-reaction**; the `type` key selects the shielding

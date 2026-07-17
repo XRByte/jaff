@@ -103,7 +103,7 @@ psigd_coll_interp2d_partial_1(..., tgas)   // ∂ psi  / ∂ tgas
 ## Emitting the table data
 
 The generated code needs the table itself. The
-[`[[table]]`](jaff-toml.md#table-section) section of `jaff.toml` converts a
+[`[[table]]`](jaff-toml.md#table-section) section of `jaffgen.toml` converts a
 source table (the network's own `.hdf5` rate table, or a CSV) into the HDF5/CSV
 file your interpolation routines read at runtime — produced in the same
 `jaffgen` run that writes the source. For example, turning a CO cooling CSV into
@@ -124,7 +124,7 @@ default_group = "/"
 col = "T0"
 ```
 
-See [`jaff.toml` → `[[table]]`](jaff-toml.md#table-section) for the full
+See [`jaffgen.toml` → `[[table]]`](jaff-toml.md#table-section) for the full
 conversion syntax.
 
 ---

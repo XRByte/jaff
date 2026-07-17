@@ -2,7 +2,7 @@
 Configuration table engine for the JAFF CLI.
 
 This module implements :class:`ConfigTable`, which reads a single
-``[[table]]`` block from a ``jaff.toml`` configuration file and converts the
+``[[table]]`` block from a ``jaffgen.toml`` configuration file and converts the
 described data table into either an :class:`~jaff.types.HDF5Dict` or a
 :class:`pandas.DataFrame`, ready to be written to disk by the caller.
 
@@ -58,7 +58,7 @@ class ConfigTable:
         The parsed ``[[table]]`` dictionary from the TOML config.  Must
         contain at least a ``"source"`` key.
     file : Path
-        Path to the ``jaff.toml`` file; used for error messages.
+        Path to the ``jaffgen.toml`` file; used for error messages.
     network_file : Path
         Path to the network file.  Its parent directory and stem are
         used to resolve the ``"default"`` source path.
@@ -83,7 +83,7 @@ class ConfigTable:
         table_dict : dict[str, Any]
             Parsed ``[[table]]`` entry from the TOML config.
         file : Path
-            Path to the ``jaff.toml`` file (used in error messages).
+            Path to the ``jaffgen.toml`` file (used in error messages).
         network_file : Path
             Path to the network file; its parent and stem resolve
             the ``"default"`` source path alias.

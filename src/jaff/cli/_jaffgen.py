@@ -11,7 +11,7 @@ Configuration can come from three sources, applied with the following priority
 order (highest → lowest):
 
 1. Explicit CLI argument (e.g. ``--network``)
-2. Values in a ``jaff.toml`` config file (``--config`` or auto-detected inside
+2. Values in a ``jaffgen.toml`` config file (``--config`` or auto-detected inside
    the template directory)
 3. Hard-coded defaults on the :class:`~jaff.Network` constructor
 
@@ -74,7 +74,7 @@ class JaffGen:
 
     Instantiating this class drives the full code-generation pipeline:
 
-    1. Parse CLI arguments and (optionally) a ``jaff.toml`` config file.
+    1. Parse CLI arguments and (optionally) a ``jaffgen.toml`` config file.
     2. Resolve input template files from ``--indir``, ``--files``, or
        ``--template``.
     3. Load the chemical reaction network.
@@ -109,7 +109,7 @@ class JaffGen:
         """Drive the full ``jaffgen`` code-generation pipeline from CLI arguments.
 
         Reads arguments from ``sys.argv``, resolves configuration from a
-        ``jaff.toml`` file when present, loads the chemical reaction network, and
+        ``jaffgen.toml`` file when present, loads the chemical reaction network, and
         writes generated source files to the output directory.
 
         Raises
@@ -153,7 +153,7 @@ class JaffGen:
         self.__set_input_files(self.args.files)
         self.__set_template(self.args.template)
 
-        # Phase 2: look for a jaff.toml embedded inside the file list (only if
+        # Phase 2: look for a jaffgen.toml embedded inside the file list (only if
         # --config was not already given).
         self.__read_jaff_config_from_files()
 
@@ -259,7 +259,7 @@ class JaffGen:
 
     def __set_config(self, config_file: str | Path | None) -> None:
         """
-        Load a ``jaff.toml`` config file and store its parsed contents.
+        Load a ``jaffgen.toml`` config file and store its parsed contents.
 
         Parameters
         ----------
@@ -328,10 +328,10 @@ class JaffGen:
 
     def __read_jaff_config_from_files(self) -> None:
         """
-        Auto-detect a ``jaff.toml`` embedded within the collected file list.
+        Auto-detect a ``jaffgen.toml`` embedded within the collected file list.
 
         If ``--config`` was not given explicitly, scan the resolved file list
-        for a file named ``jaff.toml`` and load it as the config file.  This
+        for a file named ``jaffgen.toml`` and load it as the config file.  This
         allows template directories to ship their own config without requiring
         an extra ``--config`` flag.
 
@@ -343,9 +343,10 @@ class JaffGen:
         if self.jaffgen_config["config_file"] is not None:
             return
 
-        # Search for a jaff.toml among the already-collected template files.
+        # Search for a jaffgen.toml among the already-collected template files.
         jaff_config_index: int | None = next(
-            (i for i, f in enumerate(self.files) if f.abspath.name == "jaff.toml"), None
+            (i for i, f in enumerate(self.files) if f.abspath.name == "jaffgen.toml"),
+            None,
         )
 
         if jaff_config_index is not None:
