@@ -828,10 +828,16 @@ class TemplateParser:
             # extras format: [KEY1, VALUE1, KEY2, VALUE2, ...]
             # Step through by 2s to get keys, then check if next value is "TRUE"
             for i, extra in enumerate(extras[::2]):
+                raw_value = extras[2 * i + 1]
+                # Interpret literals (True/False/ints) via literal_eval, but fall
+                # back to the raw string for bare identifiers
+                try:
+                    value = ast.literal_eval(raw_value)
+                except (ValueError, SyntaxError):
+                    value = raw_value
                 # Call the kwargs generator for this extra modifier
-                # extras[2*i+1] gives the corresponding value for this key
                 additional_kwargs = self.__get_special_var_dict[extra]["kwargs"](
-                    extra, ast.literal_eval(extras[2 * i + 1])
+                    extra, value
                 )
                 kwargs = {**kwargs, **additional_kwargs}
 
@@ -1368,7 +1374,9 @@ class TemplateParser:
                     },
                     # Returns: list[str] - species names with +/-
                     "species_with_normalized_sign": {
-                        "func": self.net.species.normalized_names,
+                        "func": lambda **kwargs: self.net.species.normalized_names(
+                            **kwargs
+                        ),
                         "vars": ["idx", "specie_with_normalized_sign"],
                     },
                     # Returns: list[str] - element symbols
@@ -1679,6 +1687,8 @@ class TemplateParser:
             "RAD_ORDER": {"kwargs": lambda var, value: {"rad_order": value}},
             "SPECIFIC_EINT": {"kwargs": lambda var, value: {"specific_eint": value}},
             "NORM": {"kwargs": lambda var, value: {"norm": value}},
+            "POS": {"kwargs": lambda var, value: {"pos": value}},
+            "NEG": {"kwargs": lambda var, value: {"neg": value}},
         }
 
         return svar_dict
