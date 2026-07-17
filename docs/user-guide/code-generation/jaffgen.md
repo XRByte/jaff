@@ -30,7 +30,8 @@ A `jaffgen` run is four phases:
 3. **Load the network** — exactly one `Network`, built from the resolved
    network/label/funcfile/radiation settings.
 4. **Generate** — run [`TemplateParser`](template-syntax.md) on every gathered
-   file and write the result to `--outdir`, keeping the original filename.
+   file and write the result to `--outdir`, preserving each file's path
+   relative to its source directory.
 
 The mental model: _jaffgen is the template engine driven over a file set with
 one loaded network behind it._
@@ -43,13 +44,13 @@ The three input flags are additive, not exclusive:
 
 | Flag         | Adds                                                          |
 | ------------ | ------------------------------------------------------------- |
-| `--indir`    | Every file in a directory (non-recursive)                     |
+| `--indir`    | Every file in a directory (recursive), keeping its structure  |
 | `--files`    | Specific individual files                                     |
 | `--template` | A built-in collection from `jaff/templates/generator/<name>/` |
 
 For `--template`, generator files are collected first; any **preprocessor** file
-(`jaff/templates/preprocessor/<name>/`) whose name does not clash is appended —
-so the generator always wins on a name collision.
+(`jaff/templates/preprocessor/<name>/`) whose relative path does not clash is
+appended — so the generator always wins on a path collision.
 
 ---
 
