@@ -83,7 +83,7 @@ errors     = false
 | Key          | Type   | Default     | Description                                        |
 | ------------ | ------ | ----------- | -------------------------------------------------- |
 | `label`      | `str`  | file stem   | Human-readable network name                        |
-| `funcfile`   | `str`  | auto-detect | Path to a `.jfunc` auxiliary file                  |
+| `funcfile`   | `str` or `bool` | `true`      | Path to a `.jfunc` auxiliary file; `true` scans the network dir, `false` skips loading |
 | `replace_nH` | `bool` | `true`      | Expand `nh` / `nhe` shorthands in rate expressions |
 | `errors`     | `bool` | `false`     | Treat conservation violations as fatal             |
 

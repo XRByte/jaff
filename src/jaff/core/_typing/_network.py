@@ -7,7 +7,7 @@ NetworkProps = TypedDict(
         "fname": str | Path,
         "errors": NotRequired[bool],
         "label": NotRequired[str],
-        "funcfile": NotRequired[str | Path],
+        "funcfile": NotRequired[bool | str | Path],
         "replace_nH": NotRequired[bool],
         "rad_bands": NotRequired[list],
         "rad_powerlaw_index": NotRequired[int | float],

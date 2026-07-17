@@ -53,7 +53,7 @@ Network(
     fname,
     errors=False,
     label=None,
-    funcfile=None,
+    funcfile=True,
     replace_nH=True,
     rad_bands=[],
     rad_powerlaw_index=0,
@@ -67,7 +67,7 @@ Network(
 | `fname`              | `str or Path`         | —                       | Path to the network file (required); `.jaff` files are loaded as binary                |
 | `errors`             | `bool`                | `False`                 | Treat conservation violations / duplicates as fatal (exit) instead of warning          |
 | `label`              | `str or None`         | `None`                  | Human-readable network name (defaults to the file stem)                                |
-| `funcfile`           | `str or Path or None` | `None`                  | Path to a `.jfunc` auxiliary file; auto-detected when `None`; pass `"none"` to skip    |
+| `funcfile`           | `bool or str or Path` | `True`                  | Path to a `.jfunc` auxiliary file; `True` scans the network dir; `False` skips loading |
 | `replace_nH`         | `bool`                | `True`                  | Expand `nh` / `nhe` shorthand into sums of `nden[i]` over H/He-bearing species         |
 | `rad_bands`          | `list`                | `[]`                    | Radiation band boundaries; an empty list disables radiation transport                  |
 | `rad_powerlaw_index` | `int or float`        | `0`                     | Power-law spectral index for the radiation field                                       |

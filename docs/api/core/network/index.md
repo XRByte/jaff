@@ -12,7 +12,7 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 
 ## Constructor
 
-`#!python Network(fname, errors=False, label=None, funcfile=None, replace_nH=True, rad_bands=[], rad_powerlaw_index=0, rad_energy_density=False, c=constants.c.cgs.value)`
+`#!python Network(fname, errors=False, label=None, funcfile=True, replace_nH=True, rad_bands=[], rad_powerlaw_index=0, rad_energy_density=False, c=constants.c.cgs.value)`
 
 **Parameters**
 
@@ -25,8 +25,8 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 **label** : _str or None, optional_
 : Network identifier. Defaults to the file stem.
 
-**funcfile** : _str, Path, or None, optional_
-: Path to .jfunc auxiliary functions file. `None` auto-searches; `"none"` skips.
+**funcfile** : _bool, str, or Path, optional_
+: Path to .jfunc auxiliary functions file. `True` (default) scans the network directory; `False` skips.
 
 **replace_nH** : _bool, optional_
 : Replace nH/nHe symbols with species density sums. Default `True`.

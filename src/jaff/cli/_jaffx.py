@@ -40,6 +40,7 @@ from inspect import signature
 from .. import Network, NetworkProps
 from ..common import motd
 from ..io import JaffLogger
+from ._helper import funcfile_arg
 
 
 class JaffX:
@@ -406,7 +407,8 @@ class JaffX:
         network_grp.add_argument(
             "--funcfile",
             metavar="FILE",
-            help="Path to auxiliary function file. Scans network directory by default",
+            type=funcfile_arg,
+            help="Path to auxiliary function file. Scans network directory by default ('true'). Pass 'false' to skip",
         )
 
         network_grp.add_argument(
@@ -643,7 +645,11 @@ class JaffX:
         net_params = signature(Network.__init__).parameters
         net_kwargs: NetworkProps = {
             "fname": args.network,
-            "funcfile": args.funcfile or net_params["funcfile"].default,
+            # Explicit None check so --funcfile false (which yields False) is
+            # not mistaken for an absent flag.
+            "funcfile": args.funcfile
+            if args.funcfile is not None
+            else net_params["funcfile"].default,
             "label": args.label or net_params["label"].default,
             # Use an explicit None check for the boolean flag so that --no-replace-nh
             # (which yields False) is not silently ignored.

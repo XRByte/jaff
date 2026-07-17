@@ -47,7 +47,7 @@ options. These mirror the [`Network` constructor](network.md#constructor):
 | -------------- | -------------------------------------------------------------------------------- |
 | `--network`    | Path to the network file (**required** in practice)                              |
 | `--label`      | Override the network label (defaults to the file stem)                           |
-| `--funcfile`   | Path to a `.jfunc` auxiliary file; auto-detected from the network dir if omitted |
+| `--funcfile`   | Path to a `.jfunc` auxiliary file; `true` scans the network dir (default); `false` skips loading |
 | `--replace-nh` | `--replace-nh` / `--no-replace-nh` — expand `nh`/`nhe` density shorthands        |
 
 ---

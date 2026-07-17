@@ -62,7 +62,7 @@ appended — so the generator always wins on a path collision.
 | -------------- | ---------------------------------------------------------------------------------- |
 | `--network`    | Network file path **or** a built-in network name; required (CLI or `jaffgen.toml`) |
 | `--label`      | Override the network label (defaults to the file stem)                             |
-| `--funcfile`   | Path to a `.jfunc` auxiliary file; auto-detected when omitted; `"none"` to skip    |
+| `--funcfile`   | Path to a `.jfunc` auxiliary file; `true` scans the network dir; `false` skips     |
 | `--replace-nH` | `--replace-nH` / `--no-replace-nH` — expand `nh`/`nhe` shorthands (default: on)    |
 | `--errors`     | `--errors` / `--no-errors` — exit on conservation violations instead of warning    |
 

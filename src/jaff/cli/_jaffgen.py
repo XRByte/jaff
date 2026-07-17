@@ -62,6 +62,7 @@ from ..config import JAFF_DIR, NETWORK_DIR, TEMPLATES_DIR
 from ..drivers import HDF5, Toml
 from ..io import JaffLogger, jaff_progress
 from ..types import HDF5Dict
+from ._helper import funcfile_arg
 from ._typing import JaffgenProps
 
 if TYPE_CHECKING:
@@ -229,7 +230,7 @@ class JaffGen:
     # ------------------------------------------------------------------
 
     def __get_prop(
-        self, arg_prop: str | None, dict_key: str, dict_prop: str
+        self, arg_prop: Any | None, dict_key: str, dict_prop: str
     ) -> Any | None:
         """
         Resolve a configuration value from the CLI arg or config file.
@@ -237,9 +238,13 @@ class JaffGen:
         Returns *arg_prop* unchanged if it is not ``None``.  Otherwise looks
         the value up in the raw TOML config under ``[dict_key] / dict_prop``.
 
+        Absence is signalled by ``None`` rather than falsiness, so a
+        deliberate ``False`` from the command line (``--funcfile false``,
+        ``--no-replace-nH``, ``--no-errors``) still wins over the config file.
+
         Parameters
         ----------
-        arg_prop : str or None
+        arg_prop : Any or None
             Value provided on the command line (``None`` if absent).
         dict_key : str
             Top-level TOML section key (e.g. ``"jaffgen"`` or ``"network"``).
@@ -251,7 +256,10 @@ class JaffGen:
         Any or None
             The resolved value, or ``None`` if neither source has it.
         """
-        return arg_prop or (
+        if arg_prop is not None:
+            return arg_prop
+
+        return (
             (self.jaffgen_config_raw.get_key(dict_key) or {}).get(dict_prop, None)
             if self.jaffgen_config_raw is not None
             else None
@@ -565,18 +573,24 @@ class JaffGen:
         )
         self.jaffgen_config["input_dir"] = indir
 
-    def __set_funcfile(self, funcfile: str | None) -> None:
+    def __set_funcfile(self, funcfile: bool | str | None) -> None:
         """
         Resolve and store the auxiliary function file path in network props.
 
-        When *funcfile* is ``None``, the Network constructor default is used
-        (which typically looks for ``<network_name>.jfunc`` in the network
-        directory).
+        ``None`` here means *neither the command line nor the config file
+        supplied a value*, so the Network constructor default is used; it is
+        not itself a value Network accepts.  ``True`` scans the network
+        directory for ``<network_name>.jfunc`` and ``False`` skips
+        auxiliary-function loading entirely — written ``funcfile = true`` /
+        ``false`` in the config file, or ``--funcfile true`` / ``false`` on
+        the command line.
 
         Parameters
         ----------
-        funcfile : str or None
-            Path to the auxiliary function file (from ``--funcfile``).
+        funcfile : bool or str or None
+            Path to the auxiliary function file (from ``--funcfile`` or the
+            ``funcfile`` config key), ``True`` to scan, ``False`` to skip, or
+            ``None`` when absent from both sources.
 
         Returns
         -------
@@ -587,6 +601,10 @@ class JaffGen:
             self.jaffgen_config["netprops"]["funcfile"] = self.network_params[
                 "funcfile"
             ].default
+            return
+
+        if isinstance(funcfile, bool):
+            self.jaffgen_config["netprops"]["funcfile"] = funcfile
             return
 
         funcfile: Path = Path(funcfile)
@@ -710,7 +728,8 @@ class JaffGen:
             "--funcfile",
             required=False,
             metavar="FILE",
-            help="Path to auxiliary function file. Checks network dir for <network_name>.jfunc by default",
+            type=funcfile_arg,
+            help="Path to auxiliary function file. Checks network dir for <network_name>.jfunc by default ('true'). Pass 'false' to skip",
         )
 
         self.parser.add_argument(
