@@ -90,7 +90,7 @@ A loaded `Network` carries:
   catalogue;
 - `elements` — the [`Elements`](../user-guide/working-with-networks/elements.md)
   catalogue, plus mass and composition information;
-- `file_name` — the path the network was read from;
+- `filename` — the path the network was read from;
 - `label` — a human-readable identifier (defaults to the file stem).
 
 <!-- prettier-ignore -->

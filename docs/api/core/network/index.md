@@ -12,12 +12,15 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 
 ## Constructor
 
-`#!python Network(fname, errors=False, label=None, funcfile=True, replace_nH=True, rad_bands=[], rad_powerlaw_index=0, rad_energy_density=False, c=constants.c.cgs.value)`
+`#!python Network(fname, config=None, errors=False, label=None, funcfile=True, replace_nH=True, rad_bands=[], rad_powerlaw_index=0, rad_energy_density=False, c=constants.c.cgs.value)`
 
 **Parameters**
 
 **fname** : _str or Path_
 : Path to network file. Supported formats: KIDA, UDFA, PRIZMO, KROME, UCLCHEM, a combination of the above and the `.jaff` file (Refer to [to_jaff](to_jaff.md) for more details).
+
+**config** : _str, Path, or None, optional_
+: Path to a TOML configuration file. When `None` (default), JAFF looks for `jaff.toml` in the network file's directory.
 
 **errors** : _bool, optional_
 : Exit on validation errors. Default `False`.
@@ -50,17 +53,17 @@ _FileNotFoundError_
 
 ## Attributes
 
-| Attribute         | Type                | Description                                                                                  |
-| ----------------- | ------------------- | -------------------------------------------------------------------------------------------- |
-| `label`           | `str`               | Human-readable network identifier; defaults to the source file stem                          |
-| `file_name`       | `Path`              | Resolved absolute path to the source network file                                            |
+| Attribute         | Type                | Description                                                                                                         |
+| ----------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `label`           | `str`               | Human-readable network identifier; defaults to the source file stem                                                 |
+| `filename`        | `Path`              | Resolved absolute path to the source network file                                                                   |
 | `species`         | `Species`           | Ordered catalogue of the network's core (real) species; special pseudo-species (`_PHOTON`, `_CR`, ...) are excluded |
-| `reactions`       | `Reactions`         | Ordered catalogue of all reactions in the network                                            |
-| `elements`        | `Elements`          | Element catalogue derived from all species; used for composition matrices                    |
-| `reactant_matrix` | `ndarray`           | Shape (n_reactions, n_species) stoichiometry matrix for reactants                            |
-| `product_matrix`  | `ndarray`           | Shape (n_reactions, n_species) stoichiometry matrix for products                             |
-| `mass_dict`       | `dict`              | Mapping from element symbol to mass properties, used for conservation checks                 |
-| `dEdt_chem`       | `sympy.Basic`       | Total chemical heating/cooling rate (erg cm⁻³ s⁻¹), accumulated over all reactions           |
-| `dEdt_other`      | `sympy.Basic`       | Additional heating/cooling rate from the `heatingcoolingrate` auxiliary function, if present |
-| `dRad_dt_extra`   | `sympy.Basic`       | Extra radiation moment source terms from `@function` definitions                             |
-| `radiation`       | `Radiation or None` | Radiation field object; `None` when no radiation bands are specified                         |
+| `reactions`       | `Reactions`         | Ordered catalogue of all reactions in the network                                                                   |
+| `elements`        | `Elements`          | Element catalogue derived from all species; used for composition matrices                                           |
+| `reactant_matrix` | `ndarray`           | Shape (n_reactions, n_species) stoichiometry matrix for reactants                                                   |
+| `product_matrix`  | `ndarray`           | Shape (n_reactions, n_species) stoichiometry matrix for products                                                    |
+| `mass_dict`       | `dict`              | Mapping from element symbol to mass properties, used for conservation checks                                        |
+| `dEdt_chem`       | `sympy.Basic`       | Total chemical heating/cooling rate (erg cm⁻³ s⁻¹), accumulated over all reactions                                  |
+| `dEdt_other`      | `sympy.Basic`       | Additional heating/cooling rate from the `heatingcoolingrate` auxiliary function, if present                        |
+| `dRad_dt_extra`   | `sympy.Basic`       | Extra radiation moment source terms from `@function` definitions                                                    |
+| `radiation`       | `Radiation or None` | Radiation field object; `None` when no radiation bands are specified                                                |

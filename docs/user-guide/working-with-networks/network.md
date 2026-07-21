@@ -51,6 +51,7 @@ After this, the network is a fully assembled, queryable model.
 ```python
 Network(
     fname,
+    config=None,
     errors=False,
     label=None,
     funcfile=True,
@@ -65,6 +66,7 @@ Network(
 | Parameter            | Type                  | Default                 | Description                                                                            |
 | -------------------- | --------------------- | ----------------------- | -------------------------------------------------------------------------------------- |
 | `fname`              | `str or Path`         | —                       | Path to the network file (required); `.jaff` files are loaded as binary                |
+| `config`             | `str or Path or None` | `None`                  | Path to a `jaff.toml` config file; `None` auto-detects one in the network file's dir   |
 | `errors`             | `bool`                | `False`                 | Treat conservation violations / duplicates as fatal (exit) instead of warning          |
 | `label`              | `str or None`         | `None`                  | Human-readable network name (defaults to the file stem)                                |
 | `funcfile`           | `bool or str or Path` | `True`                  | Path to a `.jfunc` auxiliary file; `True` scans the network dir; `False` skips loading |
@@ -104,7 +106,7 @@ net = Network(
 
 | Attribute         | Type              | Description                                                                     |
 | ----------------- | ----------------- | ------------------------------------------------------------------------------- |
-| `file_name`       | `Path`            | Absolute path to the source file                                                |
+| `filename`        | `Path`            | Absolute path to the source file                                                |
 | `label`           | `str`             | Network name                                                                    |
 | `species`         | `Species`         | Ordered [`Species`](species.md) catalogue                                       |
 | `reactions`       | `Reactions`       | Ordered [`Reactions`](reactions.md) catalogue                                   |
@@ -227,6 +229,55 @@ net.sradodes(0)     # list[Expr] — radiation moment ODEs (order 0), if rad_ban
 A flux is just the reaction rate times its reactant densities; the species ODEs
 are signed sums of these. See [`sfluxes`](../../api/core/network/sfluxes.md) and
 [`sradodes`](../../api/core/network/sradodes.md) for details.
+
+---
+
+## Temperature cutoffs
+
+Every reaction carries a temperature validity range `[Tmin, Tmax]`. What happens
+when the gas temperature `tgas` falls **outside** that range is controlled by the
+reaction's _temperature cutoff_ behaviour:
+
+| Cutoff        | Behaviour outside `[Tmin, Tmax]`                                                    |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `clip`        | `tgas` is clamped to the nearest bound, so the rate is frozen at its boundary value |
+| `extrapolate` | `tgas` is left untouched, so the rate expression is evaluated (extrapolated) as-is  |
+
+`clip` is the default. Under `clip`, `tgas` in each rate expression is replaced by
+`max(min(tgas, Tmax), Tmin)` (only the bounds that are defined are applied). Under
+`extrapolate`, no clamp is inserted and the raw `tgas` symbol survives into the
+generated code.
+
+### Configuration via `jaff.toml`
+
+Cutoff behaviour is set from a TOML config file — either passed explicitly with
+the `config=` constructor argument, or auto-detected as a `jaff.toml` sitting in
+the **network file's directory**. Settings live under the `[network]` table:
+
+```toml
+# Global default applied to every reaction
+[network.rate]
+T_cutoff = "clip"          # "clip" (default) or "extrapolate"
+
+# Per-reaction override, keyed by the reaction's serialized form
+[network.reactions."CO._PHOTON__C.O"]
+T_cutoff = "extrapolate"
+```
+
+Resolution order for each reaction: a per-reaction `[network.reactions."<key>"]`
+entry wins; otherwise the global `[network.rate]` value applies; otherwise the
+built-in default `clip`. Values are case-insensitive; anything other than `clip`
+or `extrapolate` raises a `ParserError`.
+
+<!-- prettier-ignore -->
+!!! note "Reaction keys are serialized names"
+    The per-reaction key is the reaction's **serialized form**:
+    `<reactants>__<products>`, where each side is a `.`-joined list of species
+    names sorted alphabetically. Special pseudo-species keep their underscore
+    prefix (e.g. `_PHOTON`, `_CR`). For `CO + PHOTON -> C + O` this is
+    `CO._PHOTON__C.O`. The cutoff is baked into the rate expression at load
+    time, so a `.jaff` file saved afterwards already carries the resolved
+    behaviour and does not need the config on reload.
 
 ---
 
