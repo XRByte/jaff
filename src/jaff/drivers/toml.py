@@ -7,7 +7,6 @@ exposes key-level accessors for use by the CLI configuration engine.
 """
 
 from pathlib import Path
-from typing import Any
 
 import tomllib
 

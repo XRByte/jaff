@@ -36,7 +36,7 @@ class TestNetworkInitialization:
             network = Network(sample_kida_file)
 
         # Check basic attributes are initialized
-        assert network.file_name == Path(sample_kida_file).resolve()
+        assert network.filename == Path(sample_kida_file).resolve()
         assert network.label == "sample_kida"
         assert isinstance(network.species, Species)
         assert isinstance(network.reactions, Reactions)
@@ -54,7 +54,7 @@ class TestNetworkInitialization:
             network = Network(sample_kida_file, label=custom_label)
 
         assert network.label == custom_label
-        assert network.file_name == Path(sample_kida_file).resolve()
+        assert network.filename == Path(sample_kida_file).resolve()
 
     def test_initialization_with_nonexistent_file(self):
         """Test initialization fails gracefully with non-existent file."""
