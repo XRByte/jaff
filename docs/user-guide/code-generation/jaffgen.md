@@ -24,7 +24,7 @@ A `jaffgen` run is four phases:
 
 1. **Resolve configuration** — merge three sources by priority (see
    [below](#configuration-priority)): explicit CLI flags, a
-   [`jaffgen.toml`](jaff-toml.md) file, then `Network` constructor defaults.
+   [`jaffgen.toml`](jaffgen-toml.md) file, then `Network` constructor defaults.
 2. **Gather template files** — from `--indir`, `--files`, and `--template`.
    These **combine** — a single run can pull from all three.
 3. **Load the network** — exactly one `Network`, built from the resolved
@@ -61,6 +61,7 @@ appended — so the generator always wins on a path collision.
 | Argument       | Description                                                                        |
 | -------------- | ---------------------------------------------------------------------------------- |
 | `--network`    | Network file path **or** a built-in network name; required (CLI or `jaffgen.toml`) |
+| `--network-config` | Path to a network [`jaff.toml`](../working-with-networks/jaff-toml.md) (temperature cutoffs); defaults to `<network_dir>/jaff.toml` |
 | `--label`      | Override the network label (defaults to the file stem)                             |
 | `--funcfile`   | Path to a `.jfunc` auxiliary file; `true` scans the network dir; `false` skips     |
 | `--replace-nH` | `--replace-nH` / `--no-replace-nH` — expand `nh`/`nhe` shorthands (default: on)    |
@@ -93,7 +94,7 @@ the first `.jet` file inside it.
 
 | Argument   | Description                                                                                                  |
 | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| `--config` | Path to a [`jaffgen.toml`](jaff-toml.md); also auto-detected if a `jaffgen.toml` is among the gathered files |
+| `--config` | Path to a [`jaffgen.toml`](jaffgen-toml.md); also auto-detected if a `jaffgen.toml` is among the gathered files |
 
 ---
 
@@ -102,7 +103,7 @@ the first `.jet` file inside it.
 Each setting is resolved highest-wins:
 
 1. Explicit CLI flag (e.g. `--network`)
-2. [`jaffgen.toml`](jaff-toml.md) value (from `--config`, or auto-detected)
+2. [`jaffgen.toml`](jaffgen-toml.md) value (from `--config`, or auto-detected)
 3. `Network` constructor default
 
 Paths taken from a `jaffgen.toml` are resolved **relative to the config file's
@@ -183,9 +184,9 @@ jaffgen --config jaffgen.toml
 ```
 
 A bundled template can even supply its own config. The `microphysics` collection
-ships a `jaffgen.toml` with a `[radiation]` block, so `--template microphysics`
+ships a `jaffgen.toml` with a `[network.radiation]` block, so `--template microphysics`
 auto-detects it and turns on photochemistry without any extra flags. See
-[`jaffgen.toml`](jaff-toml.md) for the full schema.
+[`jaffgen.toml`](jaffgen-toml.md) for the full schema.
 
 ---
 

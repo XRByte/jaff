@@ -234,50 +234,11 @@ are signed sums of these. See [`sfluxes`](../../api/core/network/sfluxes.md) and
 
 ## Temperature cutoffs
 
-Every reaction carries a temperature validity range `[Tmin, Tmax]`. What happens
-when the gas temperature `tgas` falls **outside** that range is controlled by the
-reaction's _temperature cutoff_ behaviour:
-
-| Cutoff        | Behaviour outside `[Tmin, Tmax]`                                                    |
-| ------------- | ---------------------------------------------------------------------------------- |
-| `clip`        | `tgas` is clamped to the nearest bound, so the rate is frozen at its boundary value |
-| `extrapolate` | `tgas` is left untouched, so the rate expression is evaluated (extrapolated) as-is  |
-
-`clip` is the default. Under `clip`, `tgas` in each rate expression is replaced by
-`max(min(tgas, Tmax), Tmin)` (only the bounds that are defined are applied). Under
-`extrapolate`, no clamp is inserted and the raw `tgas` symbol survives into the
-generated code.
-
-### Configuration via `jaff.toml`
-
-Cutoff behaviour is set from a TOML config file — either passed explicitly with
-the `config=` constructor argument, or auto-detected as a `jaff.toml` sitting in
-the **network file's directory**. Settings live under the `[network]` table:
-
-```toml
-# Global default applied to every reaction
-[network.rate]
-T_cutoff = "clip"          # "clip" (default) or "extrapolate"
-
-# Per-reaction override, keyed by the reaction's serialized form
-[network.reactions."CO._PHOTON__C.O"]
-T_cutoff = "extrapolate"
-```
-
-Resolution order for each reaction: a per-reaction `[network.reactions."<key>"]`
-entry wins; otherwise the global `[network.rate]` value applies; otherwise the
-built-in default `clip`. Values are case-insensitive; anything other than `clip`
-or `extrapolate` raises a `ParserError`.
-
-<!-- prettier-ignore -->
-!!! note "Reaction keys are serialized names"
-    The per-reaction key is the reaction's **serialized form**:
-    `<reactants>__<products>`, where each side is a `.`-joined list of species
-    names sorted alphabetically. Special pseudo-species keep their underscore
-    prefix (e.g. `_PHOTON`, `_CR`). For `CO + PHOTON -> C + O` this is
-    `CO._PHOTON__C.O`. The cutoff is baked into the rate expression at load
-    time, so a `.jaff` file saved afterwards already carries the resolved
-    behaviour and does not need the config on reload.
+Each reaction's rate is only valid within a temperature range `[Tmin, Tmax]`.
+Whether `tgas` is clamped to that range (`clip`, the default) or left to
+extrapolate beyond it is configured per network in a
+[`jaff.toml`](jaff-toml.md) — see [Network Configuration](jaff-toml.md) for the
+full schema and precedence rules.
 
 ---
 

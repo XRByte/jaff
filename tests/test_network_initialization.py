@@ -76,7 +76,7 @@ class TestNetworkInitialization:
             patch("builtins.open", MagicMock()),
             patch("pathlib.Path.exists", return_value=True),
         ):
-            with patch.object(Network, "_Network__load_network", MagicMock()):
+            with patch.object(Network, "_Network__load_config", MagicMock()), patch.object(Network, "_Network__load_network", MagicMock()):
                 with patch.object(Network, "check_sink_sources", MagicMock()):
                     with patch.object(Network, "check_recombinations", MagicMock()):
                         with patch.object(Network, "check_isomers", MagicMock()):

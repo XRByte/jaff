@@ -31,10 +31,10 @@ leaves and overrides constructor defaults:
     relative to the CWD.
 
 The smallest useful config is a single section — the bundled `microphysics`
-template, for instance, ships only a `[radiation]` block:
+template, for instance, ships only a `[network.radiation]` block:
 
 ```toml
-[radiation]
+[network.radiation]
 bands = [13.6, "inf"]
 power_law_index = 0
 energy_density = false
@@ -87,16 +87,40 @@ errors     = false
 | `replace_nH` | `bool` | `true`      | Expand `nh` / `nhe` shorthands in rate expressions |
 | `errors`     | `bool` | `false`     | Treat conservation violations as fatal             |
 
+Besides these scalar keys, `[network]` also holds the subtables below
+(`radiation`, `rates`, `reactions`).
+
 ---
 
-## `[radiation]` section
+## `[network.rates]` and `[network.reactions."<serialized>"]` (temperature cutoffs)
+
+The per-reaction and global **temperature-cutoff** behaviour uses the same
+`[network.rates]` / `[network.reactions."<srxn>"]` schema documented for
+[`jaff.toml`](../working-with-networks/jaff-toml.md). Placing it here lets a
+particular `jaffgen` run override the network's own `jaff.toml` defaults:
+
+```toml
+[network.rates]
+T_cutoff = "extrapolate"                   # global default for this run
+
+[network.reactions."CO._PHOTON__C.O"]
+T_cutoff = "clip"                          # per-reaction override
+```
+
+A per-reaction value wins over any global; within a scope, `jaffgen.toml`
+overrides `jaff.toml`. See
+[Network Configuration → Resolution order](../working-with-networks/jaff-toml.md#resolution-order).
+
+---
+
+## `[network.radiation]` section
 
 Configures the photochemistry radiation field. Present this block to enable
 photochemistry radiation ode and jacobian radiation generation terms; omit it
 (or give an empty `bands`) to leave it off.
 
 ```toml
-[radiation]
+[network.radiation]
 bands           = [13.6, "inf"]    # band edges in eV; "inf" for an open upper bound
 power_law_index = 0                # spectral power-law index
 energy_density  = false            # true = energy density; false = photon density
@@ -114,7 +138,7 @@ rsl             = 2.99792458e10    # speed of light (cm/s). Used to configure re
 
 ---
 
-## `[reaction.<serialized>.shielding]` section
+## `[network.reactions.<serialized>.shielding]` section
 
 Attaches a shielding factor to one photo-reaction, keyed by the reaction's
 [serialized form](../working-with-networks/reactions.md). The factor multiplies
@@ -129,13 +153,13 @@ also carry the `_PHOTON` agent in their serialized form.
 
 ```toml
 # Leiden tabulated line shielding
-[reaction."CO._PHOTON__C.O".shielding]
+[network.reactions."CO._PHOTON__C.O".shielding]
 type        = "leiden"           # default if omitted
 radiation   = "ISRF"
 shielded_by = ["self", "H2"]
 
 # H2 self-shielding (Hartwig et al. 2015)
-[reaction."H2._PHOTON__H.H".shielding]
+[network.reactions."H2._PHOTON__H.H".shielding]
 type      = "hg2015"
 min_ncol  = 1.0e-35
 min_vdisp = 1.0e-20
@@ -293,7 +317,7 @@ funcfile   = "networks/GOW/GOW.jfunc"
 replace_nH = true
 errors     = false
 
-[radiation]
+[network.radiation]
 bands           = [13.6, "inf"]
 power_law_index = 0
 energy_density  = false
