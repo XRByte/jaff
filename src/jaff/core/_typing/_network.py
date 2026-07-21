@@ -5,6 +5,7 @@ NetworkProps = TypedDict(
     "NetworkProps",
     {
         "fname": str | Path,
+        "config": NotRequired[str | Path | None],
         "errors": NotRequired[bool],
         "label": NotRequired[str],
         "funcfile": NotRequired[bool | str | Path],

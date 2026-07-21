@@ -183,6 +183,7 @@ class JaffGen:
         self.network_params = signature(Network).parameters
         self.jaffgen_config["netprops"]["fname"] = self.jaffgen_config["network_file"]
         self.jaffgen_config["netprops"]["_from_cli"] = True
+        self.__set_network_config(self.args.network_config)
         self.__set_funcfile(self.__get_prop(self.args.funcfile, "network", "funcfile"))
         self.jaffgen_config["netprops"]["label"] = (
             self.__get_prop(self.args.label, "network", "label")
@@ -295,6 +296,43 @@ class JaffGen:
         self.jaffgen_config["config_file_dir"] = config_file.parent
         # Parse the TOML file so downstream helpers can call get_key().
         self.jaffgen_config_raw = Toml(config_file)
+
+    def __set_network_config(self, path: str | None) -> None:
+        """
+        Resolve the ``--network-config`` path and store it in network props.
+
+        This is the network's own ``jaff.toml`` (temperature-cutoff settings),
+        forwarded to the :class:`~jaff.Network` ``config`` argument.  When
+        ``None``, ``config`` stays ``None`` and ``Network`` auto-detects a
+        ``jaff.toml`` in the network file's directory instead.
+
+        Unlike paths taken from ``jaffgen.toml``, a ``--network-config`` value
+        comes from the command line and is therefore resolved relative to the
+        current working directory, not the config file's directory.
+
+        Parameters
+        ----------
+        path : str or None
+            Path to the network ``jaff.toml`` (from ``--network-config``).
+
+        Raises
+        ------
+        FileNotFoundError
+            If *path* does not exist or is not a regular file.
+        """
+        if path is None:
+            self.jaffgen_config["netprops"]["config"] = None
+            return
+
+        network_config = Path(path).resolve()
+
+        if not network_config.exists():
+            raise FileNotFoundError(network_config)
+
+        if not network_config.is_file():
+            raise FileNotFoundError(f"{network_config} is not a file")
+
+        self.jaffgen_config["netprops"]["config"] = network_config
 
     def __process_files(self) -> None:
         """
@@ -751,6 +789,14 @@ class JaffGen:
             required=False,
             metavar="FILE",
             help="Path to chemical reaction network file (required)",
+        )
+
+        self.parser.add_argument(
+            "--network-config",
+            required=False,
+            metavar="FILE",
+            help="Path to a jaff.toml network config (temperature cutoffs). "
+            "Defaults to <network_dir>/jaff.toml auto-detected by Network",
         )
 
         # ---- Output options ------------------------------------------------
