@@ -15,6 +15,6 @@ NetworkProps = TypedDict(
         "rad_energy_density": NotRequired[bool],
         "c": NotRequired[float],
         "_from_cli": NotRequired[bool],
-        "_meta_data": NotRequired[dict],
+        "_metadata": NotRequired[dict],
     },
 )

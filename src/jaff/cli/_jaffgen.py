@@ -202,25 +202,30 @@ class JaffGen:
             errors if errors is not None else self.network_params["errors"].default
         )
 
-        # Handle optional config-file-only sections.
-        if self.jaffgen_config_raw:
-            rad_props = self.jaffgen_config_raw.get_key("radiation")
-            if rad_props:
-                self.__handle_radiation(rad_props)
+        network_cfg: dict = (
+            (self.jaffgen_config_raw.get_key("network") or {})
+            if self.jaffgen_config_raw
+            else {}
+        )
+        reactions_cfg: dict = network_cfg.get("reactions") or {}
+        rates_cfg: dict = network_cfg.get("rates") or {}
 
+        rad_props = network_cfg.get("radiation")
+        if rad_props:
+            self.__handle_radiation(rad_props)
+
+        if self.jaffgen_config_raw:
             table_props = self.jaffgen_config_raw.get_key("table")
             if table_props:
                 self.__handle_data_tables(table_props)
 
-        reaction_props = None
-        if self.jaffgen_config_raw:
-            reaction_props = self.jaffgen_config_raw.get_key("reaction")
-
-        if reaction_props:
-            self.jaffgen_config["netprops"]["_metadata"] = {
-                "reaction_props": reaction_props,
-                "jaffgen_object": self,
-            }
+        if reactions_cfg or rates_cfg:
+            metadata: dict[str, Any] = {"jaffgen_object": self}
+            if reactions_cfg:
+                metadata["reaction_props"] = reactions_cfg
+            if rates_cfg:
+                metadata["rate_props"] = rates_cfg
+            self.jaffgen_config["netprops"]["_metadata"] = metadata
 
         # Create the Network instance and immediately run code generation.
         self.net: Network = Network(**self.jaffgen_config["netprops"])
