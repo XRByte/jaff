@@ -402,10 +402,10 @@ class Network:
                 self.__parse_reaction_metadata(rea)
 
             # Reactions shouldn't repeat
-            if rea.serialized in self.reactions:
-                raise ParserError(
-                    f"Reaction '{rea.serialized}' appears more than once in the file: {self.filename}"
-                )
+            # if rea.serialized in self.reactions:
+            #     raise ParserError(
+            #         f"Reaction '{rea.serialized}' appears more than once in the file: {self.filename}"
+            #     )
             self.reactions.add(rea)
 
             if rea.type == "photo":
