@@ -128,18 +128,28 @@ class TestJaffgenWiring:
         JaffGen._JaffGen__set_network_config(jg, None)
         assert jg.jaffgen_config["netprops"]["config"] is None
 
-    def test_set_network_config_resolves_cwd(self):
-        jg, JaffGen = self._bare_jaffgen()
-        JaffGen._JaffGen__set_network_config(jg, "networks/GOW/jaff.toml")
-        cfg = jg.jaffgen_config["netprops"]["config"]
-        assert cfg == Path("networks/GOW/jaff.toml").resolve() and cfg.is_absolute()
+    def test_set_network_config_resolves_cwd(self, tmp_path, monkeypatch):
+        # A relative --network-config resolves against the CWD, so run from a
+        # scratch directory rather than relying on the repository layout.
+        (tmp_path / "networks").mkdir()
+        rel = Path("networks") / "jaff.toml"
+        (tmp_path / rel).write_text('[network.rates]\nT_cutoff = "clip"\n')
+        monkeypatch.chdir(tmp_path)
 
-    def test_set_network_config_missing_raises(self):
+        jg, JaffGen = self._bare_jaffgen()
+        JaffGen._JaffGen__set_network_config(jg, str(rel))
+        cfg = jg.jaffgen_config["netprops"]["config"]
+        assert cfg == (tmp_path / rel).resolve() and cfg.is_absolute()
+
+    def test_set_network_config_missing_raises(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
         jg, JaffGen = self._bare_jaffgen()
         with pytest.raises(FileNotFoundError):
             JaffGen._JaffGen__set_network_config(jg, "does_not_exist.toml")
 
-    def test_set_network_config_dir_raises(self):
+    def test_set_network_config_dir_raises(self, tmp_path, monkeypatch):
+        (tmp_path / "networks").mkdir()
+        monkeypatch.chdir(tmp_path)
         jg, JaffGen = self._bare_jaffgen()
         with pytest.raises(FileNotFoundError):
             JaffGen._JaffGen__set_network_config(jg, "networks")
