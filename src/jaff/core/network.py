@@ -146,8 +146,11 @@ class Network:
             as fatal errors (process exits).  Default ``False`` (warnings
             only).
         config : str | Path | None, optional
-            Path to a TOML configuration file.  When ``None`` (default),
-            JAFF looks for ``jaff.toml`` in the network file's directory.
+            Path to a ``jaff.toml`` network config file.  When ``None``
+            (default), JAFF looks for ``jaff.toml`` in the network file's
+            directory.  Only the ``[network.rates]`` global and
+            ``[network.reactions."<serialized>"].T_cutoff`` per-reaction
+            temperature-cutoff keys are read from it.
         label : str | None, optional
             Human-readable name for this network.  Defaults to the file stem.
         funcfile : bool | str | Path, optional
@@ -277,8 +280,10 @@ class Network:
         n_photo = 0
         tgas = symbols("tgas")
         default_tcutoff: str = "clip"
-        t_cutoff: str = self._config.get("rate", {}).get("T_cutoff", default_tcutoff)
         reactions_config: dict = self._config.get("reactions", {})
+        reaction_props: dict = self._metadata.get("reaction_props", {})
+        jaff_global_tcutoff = self._config.get("rates", {}).get("T_cutoff")
+        jaffgen_global_tcutoff = self._metadata.get("rate_props", {}).get("T_cutoff")
 
         with NetworkParser(fname, self.logger) as netp:
             reactions_list, global_vars = netp.get_parsed()
@@ -329,7 +334,11 @@ class Network:
             local_subs_dict = {**subs_dict}
             srxn = Reaction.serialize(rr, pp)
             local_tcutoff: str = (
-                reactions_config.get(srxn, {}).get("T_cutoff", None) or t_cutoff
+                reaction_props.get(srxn, {}).get("T_cutoff")
+                or reactions_config.get(srxn, {}).get("T_cutoff")
+                or jaffgen_global_tcutoff
+                or jaff_global_tcutoff
+                or default_tcutoff
             ).lower()
             if local_tcutoff not in self._valid_tcutoffs:
                 raise ParserError(
