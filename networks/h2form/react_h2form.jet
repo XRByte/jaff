@@ -1,0 +1,6 @@
+# Single-reaction second-order decay of atomic hydrogen (PRIZMO format).
+# One-zone test: constant rate, analytic curve for integrator check.
+#   n_H(t):  1/n_H(t) = 1/n_H0 + 2*k*t   (k = 1e-17)
+# No temperature dependence -> isolates ODE/Jacobian correctness.
+
+H + H -> H2   []   1e-17
