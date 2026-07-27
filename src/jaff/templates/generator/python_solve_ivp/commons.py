@@ -1,6 +1,6 @@
-# $JAFF REPEAT idx, specie IN species_with_normalized_sign
+# $JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign $[POS j NEG k REPLACE idx_ek idx_e]$
 
-idx_$specie$ = $idx$
+idx_$specie_with_normalized_sign$ = $idx$
 
 # $JAFF END
 # $JAFF SUB nspec, nreact
