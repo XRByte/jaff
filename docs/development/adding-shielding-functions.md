@@ -26,7 +26,7 @@ the TOML `shielding.type` option (matched case-insensitively).
 
 ## How Shielding Is Resolved
 
-When a reaction carries a `[reaction."<serialized>".shielding]` block, the
+When a reaction carries a `[network.reactions."<serialized>".shielding]` block, the
 network parser copies it onto `reaction._metadata["shielding"]`, and
 `Photochemistry.shielding` (`src/jaff/physics/photo_reactions/_photochemistry.py`)
 asks the registry for the model named by `type`. Lookup is keyed by
@@ -134,7 +134,7 @@ A reaction selects one of them (note the **quoted** dotted key — TOML would
 otherwise read the dots as nested tables):
 
 ```toml
-[reaction."H2._PHOTON__H.H".shielding]
+[network.reactions."H2._PHOTON__H.H".shielding]
 type = "hg2015"
 min_vdisp = 1.0e-20
 min_ncol  = 1.0e-35
@@ -210,7 +210,7 @@ physics/photo_reactions/shielding/
 ```
 
 ```toml
-[reaction."CO._PHOTON__C.O".shielding]
+[network.reactions."CO._PHOTON__C.O".shielding]
 type = "leiden"
 radiation = "ISRF"
 shielded_by = ["self", "H2"]

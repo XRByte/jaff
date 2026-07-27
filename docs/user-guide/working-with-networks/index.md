@@ -30,6 +30,14 @@ print(f"Elements:  {net.elements.count}")
 
     [:octicons-arrow-right-24: Network](network.md)
 
+- :phosphor-sliders:{ .sm .middle } **Network Configuration**
+
+    ***
+
+    The network's `jaff.toml`: per-reaction and global temperature-cutoff (`clip` / `extrapolate`) behaviour, and how it composes with `jaffgen.toml`.
+
+    [:octicons-arrow-right-24: jaff.toml](jaff-toml.md)
+
 - :phosphor-dna:{ .sm .middle } **Species**
 
     ***

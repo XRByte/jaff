@@ -79,7 +79,7 @@ src/jaff/
 ├── cli/                        # Command-line entry points
 │   ├── _jaffgen.py             # jaffgen — template-driven code generation
 │   ├── _jaffx.py               # jaffx — network inspection / conversion
-│   └── _config_engine.py       # Config resolution: CLI > jaff.toml > defaults
+│   └── _config_engine.py       # Config resolution: CLI > jaffgen.toml > defaults
 │
 ├── plugins/                    # Named solver plugins
 │   ├── python_solve_ivp/       # SciPy solve_ivp wrapper
@@ -137,7 +137,7 @@ flowchart TD
     subgraph input_sg ["Input"]
         NF["Network file\nKROME · PRIZMO · UDFA\nKIDA · UCLChem · .jaff"]
         JF[".jfunc\nauxiliary functions"]
-        CFG["jaff.toml / CLI"]
+        CFG["jaffgen.toml / CLI"]
     end
 
     subgraph parse_sg ["Parsing  —  core.parsers"]
@@ -178,7 +178,7 @@ The table below traces a single `jaffgen` invocation from command line to output
 
 | Step | Component                                | What happens                                                                                       |
 | ---- | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 1    | `cli/_jaffgen.py`                        | Parse CLI args, read `jaff.toml` via `_config_engine.py`                                           |
+| 1    | `cli/_jaffgen.py`                        | Parse CLI args, read `jaffgen.toml` via `_config_engine.py`                                        |
 | 2    | `core/parsers/network/_engine.py`        | Auto-detect format via registered plugins; convert each reaction line to a `parsedListProps` dict  |
 | 3    | `core/parsers/auxiliary_func/_engine.py` | Parse `.jfunc` file (if present); resolve `@var`/`@function` blocks into SymPy expressions         |
 | 4    | `core/network.py`                        | Build `Species`, `Reactions`, `Elements` catalogues; validate duplicates, sinks, isomers           |

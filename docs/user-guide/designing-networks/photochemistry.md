@@ -42,10 +42,10 @@ where $\rho_i$ is the radiation energy or photon density in band $i$ and $k_i$ i
 
 ## Radiation Field Discretisation
 
-The radiation field is divided into contiguous energy bands. You specify the band boundaries in `jaff.toml` (see [Configuration File](../code-generation/jaff-toml.md)):
+The radiation field is divided into contiguous energy bands. You specify the band boundaries in `jaffgen.toml` (see [Configuration File](../code-generation/jaffgen-toml.md)):
 
 ```toml
-[radiation]
+[network.radiation]
 bands             = [13.6, "inf"]   # band edges in eV; "inf" for open upper bound
 power_law_index   = 0               # photon-number spectrum index α
 energy_density    = false           # use photon density (false) or energy density (true)
@@ -199,22 +199,22 @@ $$
 
 ### Enabling shielding
 
-Shielding is opt-in per reaction, declared in `jaff.toml` under
-`[reaction."<serialized>".shielding]` (see the
-[configuration reference](../code-generation/jaff-toml.md#reactionserializedshielding-section)).
+Shielding is opt-in per reaction, declared in `jaffgen.toml` under
+`[network.reactions."<serialized>".shielding]` (see the
+[configuration reference](../code-generation/jaffgen-toml.md#networkreactionsserializedshielding-section)).
 The reaction **must be a photo-reaction**; the `type` key selects the shielding
 function (default `"leiden"`). The serialized key contains `.` separators and so
 **must be quoted** in the TOML header.
 
 ```toml
 # Leiden tabulated line shielding for CO photodissociation
-[reaction."CO._PHOTON__C.O".shielding]
+[network.reactions."CO._PHOTON__C.O".shielding]
 type        = "leiden"
 radiation   = "ISRF"           # radiation-field subgroup (default "ISRF")
 shielded_by = ["self", "H2"]   # shielding species; "self" = the reactant (CO)
 
 # H2 self-shielding via the Hartwig et al. (2015) fit
-[reaction."H2._PHOTON__H.H".shielding]
+[network.reactions."H2._PHOTON__H.H".shielding]
 type      = "hg2015"
 min_ncol  = 1.0e-35            # optional floors (see below)
 min_vdisp = 1.0e-20

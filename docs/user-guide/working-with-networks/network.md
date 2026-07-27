@@ -51,9 +51,10 @@ After this, the network is a fully assembled, queryable model.
 ```python
 Network(
     fname,
+    config=None,
     errors=False,
     label=None,
-    funcfile=None,
+    funcfile=True,
     replace_nH=True,
     rad_bands=[],
     rad_powerlaw_index=0,
@@ -65,9 +66,10 @@ Network(
 | Parameter            | Type                  | Default                 | Description                                                                            |
 | -------------------- | --------------------- | ----------------------- | -------------------------------------------------------------------------------------- |
 | `fname`              | `str or Path`         | —                       | Path to the network file (required); `.jaff` files are loaded as binary                |
+| `config`             | `str or Path or None` | `None`                  | Path to a `jaff.toml` config file; `None` auto-detects one in the network file's dir   |
 | `errors`             | `bool`                | `False`                 | Treat conservation violations / duplicates as fatal (exit) instead of warning          |
 | `label`              | `str or None`         | `None`                  | Human-readable network name (defaults to the file stem)                                |
-| `funcfile`           | `str or Path or None` | `None`                  | Path to a `.jfunc` auxiliary file; auto-detected when `None`; pass `"none"` to skip    |
+| `funcfile`           | `bool or str or Path` | `True`                  | Path to a `.jfunc` auxiliary file; `True` scans the network dir; `False` skips loading |
 | `replace_nH`         | `bool`                | `True`                  | Expand `nh` / `nhe` shorthand into sums of `nden[i]` over H/He-bearing species         |
 | `rad_bands`          | `list`                | `[]`                    | Radiation band boundaries; an empty list disables radiation transport                  |
 | `rad_powerlaw_index` | `int or float`        | `0`                     | Power-law spectral index for the radiation field                                       |
@@ -104,7 +106,7 @@ net = Network(
 
 | Attribute         | Type              | Description                                                                     |
 | ----------------- | ----------------- | ------------------------------------------------------------------------------- |
-| `file_name`       | `Path`            | Absolute path to the source file                                                |
+| `filename`        | `Path`            | Absolute path to the source file                                                |
 | `label`           | `str`             | Network name                                                                    |
 | `species`         | `Species`         | Ordered [`Species`](species.md) catalogue                                       |
 | `reactions`       | `Reactions`       | Ordered [`Reactions`](reactions.md) catalogue                                   |
@@ -227,6 +229,16 @@ net.sradodes(0)     # list[Expr] — radiation moment ODEs (order 0), if rad_ban
 A flux is just the reaction rate times its reactant densities; the species ODEs
 are signed sums of these. See [`sfluxes`](../../api/core/network/sfluxes.md) and
 [`sradodes`](../../api/core/network/sradodes.md) for details.
+
+---
+
+## Temperature cutoffs
+
+Each reaction's rate is only valid within a temperature range `[Tmin, Tmax]`.
+Whether `tgas` is clamped to that range (`clip`, the default) or left to
+extrapolate beyond it is configured per network in a
+[`jaff.toml`](jaff-toml.md) — see [Network Configuration](jaff-toml.md) for the
+full schema and precedence rules.
 
 ---
 

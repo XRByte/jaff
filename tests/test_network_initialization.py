@@ -36,7 +36,7 @@ class TestNetworkInitialization:
             network = Network(sample_kida_file)
 
         # Check basic attributes are initialized
-        assert network.file_name == Path(sample_kida_file).resolve()
+        assert network.filename == Path(sample_kida_file).resolve()
         assert network.label == "sample_kida"
         assert isinstance(network.species, Species)
         assert isinstance(network.reactions, Reactions)
@@ -54,7 +54,7 @@ class TestNetworkInitialization:
             network = Network(sample_kida_file, label=custom_label)
 
         assert network.label == custom_label
-        assert network.file_name == Path(sample_kida_file).resolve()
+        assert network.filename == Path(sample_kida_file).resolve()
 
     def test_initialization_with_nonexistent_file(self):
         """Test initialization fails gracefully with non-existent file."""
@@ -76,7 +76,7 @@ class TestNetworkInitialization:
             patch("builtins.open", MagicMock()),
             patch("pathlib.Path.exists", return_value=True),
         ):
-            with patch.object(Network, "_Network__load_network", MagicMock()):
+            with patch.object(Network, "_Network__load_config", MagicMock()), patch.object(Network, "_Network__load_network", MagicMock()):
                 with patch.object(Network, "check_sink_sources", MagicMock()):
                     with patch.object(Network, "check_recombinations", MagicMock()):
                         with patch.object(Network, "check_isomers", MagicMock()):
@@ -140,7 +140,7 @@ class TestNetworkInitialization:
                                     network = Network(sample_kida_file, errors=True)
 
         # Verify all methods were called
-        mock_load.assert_called_once_with(Path(sample_kida_file).resolve(), None, True)
+        mock_load.assert_called_once_with(Path(sample_kida_file).resolve(), True)
         mock_sink.assert_called_once_with(True)
         mock_recomb.assert_called_once_with(True)
         mock_isomers.assert_called_once_with(True)

@@ -11,7 +11,7 @@ Configuration can come from three sources, applied with the following priority
 order (highest → lowest):
 
 1. Explicit CLI argument (e.g. ``--network``)
-2. Values in a ``jaff.toml`` config file (``--config`` or auto-detected inside
+2. Values in a ``jaffgen.toml`` config file (``--config`` or auto-detected inside
    the template directory)
 3. Hard-coded defaults on the :class:`~jaff.Network` constructor
 
@@ -62,6 +62,7 @@ from ..config import JAFF_DIR, NETWORK_DIR, TEMPLATES_DIR
 from ..drivers import HDF5, Toml
 from ..io import JaffLogger, jaff_progress
 from ..types import HDF5Dict
+from ._helper import funcfile_arg
 from ._typing import JaffgenProps
 
 if TYPE_CHECKING:
@@ -74,7 +75,7 @@ class JaffGen:
 
     Instantiating this class drives the full code-generation pipeline:
 
-    1. Parse CLI arguments and (optionally) a ``jaff.toml`` config file.
+    1. Parse CLI arguments and (optionally) a ``jaffgen.toml`` config file.
     2. Resolve input template files from ``--indir``, ``--files``, or
        ``--template``.
     3. Load the chemical reaction network.
@@ -109,7 +110,7 @@ class JaffGen:
         """Drive the full ``jaffgen`` code-generation pipeline from CLI arguments.
 
         Reads arguments from ``sys.argv``, resolves configuration from a
-        ``jaff.toml`` file when present, loads the chemical reaction network, and
+        ``jaffgen.toml`` file when present, loads the chemical reaction network, and
         writes generated source files to the output directory.
 
         Raises
@@ -153,7 +154,7 @@ class JaffGen:
         self.__set_input_files(self.args.files)
         self.__set_template(self.args.template)
 
-        # Phase 2: look for a jaff.toml embedded inside the file list (only if
+        # Phase 2: look for a jaffgen.toml embedded inside the file list (only if
         # --config was not already given).
         self.__read_jaff_config_from_files()
 
@@ -182,6 +183,7 @@ class JaffGen:
         self.network_params = signature(Network).parameters
         self.jaffgen_config["netprops"]["fname"] = self.jaffgen_config["network_file"]
         self.jaffgen_config["netprops"]["_from_cli"] = True
+        self.__set_network_config(self.args.network_config)
         self.__set_funcfile(self.__get_prop(self.args.funcfile, "network", "funcfile"))
         self.jaffgen_config["netprops"]["label"] = (
             self.__get_prop(self.args.label, "network", "label")
@@ -200,25 +202,30 @@ class JaffGen:
             errors if errors is not None else self.network_params["errors"].default
         )
 
-        # Handle optional config-file-only sections.
-        if self.jaffgen_config_raw:
-            rad_props = self.jaffgen_config_raw.get_key("radiation")
-            if rad_props:
-                self.__handle_radiation(rad_props)
+        network_cfg: dict = (
+            (self.jaffgen_config_raw.get_key("network") or {})
+            if self.jaffgen_config_raw
+            else {}
+        )
+        reactions_cfg: dict = network_cfg.get("reactions") or {}
+        rates_cfg: dict = network_cfg.get("rates") or {}
 
+        rad_props = network_cfg.get("radiation")
+        if rad_props:
+            self.__handle_radiation(rad_props)
+
+        if self.jaffgen_config_raw:
             table_props = self.jaffgen_config_raw.get_key("table")
             if table_props:
                 self.__handle_data_tables(table_props)
 
-        reaction_props = None
-        if self.jaffgen_config_raw:
-            reaction_props = self.jaffgen_config_raw.get_key("reaction")
-
-        if reaction_props:
-            self.jaffgen_config["netprops"]["_metadata"] = {
-                "reaction_props": reaction_props,
-                "jaffgen_object": self,
-            }
+        if reactions_cfg or rates_cfg:
+            metadata: dict[str, Any] = {"jaffgen_object": self}
+            if reactions_cfg:
+                metadata["reaction_props"] = reactions_cfg
+            if rates_cfg:
+                metadata["rate_props"] = rates_cfg
+            self.jaffgen_config["netprops"]["_metadata"] = metadata
 
         # Create the Network instance and immediately run code generation.
         self.net: Network = Network(**self.jaffgen_config["netprops"])
@@ -229,7 +236,7 @@ class JaffGen:
     # ------------------------------------------------------------------
 
     def __get_prop(
-        self, arg_prop: str | None, dict_key: str, dict_prop: str
+        self, arg_prop: Any | None, dict_key: str, dict_prop: str
     ) -> Any | None:
         """
         Resolve a configuration value from the CLI arg or config file.
@@ -237,9 +244,13 @@ class JaffGen:
         Returns *arg_prop* unchanged if it is not ``None``.  Otherwise looks
         the value up in the raw TOML config under ``[dict_key] / dict_prop``.
 
+        Absence is signalled by ``None`` rather than falsiness, so a
+        deliberate ``False`` from the command line (``--funcfile false``,
+        ``--no-replace-nH``, ``--no-errors``) still wins over the config file.
+
         Parameters
         ----------
-        arg_prop : str or None
+        arg_prop : Any or None
             Value provided on the command line (``None`` if absent).
         dict_key : str
             Top-level TOML section key (e.g. ``"jaffgen"`` or ``"network"``).
@@ -251,7 +262,10 @@ class JaffGen:
         Any or None
             The resolved value, or ``None`` if neither source has it.
         """
-        return arg_prop or (
+        if arg_prop is not None:
+            return arg_prop
+
+        return (
             (self.jaffgen_config_raw.get_key(dict_key) or {}).get(dict_prop, None)
             if self.jaffgen_config_raw is not None
             else None
@@ -259,7 +273,7 @@ class JaffGen:
 
     def __set_config(self, config_file: str | Path | None) -> None:
         """
-        Load a ``jaff.toml`` config file and store its parsed contents.
+        Load a ``jaffgen.toml`` config file and store its parsed contents.
 
         Parameters
         ----------
@@ -287,6 +301,43 @@ class JaffGen:
         self.jaffgen_config["config_file_dir"] = config_file.parent
         # Parse the TOML file so downstream helpers can call get_key().
         self.jaffgen_config_raw = Toml(config_file)
+
+    def __set_network_config(self, path: str | None) -> None:
+        """
+        Resolve the ``--network-config`` path and store it in network props.
+
+        This is the network's own ``jaff.toml`` (temperature-cutoff settings),
+        forwarded to the :class:`~jaff.Network` ``config`` argument.  When
+        ``None``, ``config`` stays ``None`` and ``Network`` auto-detects a
+        ``jaff.toml`` in the network file's directory instead.
+
+        Unlike paths taken from ``jaffgen.toml``, a ``--network-config`` value
+        comes from the command line and is therefore resolved relative to the
+        current working directory, not the config file's directory.
+
+        Parameters
+        ----------
+        path : str or None
+            Path to the network ``jaff.toml`` (from ``--network-config``).
+
+        Raises
+        ------
+        FileNotFoundError
+            If *path* does not exist or is not a regular file.
+        """
+        if path is None:
+            self.jaffgen_config["netprops"]["config"] = None
+            return
+
+        network_config = Path(path).resolve()
+
+        if not network_config.exists():
+            raise FileNotFoundError(network_config)
+
+        if not network_config.is_file():
+            raise FileNotFoundError(f"{network_config} is not a file")
+
+        self.jaffgen_config["netprops"]["config"] = network_config
 
     def __process_files(self) -> None:
         """
@@ -328,10 +379,10 @@ class JaffGen:
 
     def __read_jaff_config_from_files(self) -> None:
         """
-        Auto-detect a ``jaff.toml`` embedded within the collected file list.
+        Auto-detect a ``jaffgen.toml`` embedded within the collected file list.
 
         If ``--config`` was not given explicitly, scan the resolved file list
-        for a file named ``jaff.toml`` and load it as the config file.  This
+        for a file named ``jaffgen.toml`` and load it as the config file.  This
         allows template directories to ship their own config without requiring
         an extra ``--config`` flag.
 
@@ -343,9 +394,10 @@ class JaffGen:
         if self.jaffgen_config["config_file"] is not None:
             return
 
-        # Search for a jaff.toml among the already-collected template files.
+        # Search for a jaffgen.toml among the already-collected template files.
         jaff_config_index: int | None = next(
-            (i for i, f in enumerate(self.files) if f.abspath.name == "jaff.toml"), None
+            (i for i, f in enumerate(self.files) if f.abspath.name == "jaffgen.toml"),
+            None,
         )
 
         if jaff_config_index is not None:
@@ -564,18 +616,24 @@ class JaffGen:
         )
         self.jaffgen_config["input_dir"] = indir
 
-    def __set_funcfile(self, funcfile: str | None) -> None:
+    def __set_funcfile(self, funcfile: bool | str | None) -> None:
         """
         Resolve and store the auxiliary function file path in network props.
 
-        When *funcfile* is ``None``, the Network constructor default is used
-        (which typically looks for ``<network_name>.jfunc`` in the network
-        directory).
+        ``None`` here means *neither the command line nor the config file
+        supplied a value*, so the Network constructor default is used; it is
+        not itself a value Network accepts.  ``True`` scans the network
+        directory for ``<network_name>.jfunc`` and ``False`` skips
+        auxiliary-function loading entirely — written ``funcfile = true`` /
+        ``false`` in the config file, or ``--funcfile true`` / ``false`` on
+        the command line.
 
         Parameters
         ----------
-        funcfile : str or None
-            Path to the auxiliary function file (from ``--funcfile``).
+        funcfile : bool or str or None
+            Path to the auxiliary function file (from ``--funcfile`` or the
+            ``funcfile`` config key), ``True`` to scan, ``False`` to skip, or
+            ``None`` when absent from both sources.
 
         Returns
         -------
@@ -586,6 +644,10 @@ class JaffGen:
             self.jaffgen_config["netprops"]["funcfile"] = self.network_params[
                 "funcfile"
             ].default
+            return
+
+        if isinstance(funcfile, bool):
+            self.jaffgen_config["netprops"]["funcfile"] = funcfile
             return
 
         funcfile: Path = Path(funcfile)
@@ -709,7 +771,8 @@ class JaffGen:
             "--funcfile",
             required=False,
             metavar="FILE",
-            help="Path to auxiliary function file. Checks network dir for <network_name>.jfunc by default",
+            type=funcfile_arg,
+            help="Path to auxiliary function file. Checks network dir for <network_name>.jfunc by default ('true'). Pass 'false' to skip",
         )
 
         self.parser.add_argument(
@@ -731,6 +794,14 @@ class JaffGen:
             required=False,
             metavar="FILE",
             help="Path to chemical reaction network file (required)",
+        )
+
+        self.parser.add_argument(
+            "--network-config",
+            required=False,
+            metavar="FILE",
+            help="Path to a jaff.toml network config (temperature cutoffs). "
+            "Defaults to <network_dir>/jaff.toml auto-detected by Network",
         )
 
         # ---- Output options ------------------------------------------------

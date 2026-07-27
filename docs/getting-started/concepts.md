@@ -90,7 +90,7 @@ A loaded `Network` carries:
   catalogue;
 - `elements` — the [`Elements`](../user-guide/working-with-networks/elements.md)
   catalogue, plus mass and composition information;
-- `file_name` — the path the network was read from;
+- `filename` — the path the network was read from;
 - `label` — a human-readable identifier (defaults to the file stem).
 
 <!-- prettier-ignore -->
@@ -308,17 +308,17 @@ J[$idx$] = $expr$;
 
 ---
 
-## Driving runs with `jaff.toml`
+## Driving runs with `jaffgen.toml`
 
 Spelling out the network, inputs, output, and radiation on every `jaffgen` line
-gets old. A [`jaff.toml`](../user-guide/code-generation/jaff-toml.md) declares
+gets old. A [`jaffgen.toml`](../user-guide/code-generation/jaffgen-toml.md) declares
 the run once, so the command collapses to:
 
 ```bash
-jaffgen --config jaff.toml
+jaffgen --config jaffgen.toml
 ```
 
-CLI flags still win over the file when both set the same thing, so a `jaff.toml`
+CLI flags still win over the file when both set the same thing, so a `jaffgen.toml`
 is a baseline you can override per run.
 
 ---

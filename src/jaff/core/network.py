@@ -41,6 +41,7 @@ from sympy import (
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
 from ..common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
+from ..drivers import Toml
 from ..errors import ParserError
 from ..io import JaffLogger, jaff_progress
 from ..io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
@@ -75,19 +76,6 @@ def _parse_rate_expr(rate: str) -> Expr:
     return parse_expr(rate, evaluate=False)
 
 
-@lru_cache(maxsize=200000)
-def _parse_rate_expr(rate: str) -> Expr:
-    """Parse a rate string into a (non-evaluated) SymPy expression, memoized.
-
-    Large networks contain many reactions with identical rate strings (≈40% of
-    KIDA-2024 rates repeat), and the parsed expression depends only on the
-    string — species substitution happens later in ``_standardize_symbols`` —
-    so results are cached across reactions and networks.  SymPy expressions are
-    immutable, making the shared objects safe to reuse.
-    """
-    return parse_expr(rate, evaluate=False)
-
-
 class Network:
     """Astrochemical reaction network loaded from a file.
 
@@ -95,7 +83,7 @@ class Network:
 
     Attributes
     ----------
-    file_name : Path
+    filename : Path
         Absolute path to the source network file.
     label : str
         Human-readable label for this network (defaults to the file stem).
@@ -128,12 +116,16 @@ class Network:
         Element mass dictionary used during species construction.
     """
 
+    #: Valid temperature cutoff behaviours for rate expressions.
+    _valid_tcutoffs: list[str] = ["clip", "extrapolate"]
+
     def __init__(
         self,
         fname: str | Path,
+        config: str | Path | None = None,
         errors: bool = False,
         label: str | None = None,
-        funcfile: str | Path | None = None,
+        funcfile: bool | str | Path = True,
         replace_nH: bool = True,
         rad_bands: list[str | int | float | Basic] = [],
         rad_powerlaw_index: int | float = 0,
@@ -153,12 +145,19 @@ class Network:
             If ``True``, treat conservation violations and duplicate reactions
             as fatal errors (process exits).  Default ``False`` (warnings
             only).
+        config : str | Path | None, optional
+            Path to a ``jaff.toml`` network config file.  When ``None``
+            (default), JAFF looks for ``jaff.toml`` in the network file's
+            directory.  Only the ``[network.rates]`` global and
+            ``[network.reactions."<serialized>"].T_cutoff`` per-reaction
+            temperature-cutoff keys are read from it.
         label : str | None, optional
             Human-readable name for this network.  Defaults to the file stem.
-        funcfile : str | Path | None, optional
-            Path to a ``.jfunc`` auxiliary function file.  When ``None``,
-            JAFF looks for ``<network>.jfunc`` in the same directory.  Pass
-            the string ``"none"`` to skip auxiliary-function loading entirely.
+        funcfile : bool | str | Path, optional
+            Path to a ``.jfunc`` auxiliary function file.  When ``True``
+            (default), JAFF scans the network's directory for
+            ``<network>.jfunc``.  Pass ``False`` to skip auxiliary-function
+            loading entirely.
         replace_nH : bool, optional
             When ``True`` (default), the shorthand symbol ``nh`` (and ``n_H``,
             ``n_He``) in rate expressions is expanded to a sum of
@@ -197,12 +196,22 @@ class Network:
         if loaded_from_jaff_file:
             jaff_props = from_jaff_file(fname, errors)
 
-        self.file_name: Path = jaff_props.get("file_name", fname)
-        self.label = jaff_props.get("label", label or self.file_name.stem)
+        self.filename: Path = jaff_props.get("file_name", fname)
+        self.label = jaff_props.get("label", label or self.filename.stem)
         if not _from_cli:
             print(motd())
 
         self._metadata: dict[str, Any] = _metadata
+        if not isinstance(funcfile, (bool, str, Path)):
+            raise ParserError(f"funcfile accepts True/False/str/Path, got {funcfile!r}")
+        # True: scan the network directory.  False: skip.  Path: use as given.
+        self._funcfile: bool | Path = (
+            funcfile if isinstance(funcfile, bool) else Path(funcfile)
+        )
+        self._config_file: None | Path = (
+            Path(config) if isinstance(config, str) else config
+        )
+        self._config: dict[str, Any] = {}
         self._replace_nH: bool = replace_nH
         self.mass_dict: dict[str, ElementProps] = {}
         self.species: Species = Species()
@@ -217,8 +226,8 @@ class Network:
             if len(rad_bands) > 0
             else None
         )
-        self.__photochemistry: None | Photochemistry = None
 
+        self.__photochemistry: None | Photochemistry = None
         self.__nden_symbol: MatrixSymbol | None = None
         self.__ntot_sum: Expr | None = None
         self.__element_sums: dict[str, Expr | None] = {}
@@ -230,8 +239,9 @@ class Network:
         self.mass_dict: dict[str, ElementProps] = load_mass_dict()
         Species.configure(self.mass_dict)
 
+        self.__load_config()
         if not loaded_from_jaff_file:
-            self.__load_network(fname, funcfile, replace_nH)
+            self.__load_network(fname, replace_nH)
         else:
             self.__load_network_from_jaff_file(jaff_props)
         self.__normalize_network_extras(replace_nH)
@@ -250,7 +260,6 @@ class Network:
     def __load_network(
         self,
         fname,
-        funcfile,
         replace_nH,
     ):
         """Parse the network file and build species, reactions, and auxiliary quantities.
@@ -259,8 +268,6 @@ class Network:
         ----------
         fname : Path
             Resolved path to the network file.
-        funcfile : str | Path | None
-            Path to an auxiliary ``.jfunc`` file, or ``None``/``"none"`` to skip.
         replace_nH : bool
             When ``True``, expand ``nh`` to a sum over H-bearing species.
         """
@@ -272,11 +279,16 @@ class Network:
 
         n_photo = 0
         tgas = symbols("tgas")
+        default_tcutoff: str = "clip"
+        reactions_config: dict = self._config.get("reactions", {})
+        reaction_props: dict = self._metadata.get("reaction_props", {})
+        jaff_global_tcutoff = self._config.get("rates", {}).get("T_cutoff")
+        jaffgen_global_tcutoff = self._metadata.get("rate_props", {}).get("T_cutoff")
 
         with NetworkParser(fname, self.logger) as netp:
             reactions_list, global_vars = netp.get_parsed()
 
-        aux_funcs = self.__read_aux_funcs(funcfile)
+        aux_funcs = self.__read_aux_funcs()
 
         global_vars = {
             var: resolve_dependencies(expr, {}, aux_funcs)
@@ -320,22 +332,39 @@ class Network:
             ]
 
             local_subs_dict = {**subs_dict}
-
-            clamp_key = (tmin, tmax)
-            if clamp_key not in self.__tgas_clamp_cache:
-                self.__tgas_clamp_cache[clamp_key] = (
-                    Max(Min(tgas, tmax), tmin)
-                    if tmin and tmax
-                    else Max(tgas, tmin)
-                    if tmin
-                    else Min(tgas, tmax)
-                    if tmax
-                    else tgas
+            srxn = Reaction.serialize(rr, pp)
+            local_tcutoff: str = (
+                reaction_props.get(srxn, {}).get("T_cutoff")
+                or reactions_config.get(srxn, {}).get("T_cutoff")
+                or jaffgen_global_tcutoff
+                or jaff_global_tcutoff
+                or default_tcutoff
+            ).lower()
+            if local_tcutoff not in self._valid_tcutoffs:
+                raise ParserError(
+                    f"Invalid temperature cutoff for reaction: {srxn}\n"
+                    f"valid cutoffs are: {','.join(self._valid_tcutoffs)}"
                 )
-            local_subs_dict[tgas] = self.__tgas_clamp_cache[clamp_key]
-            for sym, expr in local_subs_dict.items():
-                if sym != tgas and expr.has(tgas):
-                    local_subs_dict[sym] = expr.xreplace({tgas: local_subs_dict[tgas]})
+
+            # Extrapolate if not clip
+            if local_tcutoff == "clip":
+                clamp_key = (tmin, tmax)
+                if clamp_key not in self.__tgas_clamp_cache:
+                    self.__tgas_clamp_cache[clamp_key] = (
+                        Max(Min(tgas, tmax), tmin)
+                        if tmin and tmax
+                        else Max(tgas, tmin)
+                        if tmin
+                        else Min(tgas, tmax)
+                        if tmax
+                        else tgas
+                    )
+                local_subs_dict[tgas] = self.__tgas_clamp_cache[clamp_key]
+                for sym, expr in local_subs_dict.items():
+                    if sym != tgas and expr.has(tgas):
+                        local_subs_dict[sym] = expr.xreplace(
+                            {tgas: local_subs_dict[tgas]}
+                        )
 
             rate_expr, n_photo = self.__parse_rate(
                 aux_chem_rate, rate, aux_funcs, global_vars, n_photo
@@ -371,6 +400,12 @@ class Network:
             )
             if "reaction_props" in self._metadata:
                 self.__parse_reaction_metadata(rea)
+
+            # Reactions shouldn't repeat
+            # if rea.serialized in self.reactions:
+            #     raise ParserError(
+            #         f"Reaction '{rea.serialized}' appears more than once in the file: {self.filename}"
+            #     )
             self.reactions.add(rea)
 
             if rea.type == "photo":
@@ -573,27 +608,6 @@ class Network:
                 "jaffgen_object": self._metadata["jaffgen_object"]
             }
 
-    def __parse_reaction_metadata(self, reaction: Reaction) -> None:
-        if reaction.serialized not in self._metadata["reaction_props"]:
-            return
-
-        rprops = self._metadata["reaction_props"][reaction.serialized]
-        if "shielding" in rprops:
-            if reaction.type != "photo":
-                raise ParserError(f"{reaction} is not a photo reaction")
-
-            shielding_props = rprops["shielding"]
-            if "type" not in shielding_props:
-                shielding_props["type"] = "leiden"
-
-            reaction._metadata["shielding"] = {
-                k: (v.lower() if isinstance(v, str) else v)
-                for k, v in shielding_props.items()
-            }
-            reaction._metadata["jaffgen"] = {
-                "jaffgen_object": self._metadata["jaffgen_object"]
-            }
-
     @staticmethod
     def __detect_undefined_functions(
         expr: Expr | Basic, undef_funcs: set, interp_funcs: set
@@ -618,43 +632,51 @@ class Network:
                 continue
             undef_funcs |= {f.func.__name__}
 
-    def __read_aux_funcs(self, funcfile: str | Path | None) -> dict:
+    def __read_aux_funcs(self) -> dict:
         """Load auxiliary function file (.jfunc).
 
-        If funcfile is None, looks for <network_name>.jfunc alongside the network file.
-        Pass ``"none"`` to skip loading entirely.
+        If funcfile is True, looks for <network_name>.jfunc alongside the network file.
+        Pass ``False`` to skip loading entirely.
         """
-        if funcfile == "none":
+        if self._funcfile is False:
             return {}
 
-        if funcfile is None:
+        if self._funcfile is True:
             funcfiles_list = [
-                Path(f"{self.file_name}.jfunc"),
-                Path(self.file_name).with_suffix(".jfunc"),
+                Path(f"{self.filename}.jfunc"),
+                Path(self.filename).with_suffix(".jfunc"),
             ]
 
             funcfile_exists: bool = False
             for f in funcfiles_list:
                 if f.exists():
-                    funcfile = f
+                    self._funcfile = f
                     funcfile_exists = True
                     break
 
             if not funcfile_exists:
                 return {}
 
-        assert funcfile is not None
+        assert isinstance(self._funcfile, Path)
 
-        if isinstance(funcfile, str):
-            funcfile = Path(funcfile)
+        if not self._funcfile.exists():
+            raise FileNotFoundError(self._funcfile)
 
-        if not funcfile.exists():
-            raise FileNotFoundError(funcfile)
-
-        with AuxiliaryFunctionParser(funcfile) as afp:
+        with AuxiliaryFunctionParser(self._funcfile) as afp:
             func_dict: AuxiliaryFunctionsDict = afp.get_dict()
 
         return func_dict
+
+    def __load_config(self) -> None:
+        if self._config_file is None:
+            valid_file = self.filename.parent / "jaff.toml"
+            if not valid_file.exists():
+                return
+
+            self._config_file = valid_file
+
+        self._config_file = self._config_file.resolve()
+        self._config = Toml(self._config_file).get_key("network") or {}
 
     def to_jaff(self, filename: str | Path):
         """Serialise this network to a binary ``.jaff`` file.

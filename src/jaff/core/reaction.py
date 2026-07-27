@@ -197,7 +197,7 @@ class Reaction:
 
         self.check(errors)
         self.serialized_exploded: str = self.serialize_exploded()
-        self.serialized: str = self.serialize()
+        self.serialized: str = self.serialize(self.reactants, self.products)
         # The reaction type is concluded by the parser and supplied here, not
         # inferred from the rate expression.
         self.type: str = type
@@ -344,7 +344,11 @@ class Reaction:
 
         return f"{sr}__{sp}"
 
-    def serialize(self) -> str:
+    @staticmethod
+    def serialize(
+        reactants: Species | list[Specie],
+        products: Species | list[Specie],
+    ) -> str:
         """Build the name-level serialized form (isomer-sensitive).
 
         Species names are sorted alphabetically and joined with ``"."``.
@@ -354,8 +358,8 @@ class Reaction:
         -------
         str
         """
-        sr = ".".join(sorted([x.name for x in self.reactants]))
-        sp = ".".join(sorted([x.name for x in self.products]))
+        sr = ".".join(sorted([r.name for r in reactants]))
+        sp = ".".join(sorted([p.name for p in products]))
 
         return f"{sr}__{sp}"
 

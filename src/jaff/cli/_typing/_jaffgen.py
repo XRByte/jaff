@@ -33,7 +33,7 @@ class JaffgenProps(TypedDict):
     Keys
     ----
     config_file : Path or None
-        Absolute path to the loaded ``jaff.toml`` configuration file, or
+        Absolute path to the loaded ``jaffgen.toml`` configuration file, or
         ``None`` if no config file was found or specified.
     config_file_dir : Path or None
         Directory containing ``config_file``; used to resolve relative paths
