@@ -72,6 +72,7 @@ nav = [
         "api/core/network/check_unique_reactions.md",
         "api/core/network/compare_reactions.md",
         "api/core/network/compare_species.md",
+        "api/core/network/eos.md",
         "api/core/network/free_symbols.md",
         "api/core/network/index.md",
         "api/core/network/sfluxes.md",

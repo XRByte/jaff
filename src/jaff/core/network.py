@@ -928,20 +928,65 @@ class Network:
 
     @cached_property
     def ndens(self) -> MatrixSymbol:
+        """Symbolic ``nden`` column vector of species number densities.
+
+        A SymPy :class:`~sympy.matrices.expressions.MatrixSymbol` of shape
+        ``(species.count, 1)``.  Entry ``nden[i]`` is the number density of the
+        species with index ``i``.  Cached so every consumer shares one symbol.
+
+        Returns
+        -------
+        sympy.MatrixSymbol
+            The ``nden`` matrix symbol.
+        """
         return MatrixSymbol("nden", self.species.count, 1)
 
     @cached_property
     def ntot(self) -> Expr:
+        """Total number density ``Σ_i nden[i]`` over all species.
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic sum of every entry of :attr:`ndens`.
+        """
         return sum(self.ndens[Idx(i)] for i in range(self.species.count))
 
     @cached_property
     def rho(self) -> Expr:
+        """Mass density ``Σ_i m_i · nden[i]`` over all species.
+
+        Each species contributes its mass ``m_i`` times its number density.
+        Species with an unset mass (``mass is None``) contribute ``0``.
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic mass density.
+        """
         return reduce(
             lambda x, y: x + y,
             [(s.mass or 0.0) * self.ndens[Idx(s.index)] for s in self.species],
         )
 
-    def eos(self, gamma: float = 1.6666666667) -> Expr:
+    def eos(self, gamma: float = 1.6666666666667) -> Expr:
+        """Symbolic ideal-gas specific internal energy of the network.
+
+        Thin wrapper around :func:`jaff.physics.get_eos`, which builds the
+        expression from this network's :attr:`ntot` and :attr:`rho`.  Used by
+        the code generator to form the temperature column of the Jacobian via
+        the chain rule ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.
+
+        Parameters
+        ----------
+        gamma : float, optional
+            Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic specific internal energy in CGS units (erg/g).
+        """
         return get_eos(self, gamma)
 
     def __generate_reaction_matrices(self) -> None:

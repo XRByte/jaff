@@ -12,6 +12,8 @@ This module builds SymPy symbolic expressions for:
   first-moment (energy/photon flux) equations for each frequency band, taking
   into account photoionisation/photodissociation sinks and any user-supplied
   radiation source/sink terms (``get_sradodes``).
+- **Equation of state** -- the ideal-gas specific internal energy used to
+  couple the gas temperature into the Jacobian (``get_eos``).
 
 The symbolic expressions are later code-generated (via SymPy's code printers)
 into efficient numerical kernels.
@@ -96,7 +98,6 @@ def get_sodes(reactions: "Reactions", species: Species) -> list[Basic]:
     reactions : Reactions
         Collection of all reactions in the network.
     species : Species
-
         Collection of all species, used to resolve array indices.
 
     Returns
@@ -284,7 +285,34 @@ def get_sradodes(
 
 
 @cache
-def get_eos(net: Network, gamma: float = 1.6666666667) -> Expr:
+def get_eos(net: "Network", gamma: float = 1.6666666666667) -> Expr:
+    """Return the symbolic ideal-gas specific internal energy.
+
+    Uses the ideal-gas equation of state::
+
+        e = n_tot · k_B · T_gas / (ρ · (γ − 1))   [erg / g]
+
+    where ``n_tot`` is the total number density (:attr:`Network.ntot`), ``ρ``
+    is the mass density (:attr:`Network.rho`), ``k_B`` is the Boltzmann
+    constant in CGS (erg K⁻¹) and ``tgas`` is a SymPy symbol for the gas
+    temperature in Kelvin.
+
+    This expression drives the temperature column of the Jacobian via the
+    chain rule ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.  The result is cached (via
+    :func:`functools.cache`) since it depends only on *net* and *gamma*.
+
+    Parameters
+    ----------
+    net : Network
+        Network supplying the symbolic ``n_tot`` and ``ρ`` sums.
+    gamma : float, optional
+        Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
+
+    Returns
+    -------
+    sympy.Expr
+        Symbolic specific internal energy in CGS units (erg/g).
+    """
     tgas = symbols("tgas")
 
     return net.ntot * k_B.cgs.value * tgas / net.rho * 1.0 / (gamma - 1.0)
