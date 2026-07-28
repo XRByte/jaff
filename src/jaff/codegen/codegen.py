@@ -590,9 +590,8 @@ class Codegen:
         ValueError
             If *specific_eint* is ``True`` and *norm* is not ``0`` or ``1``.
         """
-        nspec = self.net.species.count
         # nden is a symbolic column vector representing species number densities
-        nden_matrix = sp.MatrixSymbol("nden", nspec, 1)
+        nden_matrix = self.net.ndens
 
         den_tot = 1
         if specific_eint:
@@ -1219,7 +1218,8 @@ class Codegen:
                     y_syms[n_species + ei] = sp.symbols(f"ry_{i}")
                     y_syms[n_species + fi] = sp.symbols(f"fy_{i}")
 
-            nden_matrix = sp.MatrixSymbol("nden", n_species, 1)
+            nden_matrix = self.net.ndens
+
             # Substitution dicts: MatrixSymbol entries -> scalar y_i symbols
             nden_to_y = {}
             radden_to_y = {}
@@ -1284,7 +1284,7 @@ class Codegen:
                 # into the state-vector framework via the ideal-gas EOS relation
                 # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
                 dde = sp.zeros(n_ode_eqns, 1)
-                dedot_dtgas = sp.diff(self.__get_sym_eos(), sp.symbols("tgas"))
+                dedot_dtgas = sp.diff(self.net.eos(), sp.symbols("tgas"))
 
                 for i in range(n_ode_eqns):
                     dxdot_dtgas = sp.diff(ode_symbols[i], sp.symbols("tgas"))
@@ -1627,40 +1627,3 @@ class Codegen:
 
         # Return only live temporaries in their original definition order
         return [(var, dep_map[var]) for var, _ in replacements if var in used]
-
-    @staticmethod
-    @cache
-    def __get_sym_eos(gamma: float = 1.6666666666667) -> sp.Expr:
-        """Return the symbolic ideal-gas specific internal energy.
-
-        Uses the monoatomic-ideal-gas equation of state::
-
-            e = R / (γ − 1) · T_gas   [erg / mol]
-
-        where *R* is the universal gas constant converted to CGS units
-        (erg mol⁻¹ K⁻¹) and ``tgas`` is a SymPy symbol for the gas
-        temperature in Kelvin.
-
-        This expression is used by :meth:`get_indexed_jacobian` to compute the
-        temperature column of the Jacobian via the chain rule:
-        ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.
-
-        The result is cached (via :func:`functools.cache`) because the EOS
-        expression is the same for every Jacobian computation.
-
-        Parameters
-        ----------
-        gamma : float, optional
-            Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
-
-        Returns
-        -------
-        sympy.Expr
-            Symbolic expression ``_R / (gamma - 1) * tgas``.
-        """
-        from scipy.constants import R
-
-        _R = R * 1e7  # Convert J/(mol·K) -> erg/(mol·K)
-        tgas = sp.symbols("tgas")
-
-        return _R / (gamma - 1) * tgas

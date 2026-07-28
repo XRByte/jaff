@@ -19,14 +19,16 @@ into efficient numerical kernels.
 
 from __future__ import annotations
 
+from functools import cache
 from typing import TYPE_CHECKING
 
-from sympy import Basic, Expr, Float, Idx, MatrixSymbol
+from sympy import Basic, Expr, Float, Idx, MatrixSymbol, symbols
 
 from ..io._logger import jaff_progress
+from .constants import k_B
 
 if TYPE_CHECKING:
-    from .. import Reactions, Species
+    from .. import Network, Reactions, Species
     from .photo_reactions._radiation import Radiation
 
 
@@ -94,6 +96,7 @@ def get_sodes(reactions: "Reactions", species: Species) -> list[Basic]:
     reactions : Reactions
         Collection of all reactions in the network.
     species : Species
+
         Collection of all species, used to resolve array indices.
 
     Returns
@@ -278,3 +281,10 @@ def get_sradodes(
         radodes[fi] = flux
 
     return radodes
+
+
+@cache
+def get_eos(net: Network, gamma: float = 1.6666666667) -> Expr:
+    tgas = symbols("tgas")
+
+    return net.ntot * k_B.cgs.value * tgas / net.rho * 1.0 / (gamma - 1.0)
