@@ -53,6 +53,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+from IPython.testing.decorators import f
 
 from .. import Network
 from ..cli import ConfigTable
@@ -297,10 +298,13 @@ class JaffGen:
         if not config_file.is_file():
             raise FileNotFoundError(f"{config_file} is not a file")
 
-        self.jaffgen_config["config_file"] = config_file
-        self.jaffgen_config["config_file_dir"] = config_file.parent
+        abspath = config_file.resolve()
+        self.jaffgen_config["config_file"] = abspath
+        self.jaffgen_config["config_file_dir"] = abspath.parent
+        self.files.append(FileStruct(abspath, config_file))
+
         # Parse the TOML file so downstream helpers can call get_key().
-        self.jaffgen_config_raw = Toml(config_file)
+        self.jaffgen_config_raw = Toml(abspath)
 
     def __set_network_config(self, path: str | None) -> None:
         """
@@ -390,15 +394,18 @@ class JaffGen:
         -------
         None
         """
-        # Only auto-detect if no explicit config was already loaded.
-        if self.jaffgen_config["config_file"] is not None:
-            return
-
         # Search for a jaffgen.toml among the already-collected template files.
         jaff_config_index: int | None = next(
             (i for i, f in enumerate(self.files) if f.abspath.name == "jaffgen.toml"),
             None,
         )
+
+        # Only auto-detect if no explicit config was already loaded.
+        if self.jaffgen_config["config_file"] is not None:
+            if jaff_config_index is not None:
+                self.files.pop(jaff_config_index)
+
+            return
 
         if jaff_config_index is not None:
             self.__set_config(self.files[jaff_config_index].abspath)
