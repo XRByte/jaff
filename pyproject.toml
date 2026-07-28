@@ -26,6 +26,7 @@ dependencies = [
   "matplotlib>=3.9.4",
   "numpy>=2.0.0",
   "pandas>=2.3.3",
+  "plotly>=6.0",
   "pooch>=1.9.0",
   "pygments>=2.19.2",
   "rich>=15.0.0",
@@ -51,7 +52,8 @@ dev = [
   "zensical",
   "mkdocstrings[python]>=0.24.0",
   "pymdown-extensions>=10.5",
-  "pygments"
+  "pygments",
+  "kaleido"
 ]
 
 [build-system]
@@ -110,15 +112,6 @@ line-ending = "auto"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
-# astropy.constants injects its members dynamically at import, so static
-# checkers cannot resolve attributes like `astropy.constants.c`. Suppress the
-# false positive for the constants module only (runtime is fine).
-[[tool.ty.overrides]]
-include = ["src/jaff/physics/constants.py"]
-
-[tool.ty.overrides.rules]
-unresolved-attribute = "ignore"
-
 [tool.setuptools]
 package-dir = { "" = "src" }
 
@@ -127,3 +120,12 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 jaff = ["data/*.dat", "templates/**/*", "db/jaff.db"]
+
+# astropy.constants injects its members dynamically at import, so static
+# checkers cannot resolve attributes like `astropy.constants.c`. Suppress the
+# false positive for the constants module only (runtime is fine).
+[[tool.ty.overrides]]
+include = ["src/jaff/physics/constants.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore"

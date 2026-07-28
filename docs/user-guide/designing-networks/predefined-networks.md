@@ -14,6 +14,8 @@ JAFF ships a set of ready-to-use reaction networks in the `networks/` directory.
 | ----------------------------------------- | ----------- | --------- | ----------------------------------------- |
 | [`h_photoionization`](#h_photoionization) | JAFF native | 2         | Minimal hydrogen photoionisation          |
 | [`demos`](#demos)                         | Mixed       | —         | Format demonstrations                     |
+| [`cie_h`](#cie_h)                         | PRIZMO      | 2         | Collisional ionization equilibrium of H   |
+| [`h2form`](#h2form)                       | PRIZMO      | 1         | H₂ formation with an analytic solution    |
 | [`GOW`](#gow)                             | KIDA        | ~50       | Gong, Ostriker & Wolfire (2017)           |
 | [`COthin`](#cothin)                       | KROME       | ~287      | CO chemistry (Glover+2010)                |
 | [`popsicle_semenov`](#popsicle_semenov)   | KROME       | ~116      | Primordial + metal chemistry for POPSICLE |
@@ -47,6 +49,39 @@ Demonstration files, not intended for scientific use.
 
 ---
 
+## cie_h
+
+**File:** `networks/cie_h/react_cie_h.jet`
+
+Collisional ionization and radiative recombination of hydrogen, in PRIZMO format. The electron density cancels out of the steady-state balance, so the equilibrium ionization fraction is a closed-form function of temperature, which makes the network useful as a small validation case.
+
+```text
+H + E -> H+ + E + E   []   5.85e-11*sqrt(Tgas)*exp(-157809.1/Tgas)
+H+ + E -> H           []   2.6e-13*(Tgas/1e4)**(-0.8)
+```
+
+Ionization only proceeds above ~10⁴ K, and only if a seed electron is present.
+
+**Used by:** [Collisional Ionization Equilibrium test](../testing-networks/cie-h.md)
+
+---
+
+## h2form
+
+**File:** `networks/h2form/react_h2form.jet`
+
+A single irreversible reaction with a constant rate coefficient, in PRIZMO format. Being temperature independent and analytically solvable, it isolates the behaviour of the ODE integrator and Jacobian from the chemistry.
+
+```text
+H + H -> H2   []   1e-17
+```
+
+The exact solution is `n_H(t) = n_H0 / (1 + t/τ)` with `τ = 1 / (2 k n_H0)`.
+
+**Used by:** [H₂ Formation test](../testing-networks/h2form.md)
+
+---
+
 ## GOW
 
 **File:** `networks/GOW/GOW.jet`
@@ -54,6 +89,8 @@ Demonstration files, not intended for scientific use.
 The Gong, Ostriker & Wolfire (2017) diffuse-ISM chemistry network in KIDA format. It covers hydrogen, carbon, and oxygen chemistry relevant to the cold neutral medium and was originally distributed with the [Athena++](https://www.athena-astro.app/) code.
 
 **Reference:** [Gong, Ostriker & Wolfire, ApJ 843, 38 (2017)](https://doi.org/10.3847/1538-4357/aa7561)
+
+**Used by:** [GOW Equilibrium test](../testing-networks/gow.md)
 
 The GOW directory ships three files:
 

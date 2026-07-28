@@ -329,8 +329,8 @@ the last column — total H nuclei, `n(H) + 2·n(H2)` — stays pinned at `1.0e6
 the conservation check that says the integrator and the generated right-hand
 side agree. Plotting every step makes the approach to equilibrium plain:
 
-![Abundances of H and H₂ versus time, relaxing to chemical equilibrium](../../assets/toy_abundances_light.png#only-light){ width="640" }
-![Abundances of H and H₂ versus time, relaxing to chemical equilibrium](../../assets/toy_abundances_dark.png#only-dark){ width="640" }
+![Abundances of H and H₂ versus time, relaxing to chemical equilibrium](../../assets/figures/code-generation/toy_abundances_light.png#only-light){ width="640" }
+![Abundances of H and H₂ versus time, relaxing to chemical equilibrium](../../assets/figures/code-generation/toy_abundances_dark.png#only-dark){ width="640" }
 
 This split is the whole point of the workflow. The chemistry stays in the
 network file, the solver infrastructure stays in your repo, and a single
