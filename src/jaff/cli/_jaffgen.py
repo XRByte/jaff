@@ -53,7 +53,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-from IPython.testing.decorators import f
 
 from .. import Network
 from ..cli import ConfigTable
@@ -276,6 +275,10 @@ class JaffGen:
         """
         Load a ``jaffgen.toml`` config file and store its parsed contents.
 
+        The path is resolved to an absolute path, stored in
+        ``jaffgen_config`` (``config_file`` / ``config_file_dir``), and appended
+        to ``self.files`` so the config is also emitted to the output directory.
+
         Parameters
         ----------
         config_file : str, Path, or None
@@ -389,6 +392,10 @@ class JaffGen:
         for a file named ``jaffgen.toml`` and load it as the config file.  This
         allows template directories to ship their own config without requiring
         an extra ``--config`` flag.
+
+        If an explicit config *was* already loaded, any ``jaffgen.toml`` found
+        among the collected files is dropped instead, so a template's bundled
+        config is not emitted alongside the explicit one.
 
         Returns
         -------
