@@ -76,10 +76,14 @@ src/jaff/
 │   ├── sqlite.py               # SQLite I/O
 │   └── pooch.py                # Download/cache remote cross-section data files
 │
-├── cli/                        # Command-line entry points
-│   ├── _jaffgen.py             # jaffgen — template-driven code generation
-│   ├── _jaffx.py               # jaffx — network inspection / conversion
-│   └── _config_engine.py       # Config resolution: CLI > jaffgen.toml > defaults
+├── cli/                        # Command-line entry points (Typer)
+│   ├── _helper.py              # Shared argument helpers (funcfile_arg)
+│   ├── jaffgen/                # jaffgen — template-driven code generation
+│   │   ├── _engine.py          # JaffGen pipeline + Typer `generate` command
+│   │   ├── _structs.py         # State / NetworkProps / ResolvedPath
+│   │   └── _config_table.py    # [[table]] config → HDF5/CSV output
+│   └── jaffx/                  # jaffx — network inspection / export
+│       └── _engine.py          # JaffX handlers + nested Typer commands
 │
 ├── plugins/                    # Named solver plugins
 │   ├── python_solve_ivp/       # SciPy solve_ivp wrapper
@@ -178,7 +182,7 @@ The table below traces a single `jaffgen` invocation from command line to output
 
 | Step | Component                                | What happens                                                                                       |
 | ---- | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 1    | `cli/_jaffgen.py`                        | Parse CLI args, read `jaffgen.toml` via `_config_engine.py`                                        |
+| 1    | `cli/jaffgen/_engine.py`                 | Parse CLI args (Typer), read `jaffgen.toml`, resolve config: CLI > jaffgen.toml > Network defaults |
 | 2    | `core/parsers/network/_engine.py`        | Auto-detect format via registered plugins; convert each reaction line to a `parsedListProps` dict  |
 | 3    | `core/parsers/auxiliary_func/_engine.py` | Parse `.jfunc` file (if present); resolve `@var`/`@function` blocks into SymPy expressions         |
 | 4    | `core/network.py`                        | Build `Species`, `Reactions`, `Elements` catalogues; validate duplicates, sinks, isomers           |

@@ -81,7 +81,7 @@ the first `.jet` file inside it.
 | Argument     | Description                                             |
 | ------------ | ------------------------------------------------------- |
 | `--indir`    | Directory of template files                             |
-| `--files`    | One or more individual template files (space-separated) |
+| `--files`    | One or more individual template files (comma-separated: `a.txt,b.txt`) |
 | `--template` | Built-in template collection name                       |
 
 ### Code generation
@@ -140,7 +140,7 @@ jaffgen \
 ```bash
 jaffgen \
     --network networks/GOW/GOW.jet \
-    --files   rates.txt odes.txt   \
+    --files   rates.txt,odes.txt   \
     --lang    rust                 \
     --outdir  output/
 ```

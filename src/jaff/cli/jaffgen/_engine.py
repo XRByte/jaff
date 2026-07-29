@@ -1,8 +1,40 @@
+"""
+JAFF Code Generator CLI Interface.
+
+This module provides the ``jaffgen`` command-line entry point for the JAFF
+code generator.  It reads one or more template files that contain JAFF
+directives, resolves a chemical reaction network, and writes language-specific
+source files (C, C++, Fortran, Python, Rust, Julia) to an output directory.
+
+Configuration can come from three sources, applied with the following priority
+order (highest first):
+
+1. Explicit CLI argument (e.g. ``--network``).
+2. Values in a ``jaffgen.toml`` config file (``--config`` or auto-detected
+   inside the resolved template files).
+3. Hard-coded defaults on the :class:`~jaff.Network` constructor.
+
+Template lookup
+---------------
+Built-in templates live inside ``jaff/templates/generator/<name>/`` and
+``jaff/templates/preprocessor/<name>/``.  When ``--template <name>`` is given,
+all files from the *generator* subdirectory are collected first; any
+preprocessor file whose relative path does not clash with a generator file is
+appended afterwards, so the generator always wins on path collisions.
+
+Usage
+-----
+::
+
+    jaffgen --network networks/GOW/GOW.jet [--outdir <dir>] [--indir <dir>]
+            [--files <a,b,c>] [--template <name>] [--lang <lang>]
+"""
+
 import logging
 from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import typer
 
@@ -18,10 +50,20 @@ from ._structs import DEFAULT_OUTPUT, ResolvedPath, State
 
 
 class JaffGen:
-    """Drive the ``jaffgen`` code-generation pipeline from parsed CLI arguments.
+    """
+    Engine for the ``jaffgen`` CLI command.
 
-    Resolution follows a fixed order (CLI value beats config-file value beats
-    :class:`~jaff.Network` default):
+    Instantiating this class drives the full code-generation pipeline from a
+    namespace of parsed CLI arguments:
+
+    1. Resolve configuration (``parse_args``), preferring CLI values over
+       ``jaffgen.toml`` values over :class:`~jaff.Network` defaults.
+    2. Build the chemical reaction network once (``build_network``).
+    3. Write any config-declared data tables (``handle_data_tables``).
+    4. Render every collected template file to the output directory
+       (``process_files``).
+
+    Resolution order inside ``parse_args``:
 
     1. Explicit ``--config`` (applies its values into :class:`State`).
     2. ``--template`` (CLI wins over a config-named template).
@@ -32,10 +74,45 @@ class JaffGen:
     7. Scalar network options + ``[network.reactions]`` / ``[network.rates]``
        metadata.
 
-    The network is then built once and every input file is rendered.
+    Parameters
+    ----------
+    args : types.SimpleNamespace
+        Parsed command-line arguments, one attribute per CLI option
+        (``network``, ``config``, ``label``, ``funcfile``, ``replace_nH``,
+        ``errors``, ``network_config``, ``outdir``, ``indir``, ``files``,
+        ``template``, ``lang``).
+
+    Attributes
+    ----------
+    state : State
+        Accumulating resolved configuration for this run.
+    net : Network
+        The reaction network built from the resolved network properties.
+    jaffgen_config : dict
+        Small back-reference payload (``{"output_dir": Path}``) read by the
+        shielding code via ``reaction._metadata["jaffgen"]["jaffgen_object"]``.
+
+    Raises
+    ------
+    RuntimeError
+        If no valid input file/folder/template is supplied, or no network file
+        is provided.
+    FileNotFoundError
+        If a specified config, network, input, or network-config path does not
+        exist.
+    ValueError
+        If an unsupported template name is given.
     """
 
     def __init__(self, args: SimpleNamespace):
+        """Resolve configuration, build the network, and generate all files.
+
+        Parameters
+        ----------
+        args : types.SimpleNamespace
+            Parsed command-line arguments (see the class docstring for the full
+            attribute list).
+        """
         self.logger: logging.Logger = JaffLogger().get_logger()
         self.args: SimpleNamespace = args
         self.state: State = State()
@@ -54,6 +131,18 @@ class JaffGen:
     # ------------------------------------------------------------------
 
     def parse_args(self) -> None:
+        """
+        Resolve every setting into :attr:`state`, in dependency order.
+
+        Runs the resolution steps described in the class docstring, validates
+        that at least one input file was collected, appends the config file to
+        the output set, and creates the output directory.
+
+        Raises
+        ------
+        RuntimeError
+            If no input file/folder/template resolved.
+        """
         # Explicit config first so config_dir is known for relative resolution.
         self.set_config(self.args.config)
 
@@ -82,6 +171,23 @@ class JaffGen:
         self.state.output_dir.abspath.mkdir(parents=True, exist_ok=True)
 
     def set_config(self, config_file: Path | str | None) -> None:
+        """
+        Load a ``jaffgen.toml`` config file and apply its values to state.
+
+        Resolves *config_file* to an absolute path, records it (so it is also
+        emitted to the output directory), parses it, and calls
+        :meth:`set_state_from_config`.
+
+        Parameters
+        ----------
+        config_file : str, Path, or None
+            Path to the TOML config file.  Does nothing if ``None``.
+
+        Raises
+        ------
+        FileNotFoundError
+            If *config_file* does not exist or is not a regular file.
+        """
         if config_file is None:
             return
 
@@ -102,6 +208,19 @@ class JaffGen:
         self.set_state_from_config()
 
     def set_state_from_config(self) -> None:
+        """
+        Populate :attr:`state` from the parsed ``jaffgen.toml``.
+
+        Reads the ``[jaffgen]`` section (template, input/output paths, network
+        file, lang) and the ``[network]`` section (label, errors, funcfile,
+        replace_nH, and the ``[network.radiation]`` block).  Paths are resolved
+        relative to the config file's directory.  These values are later
+        overridden by any explicit CLI argument.
+
+        Returns
+        -------
+        None
+        """
         ss = self.state
         assert ss.config_dir is not None
         cdir = ss.config_dir.abspath
@@ -139,6 +258,25 @@ class JaffGen:
             sn.c = nr.get("rsl") or sn.c
 
     def set_template(self, template: str | None) -> None:
+        """
+        Resolve a named built-in template and collect its files.
+
+        Looks up *template* inside ``jaff/templates/generator/``.  Generator
+        files are collected first; any preprocessor file whose relative path
+        does not clash with a generator file is appended afterwards, so the
+        generator always wins on path collisions.
+
+        Parameters
+        ----------
+        template : str or None
+            Name of the built-in template collection (subdirectory name).
+            Does nothing if ``None``.
+
+        Raises
+        ------
+        ValueError
+            If *template* is not found in the generator templates directory.
+        """
         if template is None:
             return
 
@@ -172,6 +310,22 @@ class JaffGen:
         self.state.template = template
 
     def detect_config_file(self, files: list[ResolvedPath]) -> None:
+        """
+        Auto-detect a ``jaffgen.toml`` bundled among the collected files.
+
+        Called only when no explicit ``--config`` was given.  Loads a single
+        bundled ``jaffgen.toml`` (shipped inside a template) as the config file.
+
+        Parameters
+        ----------
+        files : list of ResolvedPath
+            The files collected so far (typically from a template).
+
+        Raises
+        ------
+        ParserError
+            If more than one ``jaffgen.toml`` is present among *files*.
+        """
         matches = [f for f in files if f.abspath.name == "jaffgen.toml"]
         if not matches:
             return
@@ -182,6 +336,17 @@ class JaffGen:
         self.set_config(matches[0].abspath)
 
     def set_input_dir(self) -> None:
+        """
+        Collect every file under the resolved input directory.
+
+        A CLI ``--indir`` (resolved against the current working directory)
+        overrides a config-provided ``input_dir``.  Each file keeps its path
+        relative to the directory so the tree is mirrored under ``outdir``.
+
+        Returns
+        -------
+        None
+        """
         # CLI --indir (resolved vs CWD) overrides a config-provided input_dir.
         if self.args.indir is not None:
             self.state.input_dir = self.resolve_path(self.args.indir, Path.cwd())
@@ -197,6 +362,17 @@ class JaffGen:
         )
 
     def set_input_files(self) -> None:
+        """
+        Collect individually specified template files.
+
+        A CLI ``--files`` (resolved against the current working directory)
+        overrides config-provided ``input_files``.  Each file is added flat
+        (its bare name is used as the output relative path).
+
+        Returns
+        -------
+        None
+        """
         # CLI --files (resolved vs CWD) overrides config-provided input_files.
         if self.args.files is not None:
             for f in self.args.files:
@@ -207,6 +383,19 @@ class JaffGen:
             self._add_input_file(rp.abspath)
 
     def _add_input_file(self, path: Path) -> None:
+        """
+        Validate *path* and append it to the output file set.
+
+        Parameters
+        ----------
+        path : Path
+            Absolute path to an individual template file.
+
+        Raises
+        ------
+        FileNotFoundError
+            If *path* does not exist or is not a regular file.
+        """
         if not path.exists():
             raise FileNotFoundError(path)
 
@@ -217,6 +406,19 @@ class JaffGen:
         self.state.output_files.append(ResolvedPath(path, Path(path.name)))
 
     def set_network(self) -> None:
+        """
+        Resolve the network file and store it in state and network props.
+
+        A CLI ``--network`` (resolved against the current working directory)
+        overrides a config-provided ``network_file``.  Both go through
+        :meth:`resolve_network`, so a predefined network *name* is accepted in
+        either case.
+
+        Raises
+        ------
+        RuntimeError
+            If neither the CLI nor the config supplied a network.
+        """
         if self.args.network is not None:
             self.state.network_file = self.resolve_network(self.args.network, Path.cwd())
         elif self.state.network_file is not None:
@@ -231,6 +433,33 @@ class JaffGen:
         self.state.network_props.fname = nf
 
     def resolve_network(self, value: str, base: Path) -> ResolvedPath:
+        """
+        Resolve a network file path or a predefined network name.
+
+        A real file always wins over a same-named predefined network.  A
+        predefined name is a sub-directory of :data:`NETWORKS_DIR` that
+        contains exactly one ``.jet`` file.
+
+        Parameters
+        ----------
+        value : str
+            A filesystem path or a predefined network name.
+        base : Path
+            Directory that relative *value* paths are resolved against.
+
+        Returns
+        -------
+        ResolvedPath
+            The resolved network file.
+
+        Raises
+        ------
+        FileNotFoundError
+            If *value* is neither an existing file nor a predefined name, or a
+            predefined network directory has no ``.jet`` file.
+        ParserError
+            If a predefined network directory has more than one ``.jet`` file.
+        """
         p = Path(value)
         abspath = (p if p.is_absolute() else base / p).resolve()
 
@@ -254,6 +483,17 @@ class JaffGen:
         raise FileNotFoundError(abspath)
 
     def set_output_dir(self) -> None:
+        """
+        Resolve the output directory.
+
+        A CLI ``--outdir`` (resolved against the current working directory)
+        takes priority; otherwise a config-provided value is kept, and failing
+        that the default ``<repo_root>/generated`` is used (with a warning).
+
+        Returns
+        -------
+        None
+        """
         if self.args.outdir is not None:
             self.state.output_dir = self.resolve_path(self.args.outdir, Path.cwd())
             return
@@ -263,6 +503,18 @@ class JaffGen:
             self.logger.warning(f"Files will be generated at {DEFAULT_OUTPUT}")
 
     def set_network_options(self) -> None:
+        """
+        Apply scalar CLI network options over any config values.
+
+        Handles ``--label``, ``--funcfile``, ``--replace-nH``, ``--errors``,
+        ``--network-config``, and ``--lang``.  Each is applied only when the
+        corresponding CLI flag was supplied (i.e. not ``None``).
+
+        Raises
+        ------
+        FileNotFoundError
+            If ``--network-config`` points at a path that is not a file.
+        """
         a = self.args
         sn = self.state.network_props
 
@@ -283,6 +535,18 @@ class JaffGen:
             self.state.lang = a.lang
 
     def set_metadata(self) -> None:
+        """
+        Attach ``[network.reactions]`` / ``[network.rates]`` metadata.
+
+        When either section is present in the config, stores it (plus a
+        back-reference to ``self``) in the network props ``_metadata``, so the
+        network and its shielding code can read per-reaction and global rate
+        properties during construction.
+
+        Returns
+        -------
+        None
+        """
         network_cfg = self.get_prop("network") or {}
         reactions_cfg = network_cfg.get("reactions") or {}
         rates_cfg = network_cfg.get("rates") or {}
@@ -298,6 +562,17 @@ class JaffGen:
             self.state.network_props._metadata = meta
 
     def add_config_to_files(self) -> None:
+        """
+        Emit the config file alongside the generated output.
+
+        Appends the resolved config file to the output set, unless it is
+        already present (a bundled ``jaffgen.toml`` is collected with the
+        template), so it is never written twice.
+
+        Returns
+        -------
+        None
+        """
         cf = self.state.config_file
         if cf is None:
             return
@@ -311,6 +586,23 @@ class JaffGen:
     # ------------------------------------------------------------------
 
     def get_prop(self, key: str, prop: str | None = None) -> Any | None:
+        """
+        Read a value from the parsed config, or ``None`` if absent.
+
+        Parameters
+        ----------
+        key : str
+            Top-level TOML section (e.g. ``"jaffgen"`` or ``"network"``).
+        prop : str or None, optional
+            Key within the section.  When ``None`` (default), the whole
+            section dictionary is returned.
+
+        Returns
+        -------
+        Any or None
+            The section, the value within it, or ``None`` when no config was
+            loaded or the key is absent.
+        """
         if self.state.config_raw is None:
             return None
 
@@ -321,6 +613,26 @@ class JaffGen:
         return (section or {}).get(prop)
 
     def resolve_path(self, p: Any, base: Path) -> ResolvedPath:
+        """
+        Resolve *p* to an absolute path against *base*.
+
+        Parameters
+        ----------
+        p : str or Path
+            A path (absolute or relative).
+        base : Path
+            Directory that a relative *p* is resolved against.
+
+        Returns
+        -------
+        ResolvedPath
+            The absolute path paired with the original (relative) path.
+
+        Raises
+        ------
+        ParserError
+            If *p* is not a string or :class:`~pathlib.Path`.
+        """
         if not isinstance(p, (str, Path)):
             raise ParserError(f"Expected a path string, got {p!r}")
 
@@ -333,9 +645,19 @@ class JaffGen:
     # ------------------------------------------------------------------
 
     def build_network(self) -> Network:
+        """
+        Construct the :class:`~jaff.Network` from the resolved network props.
+
+        Kwargs are passed explicitly (not via :func:`dataclasses.asdict`) so
+        the live ``jaffgen_object`` reference inside ``_metadata`` keeps its
+        identity for the shielding code.
+
+        Returns
+        -------
+        Network
+            The parsed and validated reaction network.
+        """
         sn = self.state.network_props
-        # Build kwargs explicitly (not via asdict) so the live jaffgen_object
-        # reference inside _metadata keeps its identity.
         return Network(
             fname=sn.fname,
             config=sn.config,
@@ -352,6 +674,17 @@ class JaffGen:
         )
 
     def handle_data_tables(self) -> None:
+        """
+        Process ``[[table]]`` entries from the config and write the outputs.
+
+        Each entry is parsed by :class:`~jaff.cli.ConfigTable` and written as
+        HDF5 or CSV under the output directory, depending on its target format.
+        Does nothing when no config or no ``[[table]]`` entries are present.
+
+        Returns
+        -------
+        None
+        """
         raw = self.state.config_raw
         if raw is None:
             return
@@ -388,6 +721,17 @@ class JaffGen:
                 )
 
     def process_files(self) -> None:
+        """
+        Render every collected template file to the output directory.
+
+        Runs :class:`~jaff.codegen.TemplateParser` on each file and writes the
+        result to ``output_dir / <relative_path>``, recreating any source
+        sub-directories under the output directory.
+
+        Returns
+        -------
+        None
+        """
         for file in jaff_progress.track(
             self.state.output_files, description="Processing files"
         ):
@@ -479,11 +823,11 @@ def generate(
         metavar="DIR",
         help="Directory containing template files to process",
     ),
-    files: Optional[List[str]] = typer.Option(
+    files: Optional[str] = typer.Option(
         None,
         "--files",
-        metavar="FILE",
-        help="Individual template file(s) to process",
+        metavar="A,B,C",
+        help="Comma-separated individual template file(s) to process (e.g. rates.txt,odes.txt)",
     ),
     template: Optional[str] = typer.Option(
         None,
@@ -505,13 +849,13 @@ def generate(
     Examples:
 
       # Generate from a template directory
-      jaffgen --network networks/react_COthin --indir templates/ --outdir output/
+      jaffgen --network networks/GOW/GOW.jet --indir templates/ --outdir output/
 
       # Use a predefined template collection
-      jaffgen --network networks/react_COthin --template chemistry_solver --outdir output/
+      jaffgen --network GOW --template microphysics --outdir output/
 
-      # Process specific files with Rust
-      jaffgen --network networks/test.dat --files rates.txt odes.txt --lang rust --outdir output/
+      # Process specific files (comma-separated) with Rust
+      jaffgen --network networks/test.dat --files rates.txt,odes.txt --lang rust --outdir output/
 
       # Combine template and custom files
       jaffgen --network networks/test.dat --template base --files custom.cpp --outdir output/
@@ -519,6 +863,12 @@ def generate(
     Supported Languages: c, cxx (c++, cpp), fortran (f90), python (py),
     rust (rs), julia (jl), r
     """
+    # --files is a single comma-separated token (typer/click options cannot be
+    # variadic); split it into a list of file paths.
+    file_list = (
+        [f.strip() for f in files.split(",") if f.strip()] if files is not None else None
+    )
+
     args = SimpleNamespace(
         network=network,
         config=config,
@@ -530,7 +880,7 @@ def generate(
         network_config=network_config,
         outdir=outdir,
         indir=indir,
-        files=files,
+        files=file_list,
         template=template,
         lang=lang.value if lang is not None else None,
     )
