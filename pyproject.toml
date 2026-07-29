@@ -42,7 +42,7 @@ dependencies = [
 
 [project.scripts]
 jaffgen = "jaff.cli.jaffgen:main"
-jaffx = "jaff.cli._jaffx:main"
+jaffx = "jaff.cli.jaffx:main"
 
 [project.optional-dependencies]
 dev = [
