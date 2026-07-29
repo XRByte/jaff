@@ -1,5 +1,4 @@
 import logging
-from dataclasses import asdict
 from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,39 +9,79 @@ import typer
 from ... import Network
 from ...codegen import TemplateParser
 from ...common import motd
-from ...config import JAFF_DIR, TEMPLATES_DIR
+from ...config import NETWORKS_DIR, TEMPLATES_DIR
 from ...drivers import Toml
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
 from .._helper import funcfile_arg
-from ._structs import ResolvedPath, State
+from ._structs import DEFAULT_OUTPUT, ResolvedPath, State
 
 
 class JaffGen:
+    """Drive the ``jaffgen`` code-generation pipeline from parsed CLI arguments.
+
+    Resolution follows a fixed order (CLI value beats config-file value beats
+    :class:`~jaff.Network` default):
+
+    1. Explicit ``--config`` (applies its values into :class:`State`).
+    2. ``--template`` (CLI wins over a config-named template).
+    3. Bundled ``jaffgen.toml`` auto-detection (only when no ``--config``).
+    4. ``--indir`` / ``--files`` collection.
+    5. ``--network`` (a real path wins over a predefined network name).
+    6. ``--outdir``.
+    7. Scalar network options + ``[network.reactions]`` / ``[network.rates]``
+       metadata.
+
+    The network is then built once and every input file is rendered.
+    """
+
     def __init__(self, args: SimpleNamespace):
         self.logger: logging.Logger = JaffLogger().get_logger()
         self.args: SimpleNamespace = args
         self.state: State = State()
+        # Consumed by the shielding code (leiden.py) through the metadata
+        # back-reference: reaction._metadata["jaffgen"]["jaffgen_object"].
+        self.jaffgen_config: dict[str, Any] = {}
+
+        print(motd("jaffgen"))
         self.parse_args()
+        self.net: Network = self.build_network()
+        self.handle_data_tables()
         self.process_files()
 
+    # ------------------------------------------------------------------
+    # Argument resolution
+    # ------------------------------------------------------------------
+
     def parse_args(self) -> None:
-        print(motd("jaffgen"))
+        # Explicit config first so config_dir is known for relative resolution.
         self.set_config(self.args.config)
-        self.set_template(self.state.template or self.args.template)
+
+        # Template: CLI beats a config-named template.
+        self.set_template(self.args.template or self.state.template)
+
+        # Only scan a template for a bundled jaffgen.toml when none was given.
         if self.state.config_file is None and self.state.template is not None:
             self.detect_config_file(self.state.output_files)
 
-        self.set_input_dir(self.args.indir)
-        self.set_input_files(self.args.files)
-        self.set_output_dir(self.args.outdir)
+        self.set_input_dir()
+        self.set_input_files()
+        self.set_network()
+        self.set_output_dir()
+        self.set_network_options()
+        self.set_metadata()
 
-        if self.state.config_file:
-            self.state.output_files.append(self.state.config_file)
+        if not self.state.output_files:
+            raise RuntimeError("No valid input file/folder/template have been supplied")
 
+        # Emit the config file too (without duplicating a bundled one).
+        self.add_config_to_files()
+
+        # Publish the output dir for the shielding back-reference, then create it.
+        self.jaffgen_config["output_dir"] = self.state.output_dir.abspath
         self.state.output_dir.abspath.mkdir(parents=True, exist_ok=True)
 
-    def set_config(self, config_file: Path | str | None):
+    def set_config(self, config_file: Path | str | None) -> None:
         if config_file is None:
             return
 
@@ -55,13 +94,49 @@ class JaffGen:
         if not config_file.is_file():
             raise FileNotFoundError(f"{config_file} is not a file")
 
-        self.state.config_file = ResolvedPath(config_file.resolve(), config_file)
-        self.state.config_dir = ResolvedPath(
-            self.state.config_file.abspath.parent, self.state.config_file.relpath.parent
-        )
-
-        self.state.config_raw = Toml(self.state.config_file.abspath)
+        abspath = config_file.resolve()
+        # relpath is a bare name so the emitted copy lands directly in outdir.
+        self.state.config_file = ResolvedPath(abspath, Path(abspath.name))
+        self.state.config_dir = ResolvedPath(abspath.parent, abspath.parent)
+        self.state.config_raw = Toml(abspath)
         self.set_state_from_config()
+
+    def set_state_from_config(self) -> None:
+        ss = self.state
+        assert ss.config_dir is not None
+        cdir = ss.config_dir.abspath
+
+        jgp = self.get_prop("jaffgen") or {}
+        ss.template = jgp.get("template") or ss.template
+        if (d := jgp.get("input_dir")) is not None:
+            ss.input_dir = self.resolve_path(d, cdir)
+        if (fs := jgp.get("input_files")) is not None:
+            ss.input_files = [self.resolve_path(f, cdir) for f in fs]
+        if (d := jgp.get("output_dir")) is not None:
+            ss.output_dir = self.resolve_path(d, cdir)
+        if (f := jgp.get("network_file")) is not None:
+            ss.network_file = self.resolve_path(f, cdir)
+        ss.lang = jgp.get("lang") or ss.lang
+
+        np = self.get_prop("network") or {}
+        sn = ss.network_props
+        sn.label = np.get("label") or sn.label
+        if np.get("errors") is not None:
+            sn.errors = np.get("errors")
+        sn.config = np.get("config") or sn.config
+        if np.get("replace_nH") is not None:
+            sn.replace_nH = np.get("replace_nH")
+        if np.get("funcfile") is not None:
+            sn.funcfile = np.get("funcfile")
+
+        nr = np.get("radiation") or {}
+        if nr:
+            sn.rad_bands = nr.get("bands") or sn.rad_bands
+            if nr.get("power_law_index") is not None:
+                sn.rad_powerlaw_index = nr.get("power_law_index")
+            if nr.get("energy_density") is not None:
+                sn.rad_energy_density = nr.get("energy_density")
+            sn.c = nr.get("rsl") or sn.c
 
     def set_template(self, template: str | None) -> None:
         if template is None:
@@ -71,7 +146,6 @@ class JaffGen:
         pproc_dir = TEMPLATES_DIR / "preprocessor"
         valid_templates: list[str] = [f.name for f in gen_dir.iterdir() if f.is_dir()]
 
-        # Validate that the requested template exists
         if template not in valid_templates:
             raise ValueError(
                 f"Invalid template name. Supported templates are {valid_templates}"
@@ -80,159 +154,244 @@ class JaffGen:
         gtemplate_dir = gen_dir / template
         ptemplate_dir = pproc_dir / template
         gfiles = [
-            ResolvedPath(f, f.relative_to(gtemplate_dir))
+            ResolvedPath(f.resolve(), f.relative_to(gtemplate_dir))
             for f in gtemplate_dir.rglob("*")
             if not f.is_dir()
         ]
         pfiles = [
-            ResolvedPath(f, f.relative_to(ptemplate_dir))
+            ResolvedPath(f.resolve(), f.relative_to(ptemplate_dir))
             for f in ptemplate_dir.rglob("*")
             if not f.is_dir()
         ]
+        # Generator files win on path collisions; add only non-clashing
+        # preprocessor files.
         extras = {f.relpath for f in pfiles} - {f.relpath for f in gfiles}
 
-        ss = self.state
-        ss.output_files.extend(gfiles)
-        ss.output_files.extend([f for f in pfiles if f.relpath in extras])
+        self.state.output_files.extend(gfiles)
+        self.state.output_files.extend(f for f in pfiles if f.relpath in extras)
         self.state.template = template
 
-    def set_input_dir(self, input_dir: str | None) -> None:
-        if input_dir is None:
-            return
-
-        idir = self.get_resolved_path(input_dir, Path.cwd())
-        self.state.input_dir = idir
-        self.state.output_files.extend(
-            [
-                self.get_resolved_path(f, Path.cwd())
-                for f in idir.abspath.rglob("*")
-                if not f.is_dir()
-            ]
-        )
-
-    def set_input_files(self, files: list[str] | None) -> None:
-        if files is None:
-            return
-
-        self.state.output_files.extend(
-            [self.get_resolved_path(f, Path.cwd()) for f in files]
-        )
-
-    def set_output_dir(self, output_dir: str | None) -> None:
-        if output_dir is None:
-            self.logger.warning("No output directory has been supplied.")
-            self.logger.warning(
-                f"Files will be generated at {JAFF_DIR.parent.parent / 'generated'}"
-            )
-            return
-
-        odir = self.get_resolved_path(output_dir, Path.cwd())
-        self.state.output_dir = odir
-
-    def set_state_from_config(self):
-        ss = self.state
-        assert ss.config_dir is not None
-        assert ss.config_file is not None
-
-        jgp = self.get_prop("jaffgen")
-        if jgp:
-            ss.template = jgp.get("template") or ss.template
-
-            if d := jgp.get("input_dir") is not None:
-                ss.input_dir = self.get_resolved_path(d, ss.config_dir.abspath)
-
-            if fs := jgp.get("input_files") is not None:
-                ss.input_files = [
-                    self.get_resolved_path(f, ss.config_dir.abspath) for f in fs
-                ]
-
-            if d := jgp.get("output_dir") is not None:
-                ss.output_dir = self.get_resolved_path(d, ss.config_dir.abspath)
-
-            if f := jgp.get("network_file") is not None:
-                ss.network_file = self.get_resolved_path(f, ss.config_dir.abspath)
-
-            ss.network_dir = ResolvedPath(
-                ss.network_file.abspath.parent, ss.network_file.relpath.parent
-            )
-            ss.network_props.fname = ss.network_file.abspath
-            ss.lang = jgp.get("lang") or ss.lang
-
-        np = self.get_prop("network")
-        if np:
-            sn = ss.network_props
-            sn.label = np.get("label") or sn.label
-            sn.errors = sn.errors if np.get("errors") is None else np.get("errors")
-            sn.config = np.get("config") or sn.config
-            sn.replace_nH = (
-                sn.replace_nH if np.get("replace_nH") is None else np.get("replace_nH")
-            )
-            sn.funcfile = (
-                sn.funcfile if np.get("funcfile") is None else np.get("funcfile")
-            )
-
-            nr = np.get("radiation")
-            if nr:
-                sn.rad_bands = nr.get("rad_bands") or sn.rad_bands
-                sn.rad_powerlaw_index = (
-                    sn.rad_powerlaw_index
-                    if nr.get("power_law_index") is None
-                    else nr.get("power_law_index")
-                )
-                sn.rad_energy_density = (
-                    sn.rad_energy_density
-                    if nr.get("energy_density") is None
-                    else np.get("energy_density")
-                )
-                sn.c = nr.get("rsl") or sn.c
-
     def detect_config_file(self, files: list[ResolvedPath]) -> None:
-        count: int = 0
-        index: int = -1
-        for i, f in enumerate(files):
-            if f.abspath.name == "jaffgen.toml":
-                index = i
-                count += 1
-
-        if count == 0:
+        matches = [f for f in files if f.abspath.name == "jaffgen.toml"]
+        if not matches:
             return
-
-        if count > 1:
+        if len(matches) > 1:
             raise ParserError(
                 "More than one jaffgen.toml file found in template directory"
             )
+        self.set_config(matches[0].abspath)
 
-        self.state.config_file = files[index]
-        self.state.config_dir = ResolvedPath(
-            files[index].abspath.parent, files[index].relpath.parent
+    def set_input_dir(self) -> None:
+        # CLI --indir (resolved vs CWD) overrides a config-provided input_dir.
+        if self.args.indir is not None:
+            self.state.input_dir = self.resolve_path(self.args.indir, Path.cwd())
+
+        if self.state.input_dir is None:
+            return
+
+        idir = self.state.input_dir.abspath
+        self.state.output_files.extend(
+            ResolvedPath(f.resolve(), f.relative_to(idir))
+            for f in idir.rglob("*")
+            if not f.is_dir()
         )
-        self.set_config(self.state.config_file.abspath)
+
+    def set_input_files(self) -> None:
+        # CLI --files (resolved vs CWD) overrides config-provided input_files.
+        if self.args.files is not None:
+            for f in self.args.files:
+                self._add_input_file(Path(f).resolve())
+            return
+
+        for rp in self.state.input_files:
+            self._add_input_file(rp.abspath)
+
+    def _add_input_file(self, path: Path) -> None:
+        if not path.exists():
+            raise FileNotFoundError(path)
+
+        if not path.is_file():
+            raise FileNotFoundError(f"{path} is not a file")
+
+        # relpath is the bare name so individual files land flat in outdir.
+        self.state.output_files.append(ResolvedPath(path, Path(path.name)))
+
+    def set_network(self) -> None:
+        if self.args.network is not None:
+            self.state.network_file = self.resolve_network(self.args.network, Path.cwd())
+        elif self.state.network_file is not None:
+            # Config value already resolved; re-run so a bare name still works.
+            nf = self.state.network_file.abspath
+            self.state.network_file = self.resolve_network(str(nf), nf.parent)
+        else:
+            raise RuntimeError("No network file supplied. Please enter a network file")
+
+        nf = self.state.network_file.abspath
+        self.state.network_dir = ResolvedPath(nf.parent, nf.parent)
+        self.state.network_props.fname = nf
+
+    def resolve_network(self, value: str, base: Path) -> ResolvedPath:
+        p = Path(value)
+        abspath = (p if p.is_absolute() else base / p).resolve()
+
+        # A real file always wins over a same-named predefined network.
+        if abspath.is_file():
+            return ResolvedPath(abspath, Path(p.name))
+
+        names = {f.name for f in NETWORKS_DIR.iterdir() if f.is_dir()}
+        if p.name in names:
+            ndir = NETWORKS_DIR / p.name
+            jets = sorted(f for f in ndir.iterdir() if f.suffix.lower() == ".jet")
+            if not jets:
+                raise FileNotFoundError(f"No .jet file in predefined network '{p.name}'")
+            if len(jets) > 1:
+                raise ParserError(
+                    f"Predefined network '{p.name}' has multiple .jet files: "
+                    f"{[j.name for j in jets]}"
+                )
+            return ResolvedPath(jets[0].resolve(), Path(jets[0].name))
+
+        raise FileNotFoundError(abspath)
+
+    def set_output_dir(self) -> None:
+        if self.args.outdir is not None:
+            self.state.output_dir = self.resolve_path(self.args.outdir, Path.cwd())
+            return
+
+        if self.state.output_dir.abspath == DEFAULT_OUTPUT:
+            self.logger.warning("No output directory has been supplied.")
+            self.logger.warning(f"Files will be generated at {DEFAULT_OUTPUT}")
+
+    def set_network_options(self) -> None:
+        a = self.args
+        sn = self.state.network_props
+
+        if a.label is not None:
+            sn.label = a.label
+        if a.funcfile is not None:
+            sn.funcfile = a.funcfile
+        if a.replace_nH is not None:
+            sn.replace_nH = a.replace_nH
+        if a.errors is not None:
+            sn.errors = a.errors
+        if a.network_config is not None:
+            ncfg = Path(a.network_config).resolve()
+            if not ncfg.is_file():
+                raise FileNotFoundError(f"{ncfg} is not a file")
+            sn.config = ncfg
+        if a.lang is not None:
+            self.state.lang = a.lang
+
+    def set_metadata(self) -> None:
+        network_cfg = self.get_prop("network") or {}
+        reactions_cfg = network_cfg.get("reactions") or {}
+        rates_cfg = network_cfg.get("rates") or {}
+
+        if reactions_cfg or rates_cfg:
+            meta: dict[str, Any] = {"jaffgen_object": self}
+            if reactions_cfg:
+                meta["reaction_props"] = reactions_cfg
+
+            if rates_cfg:
+                meta["rate_props"] = rates_cfg
+
+            self.state.network_props._metadata = meta
+
+    def add_config_to_files(self) -> None:
+        cf = self.state.config_file
+        if cf is None:
+            return
+        # A bundled config is already among the collected template files.
+        if any(f.abspath == cf.abspath for f in self.state.output_files):
+            return
+        self.state.output_files.append(cf)
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
 
     def get_prop(self, key: str, prop: str | None = None) -> Any | None:
         if self.state.config_raw is None:
             return None
 
-        return (
-            self.state.config_raw.get_key(key)
-            if prop is None
-            else (self.state.config_raw.get_key(key) or {}).get(prop, {})
+        section = self.state.config_raw.get_key(key)
+        if prop is None:
+            return section
+
+        return (section or {}).get(prop)
+
+    def resolve_path(self, p: Any, base: Path) -> ResolvedPath:
+        if not isinstance(p, (str, Path)):
+            raise ParserError(f"Expected a path string, got {p!r}")
+
+        p = Path(p)
+        abspath = (p if p.is_absolute() else base / p).resolve()
+        return ResolvedPath(abspath, p)
+
+    # ------------------------------------------------------------------
+    # Execution
+    # ------------------------------------------------------------------
+
+    def build_network(self) -> Network:
+        sn = self.state.network_props
+        # Build kwargs explicitly (not via asdict) so the live jaffgen_object
+        # reference inside _metadata keeps its identity.
+        return Network(
+            fname=sn.fname,
+            config=sn.config,
+            errors=sn.errors,
+            label=sn.label,
+            funcfile=sn.funcfile,
+            replace_nH=sn.replace_nH,
+            rad_bands=sn.rad_bands,
+            rad_powerlaw_index=sn.rad_powerlaw_index,
+            rad_energy_density=sn.rad_energy_density,
+            c=sn.c,
+            _from_cli=sn._from_cli,
+            _metadata=sn._metadata,
         )
 
-    def get_resolved_path(self, f: Any, relative_to: Path) -> ResolvedPath:
-        if not isinstance(f, str):
-            raise ParserError("input_dir must be a string")
+    def handle_data_tables(self) -> None:
+        raw = self.state.config_raw
+        if raw is None:
+            return
 
-        f: Path = Path(f)
-        return ResolvedPath(f.absolute(), f.relative_to(relative_to))
+        tables = raw.get_key("table")
+        if not tables:
+            return
+
+        # Imported lazily: pulls the cli package + pandas only when tables exist.
+        import pandas as pd
+
+        from ...drivers import HDF5
+        from ...types import HDF5Dict
+        from ._config_table import ConfigTable
+
+        assert self.state.config_file is not None
+        assert self.state.network_file is not None
+        outdir = self.state.output_dir.abspath
+
+        for table_props in tables:
+            ct = ConfigTable(
+                table_props,
+                self.state.config_file.abspath,
+                self.state.network_file.abspath,
+            )
+            parsed_out = ct.parse()
+
+            if isinstance(parsed_out, HDF5Dict):
+                HDF5().from_dict(outdir / ct.target_props["path"], parsed_out)
+            elif isinstance(parsed_out, pd.DataFrame):
+                parsed_out.to_csv(
+                    outdir / ct.target_props["path"],
+                    sep=ct.target_props["delimiter"],
+                )
 
     def process_files(self) -> None:
         for file in jaff_progress.track(
             self.state.output_files, description="Processing files"
         ):
-            fparser: TemplateParser = TemplateParser(
-                Network(**asdict(self.state.network_props)), file.abspath, self.state.lang
-            )
-
+            fparser = TemplateParser(self.net, file.abspath, self.state.lang)
             lines: str = fparser.parse_file()
 
             outfile: Path = self.state.output_dir.abspath / file.relpath
@@ -247,48 +406,6 @@ class JaffGen:
         self.logger.info(
             f"Generated files can be found at {self.state.output_dir.abspath}"
         )
-
-    def __handle_data_tables(self, props: list) -> None:
-        """
-        Process ``[[table]]`` entries from the TOML config and write outputs.
-
-        Each entry is passed to :class:`~jaff.cli.ConfigTable` for parsing.
-        Depending on the target format declared in the table block, the result
-        is written as either an HDF5 file or a CSV file.
-
-        Parameters
-        ----------
-        props : list of dict
-            List of table configuration dictionaries from the ``[[table]]``
-            TOML array.
-
-        Returns
-        -------
-        None
-        """
-        assert self.jaffgen_config["config_file"] is not None
-
-        for table_props in props:
-            ct = ConfigTable(
-                table_props,
-                self.jaffgen_config["config_file"],
-                self.jaffgen_config["network_file"],
-            )
-            parsed_out = ct.parse()
-
-            # Write HDF5 output when the target format is HDF5.
-            if isinstance(parsed_out, HDF5Dict):
-                HDF5().from_dict(
-                    self.jaffgen_config["output_dir"] / ct.target_props["path"],
-                    parsed_out,
-                )
-
-            # Write CSV output when the target format is CSV.
-            if isinstance(parsed_out, pd.DataFrame):
-                parsed_out.to_csv(
-                    self.jaffgen_config["output_dir"] / ct.target_props["path"],
-                    sep=ct.target_props["delimiter"],
-                )
 
 
 class Lang(str, Enum):

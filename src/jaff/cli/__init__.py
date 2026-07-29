@@ -1,6 +1,5 @@
-from ._config_engine import ConfigTable
-from ._jaffgen import JaffGen
+from .jaffgen import JaffGen
+from .jaffgen._config_table import ConfigTable
 from ._jaffx import JaffX
-from ._typing import JaffgenProps
 
-__all__ = [JaffX, JaffGen, ConfigTable, JaffgenProps]
+__all__ = [JaffX, JaffGen, ConfigTable]

@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import re
 import sys
-from functools import cache, cached_property, lru_cache, reduce
+from functools import cached_property, lru_cache, reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 

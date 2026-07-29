@@ -39,8 +39,8 @@ from typing import Any
 
 import pandas as pd
 
-from ..common._helper import CSV_EXTENSIONS, HDF_EXTENSIONS
-from ..types import HDF5Dict
+from ...common._helper import CSV_EXTENSIONS, HDF_EXTENSIONS
+from ...types import HDF5Dict
 
 
 class ConfigTable:

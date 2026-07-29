@@ -25,7 +25,7 @@ per-method bracket/token overrides are applied by the
 from __future__ import annotations
 
 import re
-from functools import cache, reduce
+from functools import reduce
 from itertools import product
 from typing import TYPE_CHECKING, List, Set, Tuple, cast
 
