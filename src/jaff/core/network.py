@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import re
 import sys
-from functools import lru_cache
+from functools import cache, cached_property, lru_cache, reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -49,6 +49,7 @@ from ..physics import (
     Photochemistry,
     Radiation,
     constants,
+    get_eos,
     get_sfluxes,
     get_sodes,
     get_sradodes,
@@ -228,8 +229,6 @@ class Network:
         )
 
         self.__photochemistry: None | Photochemistry = None
-        self.__nden_symbol: MatrixSymbol | None = None
-        self.__ntot_sum: Expr | None = None
         self.__element_sums: dict[str, Expr | None] = {}
         self.__tgas_clamp_cache: dict[tuple[float | None, float | None], Expr] = {}
 
@@ -401,11 +400,6 @@ class Network:
             if "reaction_props" in self._metadata:
                 self.__parse_reaction_metadata(rea)
 
-            # Reactions shouldn't repeat
-            # if rea.serialized in self.reactions:
-            #     raise ParserError(
-            #         f"Reaction '{rea.serialized}' appears more than once in the file: {self.filename}"
-            #     )
             self.reactions.add(rea)
 
             if rea.type == "photo":
@@ -503,7 +497,7 @@ class Network:
             When ``True``, expand hydrogen-density shorthands to sums over
             H-bearing species.
         """
-        nden = MatrixSymbol("nden", self.species.count, 1)
+        nden = self.ndens
         for r in self.reactions:
             r.rate = self._standardize_symbols(r.rate, replace_nH)
 
@@ -932,6 +926,69 @@ class Network:
             self.logger.error("Duplicate reactions found")
             sys.exit(1)
 
+    @cached_property
+    def ndens(self) -> MatrixSymbol:
+        """Symbolic ``nden`` column vector of species number densities.
+
+        A SymPy :class:`~sympy.matrices.expressions.MatrixSymbol` of shape
+        ``(species.count, 1)``.  Entry ``nden[i]`` is the number density of the
+        species with index ``i``.  Cached so every consumer shares one symbol.
+
+        Returns
+        -------
+        sympy.MatrixSymbol
+            The ``nden`` matrix symbol.
+        """
+        return MatrixSymbol("nden", self.species.count, 1)
+
+    @cached_property
+    def ntot(self) -> Expr:
+        """Total number density ``Σ_i nden[i]`` over all species.
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic sum of every entry of :attr:`ndens`.
+        """
+        return sum(self.ndens[Idx(i)] for i in range(self.species.count))
+
+    @cached_property
+    def rho(self) -> Expr:
+        """Mass density ``Σ_i m_i · nden[i]`` over all species.
+
+        Each species contributes its mass ``m_i`` times its number density.
+        Species with an unset mass (``mass is None``) contribute ``0``.
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic mass density.
+        """
+        return reduce(
+            lambda x, y: x + y,
+            [(s.mass or 0.0) * self.ndens[Idx(s.index)] for s in self.species],
+        )
+
+    def eos(self, gamma: float = 1.6666666666667) -> Expr:
+        """Symbolic ideal-gas specific internal energy of the network.
+
+        Thin wrapper around :func:`jaff.physics.get_eos`, which builds the
+        expression from this network's :attr:`ntot` and :attr:`rho`.  Used by
+        the code generator to form the temperature column of the Jacobian via
+        the chain rule ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.
+
+        Parameters
+        ----------
+        gamma : float, optional
+            Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic specific internal energy in CGS units (erg/g).
+        """
+        return get_eos(self, gamma)
+
     def __generate_reaction_matrices(self) -> None:
         """Build integer stoichiometry matrices: shape (n_reactions × n_species)."""
         self.reactant_matrix = np.zeros(
@@ -957,15 +1014,8 @@ class Network:
         if expr == Float(0.0):
             return Float(0.0)
 
-        if self.__nden_symbol is None:
-            self.__nden_symbol = MatrixSymbol("nden", self.species.count, 1)
-        nden = self.__nden_symbol
+        nden = self.ndens
         reps = {}
-
-        def get_ntot_sum():
-            if self.__ntot_sum is None:
-                self.__ntot_sum = sum(nden[Idx(i)] for i in range(self.species.count))
-            return self.__ntot_sum
 
         def get_element_sum(element):
             if element not in self.__element_sums:
@@ -993,7 +1043,7 @@ class Network:
             repl = None
 
             if low_name == "ntot":
-                repl = get_ntot_sum()
+                repl = self.ntot
 
             elif low_name == "nh":
                 repl = get_element_sum("H") if replace_nH else symbols("nh")

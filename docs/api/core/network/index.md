@@ -67,3 +67,6 @@ _FileNotFoundError_
 | `dEdt_other`      | `sympy.Basic`       | Additional heating/cooling rate from the `heatingcoolingrate` auxiliary function, if present                        |
 | `dRad_dt_extra`   | `sympy.Basic`       | Extra radiation moment source terms from `@function` definitions                                                    |
 | `radiation`       | `Radiation or None` | Radiation field object; `None` when no radiation bands are specified                                                |
+| `ndens`           | `sympy.MatrixSymbol`| Symbolic `nden` column vector of species number densities, shape (n_species, 1); `nden[i]` is species `i`           |
+| `ntot`            | `sympy.Expr`        | Total number density, `Σ_i nden[i]` over all species                                                                |
+| `rho`             | `sympy.Expr`        | Mass density, `Σ_i m_i · nden[i]`; species with unset mass contribute `0`                                           |

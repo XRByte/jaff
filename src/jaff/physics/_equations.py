@@ -12,6 +12,8 @@ This module builds SymPy symbolic expressions for:
   first-moment (energy/photon flux) equations for each frequency band, taking
   into account photoionisation/photodissociation sinks and any user-supplied
   radiation source/sink terms (``get_sradodes``).
+- **Equation of state** -- the ideal-gas specific internal energy used to
+  couple the gas temperature into the Jacobian (``get_eos``).
 
 The symbolic expressions are later code-generated (via SymPy's code printers)
 into efficient numerical kernels.
@@ -19,14 +21,16 @@ into efficient numerical kernels.
 
 from __future__ import annotations
 
+from functools import cache
 from typing import TYPE_CHECKING
 
-from sympy import Basic, Expr, Float, Idx, MatrixSymbol
+from sympy import Basic, Expr, Float, Idx, MatrixSymbol, symbols
 
 from ..io._logger import jaff_progress
+from .constants import k_B
 
 if TYPE_CHECKING:
-    from .. import Reactions, Species
+    from .. import Network, Reactions, Species
     from .photo_reactions._radiation import Radiation
 
 
@@ -278,3 +282,37 @@ def get_sradodes(
         radodes[fi] = flux
 
     return radodes
+
+
+@cache
+def get_eos(net: "Network", gamma: float = 1.6666666666667) -> Expr:
+    """Return the symbolic ideal-gas specific internal energy.
+
+    Uses the ideal-gas equation of state::
+
+        e = n_tot · k_B · T_gas / (ρ · (γ − 1))   [erg / g]
+
+    where ``n_tot`` is the total number density (:attr:`Network.ntot`), ``ρ``
+    is the mass density (:attr:`Network.rho`), ``k_B`` is the Boltzmann
+    constant in CGS (erg K⁻¹) and ``tgas`` is a SymPy symbol for the gas
+    temperature in Kelvin.
+
+    This expression drives the temperature column of the Jacobian via the
+    chain rule ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.  The result is cached (via
+    :func:`functools.cache`) since it depends only on *net* and *gamma*.
+
+    Parameters
+    ----------
+    net : Network
+        Network supplying the symbolic ``n_tot`` and ``ρ`` sums.
+    gamma : float, optional
+        Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
+
+    Returns
+    -------
+    sympy.Expr
+        Symbolic specific internal energy in CGS units (erg/g).
+    """
+    tgas = symbols("tgas")
+
+    return net.ntot * k_B.cgs.value * tgas / net.rho * 1.0 / (gamma - 1.0)
