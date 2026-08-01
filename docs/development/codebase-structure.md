@@ -187,7 +187,7 @@ The table below traces a single `jaffgen` invocation from command line to output
 | 1    | `cli/jaffgen/_engine.py`                 | Parse CLI args (Typer), read `jaffgen.toml`, resolve config: CLI > jaffgen.toml > Network defaults |
 | 2    | `core/parsers/network/_engine.py`        | Auto-detect format via registered plugins; convert each reaction line to a `parsedListProps` dict  |
 | 3    | `core/parsers/auxiliary_func/_engine.py` | Parse `.jfunc` file (if present); resolve `@var`/`@function` blocks into SymPy expressions         |
-| 4    | `core/network.py`                        | Build `Species`, `Reactions`, `Elements` catalogues; validate duplicates, sinks, isomers           |
+| 4    | `core/network/network.py`                | Build `Species`, `Reactions`, `Elements` catalogues; validate duplicates, sinks, isomers           |
 | 5    | `physics/_equations.py`                  | Compute symbolic fluxes (`sfluxes`) and ODE RHS (`sodes`) using SymPy                              |
 | 6    | `codegen/codegen.py`                     | Translate SymPy expressions into assignment strings for the chosen language                        |
 | 7    | `codegen/preprocessor.py`                | Walk template files; replace `!! PREPROCESS_KEY … !! PREPROCESS_END` blocks with generated strings |

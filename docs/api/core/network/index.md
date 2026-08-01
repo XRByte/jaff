@@ -57,6 +57,7 @@ _FileNotFoundError_
 | ----------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `label`           | `str`               | Human-readable network identifier; defaults to the source file stem                                                 |
 | `filename`        | `Path`              | Resolved absolute path to the source network file                                                                   |
+| `spec`            | `NetworkSpec`       | Normalized construction parameters (resolved `fname`, parsed `config` dict, `funcfile`, `aux_funcs`, ...)           |
 | `species`         | `Species`           | Ordered catalogue of the network's core (real) species; special pseudo-species (`_PHOTON`, `_CR`, ...) are excluded |
 | `reactions`       | `Reactions`         | Ordered catalogue of all reactions in the network                                                                   |
 | `elements`        | `Elements`          | Element catalogue derived from all species; used for composition matrices                                           |
