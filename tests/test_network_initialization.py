@@ -77,8 +77,8 @@ class TestNetworkInitialization:
             patch("pathlib.Path.exists", return_value=True),
         ):
             with (
-                patch("jaff.core._spec.NetworkSpec._load_config", return_value={}),
-                patch("jaff.core._spec.NetworkSpec._load_aux_funcs", return_value={}),
+                patch("jaff.core.network._spec.NetworkSpec._load_config", return_value={}),
+                patch("jaff.core.network._spec.NetworkSpec._load_aux_funcs", return_value={}),
                 patch.object(Network, "_Network__load_network", MagicMock()),
             ):
                 with patch.object(Network, "check_sink_sources", MagicMock()):

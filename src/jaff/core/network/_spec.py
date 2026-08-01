@@ -3,10 +3,10 @@
 from pathlib import Path
 from typing import Any
 
-from ..config import NETWORKS_DIR, predefined_networks
-from ..drivers import Toml
-from ..errors import ParserError
-from .parsers import AuxiliaryFunctionParser
+from ...config import NETWORKS_DIR, predefined_networks
+from ...drivers import Toml
+from ...errors import ParserError
+from ..parsers import AuxiliaryFunctionParser
 
 
 class NetworkSpec:

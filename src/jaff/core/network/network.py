@@ -40,11 +40,11 @@ from sympy import (
 )
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
-from ..common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
-from ..errors import ParserError
-from ..io import JaffLogger, jaff_progress
-from ..io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
-from ..physics import (
+from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
+from ...errors import ParserError
+from ...io import JaffLogger, jaff_progress
+from ...io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
+from ...physics import (
     Photochemistry,
     Radiation,
     constants,
@@ -54,14 +54,14 @@ from ..physics import (
     get_sradodes,
 )
 from ._spec import NetworkSpec
-from .elements import Elements
-from .parsers import NetworkParser
-from .reaction import Reaction, Reactions
-from .species import Specie, Species
+from ..elements import Elements
+from ..parsers import NetworkParser
+from ..reaction import Reaction, Reactions
+from ..species import Specie, Species
 
 if TYPE_CHECKING:
-    from ._typing import ElementProps
-    from .parsers.auxiliary_func._typing import AuxiliaryFunctionsDict
+    from .._typing import ElementProps
+    from ..parsers.auxiliary_func._typing import AuxiliaryFunctionsDict
 
 
 @lru_cache(maxsize=200000)

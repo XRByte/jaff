@@ -13,12 +13,12 @@ This page maps the `src/jaff` source tree, explains what each package owns, and 
 ```
 src/jaff/
 ├── core/                       # Domain model
-│   ├── network.py              # Network — main entry point
-│   ├── _spec.py                # NetworkSpec — normalized Network params
-│   ├── _args.py                # NetworkArgs — raw CLI arg accumulator
-│   ├── reaction.py             # Reaction + Reactions catalogue
-│   ├── species.py              # Specie + Species catalogue
-│   ├── elements.py             # Element + Elements catalogue
+│   ├── network/                # network.py (Network — main entry point)
+│   │   ├── _spec.py            # NetworkSpec — normalized Network params
+│   │   └── _args.py            # NetworkArgs — raw CLI arg accumulator
+│   ├── reaction/               # reaction.py (Reaction) · reactions.py (Reactions)
+│   ├── species/                # specie.py (Specie) · species.py (Species)
+│   ├── elements/               # element.py (Element) · elements.py (Elements)
 │   ├── parsers/                # File parsers (network + auxiliary)
 │   │   ├── network/            # Multi-format network file parser
 │   │   │   ├── _engine.py      # NetworkParser — drives format plugins
