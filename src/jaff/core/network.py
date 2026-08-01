@@ -41,6 +41,7 @@ from sympy import (
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
 from ..common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
+from ..config import NETWORKS_DIR, predefined_networks
 from ..drivers import Toml
 from ..errors import ParserError
 from ..io import JaffLogger, jaff_progress
@@ -140,7 +141,10 @@ class Network:
         Parameters
         ----------
         fname : str | Path
-            Path to the network file.  Supported extensions: any text format
+            Path to the network file, or the name of a predefined network (a
+            sub-directory of :data:`~jaff.config.NETWORKS_DIR` containing a
+            single ``.jet`` file).  A predefined network name wins over a
+            same-named path on disk.  Supported extensions: any text format
             auto-detected by ``NetworkParser``, plus ``.jaff`` binary files.
         errors : bool, optional
             If ``True``, treat conservation violations and duplicate reactions
@@ -181,16 +185,14 @@ class Network:
         Raises
         ------
         FileNotFoundError
-            If *fname* does not exist.
+            If *fname* is neither an existing file nor a predefined network
+            name, or a predefined network directory has no ``.jet`` file.
+        ParserError
+            If a predefined network directory has more than one ``.jet`` file.
         """
         self.logger: logging.Logger = JaffLogger().get_logger()
 
-        if isinstance(fname, str):
-            fname = Path(fname)
-
-        fname = fname.resolve()
-        if not fname.exists():
-            raise FileNotFoundError(fname)
+        fname = self._resolve_network_path(fname)
 
         jaff_props: JaffProps = {}  # type: ignore
         loaded_from_jaff_file = is_jaff_file(fname)
@@ -255,6 +257,57 @@ class Network:
         self.elements: Elements = Elements(self.species._list)
 
         self.logger.info("[green]Network loaded successfully![/]")
+
+    @staticmethod
+    def _resolve_network_path(fname: str | Path) -> Path:
+        """Resolve *fname* to a network file path or a predefined network name.
+
+        A predefined network name wins over a same-named path on disk.  A
+        predefined name is a sub-directory of :data:`~jaff.config.NETWORKS_DIR`
+        that contains exactly one ``.jet`` file.  Non-predefined names are
+        treated as filesystem paths, with relative paths resolved against the
+        current working directory.
+
+        Parameters
+        ----------
+        fname : str | Path
+            A filesystem path or a predefined network name.
+
+        Returns
+        -------
+        Path
+            The resolved, absolute network file path.
+
+        Raises
+        ------
+        FileNotFoundError
+            If *fname* is neither an existing file nor a predefined name, or a
+            predefined network directory has no ``.jet`` file.
+        ParserError
+            If a predefined network directory has more than one ``.jet`` file.
+        """
+        p = Path(fname)
+        abspath = p.resolve()
+
+        names = predefined_networks()
+        if p.name not in names:
+            if not abspath.exists():
+                raise FileNotFoundError(f"Network file '{fname}' not found")
+
+            return abspath
+
+        ndir = NETWORKS_DIR / p.name
+        jets = sorted(f for f in ndir.iterdir() if f.suffix.lower() == ".jet")
+        if not jets:
+            raise FileNotFoundError(f"No .jet file in predefined network '{p.name}'")
+
+        if len(jets) > 1:
+            raise ParserError(
+                f"Predefined network '{p.name}' has multiple .jet files: "
+                f"{[j.name for j in jets]}"
+            )
+
+        return jets[0].resolve()
 
     def __load_network(
         self,

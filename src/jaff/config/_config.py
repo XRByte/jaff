@@ -10,3 +10,7 @@ SHIELDING_DATA_DIR = DATA_DIR / "shielding"
 SHIELDING_FUNCTIONS_DIR = JAFF_DIR / "physics" / "photo_reactions" / "shielding"
 TEMPLATES_DIR = JAFF_DIR / "templates"
 DB_DIR = JAFF_DIR / "db"
+
+
+def predefined_networks() -> set[str]:
+    return {f.name for f in NETWORKS_DIR.iterdir() if f.is_dir()}

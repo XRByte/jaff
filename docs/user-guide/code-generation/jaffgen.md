@@ -67,8 +67,11 @@ appended — so the generator always wins on a path collision.
 | `--replace-nH` | `--replace-nH` / `--no-replace-nH` — expand `nh`/`nhe` shorthands (default: on)    |
 | `--errors`     | `--errors` / `--no-errors` — exit on conservation violations instead of warning    |
 
-When `--network` is a bare name (a sub-directory of `networks/`), jaffgen picks
-the first `.jet` file inside it.
+When `--network` is a built-in network name (a sub-directory of `networks/`),
+it resolves to the single `.jet` file inside that directory — the directory
+must contain exactly one. A built-in name takes precedence over a same-named
+path on disk. jaffgen forwards the resolved absolute path to `Network`, which
+performs this resolution.
 
 ### Output
 

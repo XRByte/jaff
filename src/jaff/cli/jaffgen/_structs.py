@@ -63,8 +63,10 @@ class State:
         resolve config-relative paths).
     config_raw : Toml or None
         Parsed ``jaffgen.toml`` contents.
-    network_file, network_dir : ResolvedPath or None
-        The resolved network file and its directory.
+    network_file : ResolvedPath or None
+        Config-provided network file, resolved against the config file's
+        directory.  A CLI ``--network`` bypasses this and writes straight to
+        :attr:`network_props`.
     network_props : NetworkProps
         Keyword arguments forwarded to the :class:`~jaff.Network` constructor.
     input_dir : ResolvedPath or None
@@ -88,7 +90,6 @@ class State:
     config_dir: ResolvedPath | None = None
     config_raw: Toml | None = None
     network_file: ResolvedPath | None = None
-    network_dir: ResolvedPath | None = None
     network_props: NetworkProps = field(default_factory=NetworkProps)
     input_dir: ResolvedPath | None = None
     input_files: list[ResolvedPath] = field(default_factory=list)
