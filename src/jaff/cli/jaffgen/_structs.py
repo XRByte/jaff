@@ -1,39 +1,12 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from ...config import JAFF_DIR
+from ...core import NetworkArgs
 from ...drivers import Toml
-from ...physics import constants
 
 #: Fallback output directory (``<repo_root>/generated``) when none is supplied.
 DEFAULT_OUTPUT: Path = JAFF_DIR.parent.parent / "generated"
-
-
-@dataclass
-class NetworkArgs:
-    """Raw, mutable accumulator of :class:`~jaff.Network` constructor arguments.
-
-    ``jaffgen`` fills this incrementally as it resolves CLI flags and
-    ``jaffgen.toml`` values, then forwards the fields to :class:`~jaff.Network`
-    (which parses them into its own :class:`~jaff.NetworkSpec`).  Unlike
-    ``NetworkSpec`` this performs no validation or normalization — it is pure
-    CLI state.  Field defaults mirror the ``Network`` constructor, except
-    ``_from_cli`` (``True``: jaffgen prints its own MOTD banner).
-    """
-
-    fname: str | Path = Path()
-    config: str | Path | None = None
-    errors: bool = False
-    label: str | None = None
-    funcfile: bool | str | Path = True
-    replace_nH: bool = True
-    rad_bands: list = field(default_factory=list)
-    rad_powerlaw_index: int | float = 0
-    rad_energy_density: bool = False
-    c: float = constants.c.cgs.value
-    _from_cli: bool = True
-    _metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

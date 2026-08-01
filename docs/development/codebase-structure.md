@@ -14,6 +14,8 @@ This page maps the `src/jaff` source tree, explains what each package owns, and 
 src/jaff/
 ├── core/                       # Domain model
 │   ├── network.py              # Network — main entry point
+│   ├── _spec.py                # NetworkSpec — normalized Network params
+│   ├── _args.py                # NetworkArgs — raw CLI arg accumulator
 │   ├── reaction.py             # Reaction + Reactions catalogue
 │   ├── species.py              # Specie + Species catalogue
 │   ├── elements.py             # Element + Elements catalogue
@@ -80,7 +82,7 @@ src/jaff/
 │   ├── _helper.py              # Shared argument helpers (funcfile_arg)
 │   ├── jaffgen/                # jaffgen — template-driven code generation
 │   │   ├── _engine.py          # JaffGen pipeline + Typer `generate` command
-│   │   ├── _structs.py         # State / NetworkArgs / ResolvedPath
+│   │   ├── _structs.py         # State / ResolvedPath
 │   │   └── _config_table.py    # [[table]] config → HDF5/CSV output
 │   └── jaffx/                  # jaffx — network inspection / export
 │       └── _engine.py          # JaffX handlers + nested Typer commands

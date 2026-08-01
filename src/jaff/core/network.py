@@ -287,9 +287,7 @@ class Network:
         reactions_config: dict = config.get("reactions", {})
         reaction_props: dict = self.spec._metadata.get("reaction_props", {})
         jaff_global_tcutoff = config.get("rates", {}).get("T_cutoff")
-        jaffgen_global_tcutoff = self.spec._metadata.get("rate_props", {}).get(
-            "T_cutoff"
-        )
+        jaffgen_global_tcutoff = self.spec._metadata.get("rate_props", {}).get("T_cutoff")
 
         with NetworkParser(self.spec.fname, self.logger) as netp:
             reactions_list, global_vars = netp.get_parsed()

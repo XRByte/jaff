@@ -34,13 +34,14 @@ Examples
 """
 
 import logging
+from dataclasses import asdict
 from inspect import signature
 from types import SimpleNamespace
-from typing import Any, Optional
+from typing import Optional
 
 import typer
 
-from ... import Network
+from ... import Network, NetworkArgs
 from ...common import motd
 from ...io import JaffLogger
 from .._helper import funcfile_arg
@@ -64,15 +65,15 @@ class JaffX:
         Any argument left at its CLI default (``None``) falls back to the
         corresponding :class:`~jaff.Network` constructor default.
         """
-        kwargs: dict[str, Any] = {"fname": args.network, "_from_cli": True}
+        net_args = NetworkArgs(fname=args.network, _from_cli=True)
         if args.funcfile is not None:
-            kwargs["funcfile"] = args.funcfile
+            net_args.funcfile = args.funcfile
         if args.label is not None:
-            kwargs["label"] = args.label
+            net_args.label = args.label
         if args.replace_nh is not None:
-            kwargs["replace_nH"] = args.replace_nh
+            net_args.replace_nH = args.replace_nh
 
-        return Network(**kwargs)
+        return Network(**asdict(net_args))
 
     def export_table(self, args: SimpleNamespace, fmt: str) -> None:
         """Handle ``jaffx export hdf5`` / ``export txt``.
