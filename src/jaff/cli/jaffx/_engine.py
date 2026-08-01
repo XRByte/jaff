@@ -34,6 +34,7 @@ Examples
 """
 
 import logging
+from dataclasses import asdict
 from inspect import signature
 from types import SimpleNamespace
 from typing import Optional
@@ -64,22 +65,13 @@ class JaffX:
         Any argument left at its CLI default (``None``) falls back to the
         corresponding :class:`~jaff.Network` constructor default.
         """
-        net_params = signature(Network.__init__).parameters
-        net_kwargs: NetworkProps = {
-            "fname": args.network,
-            # Explicit None check so --funcfile false (which yields False) is
-            # not mistaken for an absent flag.
-            "funcfile": args.funcfile
-            if args.funcfile is not None
-            else net_params["funcfile"].default,
-            "label": args.label or net_params["label"].default,
-            # Explicit None check so --no-replace-nh (False) is not ignored.
-            "replace_nH": args.replace_nh
-            if args.replace_nh is not None
-            else net_params["replace_nH"].default,
-            "_from_cli": True,
-        }
-        return Network(**net_kwargs)
+        props = NetworkProps(fname=args.network, _from_cli=True)
+        props.funcfile = args.funcfile or props.funcfile
+        props.label = args.label or props.label
+        if args.replace_nh is not None:
+            props.replace_nH = args.replace_nh
+
+        return Network(**asdict(props))
 
     def export_table(self, args: SimpleNamespace, fmt: str) -> None:
         """Handle ``jaffx export hdf5`` / ``export txt``.
@@ -182,7 +174,10 @@ app.add_typer(get_app, name="get")
 
 # ---- shared option objects (reused across the leaf commands) --------------
 _NETWORK = typer.Option(
-    ..., "--network", metavar="FILE", help="Path to chemical reaction network file (required)"
+    ...,
+    "--network",
+    metavar="FILE",
+    help="Path to chemical reaction network file (required)",
 )
 _LABEL = typer.Option(None, "--label", metavar="NAME", help="Network label")
 _FUNCFILE = typer.Option(
@@ -192,7 +187,9 @@ _FUNCFILE = typer.Option(
     help="Path to auxiliary function file. Scans network directory by default ('true'). Pass 'false' to skip",
 )
 _REPLACE_NH = typer.Option(
-    None, "--replace-nh/--no-replace-nh", help="Standardize hydrogen density symbols if true"
+    None,
+    "--replace-nh/--no-replace-nh",
+    help="Standardize hydrogen density symbols if true",
 )
 _FILE = typer.Option(..., "-f", "--file", metavar="FILE", help="Output file path/name")
 
@@ -242,18 +239,77 @@ def export_txt(
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
     replace_nh: Optional[bool] = _REPLACE_NH,
-    tmin: Optional[float] = typer.Option(None, "--tmin", metavar="VALUE", help="Minimum temperature for the tabulation. Minimum temperature over reactions if unspecified"),
-    tmax: Optional[float] = typer.Option(None, "--tmax", metavar="VALUE", help="Maximum temperature for the tabulation. Maximum temperature over reactions if unspecified"),
-    nT: Optional[int] = typer.Option(None, "--nT", metavar="INT", help="Initial guess for the number of sampling temperatures"),
-    err_tol: Optional[float] = typer.Option(None, "--err-tol", metavar="FLOAT", help="Relative error tolerance for interpolation. Adaptive sampling is disabled and the table size will be exactly nT if unspecified"),
-    rate_min: Optional[float] = typer.Option(None, "--rate-min", metavar="FLOAT", help="Adaptive error tolerance is not applied to rates below minimum rate"),
-    rate_max: Optional[float] = typer.Option(None, "--rate-max", metavar="FLOAT", help="Rates above max rate is clipped to prevent overflow"),
-    fast_log: Optional[bool] = typer.Option(None, "--fast-log/--no-fast-log", help="Sample points are equally spaced in fast_log2(T) rather than log(T)"),
-    include_all: Optional[bool] = typer.Option(None, "--include-all/--no-include-all", help="Include all reactions, setting non-tabulatable rates to NaN. Otherwise, only include tabulatable, non-constant coefficients."),
-    verbose: Optional[bool] = typer.Option(None, "--verbose/--no-verbose", "-v", help="Produces verbose output while adaptively refining"),
+    tmin: Optional[float] = typer.Option(
+        None,
+        "--tmin",
+        metavar="VALUE",
+        help="Minimum temperature for the tabulation. Minimum temperature over reactions if unspecified",
+    ),
+    tmax: Optional[float] = typer.Option(
+        None,
+        "--tmax",
+        metavar="VALUE",
+        help="Maximum temperature for the tabulation. Maximum temperature over reactions if unspecified",
+    ),
+    nT: Optional[int] = typer.Option(
+        None,
+        "--nT",
+        metavar="INT",
+        help="Initial guess for the number of sampling temperatures",
+    ),
+    err_tol: Optional[float] = typer.Option(
+        None,
+        "--err-tol",
+        metavar="FLOAT",
+        help="Relative error tolerance for interpolation. Adaptive sampling is disabled and the table size will be exactly nT if unspecified",
+    ),
+    rate_min: Optional[float] = typer.Option(
+        None,
+        "--rate-min",
+        metavar="FLOAT",
+        help="Adaptive error tolerance is not applied to rates below minimum rate",
+    ),
+    rate_max: Optional[float] = typer.Option(
+        None,
+        "--rate-max",
+        metavar="FLOAT",
+        help="Rates above max rate is clipped to prevent overflow",
+    ),
+    fast_log: Optional[bool] = typer.Option(
+        None,
+        "--fast-log/--no-fast-log",
+        help="Sample points are equally spaced in fast_log2(T) rather than log(T)",
+    ),
+    include_all: Optional[bool] = typer.Option(
+        None,
+        "--include-all/--no-include-all",
+        help="Include all reactions, setting non-tabulatable rates to NaN. Otherwise, only include tabulatable, non-constant coefficients.",
+    ),
+    verbose: Optional[bool] = typer.Option(
+        None,
+        "--verbose/--no-verbose",
+        "-v",
+        help="Produces verbose output while adaptively refining",
+    ),
 ):
     """Export reaction rate coefficients vs temperature to text format."""
-    _export_table_command("txt", network, file, label, funcfile, replace_nh, tmin, tmax, nT, err_tol, rate_min, rate_max, fast_log, include_all, verbose)
+    _export_table_command(
+        "txt",
+        network,
+        file,
+        label,
+        funcfile,
+        replace_nh,
+        tmin,
+        tmax,
+        nT,
+        err_tol,
+        rate_min,
+        rate_max,
+        fast_log,
+        include_all,
+        verbose,
+    )
 
 
 @export_app.command("hdf5")
@@ -263,18 +319,77 @@ def export_hdf5(
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
     replace_nh: Optional[bool] = _REPLACE_NH,
-    tmin: Optional[float] = typer.Option(None, "--tmin", metavar="VALUE", help="Minimum temperature for the tabulation. Minimum temperature over reactions if unspecified"),
-    tmax: Optional[float] = typer.Option(None, "--tmax", metavar="VALUE", help="Maximum temperature for the tabulation. Maximum temperature over reactions if unspecified"),
-    nT: Optional[int] = typer.Option(None, "--nT", metavar="INT", help="Initial guess for the number of sampling temperatures"),
-    err_tol: Optional[float] = typer.Option(None, "--err-tol", metavar="FLOAT", help="Relative error tolerance for interpolation. Adaptive sampling is disabled and the table size will be exactly nT if unspecified"),
-    rate_min: Optional[float] = typer.Option(None, "--rate-min", metavar="FLOAT", help="Adaptive error tolerance is not applied to rates below minimum rate"),
-    rate_max: Optional[float] = typer.Option(None, "--rate-max", metavar="FLOAT", help="Rates above max rate is clipped to prevent overflow"),
-    fast_log: Optional[bool] = typer.Option(None, "--fast-log/--no-fast-log", help="Sample points are equally spaced in fast_log2(T) rather than log(T)"),
-    include_all: Optional[bool] = typer.Option(None, "--include-all/--no-include-all", help="Include all reactions, setting non-tabulatable rates to NaN. Otherwise, only include tabulatable, non-constant coefficients."),
-    verbose: Optional[bool] = typer.Option(None, "--verbose/--no-verbose", "-v", help="Produces verbose output while adaptively refining"),
+    tmin: Optional[float] = typer.Option(
+        None,
+        "--tmin",
+        metavar="VALUE",
+        help="Minimum temperature for the tabulation. Minimum temperature over reactions if unspecified",
+    ),
+    tmax: Optional[float] = typer.Option(
+        None,
+        "--tmax",
+        metavar="VALUE",
+        help="Maximum temperature for the tabulation. Maximum temperature over reactions if unspecified",
+    ),
+    nT: Optional[int] = typer.Option(
+        None,
+        "--nT",
+        metavar="INT",
+        help="Initial guess for the number of sampling temperatures",
+    ),
+    err_tol: Optional[float] = typer.Option(
+        None,
+        "--err-tol",
+        metavar="FLOAT",
+        help="Relative error tolerance for interpolation. Adaptive sampling is disabled and the table size will be exactly nT if unspecified",
+    ),
+    rate_min: Optional[float] = typer.Option(
+        None,
+        "--rate-min",
+        metavar="FLOAT",
+        help="Adaptive error tolerance is not applied to rates below minimum rate",
+    ),
+    rate_max: Optional[float] = typer.Option(
+        None,
+        "--rate-max",
+        metavar="FLOAT",
+        help="Rates above max rate is clipped to prevent overflow",
+    ),
+    fast_log: Optional[bool] = typer.Option(
+        None,
+        "--fast-log/--no-fast-log",
+        help="Sample points are equally spaced in fast_log2(T) rather than log(T)",
+    ),
+    include_all: Optional[bool] = typer.Option(
+        None,
+        "--include-all/--no-include-all",
+        help="Include all reactions, setting non-tabulatable rates to NaN. Otherwise, only include tabulatable, non-constant coefficients.",
+    ),
+    verbose: Optional[bool] = typer.Option(
+        None,
+        "--verbose/--no-verbose",
+        "-v",
+        help="Produces verbose output while adaptively refining",
+    ),
 ):
     """Export reaction rate coefficients vs temperature to HDF5 format."""
-    _export_table_command("hdf5", network, file, label, funcfile, replace_nh, tmin, tmax, nT, err_tol, rate_min, rate_max, fast_log, include_all, verbose)
+    _export_table_command(
+        "hdf5",
+        network,
+        file,
+        label,
+        funcfile,
+        replace_nh,
+        tmin,
+        tmax,
+        nT,
+        err_tol,
+        rate_min,
+        rate_max,
+        fast_log,
+        include_all,
+        verbose,
+    )
 
 
 @export_app.command("jaff")
@@ -287,7 +402,9 @@ def export_jaff(
 ):
     """Export the network to a .jaff file (gzip-compressed JSON payload)."""
     JaffX().export_jaff(
-        _make_args(network, file=file, label=label, funcfile=funcfile, replace_nh=replace_nh)
+        _make_args(
+            network, file=file, label=label, funcfile=funcfile, replace_nh=replace_nh
+        )
     )
 
 

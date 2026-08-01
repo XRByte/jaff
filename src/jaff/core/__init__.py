@@ -1,7 +1,8 @@
 from jaff.core._typing._reaction import ReactionProps
 
 from . import elements, network, reaction, species
-from ._typing import ElementProps, NetworkProps
+from ._props import NetworkProps
+from ._typing import ElementProps
 from .elements import Element, Elements
 from .network import Network
 from .reaction import Reaction, Reactions

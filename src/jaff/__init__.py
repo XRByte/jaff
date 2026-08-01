@@ -8,7 +8,7 @@ __version__ = "0.1.5"
 from .codegen.builder import Builder
 from .codegen.codegen import Codegen
 from .codegen.preprocessor import Preprocessor
-from .core._typing import NetworkProps
+from .core._props import NetworkProps
 from .core.elements import Element, Elements
 from .core.network import Network
 from .core.reaction import Reaction, Reactions

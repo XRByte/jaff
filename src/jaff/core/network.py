@@ -55,6 +55,7 @@ from ..physics import (
     get_sodes,
     get_sradodes,
 )
+from ._props import NetworkProps
 from .elements import Elements
 from .parsers import AuxiliaryFunctionParser, NetworkParser
 from .reaction import Reaction, Reactions
@@ -116,6 +117,9 @@ class Network:
         Radiation field object; ``None`` when no radiation bands are specified.
     mass_dict : dict[str, ElementProps]
         Element mass dictionary used during species construction.
+    params : NetworkProps
+        The constructor arguments this network was built from, bundled into a
+        single container.
     """
 
     #: Valid temperature cutoff behaviours for rate expressions.
@@ -192,30 +196,35 @@ class Network:
         """
         self.logger: logging.Logger = JaffLogger().get_logger()
 
-        fname = self._resolve_network_path(fname)
+        if not isinstance(funcfile, (bool, str, Path)):
+            raise ParserError(f"funcfile accepts True/False/str/Path, got {funcfile!r}")
+
+        self.params: NetworkProps = NetworkProps(
+            fname=self._resolve_network_path(fname),
+            config=Path(config) if isinstance(config, str) else config,
+            errors=errors,
+            label=label,
+            # True: scan the network directory.  False: skip.  Path: use as given.
+            funcfile=funcfile if isinstance(funcfile, bool) else Path(funcfile),
+            replace_nH=replace_nH,
+            rad_bands=rad_bands,
+            rad_powerlaw_index=rad_powerlaw_index,
+            rad_energy_density=rad_energy_density,
+            c=c,
+            _from_cli=_from_cli,
+            _metadata=_metadata,
+        )
 
         jaff_props: JaffProps = {}  # type: ignore
-        loaded_from_jaff_file = is_jaff_file(fname)
+        loaded_from_jaff_file = is_jaff_file(self.params.fname)
         if loaded_from_jaff_file:
             jaff_props = from_jaff_file(fname, errors)
 
-        self.filename: Path = jaff_props.get("file_name", fname)
+        self.filename: Path = jaff_props.get("file_name", self.params.fname)
         self.label = jaff_props.get("label", label or self.filename.stem)
         if not _from_cli:
             print(motd())
 
-        self._metadata: dict[str, Any] = _metadata
-        if not isinstance(funcfile, (bool, str, Path)):
-            raise ParserError(f"funcfile accepts True/False/str/Path, got {funcfile!r}")
-        # True: scan the network directory.  False: skip.  Path: use as given.
-        self._funcfile: bool | Path = (
-            funcfile if isinstance(funcfile, bool) else Path(funcfile)
-        )
-        self._config_file: None | Path = (
-            Path(config) if isinstance(config, str) else config
-        )
-        self._config: dict[str, Any] = {}
-        self._replace_nH: bool = replace_nH
         self.mass_dict: dict[str, ElementProps] = {}
         self.species: Species = Species()
         self.reactions: Reactions = Reactions()
@@ -240,9 +249,9 @@ class Network:
         self.mass_dict: dict[str, ElementProps] = load_mass_dict()
         Species.configure(self.mass_dict)
 
-        self.__load_config()
+        config_data = self.__load_config()
         if not loaded_from_jaff_file:
-            self.__load_network(fname, replace_nH)
+            self.__load_network(fname, replace_nH, config_data)
         else:
             self.__load_network_from_jaff_file(jaff_props)
         self.__normalize_network_extras(replace_nH)
@@ -313,6 +322,7 @@ class Network:
         self,
         fname,
         replace_nH,
+        config_data,
     ):
         """Parse the network file and build species, reactions, and auxiliary quantities.
 
@@ -322,6 +332,9 @@ class Network:
             Resolved path to the network file.
         replace_nH : bool
             When ``True``, expand ``nh`` to a sum over H-bearing species.
+        config_data : dict
+            Parsed ``[network]`` section of the ``jaff.toml`` config (``{}`` when
+            none), returned by :meth:`__load_config`.
         """
         specie_names = set()
         special_species: dict[str, Specie] = {}
@@ -332,10 +345,12 @@ class Network:
         n_photo = 0
         tgas = symbols("tgas")
         default_tcutoff: str = "clip"
-        reactions_config: dict = self._config.get("reactions", {})
-        reaction_props: dict = self._metadata.get("reaction_props", {})
-        jaff_global_tcutoff = self._config.get("rates", {}).get("T_cutoff")
-        jaffgen_global_tcutoff = self._metadata.get("rate_props", {}).get("T_cutoff")
+        reactions_config: dict = config_data.get("reactions", {})
+        reaction_props: dict = self.params._metadata.get("reaction_props", {})
+        jaff_global_tcutoff = config_data.get("rates", {}).get("T_cutoff")
+        jaffgen_global_tcutoff = self.params._metadata.get("rate_props", {}).get(
+            "T_cutoff"
+        )
 
         with NetworkParser(fname, self.logger) as netp:
             reactions_list, global_vars = netp.get_parsed()
@@ -450,7 +465,7 @@ class Network:
                 index=i,
                 type=reaction.get("type", "unknown"),
             )
-            if "reaction_props" in self._metadata:
+            if "reaction_props" in self.params._metadata:
                 self.__parse_reaction_metadata(rea)
 
             self.reactions.add(rea)
@@ -635,10 +650,10 @@ class Network:
         return rate_expr, n_photo
 
     def __parse_reaction_metadata(self, reaction: Reaction) -> None:
-        if reaction.serialized not in self._metadata["reaction_props"]:
+        if reaction.serialized not in self.params._metadata["reaction_props"]:
             return
 
-        rprops = self._metadata["reaction_props"][reaction.serialized]
+        rprops = self.params._metadata["reaction_props"][reaction.serialized]
         if "shielding" in rprops:
             if reaction.type != "photo":
                 raise ParserError(f"{reaction} is not a photo reaction")
@@ -652,7 +667,7 @@ class Network:
                 for k, v in shielding_props.items()
             }
             reaction._metadata["jaffgen"] = {
-                "jaffgen_object": self._metadata["jaffgen_object"]
+                "jaffgen_object": self.params._metadata["jaffgen_object"]
             }
 
     @staticmethod
@@ -685,10 +700,10 @@ class Network:
         If funcfile is True, looks for <network_name>.jfunc alongside the network file.
         Pass ``False`` to skip loading entirely.
         """
-        if self._funcfile is False:
+        if self.params.funcfile is False:
             return {}
 
-        if self._funcfile is True:
+        if self.params.funcfile is True:
             funcfiles_list = [
                 Path(f"{self.filename}.jfunc"),
                 Path(self.filename).with_suffix(".jfunc"),
@@ -697,33 +712,46 @@ class Network:
             funcfile_exists: bool = False
             for f in funcfiles_list:
                 if f.exists():
-                    self._funcfile = f
+                    self.params.funcfile = f
                     funcfile_exists = True
                     break
 
             if not funcfile_exists:
                 return {}
 
-        assert isinstance(self._funcfile, Path)
+        assert isinstance(self.params.funcfile, Path)
 
-        if not self._funcfile.exists():
-            raise FileNotFoundError(self._funcfile)
+        if not self.params.funcfile.exists():
+            raise FileNotFoundError(self.params.funcfile)
 
-        with AuxiliaryFunctionParser(self._funcfile) as afp:
+        with AuxiliaryFunctionParser(self.params.funcfile) as afp:
             func_dict: AuxiliaryFunctionsDict = afp.get_dict()
 
         return func_dict
 
-    def __load_config(self) -> None:
-        if self._config_file is None:
+    def __load_config(self) -> dict[str, Any]:
+        """Locate and parse the ``jaff.toml`` config, returning its ``[network]`` section.
+
+        Resolves the config path into :attr:`params.config` (auto-detecting
+        ``<network_dir>/jaff.toml`` when none was supplied).
+
+        Returns
+        -------
+        dict
+            The parsed ``[network]`` section, or ``{}`` when no config exists.
+        """
+        config_file = self.params.config
+        if config_file is None:
             valid_file = self.filename.parent / "jaff.toml"
             if not valid_file.exists():
-                return
+                return {}
 
-            self._config_file = valid_file
+            config_file = valid_file
 
-        self._config_file = self._config_file.resolve()
-        self._config = Toml(self._config_file).get_key("network") or {}
+        config_file = Path(config_file).resolve()
+        self.params.config = config_file
+
+        return Toml(config_file).get_key("network") or {}
 
     def to_jaff(self, filename: str | Path):
         """Serialise this network to a binary ``.jaff`` file.
