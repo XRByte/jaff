@@ -89,7 +89,7 @@ class JaffGen:
     state : State
         Accumulating resolved configuration for this run.
     net : Network
-        The reaction network built from the resolved network properties.
+        The reaction network built from the resolved network args.
     jaffgen_config : dict
         Small back-reference payload (``{"output_dir": Path}``) read by the
         shielding code via ``reaction._metadata["jaffgen"]["jaffgen_object"]``.
@@ -411,7 +411,7 @@ class JaffGen:
 
     def set_network(self) -> None:
         """
-        Store the network location and ship it to the network props.
+        Store the network location and ship it to the network args.
 
         A CLI ``--network`` (resolved against the current working directory)
         overrides a config-provided ``network_file`` (already resolved against
@@ -489,7 +489,7 @@ class JaffGen:
         Attach ``[network.reactions]`` / ``[network.rates]`` metadata.
 
         When either section is present in the config, stores it (plus a
-        back-reference to ``self``) in the network props ``_metadata``, so the
+        back-reference to ``self``) in the network args ``_metadata``, so the
         network and its shielding code can read per-reaction and global rate
         properties during construction.
 
@@ -599,7 +599,7 @@ class JaffGen:
 
     def build_network(self) -> Network:
         """
-        Construct the :class:`~jaff.Network` from the resolved network props.
+        Construct the :class:`~jaff.Network` from the resolved network args.
 
         Kwargs are passed explicitly (not via :func:`dataclasses.asdict`) so
         the live ``jaffgen_object`` reference inside ``_metadata`` keeps its
