@@ -12,5 +12,16 @@ TEMPLATES_DIR = JAFF_DIR / "templates"
 DB_DIR = JAFF_DIR / "db"
 
 
+def list_subdirs(directory: Path) -> set[str]:
+    """Return the names of the immediate sub-directories of *directory*."""
+    return {f.name for f in directory.iterdir() if f.is_dir()}
+
+
 def predefined_networks() -> set[str]:
-    return {f.name for f in NETWORKS_DIR.iterdir() if f.is_dir()}
+    """Return the names of the built-in networks (sub-dirs of ``NETWORKS_DIR``)."""
+    return list_subdirs(NETWORKS_DIR)
+
+
+def predefined_templates() -> set[str]:
+    """Return the names of the built-in generator template collections."""
+    return list_subdirs(TEMPLATES_DIR / "generator")

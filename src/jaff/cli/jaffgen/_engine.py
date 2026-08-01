@@ -41,7 +41,7 @@ import typer
 from ... import Network
 from ...codegen import TemplateParser
 from ...common import motd
-from ...config import TEMPLATES_DIR
+from ...config import TEMPLATES_DIR, predefined_templates
 from ...drivers import Toml
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
@@ -284,11 +284,11 @@ class JaffGen:
 
         gen_dir = TEMPLATES_DIR / "generator"
         pproc_dir = TEMPLATES_DIR / "preprocessor"
-        valid_templates: list[str] = [f.name for f in gen_dir.iterdir() if f.is_dir()]
+        valid_templates = predefined_templates()
 
         if template not in valid_templates:
             raise ValueError(
-                f"Invalid template name. Supported templates are {valid_templates}"
+                f"Invalid template name. Supported templates are {sorted(valid_templates)}"
             )
 
         gtemplate_dir = gen_dir / template

@@ -9,7 +9,9 @@ from ._config import (
     SRC_DIR,
     TEMPLATES_DIR,
     XSECS_DATA_DIR,
+    list_subdirs,
     predefined_networks,
+    predefined_templates,
 )
 
 __all__ = [
@@ -23,5 +25,7 @@ __all__ = [
     SRC_DIR,
     TEMPLATES_DIR,
     XSECS_DATA_DIR,
+    list_subdirs,
     predefined_networks,
+    predefined_templates,
 ]
