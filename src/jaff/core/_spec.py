@@ -1,4 +1,4 @@
-"""The :class:`NetworkParams` normalized parameters of a :class:`~jaff.Network`."""
+"""The :class:`NetworkSpec` normalized parameters of a :class:`~jaff.Network`."""
 
 from pathlib import Path
 from typing import Any
@@ -6,13 +6,14 @@ from typing import Any
 from ..config import NETWORKS_DIR, predefined_networks
 from ..drivers import Toml
 from ..errors import ParserError
+from .parsers import AuxiliaryFunctionParser
 
 
-class NetworkParams:
+class NetworkSpec:
     """Normalized construction parameters of a :class:`~jaff.Network`.
 
     ``Network`` bundles its constructor arguments into one of these (exposed as
-    :attr:`Network.params`) and reads them back from it.  Construction parses
+    :attr:`Network.spec`) and reads them back from it.  Construction parses
     the raw arguments into their canonical forms:
 
     * ``fname`` is resolved to an absolute path (a filesystem path or a
@@ -21,6 +22,9 @@ class NetworkParams:
     * ``config`` (a ``jaff.toml`` path, or auto-detected next to the network
       file) is loaded into its parsed ``[network]`` section — a dict, since
       that is what the network actually consumes.
+    * ``funcfile`` is resolved to the actual ``.jfunc`` file (scanning next to
+      the network file when ``True``) and its contents are parsed into
+      :attr:`aux_funcs`.
 
     Every field is required — ``Network`` always supplies all of them, so the
     library defaults live in one place (the ``Network`` constructor signature).
@@ -33,7 +37,11 @@ class NetworkParams:
         Parsed ``[network]`` section of the ``jaff.toml`` config (``{}`` when
         none is supplied or auto-detected).
     funcfile : bool | Path
-        ``True`` to scan the network directory, ``False`` to skip, or a path.
+        ``True`` to scan the network directory, ``False`` to skip, or the
+        resolved path of the ``.jfunc`` file actually used.
+    aux_funcs : dict
+        Parsed auxiliary functions from the ``.jfunc`` file (``{}`` when none).
+        Exposed for inspection/debugging.
     """
 
     def __init__(
@@ -51,8 +59,8 @@ class NetworkParams:
         _from_cli: bool,
         _metadata: dict[str, Any],
     ):
-        self.fname: Path = self.resolve_network_path(fname)
-        self.config: dict[str, Any] = self.load_config(config, self.fname)
+        self.fname: Path = self._resolve_network_path(fname)
+        self.config: dict[str, Any] = self._load_config(config, self.fname)
         self.errors: bool = errors
         self.label: str | None = label
 
@@ -62,6 +70,8 @@ class NetworkParams:
         self.funcfile: bool | Path = (
             funcfile if isinstance(funcfile, bool) else Path(funcfile)
         )
+        # Resolves funcfile to the actual .jfunc path (when True) and parses it.
+        self.aux_funcs: dict = self._load_aux_funcs()
 
         self.replace_nH: bool = replace_nH
         self.rad_bands: list = rad_bands
@@ -71,8 +81,47 @@ class NetworkParams:
         self._from_cli: bool = _from_cli
         self._metadata: dict[str, Any] = _metadata
 
+    def _load_aux_funcs(self) -> dict:
+        """Detect and parse the auxiliary ``.jfunc`` file into a dict.
+
+        When :attr:`funcfile` is ``True``, scans next to the network file for
+        ``<network>.jfunc`` (both ``<name>.jfunc`` and ``<stem>.jfunc``) and
+        rewrites :attr:`funcfile` to the resolved path.  ``False`` skips loading.
+
+        Returns
+        -------
+        dict
+            Parsed auxiliary functions, or ``{}`` when there is no ``.jfunc``.
+
+        Raises
+        ------
+        FileNotFoundError
+            If :attr:`funcfile` is an explicit path that does not exist.
+        """
+        if self.funcfile is False:
+            return {}
+
+        if self.funcfile is True:
+            candidates = [
+                Path(f"{self.fname}.jfunc"),
+                self.fname.with_suffix(".jfunc"),
+            ]
+            for candidate in candidates:
+                if candidate.exists():
+                    self.funcfile = candidate
+                    break
+            else:
+                return {}
+
+        assert isinstance(self.funcfile, Path)
+        if not self.funcfile.exists():
+            raise FileNotFoundError(self.funcfile)
+
+        with AuxiliaryFunctionParser(self.funcfile) as afp:
+            return afp.get_dict()
+
     @staticmethod
-    def load_config(config: str | Path | None, fname: Path) -> dict[str, Any]:
+    def _load_config(config: str | Path | None, fname: Path) -> dict[str, Any]:
         """Locate and parse a ``jaff.toml`` config, returning its ``[network]`` section.
 
         When *config* is ``None``, auto-detects ``<network_dir>/jaff.toml`` next
@@ -100,7 +149,7 @@ class NetworkParams:
         return Toml(Path(config).resolve()).get_key("network") or {}
 
     @staticmethod
-    def resolve_network_path(fname: str | Path) -> Path:
+    def _resolve_network_path(fname: str | Path) -> Path:
         """Resolve *fname* to a network file path or a predefined network name.
 
         A predefined network name wins over a same-named path on disk.  A

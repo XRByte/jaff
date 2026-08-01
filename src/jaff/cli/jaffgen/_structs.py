@@ -16,8 +16,8 @@ class NetworkArgs:
 
     ``jaffgen`` fills this incrementally as it resolves CLI flags and
     ``jaffgen.toml`` values, then forwards the fields to :class:`~jaff.Network`
-    (which parses them into its own :class:`~jaff.NetworkParams`).  Unlike
-    ``NetworkParams`` this performs no validation or normalization — it is pure
+    (which parses them into its own :class:`~jaff.NetworkSpec`).  Unlike
+    ``NetworkSpec`` this performs no validation or normalization — it is pure
     CLI state.  Field defaults mirror the ``Network`` constructor, except
     ``_from_cli`` (``True``: jaffgen prints its own MOTD banner).
     """
