@@ -240,7 +240,7 @@ class JaffGen:
         ss.lang = jgp.get("lang") or ss.lang
 
         np = self.get_prop("network") or {}
-        sn = ss.network_props
+        sn = ss.network_args
         sn.label = np.get("label") or sn.label
         if (v := np.get("errors")) is not None:
             sn.errors = v
@@ -425,11 +425,11 @@ class JaffGen:
             If neither the CLI nor the config supplied a network.
         """
         if self.args.network is not None:
-            self.state.network_props.fname = self.resolve_path(
+            self.state.network_args.fname = self.resolve_path(
                 self.args.network, Path.cwd()
             ).abspath
         elif self.state.network_file is not None:
-            self.state.network_props.fname = self.state.network_file.abspath
+            self.state.network_args.fname = self.state.network_file.abspath
         else:
             raise RuntimeError("No network file supplied. Please enter a network file")
 
@@ -467,7 +467,7 @@ class JaffGen:
             If ``--network-config`` points at a path that is not a file.
         """
         a = self.args
-        sn = self.state.network_props
+        sn = self.state.network_args
 
         sn.label = a.label or sn.label
         sn.funcfile = a.funcfile or sn.funcfile
@@ -509,7 +509,7 @@ class JaffGen:
             if rates_cfg:
                 meta["rate_props"] = rates_cfg
 
-            self.state.network_props._metadata = meta
+            self.state.network_args._metadata = meta
 
     def add_config_to_files(self) -> None:
         """
@@ -610,7 +610,7 @@ class JaffGen:
         Network
             The parsed and validated reaction network.
         """
-        sn = self.state.network_props
+        sn = self.state.network_args
         return Network(
             fname=sn.fname,
             config=sn.config,

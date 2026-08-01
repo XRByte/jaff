@@ -8,7 +8,7 @@ __version__ = "0.1.5"
 from .codegen.builder import Builder
 from .codegen.codegen import Codegen
 from .codegen.preprocessor import Preprocessor
-from .core._props import NetworkProps
+from .core._params import NetworkParams
 from .core.elements import Element, Elements
 from .core.network import Network
 from .core.reaction import Reaction, Reactions
@@ -18,7 +18,7 @@ __all__ = [
     Element,
     Elements,
     Network,
-    NetworkProps,
+    NetworkParams,
     Reaction,
     Reactions,
     Specie,

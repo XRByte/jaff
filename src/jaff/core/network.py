@@ -41,7 +41,6 @@ from sympy import (
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
 from ..common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
-from ..config import NETWORKS_DIR, predefined_networks
 from ..drivers import Toml
 from ..errors import ParserError
 from ..io import JaffLogger, jaff_progress
@@ -55,7 +54,7 @@ from ..physics import (
     get_sodes,
     get_sradodes,
 )
-from ._props import NetworkProps
+from ._params import NetworkParams
 from .elements import Elements
 from .parsers import AuxiliaryFunctionParser, NetworkParser
 from .reaction import Reaction, Reactions
@@ -117,9 +116,8 @@ class Network:
         Radiation field object; ``None`` when no radiation bands are specified.
     mass_dict : dict[str, ElementProps]
         Element mass dictionary used during species construction.
-    params : NetworkProps
-        The constructor arguments this network was built from, bundled into a
-        single container.
+    params : NetworkParams
+        The normalized construction parameters this network was built from.
     """
 
     #: Valid temperature cutoff behaviours for rate expressions.
@@ -196,32 +194,29 @@ class Network:
         """
         self.logger: logging.Logger = JaffLogger().get_logger()
 
-        if not isinstance(funcfile, (bool, str, Path)):
-            raise ParserError(f"funcfile accepts True/False/str/Path, got {funcfile!r}")
-
-        self.params: NetworkProps = NetworkProps(
-            fname=self._resolve_network_path(fname),
-            config=Path(config) if isinstance(config, str) else config,
-            errors=errors,
-            label=label,
-            # True: scan the network directory.  False: skip.  Path: use as given.
-            funcfile=funcfile if isinstance(funcfile, bool) else Path(funcfile),
-            replace_nH=replace_nH,
-            rad_bands=rad_bands,
-            rad_powerlaw_index=rad_powerlaw_index,
-            rad_energy_density=rad_energy_density,
-            c=c,
-            _from_cli=_from_cli,
-            _metadata=_metadata,
+        self.params: NetworkParams = NetworkParams(
+            fname,
+            config,
+            errors,
+            label,
+            funcfile,
+            replace_nH,
+            rad_bands,
+            rad_powerlaw_index,
+            rad_energy_density,
+            c,
+            _from_cli,
+            _metadata,
         )
 
         jaff_props: JaffProps = {}  # type: ignore
         loaded_from_jaff_file = is_jaff_file(self.params.fname)
         if loaded_from_jaff_file:
-            jaff_props = from_jaff_file(fname, errors)
-
-        self.filename: Path = jaff_props.get("file_name", self.params.fname)
-        self.label = jaff_props.get("label", label or self.filename.stem)
+            jaff_props = from_jaff_file(self.params.fname, errors)
+            self.params.fname = jaff_props.get("file_name", self.params.fname)
+        # Finalize the label: a ``.jaff`` payload label wins, else the supplied
+        # label, else the file stem.
+        self.params.label = jaff_props.get("label", label or self.params.fname.stem)
         if not _from_cli:
             print(motd())
 
@@ -243,7 +238,7 @@ class Network:
         self.__element_sums: dict[str, Expr | None] = {}
         self.__tgas_clamp_cache: dict[tuple[float | None, float | None], Expr] = {}
 
-        self.logger.info(f"Loading network from {fname}")
+        self.logger.info(f"Loading network from {self.params.fname}")
         self.logger.info(f"Network label: [yellow]{self.label}[/]")
 
         self.mass_dict: dict[str, ElementProps] = load_mass_dict()
@@ -251,7 +246,7 @@ class Network:
 
         config_data = self.__load_config()
         if not loaded_from_jaff_file:
-            self.__load_network(fname, replace_nH, config_data)
+            self.__load_network(config_data)
         else:
             self.__load_network_from_jaff_file(jaff_props)
         self.__normalize_network_extras(replace_nH)
@@ -267,61 +262,20 @@ class Network:
 
         self.logger.info("[green]Network loaded successfully![/]")
 
-    @staticmethod
-    def _resolve_network_path(fname: str | Path) -> Path:
-        """Resolve *fname* to a network file path or a predefined network name.
+    @cached_property
+    def filename(self) -> Path:
+        """Absolute path to the source network file (from :attr:`params`)."""
+        return self.params.fname
 
-        A predefined network name wins over a same-named path on disk.  A
-        predefined name is a sub-directory of :data:`~jaff.config.NETWORKS_DIR`
-        that contains exactly one ``.jet`` file.  Non-predefined names are
-        treated as filesystem paths, with relative paths resolved against the
-        current working directory.
-
-        Parameters
-        ----------
-        fname : str | Path
-            A filesystem path or a predefined network name.
-
-        Returns
-        -------
-        Path
-            The resolved, absolute network file path.
-
-        Raises
-        ------
-        FileNotFoundError
-            If *fname* is neither an existing file nor a predefined name, or a
-            predefined network directory has no ``.jet`` file.
-        ParserError
-            If a predefined network directory has more than one ``.jet`` file.
-        """
-        p = Path(fname)
-        abspath = p.resolve()
-
-        names = predefined_networks()
-        if p.name not in names:
-            if not abspath.exists():
-                raise FileNotFoundError(f"Network file '{fname}' not found")
-
-            return abspath
-
-        ndir = NETWORKS_DIR / p.name
-        jets = sorted(f for f in ndir.iterdir() if f.suffix.lower() == ".jet")
-        if not jets:
-            raise FileNotFoundError(f"No .jet file in predefined network '{p.name}'")
-
-        if len(jets) > 1:
-            raise ParserError(
-                f"Predefined network '{p.name}' has multiple .jet files: "
-                f"{[j.name for j in jets]}"
-            )
-
-        return jets[0].resolve()
+    @property
+    def label(self) -> str:
+        """Human-readable label for this network (from :attr:`params`)."""
+        # Finalized to a non-None value in __init__ (label or file stem).
+        assert self.params.label is not None
+        return self.params.label
 
     def __load_network(
         self,
-        fname,
-        replace_nH,
         config_data,
     ):
         """Parse the network file and build species, reactions, and auxiliary quantities.
@@ -352,7 +306,7 @@ class Network:
             "T_cutoff"
         )
 
-        with NetworkParser(fname, self.logger) as netp:
+        with NetworkParser(self.params.fname, self.logger) as netp:
             reactions_list, global_vars = netp.get_parsed()
 
         aux_funcs = self.__read_aux_funcs()
@@ -492,7 +446,9 @@ class Network:
 
         if "heatingcoolingrate" in aux_funcs:
             self.dEdt_other = aux_funcs["heatingcoolingrate"]["def"]
-            self.dEdt_other = self._standardize_symbols(self.dEdt_other, replace_nH)
+            self.dEdt_other = self._standardize_symbols(
+                self.dEdt_other, self.params.replace_nH
+            )
             free_symbols |= self.free_symbols(self.dEdt_other)
             self.__detect_undefined_functions(self.dEdt_other, undef_funcs, interp_funcs)
 
@@ -551,7 +507,7 @@ class Network:
 
                 self.radiation.set_reaction_rate_coefficient(rea)
 
-    def __normalize_network_extras(self, replace_nH):
+    def __normalize_network_extras(self, replace_nH: bool):
         """Standardize convenience symbols in all rate and auxiliary expressions.
 
         Replaces shorthand symbols (``nh``, ``ne``, ``ntot``, ``n_X``, …) with

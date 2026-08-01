@@ -80,7 +80,7 @@ src/jaff/
 │   ├── _helper.py              # Shared argument helpers (funcfile_arg)
 │   ├── jaffgen/                # jaffgen — template-driven code generation
 │   │   ├── _engine.py          # JaffGen pipeline + Typer `generate` command
-│   │   ├── _structs.py         # State / NetworkProps / ResolvedPath
+│   │   ├── _structs.py         # State / NetworkArgs / ResolvedPath
 │   │   └── _config_table.py    # [[table]] config → HDF5/CSV output
 │   └── jaffx/                  # jaffx — network inspection / export
 │       └── _engine.py          # JaffX handlers + nested Typer commands
