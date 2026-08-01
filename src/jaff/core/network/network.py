@@ -53,11 +53,11 @@ from ...physics import (
     get_sodes,
     get_sradodes,
 )
-from ._spec import NetworkSpec
 from ..elements import Elements
 from ..parsers import NetworkParser
 from ..reaction import Reaction, Reactions
 from ..species import Specie, Species
+from ._spec import NetworkSpec
 
 if TYPE_CHECKING:
     from .._typing import ElementProps
