@@ -41,7 +41,6 @@ from sympy import (
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
 from ..common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
-from ..drivers import Toml
 from ..errors import ParserError
 from ..io import JaffLogger, jaff_progress
 from ..io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
@@ -244,9 +243,8 @@ class Network:
         self.mass_dict: dict[str, ElementProps] = load_mass_dict()
         Species.configure(self.mass_dict)
 
-        config_data = self.__load_config()
         if not loaded_from_jaff_file:
-            self.__load_network(config_data)
+            self.__load_network()
         else:
             self.__load_network_from_jaff_file(jaff_props)
         self.__normalize_network_extras(replace_nH)
@@ -274,22 +272,8 @@ class Network:
         assert self.params.label is not None
         return self.params.label
 
-    def __load_network(
-        self,
-        config_data,
-    ):
-        """Parse the network file and build species, reactions, and auxiliary quantities.
-
-        Parameters
-        ----------
-        fname : Path
-            Resolved path to the network file.
-        replace_nH : bool
-            When ``True``, expand ``nh`` to a sum over H-bearing species.
-        config_data : dict
-            Parsed ``[network]`` section of the ``jaff.toml`` config (``{}`` when
-            none), returned by :meth:`__load_config`.
-        """
+    def __load_network(self):
+        """Parse the network file and build species, reactions, and auxiliary quantities."""
         specie_names = set()
         special_species: dict[str, Specie] = {}
         free_symbols = set()
@@ -299,9 +283,10 @@ class Network:
         n_photo = 0
         tgas = symbols("tgas")
         default_tcutoff: str = "clip"
-        reactions_config: dict = config_data.get("reactions", {})
+        config = self.params.config
+        reactions_config: dict = config.get("reactions", {})
         reaction_props: dict = self.params._metadata.get("reaction_props", {})
-        jaff_global_tcutoff = config_data.get("rates", {}).get("T_cutoff")
+        jaff_global_tcutoff = config.get("rates", {}).get("T_cutoff")
         jaffgen_global_tcutoff = self.params._metadata.get("rate_props", {}).get(
             "T_cutoff"
         )
@@ -684,30 +669,6 @@ class Network:
             func_dict: AuxiliaryFunctionsDict = afp.get_dict()
 
         return func_dict
-
-    def __load_config(self) -> dict[str, Any]:
-        """Locate and parse the ``jaff.toml`` config, returning its ``[network]`` section.
-
-        Resolves the config path into :attr:`params.config` (auto-detecting
-        ``<network_dir>/jaff.toml`` when none was supplied).
-
-        Returns
-        -------
-        dict
-            The parsed ``[network]`` section, or ``{}`` when no config exists.
-        """
-        config_file = self.params.config
-        if config_file is None:
-            valid_file = self.filename.parent / "jaff.toml"
-            if not valid_file.exists():
-                return {}
-
-            config_file = valid_file
-
-        config_file = Path(config_file).resolve()
-        self.params.config = config_file
-
-        return Toml(config_file).get_key("network") or {}
 
     def to_jaff(self, filename: str | Path):
         """Serialise this network to a binary ``.jaff`` file.

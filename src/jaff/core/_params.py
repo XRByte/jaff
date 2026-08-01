@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from ..config import NETWORKS_DIR, predefined_networks
+from ..drivers import Toml
 from ..errors import ParserError
 
 
@@ -17,7 +18,9 @@ class NetworkParams:
     * ``fname`` is resolved to an absolute path (a filesystem path or a
       predefined network name; see :meth:`resolve_network_path`);
     * ``funcfile`` is validated and coerced to ``bool`` or :class:`~pathlib.Path`;
-    * ``config`` is coerced from ``str`` to :class:`~pathlib.Path`.
+    * ``config`` (a ``jaff.toml`` path, or auto-detected next to the network
+      file) is loaded into its parsed ``[network]`` section — a dict, since
+      that is what the network actually consumes.
 
     Every field is required — ``Network`` always supplies all of them, so the
     library defaults live in one place (the ``Network`` constructor signature).
@@ -26,8 +29,9 @@ class NetworkParams:
     ----------
     fname : Path
         Resolved, absolute path to the network file.
-    config : Path | None
-        Resolved path to the ``jaff.toml`` config file, if any.
+    config : dict
+        Parsed ``[network]`` section of the ``jaff.toml`` config (``{}`` when
+        none is supplied or auto-detected).
     funcfile : bool | Path
         ``True`` to scan the network directory, ``False`` to skip, or a path.
     """
@@ -48,7 +52,7 @@ class NetworkParams:
         _metadata: dict[str, Any],
     ):
         self.fname: Path = self.resolve_network_path(fname)
-        self.config: Path | None = Path(config) if isinstance(config, str) else config
+        self.config: dict[str, Any] = self.load_config(config, self.fname)
         self.errors: bool = errors
         self.label: str | None = label
 
@@ -66,6 +70,34 @@ class NetworkParams:
         self.c: float = c
         self._from_cli: bool = _from_cli
         self._metadata: dict[str, Any] = _metadata
+
+    @staticmethod
+    def load_config(config: str | Path | None, fname: Path) -> dict[str, Any]:
+        """Locate and parse a ``jaff.toml`` config, returning its ``[network]`` section.
+
+        When *config* is ``None``, auto-detects ``<network_dir>/jaff.toml`` next
+        to the (resolved) network file *fname*.
+
+        Parameters
+        ----------
+        config : str | Path | None
+            Explicit path to a ``jaff.toml`` config file, or ``None`` to
+            auto-detect.
+        fname : Path
+            Resolved network file path, used to auto-detect a sibling config.
+
+        Returns
+        -------
+        dict
+            The parsed ``[network]`` section, or ``{}`` when no config exists.
+        """
+        if config is None:
+            candidate = fname.parent / "jaff.toml"
+            if not candidate.exists():
+                return {}
+            config = candidate
+
+        return Toml(Path(config).resolve()).get_key("network") or {}
 
     @staticmethod
     def resolve_network_path(fname: str | Path) -> Path:

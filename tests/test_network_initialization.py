@@ -76,7 +76,7 @@ class TestNetworkInitialization:
             patch("builtins.open", MagicMock()),
             patch("pathlib.Path.exists", return_value=True),
         ):
-            with patch.object(Network, "_Network__load_config", MagicMock()), patch.object(Network, "_Network__load_network", MagicMock()):
+            with patch("jaff.core._params.NetworkParams.load_config", return_value={}), patch.object(Network, "_Network__load_network", MagicMock()):
                 with patch.object(Network, "check_sink_sources", MagicMock()):
                     with patch.object(Network, "check_recombinations", MagicMock()):
                         with patch.object(Network, "check_isomers", MagicMock()):
@@ -140,7 +140,7 @@ class TestNetworkInitialization:
                                     network = Network(sample_kida_file, errors=True)
 
         # Verify all methods were called
-        mock_load.assert_called_once_with({})
+        mock_load.assert_called_once_with()
         mock_sink.assert_called_once_with(True)
         mock_recomb.assert_called_once_with(True)
         mock_isomers.assert_called_once_with(True)
