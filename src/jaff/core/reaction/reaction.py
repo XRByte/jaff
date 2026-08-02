@@ -49,30 +49,13 @@ from ...io import JaffLogger
 from ...physics.photo_reactions._typing import XsecsProps
 from ..elements import Elements
 from ..species import Specie, Species
+from ._helper import to_float_or_none
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    from ...physics.photo_reactions._radiation import RadiationGroup
-
-
-def _to_float_or_none(value: Any) -> float | None:
-    """Coerce a band quantity to ``float``, or ``None`` when not representable.
-
-    Band edges and averages may be plain numbers, SymPy numeric objects, or
-    ``sympy.oo`` (open upper band, which casts to ``float('inf')``).  A value
-    of ``None`` (e.g. the cross section of a custom-rate reaction) or a
-    still-symbolic expression maps to ``None`` so it becomes ``NaN`` in a
-    :class:`pandas.DataFrame`.
-    """
-    if value is None:
-        return None
-
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+    from ...physics import RadiationGroup
 
 
 class Reaction:
@@ -645,13 +628,11 @@ class Reaction:
         columns = ["lower", "upper", "eavg", "xsec", "xsec_frac"]
         rows = [
             {
-                "lower": _to_float_or_none(group.lower),
-                "upper": _to_float_or_none(group.upper),
-                "eavg": _to_float_or_none(group.eavg),
-                "xsec": _to_float_or_none(group.props.get(self, {}).get("xsec")),
-                "xsec_frac": _to_float_or_none(
-                    group.props.get(self, {}).get("xsec_frac")
-                ),
+                "lower": to_float_or_none(group.lower),
+                "upper": to_float_or_none(group.upper),
+                "eavg": to_float_or_none(group.eavg),
+                "xsec": to_float_or_none(group.props.get(self, {}).get("xsec")),
+                "xsec_frac": to_float_or_none(group.props.get(self, {}).get("xsec_frac")),
             }
             for group in self.rad_groups
         ]
