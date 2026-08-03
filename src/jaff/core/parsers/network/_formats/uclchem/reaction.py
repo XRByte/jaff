@@ -41,6 +41,21 @@ class UclchemReaction(NetworkFormat):
         "THERM",
     }
 
+    MECHANISM_TYPE = {
+        "FREEZE": "freeze",
+        "THERM": "desorption_thermal",
+        "DESCR": "desorption_cr",
+        "DEUVCR": "desorption_uvcr",
+        "DESOH2": "desorption_h2",
+        "ER": "eley_rideal",
+        "ERDES": "eley_rideal_desorption",
+        "LH": "langmuir_hinshelwood",
+        "LHDES": "langmuir_hinshelwood_desorption",
+        "H2FORM": "h2_formation",
+        "BULKSWAP": "bulk_swap",
+        "SURFSWAP": "surface_swap",
+    }
+
     @cache
     def _global_re(self, ctx: ParseContext) -> re.Pattern:
         return re.compile(r"^(?!\s*[!]|(?:\s*#\s)).*,\s*(?i:NAN)\s*(?:,|$)")
@@ -98,7 +113,15 @@ class UclchemReaction(NetworkFormat):
             if p.strip().upper() not in self.IGNORE_SPECIES
         ]
 
-        rate = "0.0"
+        mechanism_type: str | None = next(
+            (
+                self.MECHANISM_TYPE[r.strip().upper()]
+                for r in rr
+                if r.strip().upper() in self.MECHANISM_TYPE
+            ),
+            None,
+        )
+
         rate_dict = {
             "CRP": f"{ka:.2e} * crate",
             "CRPHOT": f"{ka:.2e} * (tgas/3e2)**({kb:.2f}) * crate",
@@ -125,7 +148,9 @@ class UclchemReaction(NetworkFormat):
                 "tmin": t_min,
                 "tmax": t_max,
                 "rate": rate,
-                "type": self._reaction_type(rate, rr),
+                "type": mechanism_type
+                if mechanism_type is not None
+                else self._reaction_type(rate, rr),
                 "string": ctx.line.strip(),
             }
         )
@@ -159,7 +184,7 @@ class UclchemReaction(NetworkFormat):
             return "photo"
         if "ntot" in r:
             return "3_body"
-            
+
         return "unknown"
 
     def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
