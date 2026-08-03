@@ -520,6 +520,9 @@ class Network:
         for r in self.reactions:
             if loaded_from_jaff:
                 r.rate = self._standardize_symbols(r.rate, replace_nH)
+            elif r.type == "photo" and self.radiation is not None:
+                r.rate = self._standardize_symbols(r.rate, replace_nH)
+                r.rate_segments[0].rate = r.rate
             else:
                 for seg in r.rate_segments:
                     seg.rate = self._standardize_symbols(seg.rate, replace_nH)
