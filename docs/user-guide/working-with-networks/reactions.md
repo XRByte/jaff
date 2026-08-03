@@ -118,7 +118,7 @@ net.reactions[0].rate       # photorates(1, 13.6, 1.0e+99)
 | `index`               | `int`           | Zero-based position of this reaction inside `net.reactions`               |
 | `serialized`          | `str`           | Canonical **name-level** identity (isomer-sensitive)                      |
 | `serialized_exploded` | `str`           | Canonical **atom-level** identity (isomer-insensitive)                    |
-| `type`                | `str`           | Reaction type concluded by the parser: `"photo"`, `"cosmic_ray"`, `"3_body"`, `"unknown"` |
+| `type`                | `str`           | Reaction type concluded by the parser (verbatim): gas-phase `"photo"`/`"cosmic_ray"`/`"3_body"`/`"unknown"`, or a grain surface-mechanism type — see [Reaction types](#reaction-types) |
 | `custom_rad_rate`     | `bool`          | `True` when the radiation rate came from a `.jfunc`, not cross-sections   |
 | `xsecs_dict`          | `XsecsProps or None` | Photo cross-section data for the reaction's single decay channel: `photon_energy` (eV) plus `photo_absorption` and `photodecay` (cm²); else `None` |
 
@@ -232,7 +232,12 @@ The `type` attribute holds the type **concluded by the network-format parser**
 as it read the file — it does not inspect the rate expression. The parser decides
 structurally (a `_PHOTON` reactant → photo, a `_CR`/`_CRP`/`_CRPHOT` reactant →
 cosmic-ray, three or more real reactants → 3-body), so the type survives even
-custom rates.
+custom rates. Gas-grain formats (e.g. UCLCHEM) additionally classify by the
+mechanism keyword carried in a reactant slot (`FREEZE`, `THERM`, `DESCR`, …) into
+a surface-mechanism type — see the
+[UCLCHEM format notes](../designing-networks/network-formats.md#uclchem-format).
+
+Generic gas-phase types:
 
 | Type           | Meaning                                          |
 | -------------- | ------------------------------------------------ |
@@ -241,11 +246,53 @@ custom rates.
 | `"3_body"`     | Three-body reaction                              |
 | `"unknown"`    | Unclassified                                     |
 
+Grain/ice surface-mechanism types (gas-grain networks):
+
+| Type                                | Mechanism                          |
+| ----------------------------------- | ---------------------------------- |
+| `"freeze"`                          | Freeze-out (accretion) onto grains |
+| `"desorption_thermal"`              | Thermal desorption                 |
+| `"desorption_cr"`                   | Cosmic-ray desorption              |
+| `"desorption_uvcr"`                 | CR-induced UV photodesorption      |
+| `"desorption_h2"`                   | H₂-formation desorption            |
+| `"eley_rideal"` / `"eley_rideal_desorption"` | Eley-Rideal surface reaction (+ reactive desorption) |
+| `"langmuir_hinshelwood"` / `"langmuir_hinshelwood_desorption"` | Langmuir-Hinshelwood diffusion reaction (+ reactive desorption) |
+| `"h2_formation"`                    | Parameterised H₂ formation         |
+| `"bulk_swap"` / `"surface_swap"`    | Bulk↔surface ice exchange          |
+
+The set is open-ended: any string a parser supplies is stored verbatim.
+
 ```python
 net.reactions[0].type   # 'photo'
 net.reactions[1].type   # 'unknown'
 net.reactions.types()     # ['photo', 'unknown']
 ```
+
+### Temperature ranges and piecewise rates
+
+A reaction is valid over `[tmin, tmax]`. When the **same** reaction (same species
+*and* same `type`) appears in the network file across several **disjoint**
+temperature ranges — a common way to fit a rate accurately over a wide
+temperature span — JAFF keeps each range as a `RateSegment` and merges them into
+a single **piecewise** rate expression on `net.reactions[i].rate`:
+
+- each range contributes its own rate over that range;
+- the gap between two adjacent ranges is bridged by **linear interpolation** of
+  the two bounding rates;
+- behaviour past the outermost bounds follows the reaction's
+  [`T_cutoff`](jaff-toml.md#temperature-cutoffs) (`clip` holds the boundary
+  value; `extrapolate` lets the end segments run on).
+
+The individual pieces live on `rxn.rate_segments`; `rxn.tmin` / `rxn.tmax` span
+the full merged range. Two rows for the *same* reaction, same `type`, over the
+*same or overlapping* range is a genuine conflict and raises a `ParserError` —
+deduplicate the source network.
+
+!!! note "Different mechanisms are different reactions"
+    Two file rows with the same species but a different `type` (e.g. thermal vs
+    cosmic-ray desorption) are **not** merged — they are distinct reactions with
+    their own rates. Only same-species **and** same-`type` rows over disjoint
+    ranges are stitched into one piecewise rate.
 
 ### Photo-reactions, a special citizen
 
@@ -291,7 +338,7 @@ photo.get_code(lang="cxx")   # 'photorates($IDX$, 13.6000000000000, 1.0e+99)'
 `net.reactions` is ordered (the order matches every `Reaction.index` and the
 stoichiometry matrices) and can be looked up two ways.
 
-### Two ways to find a reaction
+### Ways to find a reaction
 
 ```python
 net.reactions[0]                       # by index        → Reaction
@@ -300,13 +347,29 @@ net.reactions["H + _PHOTON -> H+ + e-"]  # by verbatim string
 net.reactions["H._PHOTON__H+.e-"]        # by serialized form
 ```
 
-The typed helpers do the same with an optional type filter:
+String lookup returns a **single** `Reaction`. Because several reactions can
+share one serialized form or verbatim string when they differ only by
+mechanism/`type` (e.g. thermal vs cosmic-ray desorption), an ambiguous string
+key **raises** `KeyError`. Disambiguate with a `(serialized, type)` tuple:
 
 ```python
-net.reactions.from_verbatim("H + _PHOTON -> H+ + e-")
-net.reactions.from_serialized("H._PHOTON__H+.e-")
-net.reactions.get("H + _PHOTON -> H+ + e-", type="photo")   # None if type mismatches
+net.reactions["C_DUST__C", "desorption_thermal"]   # exact reaction
+net.reactions["C_DUST__C", "desorption_cr"]         # the other mechanism
 ```
+
+The typed helpers:
+
+```python
+net.reactions.from_verbatim("H + _PHOTON -> H+ + e-")      # Reaction or None
+net.reactions.from_serialized("H._PHOTON__H+.e-")          # list[Reaction] (all types)
+net.reactions.all("H._PHOTON__H+.e-")                      # Vector[Reaction], [] if none
+net.reactions.get("H + _PHOTON -> H+ + e-", type="photo")  # Reaction or None; never raises
+```
+
+`from_serialized` always returns a **list** (every reaction with that serialized
+form); `all` is the same but yields an empty `Vector` instead of raising when the
+key is absent. `get` resolves a `(serialized, type)` pair and returns `None`
+rather than raising on a miss or ambiguity.
 
 ### Iteration and count
 
@@ -353,8 +416,9 @@ net.reactions.with_type("cosmic_ray")       # cosmic-ray reactions
 net.reactions.with_type("unknown")          # everything unclassified
 ```
 
-Note the type keys are `"photo"`, `"cosmic_ray"`, `"3_body"`, `"unknown"` —
-there is no `"CR"`.
+The type key is whatever string the parser stored — the gas-phase set
+`"photo"`, `"cosmic_ray"`, `"3_body"`, `"unknown"` (there is no `"CR"`), plus any
+grain surface-mechanism type (see [Reaction types](#reaction-types)).
 
 ---
 

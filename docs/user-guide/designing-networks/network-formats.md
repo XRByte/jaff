@@ -238,6 +238,34 @@ C,CO+,NAN,CO,C+,NAN,NAN,1.1e-10,0.0,0.0,10.0,41000.0,0.0,False
 @C,BULKSWAP,NAN,#C,NAN,NAN,NAN,1.0,0.0,0.0,0.0,10000.0,0.0,False
 ```
 
+### Mechanism keywords
+
+UCLCHEM encodes the reaction *mechanism* as a keyword in a reactant slot
+(`CRP`, `CRPHOT`, `PHOTON`, `FREEZE`, `THERM`, `DESCR`, `DEUVCR`, `DESOH2`,
+`LH`, `LHDES`, `ER`, `ERDES`, `H2FORM`, `BULKSWAP`, `SURFSWAP`). JAFF reads this
+keyword to (a) set the reaction [`type`](../working-with-networks/reactions.md#reaction-types)
+and (b) select the rate-coefficient formula; the keyword itself is not kept as a
+reactant. Reactions with no keyword are two-body gas-phase reactions using the
+Kooij/Arrhenius form.
+
+Not every mechanism has a closed-form, per-line rate. The gas-phase and grain
+non-thermal mechanisms (`CRP`, `CRPHOT`, `PHOTON`, `FREEZE`, `DESCR`, `DEUVCR`,
+two-body) are emitted as rate expressions; the surface-diffusion and
+bulk/surface-swap mechanisms (`THERM`, `DESOH2`, `LH`, `LHDES`, `ER`, `ERDES`,
+`H2FORM`, `BULKSWAP`, `SURFSWAP`) need machinery JAFF does not yet expose (dust
+temperature, a surface competition formula, or coupling to another reaction's
+rate) and are emitted as `0.0`. The full per-mechanism formula table, source
+references, and the free symbols each rate expects are documented in the parser's
+`README.md` (`src/jaff/core/parsers/network/_formats/uclchem/`).
+
+!!! note "Multiple temperature ranges"
+    When the same reaction (same species **and** mechanism) is listed over
+    several disjoint `[Tmin, Tmax]` ranges, JAFF merges the rows into one
+    reaction with a piecewise rate — see
+    [Temperature ranges and piecewise rates](../working-with-networks/reactions.md#temperature-ranges-and-piecewise-rates).
+    The same reaction repeated over the same/overlapping range is a conflict and
+    raises a `ParserError`.
+
 ---
 
 ## Using these formats in JAFF

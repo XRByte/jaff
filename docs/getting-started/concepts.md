@@ -162,8 +162,9 @@ rxn.products      # species created
 - `rate` — the rate coefficient as a **SymPy expression**, not a number; it
   still contains the temperature symbol so it can be differentiated and emitted
   as code;
-- `type` — the classification (`photo`, `cosmic_ray`, `3_body`, `unknown`),
-  concluded by the network-format parser as it reads the file;
+- `type` — the classification (`photo`, `cosmic_ray`, `3_body`, `unknown`, or a
+  grain surface-mechanism type such as `freeze`/`desorption_*` in gas-grain
+  networks), concluded by the network-format parser as it reads the file;
 - `tmin` / `tmax` — the temperature window the rate is valid over (`None` means
   unbounded);
 - `verbatim` — the human-readable reaction string.

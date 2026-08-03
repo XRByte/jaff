@@ -62,6 +62,15 @@ Values are case-insensitive; anything other than `clip` or `extrapolate` raises 
     time, so a `.jaff` file saved afterwards already carries the resolved
     behaviour and does not need the config on reload.
 
+For a reaction defined over a **single** temperature range, `clip` replaces
+`tgas` with `max(min(tgas, Tmax), Tmin)` as above. When a reaction is defined
+over **multiple disjoint ranges** (merged into a piecewise rate — see
+[Temperature ranges and piecewise rates](reactions.md#temperature-ranges-and-piecewise-rates)),
+`T_cutoff` governs only the **outer** edges: below the first range and above the
+last, `clip` holds the boundary rate while `extrapolate` lets the end segments
+run on. Gaps *between* adjacent ranges are always linearly interpolated,
+independent of `T_cutoff`.
+
 ---
 
 ## Resolution order

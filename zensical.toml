@@ -137,6 +137,7 @@ nav = [
         "api/core/reactions/index.md",
         "api/core/reactions/add.md",
         "api/core/reactions/from_serialized.md",
+        "api/core/reactions/all.md",
         "api/core/reactions/from_verbatim.md",
         "api/core/reactions/get_list.md",
         "api/core/reactions/get.md",
