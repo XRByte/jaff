@@ -379,7 +379,7 @@ class Network:
             if srxn in self.reactions:
                 rea = self.reactions[srxn]
                 rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
-                return
+                continue
 
             # deltarad{i}: radiation energy emission per photon energy (eV)
             # per reaction added to the moment-0 equations at codegen time
@@ -514,7 +514,7 @@ class Network:
         nden = self.ndens
         for r in self.reactions:
             r.rate = self._standardize_symbols(
-                r.rate_segments.evaluate_equivalent_rate(), replace_nH
+                r.rate_segments.sort().evaluate_equivalent_rate(), replace_nH
             )
 
             dE_dt = r.dE * r.rate

@@ -23,7 +23,8 @@ class RateSegments(Catalogue[RateSegment]):
         if not isinstance(segment, RateSegment):
             raise ValueError(f"'{segment}' must be an instance of 'RateSegment'")
 
-        if not (tup := (segment.tmin, segment.tmax) in self._by_prop):
+        tup = (segment.tmin, segment.tmax)
+        if tup not in self._by_prop:
             self._by_prop[tup] = segment
         else:
             raise KeyError(
@@ -53,8 +54,8 @@ class RateSegments(Catalogue[RateSegment]):
         last = ls[-1]
 
         if self.mode == "clip":
-            segs.append((last.rate.xreplace({tgas, last.tmax}), tgas > last.tmax))
-            segs.insert(0, (first.rate.xreplace({tgas, first.tmin}), tgas < first.tmin))
+            segs.append((last.rate.xreplace({tgas: last.tmax}), tgas > last.tmax))
+            segs.insert(0, (first.rate.xreplace({tgas: first.tmin}), tgas < first.tmin))
         elif self.mode == "extrapolate":
             if self.count == 1:
                 return first.rate
@@ -62,7 +63,7 @@ class RateSegments(Catalogue[RateSegment]):
             segs[0] = (segs[0][0], tgas < first.tmax)
             segs[-1] = (segs[-1][0], tgas > last.tmin)
 
-        return Piecewise(segs)
+        return Piecewise(*segs)
 
     def _get_piecewise_rate(self) -> list[tuple[Expr, Basic | bool]]:
         tgas = symbols("tgas")
@@ -97,3 +98,6 @@ class RateSegments(Catalogue[RateSegment]):
             )
 
         return segs
+
+    def sort(self):
+        self._list = sorted(self._list, key=lambda s: s.tmin)
