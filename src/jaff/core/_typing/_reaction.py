@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from sympy import Basic, Expr
 
@@ -10,6 +10,16 @@ else:
     Species = "Species"
     Reaction = "Reaction"
     Network = "Network"
+
+
+RateSegmentProps = TypedDict(
+    "RateSegmentProps",
+    {
+        "rate": Expr,
+        "tmin": float | None,
+        "tmax": float | None,
+    },
+)
 
 
 ReactionProps = TypedDict(
@@ -24,6 +34,8 @@ ReactionProps = TypedDict(
         "reaction_type": str,
         "tmin": float | None,
         "tmax": float | None,
+        "t_cutoff": NotRequired[str],
+        "rate_segments": NotRequired[list["RateSegmentProps"]],
         "original_string": str,
         "xsecs_dict": "XsecsProps",
     },

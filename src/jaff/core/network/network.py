@@ -33,14 +33,10 @@ from sympy import (
     Function,
     Idx,
     MatrixSymbol,
-    Max,
-    Min,
     parse_expr,
     symbols,
 )
 from sympy.core.function import AppliedUndef, UndefinedFunction
-
-from jaff.core.reaction.types import RateSegment
 
 from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
 from ...errors import ParserError
@@ -57,7 +53,7 @@ from ...physics import (
 )
 from ..elements import Elements
 from ..parsers import NetworkParser
-from ..reaction import Reaction, Reactions
+from ..reaction import RateSegment, RateSegments, Reaction, Reactions
 from ..species import Specie, Species
 from ._spec import NetworkSpec
 
@@ -476,11 +472,18 @@ class Network:
                 dRad=reaction["dRad"],
                 tmin=reaction["tmin"],
                 tmax=reaction["tmax"],
+                t_cutoff=reaction.get("t_cutoff", "clip"),
                 original_string=reaction["original_string"],
                 index=i,
                 type=reaction.get("reaction_type", "unknown"),
             )
             rea.custom_rad_rate = reaction["custom_rad_rate"]
+            segments = reaction.get("rate_segments")
+            if segments:
+                rea.rate_segments = RateSegments(
+                    [RateSegment(s["rate"], s["tmin"], s["tmax"]) for s in segments],
+                    rea.t_cutoff,
+                )
             self.reactions.add(rea)
 
             if rea.type == "photo":
@@ -521,12 +524,12 @@ class Network:
         """
         nden = self.ndens
         for r in self.reactions:
-            rate = (
-                r.rate
-                if loaded_from_jaff
-                else r.rate_segments.sort().evaluate_equivalent_rate()
-            )
-            r.rate = self._standardize_symbols(rate, replace_nH)
+            if loaded_from_jaff:
+                r.rate = self._standardize_symbols(r.rate, replace_nH)
+            else:
+                for seg in r.rate_segments:
+                    seg.rate = self._standardize_symbols(seg.rate, replace_nH)
+                r.rate = r.rate_segments.sort().evaluate_equivalent_rate()
 
             dE_dt = r.dE * r.rate
             dRad_dt = r.dRad * r.rate

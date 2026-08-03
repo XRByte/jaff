@@ -45,12 +45,11 @@ from sympy import (
     sympify,
 )
 
-from jaff.core.reaction.types import RateSegment, RateSegments
-
 from ...io import JaffLogger
 from ...physics.photo_reactions._typing import XsecsProps
 from ..elements import Elements
 from ..species import Specie, Species
+from .types import RateSegment, RateSegments
 from ._helper import to_float_or_none
 
 if TYPE_CHECKING:

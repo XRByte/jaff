@@ -27,7 +27,7 @@ import gzip
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from sympy import (
@@ -58,6 +58,7 @@ from ._logger import JaffLogger, jaff_progress
 
 if TYPE_CHECKING:
     from .. import Network, Reaction, Specie, Species
+    from ..core._typing import ReactionProps
     from ..core.reaction import Reactions
 else:
     Specie = "Specie"
@@ -195,6 +196,15 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 "rate": encode_maybe_sympy(r.rate),
                 "tmin": r.tmin,
                 "tmax": r.tmax,
+                "t_cutoff": r.t_cutoff,
+                "rate_segments": [
+                    {
+                        "rate": encode_maybe_sympy(s.rate),
+                        "tmin": s.tmin,
+                        "tmax": s.tmax,
+                    }
+                    for s in r.rate_segments
+                ],
                 "dE": encode_maybe_sympy(r.dE),
                 "dRad": encode_maybe_sympy(r.dRad),
                 "custom_rad_rate": r.custom_rad_rate,
@@ -383,6 +393,7 @@ def from_jaff_file(filename: str | Path, errors=False):
     if not isinstance(reactions_payload, list):
         raise ValueError("Invalid reactions list in JSON")
 
+    reactions_out: list[ReactionProps] = []
     for rj in reactions_payload:
         if not isinstance(rj, dict):
             raise ValueError("Invalid reaction entry in JSON")
@@ -402,6 +413,20 @@ def from_jaff_file(filename: str | Path, errors=False):
         custom_rad_rate = rj.get("custom_rad_rate")
         tmin = rj.get("tmin")
         tmax = rj.get("tmax")
+        t_cutoff = rj.get("t_cutoff") or "clip"
+        segments_payload = rj.get("rate_segments")
+        if isinstance(segments_payload, list) and segments_payload:
+            rate_segments = [
+                {
+                    "rate": decode_maybe_sympy(s.get("rate")),
+                    "tmin": s.get("tmin"),
+                    "tmax": s.get("tmax"),
+                }
+                for s in segments_payload
+                if isinstance(s, dict)
+            ]
+        else:
+            rate_segments = [{"rate": rate, "tmin": tmin, "tmax": tmax}]
         original_string = rj.get("original_string") or ""
         reaction_type = rj.get("type") or "unknown"
         xsecs = rj.get("xsecs")
@@ -417,22 +442,28 @@ def from_jaff_file(filename: str | Path, errors=False):
                 if xsecs.get(key) is not None:
                     xsecs[key] = np.asarray(xsecs[key], dtype=float)
 
-        net_data["reactions"].append(
-            {
-                "reactants": reactants,
-                "products": products,
-                "rate": rate,
-                "dE": dE,
-                "dRad": dRad_dt,
-                "custom_rad_rate": custom_rad_rate,
-                "tmin": tmin,
-                "tmax": tmax,
-                "original_string": original_string,
-                "reaction_type": reaction_type,
-                "xsecs_dict": xsecs,
-            }
+        reactions_out.append(
+            cast(
+                "ReactionProps",
+                {
+                    "reactants": reactants,
+                    "products": products,
+                    "rate": rate,
+                    "dE": dE,
+                    "dRad": dRad_dt,
+                    "custom_rad_rate": custom_rad_rate,
+                    "tmin": tmin,
+                    "tmax": tmax,
+                    "t_cutoff": t_cutoff,
+                    "rate_segments": rate_segments,
+                    "original_string": original_string,
+                    "reaction_type": reaction_type,
+                    "xsecs_dict": xsecs,
+                },
+            )
         )
 
+    net_data["reactions"] = reactions_out
     return net_data
 
 
