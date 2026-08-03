@@ -45,6 +45,8 @@ from sympy import (
     sympify,
 )
 
+from jaff.core.reaction.types import RateSegment, RateSegments
+
 from ...io import JaffLogger
 from ...physics.photo_reactions._typing import XsecsProps
 from ..elements import Elements
@@ -118,6 +120,7 @@ class Reaction:
         dRad: Basic,
         original_string: str,
         index: int,
+        t_cuttoff: str = "clip",
         type: str = "unknown",
         errors: bool = False,
     ):
@@ -164,6 +167,10 @@ class Reaction:
         self.rate: Expr = rate
         self.tmin: float | None = tmin
         self.tmax: float | None = tmax
+        self.t_cuttoff: str = t_cuttoff
+        self.rate_segments: RateSegments = RateSegments(
+            [RateSegment(rate, tmin, tmax)], t_cuttoff
+        )
         self.dE: Basic = dE
         self.dRad: Basic = dRad
         self.custom_rad_rate: bool = False

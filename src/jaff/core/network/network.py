@@ -40,6 +40,8 @@ from sympy import (
 )
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
+from jaff.core.reaction.types import RateSegment
+
 from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
@@ -281,7 +283,6 @@ class Network:
         interp_funcs = set()
 
         n_photo = 0
-        tgas = symbols("tgas")
         default_tcutoff: str = "clip"
         config = self.spec.config
         reactions_config: dict = config.get("reactions", {})
@@ -351,29 +352,34 @@ class Network:
                 )
 
             # Extrapolate if not clip
-            if local_tcutoff == "clip":
-                clamp_key = (tmin, tmax)
-                if clamp_key not in self.__tgas_clamp_cache:
-                    self.__tgas_clamp_cache[clamp_key] = (
-                        Max(Min(tgas, tmax), tmin)
-                        if tmin and tmax
-                        else Max(tgas, tmin)
-                        if tmin
-                        else Min(tgas, tmax)
-                        if tmax
-                        else tgas
-                    )
-                local_subs_dict[tgas] = self.__tgas_clamp_cache[clamp_key]
-                for sym, expr in local_subs_dict.items():
-                    if sym != tgas and expr.has(tgas):
-                        local_subs_dict[sym] = expr.xreplace(
-                            {tgas: local_subs_dict[tgas]}
-                        )
+            # if local_tcutoff == "clip":
+            #     clamp_key = (tmin, tmax)
+            #     if clamp_key not in self.__tgas_clamp_cache:
+            #         self.__tgas_clamp_cache[clamp_key] = (
+            #             Max(Min(tgas, tmax), tmin)
+            #             if tmin and tmax
+            #             else Max(tgas, tmin)
+            #             if tmin
+            #             else Min(tgas, tmax)
+            #             if tmax
+            #             else tgas
+            #         )
+            #     local_subs_dict[tgas] = self.__tgas_clamp_cache[clamp_key]
+            #     for sym, expr in local_subs_dict.items():
+            #         if sym != tgas and expr.has(tgas):
+            #             local_subs_dict[sym] = expr.xreplace(
+            #                 {tgas: local_subs_dict[tgas]}
+            #             )
 
             rate_expr, n_photo = self.__parse_rate(
                 aux_chem_rate, rate, aux_funcs, global_vars, n_photo
             )
             rate_expr = resolve_dependencies(rate_expr, local_subs_dict, aux_funcs)
+
+            if srxn in self.reactions:
+                rea = self.reactions[srxn]
+                rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
+                return
 
             # deltarad{i}: radiation energy emission per photon energy (eV)
             # per reaction added to the moment-0 equations at codegen time
@@ -401,6 +407,7 @@ class Network:
                 original_string=reaction["string"],
                 index=i,
                 type=reaction.get("type", "unknown"),
+                t_cuttoff=local_tcutoff,
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
@@ -506,7 +513,9 @@ class Network:
         """
         nden = self.ndens
         for r in self.reactions:
-            r.rate = self._standardize_symbols(r.rate, replace_nH)
+            r.rate = self._standardize_symbols(
+                r.rate_segments.evaluate_equivalent_rate(), replace_nH
+            )
 
             dE_dt = r.dE * r.rate
             dRad_dt = r.dRad * r.rate

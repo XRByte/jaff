@@ -62,7 +62,7 @@ class Reactions(Catalogue[Reaction]):
         if not isinstance(reaction, Reaction):
             raise ValueError(f"'{reaction}' must be an instance of 'Reaction'")
 
-        self._by_name[reaction.verbatim] = reaction
+        self._by_prop[reaction.verbatim] = reaction
         self._by_serialized[reaction.serialized] = reaction
         self._list.append(reaction)
         self.count = len(self._list)
@@ -95,7 +95,7 @@ class Reactions(Catalogue[Reaction]):
         -------
         Reaction or None
         """
-        rea = self._by_name[verbatim]
+        rea = self._by_prop[verbatim]
         if type is None or rea.type == type:
             return rea
 
