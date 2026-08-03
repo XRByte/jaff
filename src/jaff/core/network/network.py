@@ -355,6 +355,19 @@ class Network:
             rtype = reaction.get("type", "unknown")
             if (srxn, rtype) in self.reactions:
                 rea = self.reactions[srxn, rtype]
+                if (tmin, tmax) in rea.rate_segments._by_prop:
+                    existing = rea.rate_segments._by_prop[(tmin, tmax)]
+                    raise ParserError(
+                        f"Duplicate reaction: {rea.verbatim} [type={rtype}] "
+                        f"has two rate coefficients over the same temperature "
+                        f"range ({tmin}, {tmax}):\n"
+                        f"  existing: {existing.rate}\n"
+                        f"  new:      {rate_expr}\n"
+                        "Same reaction, same mechanism and overlapping "
+                        "temperature range cannot be resolved automatically. "
+                        "Deduplicate the source network."
+                    )
+
                 rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
                 continue
 
@@ -512,6 +525,7 @@ class Network:
                     seg.rate = self._standardize_symbols(seg.rate, replace_nH)
                 r.rate = r.rate_segments.sort().evaluate_equivalent_rate()
 
+            r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
             dE_dt = r.dE * r.rate
             dRad_dt = r.dRad * r.rate
             for s in r.reactants.core:
