@@ -347,33 +347,14 @@ class Network:
                     f"valid cutoffs are: {','.join(self._valid_tcutoffs)}"
                 )
 
-            # Extrapolate if not clip
-            # if local_tcutoff == "clip":
-            #     clamp_key = (tmin, tmax)
-            #     if clamp_key not in self.__tgas_clamp_cache:
-            #         self.__tgas_clamp_cache[clamp_key] = (
-            #             Max(Min(tgas, tmax), tmin)
-            #             if tmin and tmax
-            #             else Max(tgas, tmin)
-            #             if tmin
-            #             else Min(tgas, tmax)
-            #             if tmax
-            #             else tgas
-            #         )
-            #     local_subs_dict[tgas] = self.__tgas_clamp_cache[clamp_key]
-            #     for sym, expr in local_subs_dict.items():
-            #         if sym != tgas and expr.has(tgas):
-            #             local_subs_dict[sym] = expr.xreplace(
-            #                 {tgas: local_subs_dict[tgas]}
-            #             )
-
             rate_expr, n_photo = self.__parse_rate(
                 aux_chem_rate, rate, aux_funcs, global_vars, n_photo
             )
             rate_expr = resolve_dependencies(rate_expr, local_subs_dict, aux_funcs)
 
-            if srxn in self.reactions:
-                rea = self.reactions[srxn]
+            rtype = reaction.get("type", "unknown")
+            if (srxn, rtype) in self.reactions:
+                rea = self.reactions[srxn, rtype]
                 rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
                 continue
 
@@ -402,7 +383,7 @@ class Network:
                 dRad=deltaRad,
                 original_string=reaction["string"],
                 index=i,
-                type=reaction.get("type", "unknown"),
+                type=rtype,
                 t_cutoff=local_tcutoff,
             )
             if "reaction_props" in self.spec._metadata:
@@ -709,19 +690,23 @@ class Network:
         if verbosity == 1:
             self.logger.info(f"Reactions not present in {self.label}:")
             print(
-                "\n".join([str(other.reactions[rea]) for rea in not_in_self]),
+                "\n".join(
+                    str(r) for rea in not_in_self for r in other.reactions.all(rea)
+                ),
                 "\n",
             )
 
             self.logger.info(f"Reactions not present in {other.label}:")
             print(
-                "\n".join([str(self.reactions[rea]) for rea in not_in_other]),
+                "\n".join(
+                    str(r) for rea in not_in_other for r in self.reactions.all(rea)
+                ),
                 "\n",
             )
 
             self.logger.info(f"Reactions present in both {self.label} and {other.label}:")
             print(
-                "\n".join([str(self.reactions[rea]) for rea in common]),
+                "\n".join(str(r) for rea in common for r in self.reactions.all(rea)),
                 "\n",
             )
 

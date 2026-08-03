@@ -73,7 +73,7 @@ class Catalogue(Generic[T]):
     def __init__(
         self,
         items: list[T] | None = None,
-        items_dict: dict[Any, T] | None = None,
+        items_dict: dict[Any, T | list[T]] | None = None,
         check_length: bool = True,
     ):
         """Initialise the catalogue from a parallel list and dictionary.

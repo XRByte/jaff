@@ -49,8 +49,8 @@ from ...io import JaffLogger
 from ...physics.photo_reactions._typing import XsecsProps
 from ..elements import Elements
 from ..species import Specie, Species
-from .types import RateSegment, RateSegments
 from ._helper import to_float_or_none
+from .types import RateSegment, RateSegments
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
@@ -233,7 +233,7 @@ class Reaction:
                 f"'==' not supported between instances of 'Reaction' and '{other}'"
             )
 
-        return self.serialized == other.serialized
+        return self.serialized == other.serialized and self.type == other.type
 
     def __hash__(self):
         """Return hash based on the serialized (name-level) form.
