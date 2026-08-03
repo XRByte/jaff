@@ -53,7 +53,7 @@ class RateSegments(Catalogue[RateSegment]):
         if self.mode == "clip":
             segs.append((first.rate.xreplace({tgas: first.tmin}), tgas < first.tmin))
 
-        segs.append((first.rate, tgas <= first.tmax))
+        segs.append((first.rate, tgas < first.tmax))
 
         # Interpolation gaps + subsequent ranges.
         for i, seg in enumerate(ls[1:]):
@@ -67,12 +67,13 @@ class RateSegments(Catalogue[RateSegment]):
                     "Temperature ranges shouldn't overlap for multi-temperature range reactions"
                 )
 
-            lw = 1 / (tgas - prev.tmax)  # left weight
-            rw = 1 / (seg.tmin - tgas)  # right weight
-            interp = (prev.rate * lw + seg.rate * rw) / (lw + rw)
+            a = prev.tmax  # left boundary
+            b = seg.tmin  # right boundary
+            # Harmonic mean
+            interp = (prev.rate * (b - tgas) + seg.rate * (tgas - a)) / (b - a)
 
             segs.append((interp, tgas < seg.tmin))
-            segs.append((seg.rate, tgas <= seg.tmax))
+            segs.append((seg.rate, tgas < seg.tmax))
 
         if self.mode == "clip":
             segs.append((last.rate.xreplace({tgas: last.tmax}), True))
