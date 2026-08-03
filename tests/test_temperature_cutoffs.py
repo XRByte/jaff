@@ -81,9 +81,7 @@ class TestPrecedenceModelA:
 
     def test_jaffgen_local_beats_jaff_local(self, tmp_path):
         # jaff.toml per-reaction clip, jaffgen per-reaction extrapolate -> extrapolate.
-        cfg = _write_toml(
-            tmp_path, f'[network.reactions."{RXN}"]\nT_cutoff = "clip"\n'
-        )
+        cfg = _write_toml(tmp_path, f'[network.reactions."{RXN}"]\nT_cutoff = "clip"\n')
         meta = {"reaction_props": {RXN: {"T_cutoff": "extrapolate"}}}
         assert _is_clipped(_load(config=cfg, metadata=meta)) is False
 
@@ -109,24 +107,48 @@ class TestPrecedenceModelA:
 class TestJaffgenWiring:
     """jaffgen --network-config arg + [network] metadata assembly, in isolation."""
 
-    def _bare_jaffgen(self):
-        from jaff.cli._jaffgen import JaffGen
+    def _bare_jaffgen(self, network_config=None):
+        from types import SimpleNamespace
+
+        from jaff.cli.jaffgen._engine import JaffGen
+        from jaff.cli.jaffgen._structs import State
 
         jg = JaffGen.__new__(JaffGen)
-        jg.jaffgen_config = {"netprops": {}}
-        jg.parser = JaffGen._JaffGen__get_parser(jg)
-        JaffGen._JaffGen__set_parser_props(jg)
+        jg.state = State()
+        jg.args = SimpleNamespace(
+            label=None,
+            funcfile=None,
+            replace_nH=None,
+            errors=None,
+            network_config=network_config,
+            lang=None,
+        )
         return jg, JaffGen
 
     def test_network_config_arg_maps(self):
-        jg, JaffGen = self._bare_jaffgen()
-        assert jg.parser.parse_args(["--network-config", "x.toml"]).network_config == "x.toml"
-        assert jg.parser.parse_args([]).network_config is None
+        # The typer callback maps --network-config onto args.network_config,
+        # defaulting to None when the flag is absent.
+        from typer.testing import CliRunner
+
+        import jaff.cli.jaffgen._engine as engine
+
+        captured = {}
+
+        def _capture(self, args):
+            captured["args"] = args
+
+        app = engine.app
+        with patch.object(engine.JaffGen, "__init__", _capture):
+            runner = CliRunner()
+            runner.invoke(app, ["--network", "n", "--network-config", "x.toml"])
+            assert captured["args"].network_config == "x.toml"
+            runner.invoke(app, ["--network", "n"])
+            assert captured["args"].network_config is None
 
     def test_set_network_config_none(self):
-        jg, JaffGen = self._bare_jaffgen()
-        JaffGen._JaffGen__set_network_config(jg, None)
-        assert jg.jaffgen_config["netprops"]["config"] is None
+        jg, _ = self._bare_jaffgen(network_config=None)
+        jg.set_network_options()
+        assert jg.state.network_args.config is None
 
     def test_set_network_config_resolves_cwd(self, tmp_path, monkeypatch):
         # A relative --network-config resolves against the CWD, so run from a
@@ -136,23 +158,23 @@ class TestJaffgenWiring:
         (tmp_path / rel).write_text('[network.rates]\nT_cutoff = "clip"\n')
         monkeypatch.chdir(tmp_path)
 
-        jg, JaffGen = self._bare_jaffgen()
-        JaffGen._JaffGen__set_network_config(jg, str(rel))
-        cfg = jg.jaffgen_config["netprops"]["config"]
+        jg, _ = self._bare_jaffgen(network_config=str(rel))
+        jg.set_network_options()
+        cfg = jg.state.network_args.config
         assert cfg == (tmp_path / rel).resolve() and cfg.is_absolute()
 
     def test_set_network_config_missing_raises(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        jg, JaffGen = self._bare_jaffgen()
+        jg, _ = self._bare_jaffgen(network_config="does_not_exist.toml")
         with pytest.raises(FileNotFoundError):
-            JaffGen._JaffGen__set_network_config(jg, "does_not_exist.toml")
+            jg.set_network_options()
 
     def test_set_network_config_dir_raises(self, tmp_path, monkeypatch):
         (tmp_path / "networks").mkdir()
         monkeypatch.chdir(tmp_path)
-        jg, JaffGen = self._bare_jaffgen()
+        jg, _ = self._bare_jaffgen(network_config="networks")
         with pytest.raises(FileNotFoundError):
-            JaffGen._JaffGen__set_network_config(jg, "networks")
+            jg.set_network_options()
 
     def test_network_block_extraction(self, tmp_path):
         # [network.*] parses into the shapes T3 feeds to metadata slots.
@@ -160,7 +182,7 @@ class TestJaffgenWiring:
 
         body = (
             '[network]\nlabel = "demo"\n'
-            "[network.rates]\nT_cutoff = \"extrapolate\"\n"
+            '[network.rates]\nT_cutoff = "extrapolate"\n'
             f'[network.reactions."{RXN}"]\nT_cutoff = "clip"\n'
             f'[network.reactions."{RXN}".shielding]\ntype = "leiden"\n'
         )

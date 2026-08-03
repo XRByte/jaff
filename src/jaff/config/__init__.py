@@ -3,12 +3,15 @@ from ._config import (
     DATA_DIR,
     DB_DIR,
     JAFF_DIR,
-    NETWORK_DIR,
+    NETWORKS_DIR,
     SHIELDING_DATA_DIR,
     SHIELDING_FUNCTIONS_DIR,
     SRC_DIR,
     TEMPLATES_DIR,
     XSECS_DATA_DIR,
+    list_subdirs,
+    predefined_networks,
+    predefined_templates,
 )
 
 __all__ = [
@@ -16,10 +19,13 @@ __all__ = [
     DATA_DIR,
     DB_DIR,
     JAFF_DIR,
-    NETWORK_DIR,
+    NETWORKS_DIR,
     SHIELDING_DATA_DIR,
     SHIELDING_FUNCTIONS_DIR,
     SRC_DIR,
     TEMPLATES_DIR,
     XSECS_DATA_DIR,
+    list_subdirs,
+    predefined_networks,
+    predefined_templates,
 ]

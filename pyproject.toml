@@ -33,6 +33,7 @@ dependencies = [
   "scipy>=1.13.0",
   "seaborn>=0.13",
   "sympy>=1.14.0",
+  "typer>=0.27.0",
 ]
 
 [project.urls]
@@ -40,8 +41,8 @@ dependencies = [
 "Homepage" = "https://github.com/jaff-chemistry/jaff"
 
 [project.scripts]
-jaffgen = "jaff.cli._jaffgen:main"
-jaffx = "jaff.cli._jaffx:main"
+jaffgen = "jaff.cli.jaffgen:main"
+jaffx = "jaff.cli.jaffx:main"
 
 [project.optional-dependencies]
 dev = [

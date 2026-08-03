@@ -1,12 +1,8 @@
-"""Element extraction and composition matrices for chemical networks.
+"""Ordered, unique :class:`Elements` collection for JAFF networks.
 
-This module provides two classes:
-
-- `Element`: a flyweight representing a single chemical element, loaded from
-  the JAFF mass dictionary (CGS units throughout).
-- `Elements`: an ordered, unique collection of elements derived from a list of
-  `Specie` objects, with helpers for building truth and density matrices used
-  in stoichiometry calculations.
+``Elements`` is derived from a list of ``Specie`` objects, with helpers for
+building truth and density matrices used in stoichiometry calculations.  It is
+a flyweight: instances with the same sorted species set are reused.
 """
 
 from __future__ import annotations
@@ -14,204 +10,12 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
-from ..types import Catalogue, Vector
+from ...types import Catalogue, Vector
+from .element import Element
 
 if TYPE_CHECKING:
-    from . import Specie
-    from ._typing import ElementProps
-
-
-class Element:
-    """A chemical element loaded from the JAFF mass dictionary.
-
-    Instances are flyweights: constructing ``Element("H")`` twice returns the
-    same object.  The first construction populates all attributes from the
-    mass dictionary; subsequent constructions are no-ops.
-
-    Attributes
-    ----------
-    symbol : str
-        Periodic-table symbol (e.g. ``"H"``, ``"He"``).
-    name : str
-        Full element name (e.g. ``"hydrogen"``).
-    mass : float
-        Mass of the most common isotope in grams (CGS).
-    atomic_mass : float
-        Standard atomic weight in atomic mass units.
-    protons : int
-        Number of protons (atomic number).
-    neutrons : int
-        Number of neutrons in the most common isotope.
-    electrons : int
-        Number of electrons in the neutral atom.
-    """
-
-    _register: dict = {}
-    _mass_dict: dict | None = None
-
-    @classmethod
-    def configure(cls, mass_dict: dict[str, ElementProps]) -> None:
-        """Override the mass dictionary used to instantiate elements.
-
-        Call this before creating any ``Element`` instances if you need a
-        custom mass table.  Calling it after elements have already been
-        registered has no effect on those existing instances.
-
-        Parameters
-        ----------
-        mass_dict : dict[str, ElementProps]
-            Mapping from element symbol to a dict with keys ``"name"``,
-            ``"mass"``, ``"atomic_mass"``, ``"protons"``, ``"neutrons"``,
-            ``"electrons"``.
-        """
-        cls._mass_dict = mass_dict
-
-    @classmethod
-    def __get_mass_dict(cls) -> dict[str, ElementProps]:
-        """Return the mass dictionary, loading it on first access.
-
-        Returns
-        -------
-        dict[str, ElementProps]
-            Mapping from element symbol to its properties.
-        """
-        if cls._mass_dict is None:
-            from ..common import load_mass_dict
-
-            cls._mass_dict = load_mass_dict()
-
-        return cls._mass_dict
-
-    def __new__(cls, symbol: str):
-        """Return the flyweight instance for *symbol*, creating it if absent.
-
-        Parameters
-        ----------
-        symbol : str
-            Periodic-table symbol (case-sensitive).
-
-        Returns
-        -------
-        Element
-            Existing cached instance, or a newly allocated one registered for
-            future calls.
-        """
-        # Return the cached instance if this element has already been built;
-        # otherwise create a fresh one and register it for future look-ups.
-        if symbol in cls._register:
-            return cls._register[symbol]
-
-        instance = super().__new__(cls)
-        cls._register[symbol] = instance
-
-        return instance
-
-    def __init__(self, symbol: str):
-        """Initialise an Element from the mass dictionary.
-
-        Parameters
-        ----------
-        symbol : str
-            Periodic-table symbol of the element (case-sensitive, e.g. ``"He"``).
-
-        Raises
-        ------
-        KeyError
-            If *symbol* is not present in the mass dictionary.
-        """
-        if getattr(self, "_initialized", False):
-            return
-
-        mass_dict = self.__get_mass_dict()
-
-        if symbol not in mass_dict:
-            raise KeyError(f"No specie found in mass dictionary: {symbol}")
-
-        self.symbol: str = symbol
-        self.name: str = mass_dict[symbol]["name"]
-        self.mass: float = mass_dict[symbol]["mass"]
-        self.atomic_mass: float = mass_dict[symbol]["atomic_mass"]
-        self.protons: int = mass_dict[symbol]["protons"]
-        self.neutrons: int = mass_dict[symbol]["neutrons"]
-        self.electrons: int = mass_dict[symbol]["electrons"]
-        self._initialized = True
-
-    def __repr__(self) -> str:
-        """Return detailed string representation of this element.
-
-        Returns
-        -------
-        str
-            String including symbol and full element name.
-        """
-        return f"ElementObject(symbol={self.symbol!r})"
-
-    def __str__(self) -> str:
-        """Return the periodic-table symbol.
-
-        Returns
-        -------
-        str
-            Element symbol (e.g. ``"He"``).
-        """
-        return self.symbol
-
-    def __eq__(self, other) -> bool:
-        """Check equality by comparing element symbols.
-
-        Parameters
-        ----------
-        other : Element
-            Element to compare against.
-
-        Returns
-        -------
-        bool
-
-        Raises
-        ------
-        TypeError
-            If *other* is not an ``Element`` instance.
-        """
-        if not isinstance(other, Element):
-            raise TypeError(
-                f"'==' not supported between instances of 'Element' and '{other}'"
-            )
-
-        return self.symbol == other.symbol
-
-    def __lt__(self, other) -> bool:
-        """Compare elements lexicographically by symbol.
-
-        Parameters
-        ----------
-        other : Element
-            Element to compare against.
-
-        Returns
-        -------
-        bool
-
-        Raises
-        ------
-        TypeError
-            If *other* is not an ``Element`` instance.
-        """
-        if not isinstance(other, Element):
-            raise TypeError(
-                f"'<' not supported between instances of 'Element' and '{other}'"
-            )
-
-        return self.symbol < other.symbol
-
-    def __hash__(self):
-        """Return hash based on the element symbol.
-
-        Returns
-        -------
-        int
-        """
-        return hash(self.symbol)
+    from .._typing import ElementProps
+    from ..species import Specie
 
 
 class Elements(Catalogue):
@@ -254,7 +58,7 @@ class Elements(Catalogue):
             Mapping from element symbol to its properties.
         """
         if cls._mass_dict is None:
-            from ..common import load_mass_dict
+            from ...common import load_mass_dict
 
             cls._mass_dict = load_mass_dict()
         return cls._mass_dict
@@ -264,7 +68,7 @@ class Elements(Catalogue):
         species: Specie | list[Specie] | str | list[str],
     ) -> list[Specie]:
         """Normalise the *species* argument to a ``list[Specie]``."""
-        from .species import Specie as _Specie
+        from ..species import Specie as _Specie
 
         if isinstance(species, str):
             return [_Specie(species, 0)]

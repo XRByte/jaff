@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import re
 import sys
-from functools import cache, cached_property, lru_cache, reduce
+from functools import cached_property, lru_cache, reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -40,12 +40,11 @@ from sympy import (
 )
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
-from ..common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
-from ..drivers import Toml
-from ..errors import ParserError
-from ..io import JaffLogger, jaff_progress
-from ..io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
-from ..physics import (
+from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
+from ...errors import ParserError
+from ...io import JaffLogger, jaff_progress
+from ...io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
+from ...physics import (
     Photochemistry,
     Radiation,
     constants,
@@ -54,14 +53,15 @@ from ..physics import (
     get_sodes,
     get_sradodes,
 )
-from .elements import Elements
-from .parsers import AuxiliaryFunctionParser, NetworkParser
-from .reaction import Reaction, Reactions
-from .species import Specie, Species
+from ..elements import Elements
+from ..parsers import NetworkParser
+from ..reaction import Reaction, Reactions
+from ..species import Specie, Species
+from ._spec import NetworkSpec
 
 if TYPE_CHECKING:
-    from ._typing import ElementProps
-    from .parsers.auxiliary_func._typing import AuxiliaryFunctionsDict
+    from .._typing import ElementProps
+    from ..parsers.auxiliary_func._typing import AuxiliaryFunctionsDict
 
 
 @lru_cache(maxsize=200000)
@@ -115,6 +115,8 @@ class Network:
         Radiation field object; ``None`` when no radiation bands are specified.
     mass_dict : dict[str, ElementProps]
         Element mass dictionary used during species construction.
+    spec : NetworkSpec
+        The normalized construction parameters this network was built from.
     """
 
     #: Valid temperature cutoff behaviours for rate expressions.
@@ -140,7 +142,10 @@ class Network:
         Parameters
         ----------
         fname : str | Path
-            Path to the network file.  Supported extensions: any text format
+            Path to the network file, or the name of a predefined network (a
+            sub-directory of :data:`~jaff.config.NETWORKS_DIR` containing a
+            single ``.jet`` file).  A predefined network name wins over a
+            same-named path on disk.  Supported extensions: any text format
             auto-detected by ``NetworkParser``, plus ``.jaff`` binary files.
         errors : bool, optional
             If ``True``, treat conservation violations and duplicate reactions
@@ -181,39 +186,39 @@ class Network:
         Raises
         ------
         FileNotFoundError
-            If *fname* does not exist.
+            If *fname* is neither an existing file nor a predefined network
+            name, or a predefined network directory has no ``.jet`` file.
+        ParserError
+            If a predefined network directory has more than one ``.jet`` file.
         """
         self.logger: logging.Logger = JaffLogger().get_logger()
 
-        if isinstance(fname, str):
-            fname = Path(fname)
-
-        fname = fname.resolve()
-        if not fname.exists():
-            raise FileNotFoundError(fname)
+        self.spec: NetworkSpec = NetworkSpec(
+            fname,
+            config,
+            errors,
+            label,
+            funcfile,
+            replace_nH,
+            rad_bands,
+            rad_powerlaw_index,
+            rad_energy_density,
+            c,
+            _from_cli,
+            _metadata,
+        )
 
         jaff_props: JaffProps = {}  # type: ignore
-        loaded_from_jaff_file = is_jaff_file(fname)
+        loaded_from_jaff_file = is_jaff_file(self.spec.fname)
         if loaded_from_jaff_file:
-            jaff_props = from_jaff_file(fname, errors)
-
-        self.filename: Path = jaff_props.get("file_name", fname)
-        self.label = jaff_props.get("label", label or self.filename.stem)
+            jaff_props = from_jaff_file(self.spec.fname, errors)
+            self.spec.fname = jaff_props.get("file_name", self.spec.fname)
+        # Finalize the label: a ``.jaff`` payload label wins, else the supplied
+        # label, else the file stem.
+        self.spec.label = jaff_props.get("label", label or self.spec.fname.stem)
         if not _from_cli:
             print(motd())
 
-        self._metadata: dict[str, Any] = _metadata
-        if not isinstance(funcfile, (bool, str, Path)):
-            raise ParserError(f"funcfile accepts True/False/str/Path, got {funcfile!r}")
-        # True: scan the network directory.  False: skip.  Path: use as given.
-        self._funcfile: bool | Path = (
-            funcfile if isinstance(funcfile, bool) else Path(funcfile)
-        )
-        self._config_file: None | Path = (
-            Path(config) if isinstance(config, str) else config
-        )
-        self._config: dict[str, Any] = {}
-        self._replace_nH: bool = replace_nH
         self.mass_dict: dict[str, ElementProps] = {}
         self.species: Species = Species()
         self.reactions: Reactions = Reactions()
@@ -232,15 +237,14 @@ class Network:
         self.__element_sums: dict[str, Expr | None] = {}
         self.__tgas_clamp_cache: dict[tuple[float | None, float | None], Expr] = {}
 
-        self.logger.info(f"Loading network from {fname}")
+        self.logger.info(f"Loading network from {self.spec.fname}")
         self.logger.info(f"Network label: [yellow]{self.label}[/]")
 
         self.mass_dict: dict[str, ElementProps] = load_mass_dict()
         Species.configure(self.mass_dict)
 
-        self.__load_config()
         if not loaded_from_jaff_file:
-            self.__load_network(fname, replace_nH)
+            self.__load_network()
         else:
             self.__load_network_from_jaff_file(jaff_props)
         self.__normalize_network_extras(replace_nH)
@@ -256,20 +260,20 @@ class Network:
 
         self.logger.info("[green]Network loaded successfully![/]")
 
-    def __load_network(
-        self,
-        fname,
-        replace_nH,
-    ):
-        """Parse the network file and build species, reactions, and auxiliary quantities.
+    @cached_property
+    def filename(self) -> Path:
+        """Absolute path to the source network file (from :attr:`spec`)."""
+        return self.spec.fname
 
-        Parameters
-        ----------
-        fname : Path
-            Resolved path to the network file.
-        replace_nH : bool
-            When ``True``, expand ``nh`` to a sum over H-bearing species.
-        """
+    @property
+    def label(self) -> str:
+        """Human-readable label for this network (from :attr:`spec`)."""
+        # Finalized to a non-None value in __init__ (label or file stem).
+        assert self.spec.label is not None
+        return self.spec.label
+
+    def __load_network(self):
+        """Parse the network file and build species, reactions, and auxiliary quantities."""
         specie_names = set()
         special_species: dict[str, Specie] = {}
         free_symbols = set()
@@ -279,15 +283,16 @@ class Network:
         n_photo = 0
         tgas = symbols("tgas")
         default_tcutoff: str = "clip"
-        reactions_config: dict = self._config.get("reactions", {})
-        reaction_props: dict = self._metadata.get("reaction_props", {})
-        jaff_global_tcutoff = self._config.get("rates", {}).get("T_cutoff")
-        jaffgen_global_tcutoff = self._metadata.get("rate_props", {}).get("T_cutoff")
+        config = self.spec.config
+        reactions_config: dict = config.get("reactions", {})
+        reaction_props: dict = self.spec._metadata.get("reaction_props", {})
+        jaff_global_tcutoff = config.get("rates", {}).get("T_cutoff")
+        jaffgen_global_tcutoff = self.spec._metadata.get("rate_props", {}).get("T_cutoff")
 
-        with NetworkParser(fname, self.logger) as netp:
+        with NetworkParser(self.spec.fname, self.logger) as netp:
             reactions_list, global_vars = netp.get_parsed()
 
-        aux_funcs = self.__read_aux_funcs()
+        aux_funcs = self.spec.aux_funcs
 
         global_vars = {
             var: resolve_dependencies(expr, {}, aux_funcs)
@@ -397,7 +402,7 @@ class Network:
                 index=i,
                 type=reaction.get("type", "unknown"),
             )
-            if "reaction_props" in self._metadata:
+            if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
 
             self.reactions.add(rea)
@@ -424,7 +429,9 @@ class Network:
 
         if "heatingcoolingrate" in aux_funcs:
             self.dEdt_other = aux_funcs["heatingcoolingrate"]["def"]
-            self.dEdt_other = self._standardize_symbols(self.dEdt_other, replace_nH)
+            self.dEdt_other = self._standardize_symbols(
+                self.dEdt_other, self.spec.replace_nH
+            )
             free_symbols |= self.free_symbols(self.dEdt_other)
             self.__detect_undefined_functions(self.dEdt_other, undef_funcs, interp_funcs)
 
@@ -483,7 +490,7 @@ class Network:
 
                 self.radiation.set_reaction_rate_coefficient(rea)
 
-    def __normalize_network_extras(self, replace_nH):
+    def __normalize_network_extras(self, replace_nH: bool):
         """Standardize convenience symbols in all rate and auxiliary expressions.
 
         Replaces shorthand symbols (``nh``, ``ne``, ``ntot``, ``n_X``, …) with
@@ -582,10 +589,10 @@ class Network:
         return rate_expr, n_photo
 
     def __parse_reaction_metadata(self, reaction: Reaction) -> None:
-        if reaction.serialized not in self._metadata["reaction_props"]:
+        if reaction.serialized not in self.spec._metadata["reaction_props"]:
             return
 
-        rprops = self._metadata["reaction_props"][reaction.serialized]
+        rprops = self.spec._metadata["reaction_props"][reaction.serialized]
         if "shielding" in rprops:
             if reaction.type != "photo":
                 raise ParserError(f"{reaction} is not a photo reaction")
@@ -599,7 +606,7 @@ class Network:
                 for k, v in shielding_props.items()
             }
             reaction._metadata["jaffgen"] = {
-                "jaffgen_object": self._metadata["jaffgen_object"]
+                "jaffgen_object": self.spec._metadata["jaffgen_object"]
             }
 
     @staticmethod
@@ -625,52 +632,6 @@ class Network:
                 interp_funcs |= {f.func.__name__}
                 continue
             undef_funcs |= {f.func.__name__}
-
-    def __read_aux_funcs(self) -> dict:
-        """Load auxiliary function file (.jfunc).
-
-        If funcfile is True, looks for <network_name>.jfunc alongside the network file.
-        Pass ``False`` to skip loading entirely.
-        """
-        if self._funcfile is False:
-            return {}
-
-        if self._funcfile is True:
-            funcfiles_list = [
-                Path(f"{self.filename}.jfunc"),
-                Path(self.filename).with_suffix(".jfunc"),
-            ]
-
-            funcfile_exists: bool = False
-            for f in funcfiles_list:
-                if f.exists():
-                    self._funcfile = f
-                    funcfile_exists = True
-                    break
-
-            if not funcfile_exists:
-                return {}
-
-        assert isinstance(self._funcfile, Path)
-
-        if not self._funcfile.exists():
-            raise FileNotFoundError(self._funcfile)
-
-        with AuxiliaryFunctionParser(self._funcfile) as afp:
-            func_dict: AuxiliaryFunctionsDict = afp.get_dict()
-
-        return func_dict
-
-    def __load_config(self) -> None:
-        if self._config_file is None:
-            valid_file = self.filename.parent / "jaff.toml"
-            if not valid_file.exists():
-                return
-
-            self._config_file = valid_file
-
-        self._config_file = self._config_file.resolve()
-        self._config = Toml(self._config_file).get_key("network") or {}
 
     def to_jaff(self, filename: str | Path):
         """Serialise this network to a binary ``.jaff`` file.

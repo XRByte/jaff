@@ -17,7 +17,7 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 **Parameters**
 
 **fname** : _str or Path_
-: Path to network file. Supported formats: KIDA, UDFA, PRIZMO, KROME, UCLCHEM, a combination of the above and the `.jaff` file (Refer to [to_jaff](to_jaff.md) for more details).
+: Path to a network file, or the name of a built-in network (a sub-directory of `networks/` containing a single `.jet` file). A built-in network name wins over a same-named path on disk. Supported formats: KIDA, UDFA, PRIZMO, KROME, UCLCHEM, a combination of the above and the `.jaff` file (Refer to [to_jaff](to_jaff.md) for more details).
 
 **config** : _str, Path, or None, optional_
 : Path to a TOML configuration file. When `None` (default), JAFF looks for `jaff.toml` in the network file's directory.
@@ -57,6 +57,7 @@ _FileNotFoundError_
 | ----------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `label`           | `str`               | Human-readable network identifier; defaults to the source file stem                                                 |
 | `filename`        | `Path`              | Resolved absolute path to the source network file                                                                   |
+| `spec`            | `NetworkSpec`       | Normalized construction parameters (resolved `fname`, parsed `config` dict, `funcfile`, `aux_funcs`, ...)           |
 | `species`         | `Species`           | Ordered catalogue of the network's core (real) species; special pseudo-species (`_PHOTON`, `_CR`, ...) are excluded |
 | `reactions`       | `Reactions`         | Ordered catalogue of all reactions in the network                                                                   |
 | `elements`        | `Elements`          | Element catalogue derived from all species; used for composition matrices                                           |

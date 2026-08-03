@@ -50,7 +50,7 @@ ruff format src/ tests/
 ruff format --check src/
 
 # Format specific file
-ruff format src/jaff/network.py
+ruff format src/jaff/core/network/network.py
 ```
 
 ## Naming Conventions

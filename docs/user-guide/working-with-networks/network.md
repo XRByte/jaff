@@ -108,6 +108,7 @@ net = Network(
 | ----------------- | ----------------- | ------------------------------------------------------------------------------- |
 | `filename`        | `Path`            | Absolute path to the source file                                                |
 | `label`           | `str`             | Network name                                                                    |
+| `spec`            | `NetworkSpec`     | Normalized construction params (resolved `fname`, parsed `config`, `aux_funcs`) |
 | `species`         | `Species`         | Ordered [`Species`](species.md) catalogue                                       |
 | `reactions`       | `Reactions`       | Ordered [`Reactions`](reactions.md) catalogue                                   |
 | `elements`        | `Elements`        | [`Elements`](elements.md) catalogue derived from the species                    |

@@ -1,9 +1,9 @@
 from jaff.core._typing._reaction import ReactionProps
 
 from . import elements, network, reaction, species
-from ._typing import ElementProps, NetworkProps
+from ._typing import ElementProps
 from .elements import Element, Elements
-from .network import Network
+from .network import Network, NetworkArgs, NetworkSpec
 from .reaction import Reaction, Reactions
 from .species import Specie, Species
 
@@ -15,7 +15,8 @@ __all__ = [
     Element,
     Elements,
     Network,
-    NetworkProps,
+    NetworkArgs,
+    NetworkSpec,
     Reaction,
     Reactions,
     Specie,
