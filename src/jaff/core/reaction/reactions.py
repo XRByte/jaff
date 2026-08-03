@@ -67,6 +67,35 @@ class Reactions(Catalogue[Reaction]):
     def __getitem__(self, key: slice) -> list[Reaction]: ...
 
     def __getitem__(self, key):
+        """Look up a reaction by serialized/verbatim string, ``(id, type)``, or index.
+
+        Several reactions may share a serialized form or verbatim string when
+        they differ only by mechanism/``type``, so string lookup is
+        *scalar-or-raise*:
+
+        * ``str`` — return the sole reaction with that serialized form (checked
+          first) or verbatim string.  Raise :exc:`KeyError` if the key is
+          ambiguous (use the ``(id, type)`` form or :meth:`all`) or absent.
+        * ``tuple`` — ``(id, type)``: return the reaction whose serialized form
+          or verbatim string is *id* and whose ``type`` is *type* (exactly one
+          must match).
+        * ``int`` / ``slice`` — positional access, delegated to the base list.
+
+        Parameters
+        ----------
+        key : str, tuple[str, str], int, or slice
+
+        Returns
+        -------
+        Reaction or list[Reaction]
+            A single ``Reaction`` for string/tuple/int keys; a list for slices.
+
+        Raises
+        ------
+        KeyError
+            If a string key is ambiguous or missing, or a tuple key does not
+            match exactly one reaction.
+        """
         if isinstance(key, tuple):
             ident, rtype = key
             group = self._by_serialized.get(ident) or self._by_prop.get(ident, [])
@@ -250,7 +279,9 @@ class Reactions(Catalogue[Reaction]):
         Parameters
         ----------
         type : str
-            One of ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``.
+            A reaction type string, e.g. ``"photo"``, ``"cosmic_ray"``,
+            ``"3_body"``, ``"unknown"``, or a grain surface-mechanism type
+            (see :class:`~jaff.core.reaction.Reaction`).
 
         Returns
         -------

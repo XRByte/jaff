@@ -23,12 +23,20 @@ Reaction types
 --------------
 The reaction type is concluded by the network-format parser and passed to the
 ``Reaction`` constructor; the ``type`` attribute holds that stored value (it no
-longer inspects the rate expression).  One of:
+longer inspects the rate expression).  The generic gas-phase types are:
 
 - ``"photo"``       — radiation-driven (photodissociation/ionisation)
 - ``"cosmic_ray"``  — cosmic-ray driven
 - ``"3_body"``      — three-body reaction
 - ``"unknown"``     — unclassified
+
+Grain/ice networks (e.g. UCLCHEM) additionally classify by surface mechanism:
+``"freeze"``, ``"desorption_thermal"``, ``"desorption_cr"``,
+``"desorption_uvcr"``, ``"desorption_h2"``, ``"eley_rideal"``,
+``"eley_rideal_desorption"``, ``"langmuir_hinshelwood"``,
+``"langmuir_hinshelwood_desorption"``, ``"h2_formation"``, ``"bulk_swap"``,
+``"surface_swap"``.  The set is open-ended: any string a parser supplies is
+stored verbatim.  See the UCLCHEM parser README for that format's mapping.
 """
 
 from __future__ import annotations
@@ -77,6 +85,14 @@ class Reaction:
     tmax : float or None
         Maximum gas temperature at which the rate is valid (Kelvin).
         ``None`` means no upper bound.
+    t_cutoff : str
+        Out-of-range behaviour for a piecewise (multi-segment) rate:
+        ``"clip"`` holds the boundary value, otherwise the outermost segment
+        extends unbounded.  See :class:`~jaff.core.reaction.types.RateSegments`.
+    rate_segments : RateSegments
+        Per-temperature-range rate pieces.  A single-range reaction holds one
+        segment; reactions merged across disjoint ranges accumulate several,
+        collapsed into :attr:`rate` via ``evaluate_equivalent_rate``.
     dE : Basic
         SymPy expression for the energy released per reaction event (erg).
     dRad: Basic
@@ -87,8 +103,10 @@ class Reaction:
     index : int
         Position of this reaction in the parent ``Reactions`` catalogue.
     type : str
-        Reaction type concluded by the parser (``"photo"``, ``"cosmic_ray"``,
-        ``"3_body"``, ``"unknown"``).
+        Reaction type concluded by the parser and stored verbatim.  Generic
+        gas-phase values are ``"photo"``, ``"cosmic_ray"``, ``"3_body"``,
+        ``"unknown"``; grain/ice networks add surface-mechanism types (see the
+        module docstring for the full list).
     serialized : str
         Canonical form ``"<sorted_reactants>__<sorted_products>"``.
     serialized_exploded : str
@@ -145,11 +163,14 @@ class Reaction:
             The raw network-file line that produced this reaction.
         index : int
             Zero-based position in the parent ``Reactions`` catalogue.
+        t_cutoff : str, optional
+            Out-of-range behaviour for the initial rate segment (``"clip"`` by
+            default); see the :attr:`t_cutoff` attribute.
         type : str, optional
             Reaction type as concluded by the network-format parser (e.g.
-            ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``).
-            Stored verbatim on the ``type`` attribute; defaults to
-            ``"unknown"``.
+            ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``, or a
+            grain surface-mechanism type).  Stored verbatim on the ``type``
+            attribute; defaults to ``"unknown"``.
         errors : bool, optional
             If ``True``, terminate the process on mass or charge conservation
             violations instead of merely logging a warning, by default

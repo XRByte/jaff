@@ -33,9 +33,10 @@ class Catalogue(Generic[T]):
     ----------
     items : list[T] or None, optional
         Ordered list of items.  Must be provided together with *items_dict*.
-    items_dict : dict[str, T] or None, optional
+    items_dict : dict[Any, T | list[T]] or None, optional
         Name-keyed mapping of the same items.  Must be provided together
-        with *items*.
+        with *items*.  Values may be a single item or a list of items when a
+        subclass allows several items to share one key.
     check_length : bool, optional
         If ``True`` (default), raise :exc:`ValueError` when the lengths of
         *items* and *items_dict* differ.
@@ -44,8 +45,9 @@ class Catalogue(Generic[T]):
     ----------
     _list : list[T]
         Positionally ordered list of all items.
-    _by_name : dict[str, T]
-        Primary name-to-item mapping.
+    _by_prop : dict[Any, T | list[T]]
+        Primary name-to-item mapping (values may be lists in subclasses that
+        permit key collisions).
     _by_serialized : dict[str, T]
         Secondary alias mapping (e.g. serialized names).  Populated
         externally by subclasses or application code.
@@ -82,8 +84,9 @@ class Catalogue(Generic[T]):
         ----------
         items : list[T] or None, optional
             Ordered list of items.  Must be provided together with *items_dict*.
-        items_dict : dict[str, T] or None, optional
-            Name-keyed mapping of the same items.
+        items_dict : dict[Any, T | list[T]] or None, optional
+            Name-keyed mapping of the same items (values may be lists in
+            subclasses that permit key collisions).
         check_length : bool, optional
             If ``True`` (default), raise :exc:`ValueError` when the lengths of
             *items* and *items_dict* differ.
@@ -125,7 +128,7 @@ class Catalogue(Generic[T]):
         """
         Retrieve an item by name, integer index, or slice.
 
-        Lookup priority for string keys: ``_by_name`` first, then
+        Lookup priority for string keys: ``_by_prop`` first, then
         ``_by_serialized``.
 
         Parameters
@@ -198,7 +201,7 @@ class Catalogue(Generic[T]):
         Parameters
         ----------
         item : T or str
-            If a string, checks both ``_by_name`` and ``_by_serialized``.
+            If a string, checks both ``_by_prop`` and ``_by_serialized``.
             Otherwise, checks ``_list``.
 
         Returns

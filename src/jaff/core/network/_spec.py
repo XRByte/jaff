@@ -18,13 +18,12 @@ class NetworkSpec:
 
     * ``fname`` is resolved to an absolute path (a filesystem path or a
       predefined network name; see :meth:`resolve_network_path`);
-    * ``funcfile`` is validated and coerced to ``bool`` or :class:`~pathlib.Path`;
     * ``config`` (a ``jaff.toml`` path, or auto-detected next to the network
       file) is loaded into its parsed ``[network]`` section — a dict, since
       that is what the network actually consumes.
-    * ``funcfile`` is resolved to the actual ``.jfunc`` file (scanning next to
-      the network file when ``True``) and its contents are parsed into
-      :attr:`aux_funcs`.
+    * ``funcfile`` is coerced to ``bool`` / :class:`~pathlib.Path`, then
+      resolved to the actual ``.jfunc`` file (scanning next to the network
+      file when ``True``) and its contents are parsed into :attr:`aux_funcs`.
 
     Every field is required — ``Network`` always supplies all of them, so the
     library defaults live in one place (the ``Network`` constructor signature).
@@ -36,12 +35,30 @@ class NetworkSpec:
     config : dict
         Parsed ``[network]`` section of the ``jaff.toml`` config (``{}`` when
         none is supplied or auto-detected).
+    errors : bool
+        If ``True``, conservation violations and duplicate reactions are fatal.
+    label : str or None
+        Optional human-readable label for the network.
     funcfile : bool | Path
         ``True`` to scan the network directory, ``False`` to skip, or the
         resolved path of the ``.jfunc`` file actually used.
     aux_funcs : dict
         Parsed auxiliary functions from the ``.jfunc`` file (``{}`` when none).
         Exposed for inspection/debugging.
+    replace_nH : bool
+        Whether density symbols are rewritten in terms of ``nH``.
+    rad_bands : list
+        Radiation-field band definitions.
+    rad_powerlaw_index : int | float
+        Spectral power-law index of the radiation field.
+    rad_energy_density : bool
+        Whether the radiation field is given as an energy density.
+    c : float
+        Speed of light in the unit system used by the network.
+    _from_cli : bool
+        Internal flag marking construction from the command-line interface.
+    _metadata : dict
+        Internal per-reaction/network metadata carried through construction.
     """
 
     def __init__(

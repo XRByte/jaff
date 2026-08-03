@@ -10,6 +10,23 @@ if TYPE_CHECKING:
 
 
 class RateSegments(Catalogue[RateSegment]):
+    """Ordered catalogue of a reaction's rate pieces over temperature ranges.
+
+    A reaction whose rate is defined piecewise across several disjoint
+    temperature ranges holds one :class:`RateSegment` per range, keyed by its
+    ``(tmin, tmax)`` bounds.  The pieces are collapsed into a single SymPy
+    expression by :meth:`evaluate_equivalent_rate`.
+
+    Parameters
+    ----------
+    segments : list[RateSegment]
+        Initial rate segments.
+    mode : str
+        Out-of-range behaviour.  ``"clip"`` holds the boundary rate below the
+        first / above the last range; any other value lets the outermost
+        segments extend unbounded.
+    """
+
     def __init__(self, segments: list[RateSegment], mode: str):
         _by_temp: dict[tuple[float | None, float | None], RateSegment] = {}
 
@@ -20,6 +37,19 @@ class RateSegments(Catalogue[RateSegment]):
         self.mode: str = mode
 
     def add(self, segment: RateSegment):
+        """Append a rate segment, keyed by its ``(tmin, tmax)`` range.
+
+        Parameters
+        ----------
+        segment : RateSegment
+
+        Raises
+        ------
+        ValueError
+            If *segment* is not a :class:`RateSegment`.
+        KeyError
+            If a segment with the same ``(tmin, tmax)`` range already exists.
+        """
         if not isinstance(segment, RateSegment):
             raise ValueError(f"'{segment}' must be an instance of 'RateSegment'")
 
@@ -38,6 +68,27 @@ class RateSegments(Catalogue[RateSegment]):
         return "<RateSegment Object>"
 
     def evaluate_equivalent_rate(self) -> Expr:
+        """Collapse the segments into a single SymPy ``Piecewise`` rate.
+
+        Segments must be sorted by ascending temperature (call :meth:`sort`
+        first).  Each range contributes its own rate; the gap between two
+        adjacent ranges is bridged by linear interpolation of the two bounding
+        rates.  Out-of-range behaviour follows :attr:`mode` (``"clip"`` holds
+        the boundary value, otherwise the end segments extend unbounded).
+
+        A lone segment with a temperature-independent rate, or with no proper
+        range, is returned as-is without wrapping in a ``Piecewise``.
+
+        Returns
+        -------
+        Expr
+            The equivalent rate expression in ``tgas``.
+
+        Raises
+        ------
+        ValueError
+            If adjacent segments have undefined bounds or overlapping ranges.
+        """
         tgas = symbols("tgas")
         ls = self._list
 
@@ -69,7 +120,7 @@ class RateSegments(Catalogue[RateSegment]):
 
             a = prev.tmax  # left boundary
             b = seg.tmin  # right boundary
-            # Harmonic mean
+            # Linear interpolation of the two rates across the gap [a, b].
             interp = (prev.rate * (b - tgas) + seg.rate * (tgas - a)) / (b - a)
 
             segs.append((interp, tgas < seg.tmin))
@@ -83,6 +134,13 @@ class RateSegments(Catalogue[RateSegment]):
         return Piecewise(*segs)
 
     def sort(self) -> "RateSegments":
+        """Sort the segments in place by ascending lower temperature bound.
+
+        Returns
+        -------
+        RateSegments
+            ``self``, to allow chaining (e.g. ``segs.sort().evaluate_...()``).
+        """
         self._list = sorted(self._list, key=lambda s: s.tmin)
 
         return self
