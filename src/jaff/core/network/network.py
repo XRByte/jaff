@@ -249,7 +249,7 @@ class Network:
             self.__load_network()
         else:
             self.__load_network_from_jaff_file(jaff_props)
-        self.__normalize_network_extras(replace_nH)
+        self.__normalize_network_extras(replace_nH, loaded_from_jaff_file)
 
         self.check_sink_sources(errors)
         self.check_recombinations(errors)
@@ -407,7 +407,7 @@ class Network:
                 original_string=reaction["string"],
                 index=i,
                 type=reaction.get("type", "unknown"),
-                t_cuttoff=local_tcutoff,
+                t_cutoff=local_tcutoff,
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
@@ -497,7 +497,9 @@ class Network:
 
                 self.radiation.set_reaction_rate_coefficient(rea)
 
-    def __normalize_network_extras(self, replace_nH: bool):
+    def __normalize_network_extras(
+        self, replace_nH: bool, loaded_from_jaff: bool = False
+    ):
         """Standardize convenience symbols in all rate and auxiliary expressions.
 
         Replaces shorthand symbols (``nh``, ``ne``, ``ntot``, ``n_X``, …) with
@@ -510,12 +512,21 @@ class Network:
         replace_nH : bool
             When ``True``, expand hydrogen-density shorthands to sums over
             H-bearing species.
+        loaded_from_jaff : bool, optional
+            When ``True``, the network was restored from a ``.jaff`` file whose
+            stored ``rate`` is already the final (piecewise-collapsed,
+            standardized) expression.  Re-evaluating the rate segments would
+            wrap the already-collapsed rate in a second piecewise, so the stored
+            rate is used as-is instead.
         """
         nden = self.ndens
         for r in self.reactions:
-            r.rate = self._standardize_symbols(
-                r.rate_segments.sort().evaluate_equivalent_rate(), replace_nH
+            rate = (
+                r.rate
+                if loaded_from_jaff
+                else r.rate_segments.sort().evaluate_equivalent_rate()
             )
+            r.rate = self._standardize_symbols(rate, replace_nH)
 
             dE_dt = r.dE * r.rate
             dRad_dt = r.dRad * r.rate

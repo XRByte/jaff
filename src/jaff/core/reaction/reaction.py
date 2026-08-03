@@ -120,7 +120,7 @@ class Reaction:
         dRad: Basic,
         original_string: str,
         index: int,
-        t_cuttoff: str = "clip",
+        t_cutoff: str = "clip",
         type: str = "unknown",
         errors: bool = False,
     ):
@@ -167,9 +167,9 @@ class Reaction:
         self.rate: Expr = rate
         self.tmin: float | None = tmin
         self.tmax: float | None = tmax
-        self.t_cuttoff: str = t_cuttoff
+        self.t_cutoff: str = t_cutoff
         self.rate_segments: RateSegments = RateSegments(
-            [RateSegment(rate, tmin, tmax)], t_cuttoff
+            [RateSegment(rate, tmin, tmax)], t_cutoff
         )
         self.dE: Basic = dE
         self.dRad: Basic = dRad

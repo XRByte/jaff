@@ -28,7 +28,7 @@ class RateSegments(Catalogue[RateSegment]):
             self._by_prop[tup] = segment
         else:
             raise KeyError(
-                f"A rate coefficent already exists for ({segment.tmin}, {segment.tmax}"
+                f"A rate coefficient already exists for ({segment.tmin}, {segment.tmax})"
             )
 
         self._list.append(segment)
@@ -41,46 +41,27 @@ class RateSegments(Catalogue[RateSegment]):
         tgas = symbols("tgas")
         ls = self._list
 
-        # There sholdn't be multiple reactions if rate doesn't depend on temperature
-        # Same goes if a proper temperature range is not defined
+        # No piecewise needed when the (single) segment has no temperature
+        # dependence or no proper temperature range.
         if not ls[0].rate.has(tgas) or ls[0].tmin is None or ls[0].tmax is None:
             return ls[0].rate
 
-        segs: list[tuple[Expr, Basic | bool]] = []
-        if self.count > 1:
-            segs = self._get_piecewise_rate()
-
         first = ls[0]
         last = ls[-1]
+        segs: list[tuple[Expr, Basic | bool]] = []
 
         if self.mode == "clip":
-            segs.append((last.rate.xreplace({tgas: last.tmax}), tgas > last.tmax))
-            segs.insert(0, (first.rate.xreplace({tgas: first.tmin}), tgas < first.tmin))
-        elif self.mode == "extrapolate":
-            if self.count == 1:
-                return first.rate
+            segs.append((first.rate.xreplace({tgas: first.tmin}), tgas < first.tmin))
 
-            segs[0] = (segs[0][0], tgas < first.tmax)
-            segs[-1] = (segs[-1][0], tgas > last.tmin)
+        segs.append((first.rate, tgas <= first.tmax))
 
-        return Piecewise(*segs)
-
-    def _get_piecewise_rate(self) -> list[tuple[Expr, Basic | bool]]:
-        tgas = symbols("tgas")
-        ls = self._list
-        first = ls[0]
-
-        segs: list[tuple[Expr, Basic | bool]] = [
-            (ls[0].rate, first.tmin < tgas < first.tmax)
-        ]
+        # Interpolation gaps + subsequent ranges.
         for i, seg in enumerate(ls[1:]):
             prev = ls[i]
             if prev.tmax is None or seg.tmin is None:
                 raise ValueError(
                     "Multiple temperature range reactions should have well defined temperature"
                 )
-
-            # Harmonic interpolation
             if prev.tmax > seg.tmin:
                 raise ValueError(
                     "Temperature ranges shouldn't overlap for multi-temperature range reactions"
@@ -90,14 +71,17 @@ class RateSegments(Catalogue[RateSegment]):
             rw = 1 / (seg.tmin - tgas)  # right weight
             interp = (prev.rate * lw + seg.rate * rw) / (lw + rw)
 
-            segs.extend(
-                [
-                    (interp, prev.tmax < tgas < seg.tmin),
-                    (seg.rate, seg.tmin < tgas < seg.tmax),
-                ]
-            )
+            segs.append((interp, tgas < seg.tmin))
+            segs.append((seg.rate, tgas <= seg.tmax))
 
-        return segs
+        if self.mode == "clip":
+            segs.append((last.rate.xreplace({tgas: last.tmax}), True))
+        else:
+            segs[-1] = (segs[-1][0], True)
 
-    def sort(self):
+        return Piecewise(*segs)
+
+    def sort(self) -> "RateSegments":
         self._list = sorted(self._list, key=lambda s: s.tmin)
+
+        return self
