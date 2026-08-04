@@ -151,15 +151,21 @@ class TestNetworkEdgeCases:
 
     def test_large_number_of_reactions(self):
         """Test performance with moderately large reaction networks."""
-        # Create a network with many reactions using valid chemical species
+        # 50 *distinct* reactions (identical reactions would collapse under the
+        # duplicate-resolution policy, so build unique species pairs instead).
+        import itertools
+
+        elements = [
+            "H", "He", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al",
+            "Si", "P", "S", "Cl", "Ar", "K",
+        ]
+        pairs = list(itertools.combinations(elements, 2))[:50]
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".dat", delete=False) as f:
             f.write("# Large network file\n")
 
-            # Generate 50 reactions with simple chemistry
-            for i in range(50):
-                f.write(
-                    f"H + H -> H2 [10,1000] 1e-{10 + i % 5}\n"
-                )  # Allow duplicates for this test
+            for a, b in pairs:
+                f.write(f"{a} + {b} -> {a}{b} [10,1000] 1e-10\n")
 
             temp_file = f.name
 

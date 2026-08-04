@@ -74,8 +74,14 @@ class RateSegments(Catalogue[RateSegment]):
         rates.  Out-of-range behaviour follows :attr:`mode` (``"clip"`` holds
         the boundary value, otherwise the end segments extend unbounded).
 
-        A lone segment with a temperature-independent rate, or with no proper
-        range, is returned as-is without wrapping in a ``Piecewise``.
+        A lone segment with a temperature-independent rate, or one that is fully
+        unbounded (no ``tmin`` *and* no ``tmax``, i.e. valid at every
+        temperature), is returned as-is without wrapping in a ``Piecewise``.
+
+        Under ``"clip"`` each **defined** outer bound is held independently: a
+        range open on one side (e.g. ``tmin`` set, ``tmax`` ``None``) clamps its
+        closed side and extrapolates the open side.  Interior bounds of a
+        multi-range rate must always be defined.
 
         Returns
         -------
@@ -89,22 +95,30 @@ class RateSegments(Catalogue[RateSegment]):
         """
         tgas = symbols("tgas")
         ls = self._list
-
-        # No piecewise needed when the (single) segment has no temperature
-        # dependence or no proper temperature range.
-        if not ls[0].rate.has(tgas) or ls[0].tmin is None or ls[0].tmax is None:
-            return ls[0].rate
-
         first = ls[0]
         last = ls[-1]
+
+        # No piecewise needed when the rate has no temperature dependence, or a
+        # lone segment is fully unbounded (valid at every temperature).
+        if not first.rate.has(tgas):
+            return first.rate
+        if len(ls) == 1 and first.tmin is None and first.tmax is None:
+            return first.rate
+
+        def _body(seg: RateSegment) -> tuple[Expr, Basic | bool]:
+            cond: Basic | bool = True if seg.tmax is None else tgas < seg.tmax
+            return (seg.rate, cond)
+
         segs: list[tuple[Expr, Basic | bool]] = []
 
-        if self.mode == "clip":
+        # Lower edge: hold the boundary rate below tmin (clip, when a lower
+        # bound exists); an open lower end just extrapolates.
+        if self.mode == "clip" and first.tmin is not None:
             segs.append((first.rate.xreplace({tgas: first.tmin}), tgas < first.tmin))
 
-        segs.append((first.rate, tgas < first.tmax))
+        segs.append(_body(first))
 
-        # Interpolation gaps + subsequent ranges.
+        # Interpolation gaps + subsequent ranges (interior bounds must exist).
         for i, seg in enumerate(ls[1:]):
             prev = ls[i]
             if prev.tmax is None or seg.tmin is None:
@@ -122,9 +136,11 @@ class RateSegments(Catalogue[RateSegment]):
             interp = (prev.rate * (b - tgas) + seg.rate * (tgas - a)) / (b - a)
 
             segs.append((interp, tgas < seg.tmin))
-            segs.append((seg.rate, tgas < seg.tmax))
+            segs.append(_body(seg))
 
-        if self.mode == "clip":
+        # Upper edge: hold the boundary rate above tmax (clip, when an upper
+        # bound exists); otherwise the last segment extends unbounded.
+        if self.mode == "clip" and last.tmax is not None:
             segs.append((last.rate.xreplace({tgas: last.tmax}), True))
         else:
             segs[-1] = (segs[-1][0], True)

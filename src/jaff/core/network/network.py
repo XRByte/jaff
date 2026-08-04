@@ -259,7 +259,6 @@ class Network:
         self.check_sink_sources(errors)
         self.check_recombinations(errors)
         self.check_isomers(errors)
-        self.check_unique_reactions(errors)
 
         self.__generate_reaction_matrices()
 
@@ -365,10 +364,10 @@ class Network:
             if (srxn, rtype) in self.reactions:
                 rea = self.reactions[srxn, rtype]
                 if (tmin, tmax) in rea.rate_segments._by_prop:
-                    if self.spec.duplicate_policy == "preserve-first":
-                        continue
-                    elif self.spec.duplicate_policy == "error":
-                        existing = rea.rate_segments._by_prop[(tmin, tmax)]
+                    # Same reaction, mechanism, and temperature range with a
+                    # second rate coefficient — resolved per duplicate_policy.
+                    existing = rea.rate_segments._by_prop[(tmin, tmax)]
+                    if self.spec.duplicate_policy == "error":
                         raise ParserError(
                             f"Duplicate reaction: {rea.verbatim} [type={rtype}] "
                             f"has two rate coefficients over the same temperature "
@@ -379,6 +378,21 @@ class Network:
                             "temperature range cannot be resolved automatically. "
                             "Deduplicate the source network."
                         )
+
+                    kept, dropped = (
+                        (existing.rate, rate_expr)
+                        if self.spec.duplicate_policy == "preserve-first"
+                        else (rate_expr, existing.rate)
+                    )
+                    self.logger.warning(
+                        f"Duplicate rate for [cyan]{rea.verbatim}[/] "
+                        f"[type={rtype}] over T=({tmin}, {tmax}) resolved by "
+                        f"policy '{self.spec.duplicate_policy}': kept {kept}, "
+                        f"dropped {dropped}"
+                    )
+                    if self.spec.duplicate_policy == "preserve-first":
+                        continue
+                    # "preserve-last": fall through; add() replaces the segment.
 
                 rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
                 continue
@@ -884,44 +898,6 @@ class Network:
 
         if has_errors and errors:
             self.logger.error("Isomer errors found")
-            sys.exit(1)
-
-    def check_unique_reactions(self, errors):
-        """Warn if duplicate reactions (same species, same type, same T range) are found.
-
-        Two reactions are considered true duplicates when their serialized
-        forms match, their temperature ranges are identical, they have the
-        same reaction type, and they are not merely isomer variants of each
-        other.
-
-        Parameters
-        ----------
-        errors : bool
-            If ``True``, call ``sys.exit(1)`` when duplicates are detected.
-        """
-        has_duplicates = False
-        buckets: dict[str, list] = {}
-        for rea in self.reactions:
-            buckets.setdefault(rea.serialized, []).append(rea)
-
-        for group in buckets.values():
-            if len(group) < 2:
-                continue
-            for i, rea1 in enumerate(group):
-                for rea2 in group[i + 1 :]:
-                    if rea1.tmin != rea2.tmin or rea1.tmax != rea2.tmax:
-                        continue
-                    if rea1.is_isomer_version(rea2):
-                        continue
-                    if rea1.type != rea2.type:
-                        continue
-                    self.logger.warning(
-                        f"Duplicate reaction found: [cyan]{rea1.get_verbatim()}[/]"
-                    )
-                    has_duplicates = True
-
-        if has_duplicates and errors:
-            self.logger.error("Duplicate reactions found")
             sys.exit(1)
 
     @cached_property

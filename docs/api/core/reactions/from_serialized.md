@@ -8,11 +8,12 @@ tags:
 
 `#!python from_serialized(serialized)`
 
-Return **all** reactions sharing a name-level serialized form. Several reactions
-can share one serialized form when they differ only by mechanism/`type` (e.g.
-thermal vs cosmic-ray desorption), so a list is always returned. Use
-[`all`](all.md) for the non-raising variant, or index with `(serialized, type)`
-to pick one.
+Return **all** reactions sharing a name-level serialized form, always as a list.
+Several reactions can share one serialized form when they differ only by
+mechanism/`type` (e.g. thermal vs cosmic-ray desorption). For scalar-or-list
+ergonomics, index the catalogue directly (`reactions[serialized]`); for a
+non-raising `Vector`, use [`all`](all.md); to pick one, index with
+`(serialized, type)`.
 
 **Parameters**
 

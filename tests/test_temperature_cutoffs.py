@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from sympy import Max, symbols
+from sympy import Piecewise, symbols
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -17,8 +17,10 @@ from jaff.errors import ParserError
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
 KIDA = os.path.join(FIXTURES, "sample_kida.dat")
 
-# Unique, tgas-dependent reaction in sample_kida.dat.  Under the default "clip"
-# behaviour its rate carries a Max(tmin, tgas) clamp; "extrapolate" removes it.
+# Unique, tgas-dependent reaction in sample_kida.dat (bounded below at tmin,
+# open above).  Under the default "clip" behaviour its rate is wrapped in a
+# Piecewise that holds the boundary value below tmin; "extrapolate" removes the
+# wrapper and returns the bare rate.
 RXN = "H+.H2__H.H2+"
 
 
@@ -35,8 +37,13 @@ def _load(config=None, metadata=None):
 
 
 def _is_clipped(net, srxn=RXN):
-    """True when the reaction's rate still carries the tgas clamp (clip)."""
-    return net.reactions.from_serialized(srxn).rate.has(Max)
+    """True when the reaction's rate still carries the boundary clamp (clip).
+
+    ``RXN`` is a single, half-open range, so under "clip" the rate becomes a
+    ``Piecewise`` (boundary hold below tmin) and under "extrapolate" it collapses
+    back to the bare rate expression.
+    """
+    return net.reactions[srxn].rate.has(Piecewise)
 
 
 def _write_toml(tmp_path, body):
@@ -51,7 +58,7 @@ class TestTemperatureCutoffResolution:
     def test_default_is_clip(self):
         # No config, no metadata -> built-in default clamps tgas.
         assert _is_clipped(_load()) is True
-        assert symbols("tgas") in _load().reactions.from_serialized(RXN).rate.free_symbols
+        assert symbols("tgas") in _load().reactions[RXN].rate.free_symbols
 
     def test_jafftoml_global_extrapolate(self, tmp_path):
         cfg = _write_toml(tmp_path, '[network.rates]\nT_cutoff = "extrapolate"\n')

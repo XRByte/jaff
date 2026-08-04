@@ -58,7 +58,10 @@ class Reactions(Catalogue[Reaction]):
         self._by_serialized = _by_serialized
 
     @overload
-    def __getitem__(self, key: str | SupportsIndex) -> Reaction: ...
+    def __getitem__(self, key: str) -> Reaction | list[Reaction]: ...
+
+    @overload
+    def __getitem__(self, key: SupportsIndex) -> Reaction: ...
 
     @overload
     def __getitem__(self, key: tuple[str, str]) -> Reaction: ...
@@ -71,11 +74,14 @@ class Reactions(Catalogue[Reaction]):
 
         Several reactions may share a serialized form or verbatim string when
         they differ only by mechanism/``type``, so string lookup is
-        *scalar-or-raise*:
+        *scalar-or-list*:
 
-        * ``str`` — return the sole reaction with that serialized form (checked
-          first) or verbatim string.  Raise :exc:`KeyError` if the key is
-          ambiguous (use the ``(id, type)`` form or :meth:`all`) or absent.
+        * ``str`` — the reactions with that serialized form (checked first) or
+          verbatim string.  Returns the sole :class:`Reaction` when the key is
+          unique, or a ``list`` of reactions when several mechanisms share it.
+          Raise :exc:`KeyError` when the key is absent.  Use the ``(id, type)``
+          form to always pick one, or :meth:`all` / :meth:`from_serialized` for
+          an always-collection result.
         * ``tuple`` — ``(id, type)``: return the reaction whose serialized form
           or verbatim string is *id* and whose ``type`` is *type* (exactly one
           must match).
@@ -88,13 +94,14 @@ class Reactions(Catalogue[Reaction]):
         Returns
         -------
         Reaction or list[Reaction]
-            A single ``Reaction`` for string/tuple/int keys; a list for slices.
+            A single ``Reaction`` for a unique string, tuple, or int key; a
+            list for an ambiguous string key or a slice.
 
         Raises
         ------
         KeyError
-            If a string key is ambiguous or missing, or a tuple key does not
-            match exactly one reaction.
+            If a string key is missing, or a tuple key does not match exactly
+            one reaction.
         """
         if isinstance(key, tuple):
             ident, rtype = key
@@ -108,16 +115,11 @@ class Reactions(Catalogue[Reaction]):
 
         if isinstance(key, str):
             # Serialized form first, then verbatim string; both map to a list.
+            # Unwrap to a scalar when unique, else hand back the whole group.
             for index in (self._by_serialized, self._by_prop):
                 group = index.get(key)
                 if group is not None:
-                    if len(group) > 1:
-                        raise KeyError(
-                            f"{key!r} ambiguous ({len(group)} mechanisms); "
-                            f"use reactions[{key!r}, type] or .all({key!r})"
-                        )
-
-                    return group[0]
+                    return group[0] if len(group) == 1 else group
 
             raise KeyError(f"{key!r} not found in catalogue")
 
@@ -179,7 +181,9 @@ class Reactions(Catalogue[Reaction]):
 
         A serialized form (species-only) can be shared by several reactions
         that differ by mechanism/``type`` (e.g. thermal vs cosmic-ray
-        desorption).  All matching reactions are returned.
+        desorption).  All matching reactions are returned as a list, whatever
+        the count.  For scalar-or-list ergonomics use ``reactions[serialized]``;
+        for a non-raising ``Vector`` use :meth:`all`.
 
         Parameters
         ----------
@@ -189,6 +193,11 @@ class Reactions(Catalogue[Reaction]):
         Returns
         -------
         list[Reaction]
+
+        Raises
+        ------
+        KeyError
+            If no reaction has that serialized form.
         """
         return self._by_serialized[serialized]
 
