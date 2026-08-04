@@ -39,6 +39,9 @@ class RateSegments(Catalogue[RateSegment]):
     def add(self, segment: RateSegment):
         """Append a rate segment, keyed by its ``(tmin, tmax)`` range.
 
+        If a segment already exists for the same ``(tmin, tmax)`` range it is
+        replaced by *segment*.
+
         Parameters
         ----------
         segment : RateSegment
@@ -47,20 +50,15 @@ class RateSegments(Catalogue[RateSegment]):
         ------
         ValueError
             If *segment* is not a :class:`RateSegment`.
-        KeyError
-            If a segment with the same ``(tmin, tmax)`` range already exists.
         """
         if not isinstance(segment, RateSegment):
             raise ValueError(f"'{segment}' must be an instance of 'RateSegment'")
 
         tup = (segment.tmin, segment.tmax)
-        if tup not in self._by_prop:
-            self._by_prop[tup] = segment
-        else:
-            raise KeyError(
-                f"A rate coefficient already exists for ({segment.tmin}, {segment.tmax})"
-            )
+        if tup in self._by_prop:
+            self._list.remove(self._by_prop[tup])
 
+        self._by_prop[tup] = segment
         self._list.append(segment)
         self.count = len(self._list)
 

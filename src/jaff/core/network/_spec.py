@@ -61,6 +61,8 @@ class NetworkSpec:
         Internal per-reaction/network metadata carried through construction.
     """
 
+    DUPLICATE_POLICIES = ["preserve-first", "preserve-last", "error"]
+
     def __init__(
         self,
         fname: str | Path,
@@ -68,6 +70,7 @@ class NetworkSpec:
         errors: bool,
         label: str | None,
         funcfile: bool | str | Path,
+        duplicate_policy: str,
         replace_nH: bool,
         rad_bands: list,
         rad_powerlaw_index: int | float,
@@ -87,9 +90,14 @@ class NetworkSpec:
         self.funcfile: bool | Path = (
             funcfile if isinstance(funcfile, bool) else Path(funcfile)
         )
+        if duplicate_policy not in self.DUPLICATE_POLICIES:
+            raise ValueError(
+                f"Invalid duplicate policy: {duplicate_policy}\n"
+                f"Valid duplicate policies are {', '.join(self.DUPLICATE_POLICIES)}"
+            )
+        self.duplicate_policy: str = duplicate_policy
         # Resolves funcfile to the actual .jfunc path (when True) and parses it.
         self.aux_funcs: dict = self._load_aux_funcs()
-
         self.replace_nH: bool = replace_nH
         self.rad_bands: list = rad_bands
         self.rad_powerlaw_index: int | float = rad_powerlaw_index

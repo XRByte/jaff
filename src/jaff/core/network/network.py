@@ -127,6 +127,7 @@ class Network:
         errors: bool = False,
         label: str | None = None,
         funcfile: bool | str | Path = True,
+        duplicate_policy: str = "preserve-first",  # preserve-first, preserve-last, error
         replace_nH: bool = True,
         rad_bands: list[str | int | float | Basic] = [],
         rad_powerlaw_index: int | float = 0,
@@ -197,6 +198,7 @@ class Network:
             errors,
             label,
             funcfile,
+            duplicate_policy,
             replace_nH,
             rad_bands,
             rad_powerlaw_index,
@@ -356,17 +358,20 @@ class Network:
             if (srxn, rtype) in self.reactions:
                 rea = self.reactions[srxn, rtype]
                 if (tmin, tmax) in rea.rate_segments._by_prop:
-                    existing = rea.rate_segments._by_prop[(tmin, tmax)]
-                    raise ParserError(
-                        f"Duplicate reaction: {rea.verbatim} [type={rtype}] "
-                        f"has two rate coefficients over the same temperature "
-                        f"range ({tmin}, {tmax}):\n"
-                        f"  existing: {existing.rate}\n"
-                        f"  new:      {rate_expr}\n"
-                        "Same reaction, same mechanism and overlapping "
-                        "temperature range cannot be resolved automatically. "
-                        "Deduplicate the source network."
-                    )
+                    if self.spec.duplicate_policy == "preserve-first":
+                        continue
+                    elif self.spec.duplicate_policy == "error":
+                        existing = rea.rate_segments._by_prop[(tmin, tmax)]
+                        raise ParserError(
+                            f"Duplicate reaction: {rea.verbatim} [type={rtype}] "
+                            f"has two rate coefficients over the same temperature "
+                            f"range ({tmin}, {tmax}):\n"
+                            f"  existing: {existing.rate}\n"
+                            f"  new:      {rate_expr}\n"
+                            "Same reaction, same mechanism and overlapping "
+                            "temperature range cannot be resolved automatically. "
+                            "Deduplicate the source network."
+                        )
 
                 rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
                 continue
