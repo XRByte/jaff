@@ -127,7 +127,7 @@ class Network:
         errors: bool = False,
         label: str | None = None,
         funcfile: bool | str | Path = True,
-        duplicate_policy: str = "preserve-first",  # preserve-first, preserve-last, error
+        duplicate_policy: str | None = None,  # preserve-first, preserve-last, error
         replace_nH: bool = True,
         rad_bands: list[str | int | float | Basic] = [],
         rad_powerlaw_index: int | float = 0,
@@ -163,6 +163,13 @@ class Network:
             (default), JAFF scans the network's directory for
             ``<network>.jfunc``.  Pass ``False`` to skip auxiliary-function
             loading entirely.
+        duplicate_policy : str | None, optional
+            How to resolve two rate coefficients sharing a reaction, mechanism,
+            and temperature range: ``"preserve-first"`` (keep the first, drop
+            later duplicates), ``"preserve-last"`` (keep the last), or
+            ``"error"`` (raise a ``ParserError``).  When ``None`` (default),
+            JAFF reads the network ``jaff.toml`` ``[network].duplicate_policy``
+            key, falling back to ``"preserve-first"``.
         replace_nH : bool, optional
             When ``True`` (default), the shorthand symbol ``nh`` (and ``n_H``,
             ``n_He``) in rate expressions is expanded to a sum of

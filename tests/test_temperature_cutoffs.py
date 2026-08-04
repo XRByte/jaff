@@ -121,6 +121,7 @@ class TestJaffgenWiring:
             replace_nH=None,
             errors=None,
             network_config=network_config,
+            duplicate_policy=None,
             lang=None,
         )
         return jg, JaffGen

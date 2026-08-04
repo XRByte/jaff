@@ -45,7 +45,7 @@ from ...config import TEMPLATES_DIR, predefined_templates
 from ...drivers import Toml
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
-from .._helper import funcfile_arg
+from .._helper import DuplicatePolicy, funcfile_arg
 from ._structs import DEFAULT_OUTPUT, ResolvedPath, State
 
 
@@ -249,6 +249,8 @@ class JaffGen:
             sn.replace_nH = v
         if (v := np.get("funcfile")) is not None:
             sn.funcfile = v
+        if (v := np.get("duplicate_policy")) is not None:
+            sn.duplicate_policy = v
 
         nr = np.get("radiation") or {}
         if nr:
@@ -477,6 +479,8 @@ class JaffGen:
             sn.replace_nH = a.replace_nH
         if a.errors is not None:
             sn.errors = a.errors
+        if a.duplicate_policy is not None:
+            sn.duplicate_policy = a.duplicate_policy
         if a.network_config is not None:
             ncfg = Path(a.network_config).resolve()
             if not ncfg.is_file():
@@ -617,6 +621,7 @@ class JaffGen:
             errors=sn.errors,
             label=sn.label,
             funcfile=sn.funcfile,
+            duplicate_policy=sn.duplicate_policy,
             replace_nH=sn.replace_nH,
             rad_bands=sn.rad_bands,
             rad_powerlaw_index=sn.rad_powerlaw_index,
@@ -747,6 +752,14 @@ def generate(
         metavar="FILE",
         help="Path to auxiliary function file. Checks network dir for <network_name>.jfunc by default ('true'). Pass 'false' to skip",
     ),
+    duplicate_policy: Optional[DuplicatePolicy] = typer.Option(
+        None,
+        "--duplicate-policy",
+        metavar="POLICY",
+        help="How to resolve duplicate rate coefficients over the same "
+        "temperature range: preserve-first, preserve-last, or error. "
+        "Overrides jaffgen.toml and the network jaff.toml; defaults to preserve-first",
+    ),
     replace_nh: Optional[bool] = typer.Option(
         None,
         "--replace-nH/--no-replace-nH",
@@ -828,6 +841,7 @@ def generate(
         label=label,
         # Map "true"/"false" onto booleans, matching the old argparse type.
         funcfile=funcfile_arg(funcfile) if funcfile is not None else None,
+        duplicate_policy=duplicate_policy.value if duplicate_policy is not None else None,
         replace_nH=replace_nh,
         errors=errors,
         network_config=network_config,

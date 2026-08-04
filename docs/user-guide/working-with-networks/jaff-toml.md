@@ -7,8 +7,8 @@ tags:
 # Network Configuration (`jaff.toml`)
 
 A `jaff.toml` carries **network-scoped** settings that belong to a network
-rather than to a code-generation run — currently the per-reaction and global
-**temperature-cutoff** behaviour. It lives alongside the network file and is
+rather than to a code-generation run — the per-reaction and global
+**temperature-cutoff** behaviour and the **duplicate policy**. It lives alongside the network file and is
 independent of [`jaffgen.toml`](../code-generation/jaffgen-toml.md), which
 configures the `jaffgen` pipeline.
 
@@ -89,3 +89,32 @@ A **per-reaction** setting always wins over any **global** one; within the same
 scope, `jaffgen.toml` overrides `jaff.toml`. In short: `jaffgen.toml` lets a
 particular code-generation run override the network's own defaults, without
 editing `jaff.toml`.
+
+---
+
+## Duplicate policy
+
+When two rate coefficients share the same reaction, mechanism (`type`), **and**
+temperature range `[Tmin, Tmax]`, `duplicate_policy` decides how the clash is
+resolved during network construction:
+
+| Policy           | Behaviour                                                     |
+| ---------------- | ------------------------------------------------------------ |
+| `preserve-first` | Keep the first coefficient seen; drop later duplicates (default) |
+| `preserve-last`  | Keep the last coefficient seen; discard earlier ones         |
+| `error`          | Raise a `ParserError` — the clash must be fixed in the source network |
+
+```toml
+[network]
+duplicate_policy = "preserve-last"
+```
+
+Resolution order (highest wins):
+
+1. `--duplicate-policy` CLI flag (`jaffgen` / `jaffx`)
+2. `jaffgen.toml` `[network].duplicate_policy` (`jaffgen` only)
+3. `jaff.toml` `[network].duplicate_policy`
+4. built-in default `preserve-first`
+
+Unlike `T_cutoff`, this is a single network-wide key — there is no per-reaction
+form.

@@ -45,6 +45,12 @@ class NetworkSpec:
     aux_funcs : dict
         Parsed auxiliary functions from the ``.jfunc`` file (``{}`` when none).
         Exposed for inspection/debugging.
+    duplicate_policy : str
+        How to resolve two rate coefficients sharing a reaction, mechanism, and
+        temperature range: ``"preserve-first"`` (keep the first, drop later
+        ones), ``"preserve-last"`` (keep the last), or ``"error"`` (raise).
+        Resolved from the constructor argument, else the network ``jaff.toml``
+        ``[network].duplicate_policy`` key, else ``"preserve-first"``.
     replace_nH : bool
         Whether density symbols are rewritten in terms of ``nH``.
     rad_bands : list
@@ -70,7 +76,7 @@ class NetworkSpec:
         errors: bool,
         label: str | None,
         funcfile: bool | str | Path,
-        duplicate_policy: str,
+        duplicate_policy: str | None,
         replace_nH: bool,
         rad_bands: list,
         rad_powerlaw_index: int | float,
@@ -90,12 +96,15 @@ class NetworkSpec:
         self.funcfile: bool | Path = (
             funcfile if isinstance(funcfile, bool) else Path(funcfile)
         )
-        if duplicate_policy not in self.DUPLICATE_POLICIES:
+        resolved_policy = (
+            duplicate_policy or self.config.get("duplicate_policy") or "preserve-first"
+        )
+        if resolved_policy not in self.DUPLICATE_POLICIES:
             raise ValueError(
-                f"Invalid duplicate policy: {duplicate_policy}\n"
+                f"Invalid duplicate policy: {resolved_policy}\n"
                 f"Valid duplicate policies are {', '.join(self.DUPLICATE_POLICIES)}"
             )
-        self.duplicate_policy: str = duplicate_policy
+        self.duplicate_policy: str = resolved_policy
         # Resolves funcfile to the actual .jfunc path (when True) and parses it.
         self.aux_funcs: dict = self._load_aux_funcs()
         self.replace_nH: bool = replace_nH

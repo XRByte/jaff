@@ -74,10 +74,11 @@ Sets `Network` constructor options.
 
 ```toml
 [network]
-label      = "GOW-2017"
-funcfile   = "networks/GOW/GOW.jfunc"
-replace_nH = true
-errors     = false
+label            = "GOW-2017"
+funcfile         = "networks/GOW/GOW.jfunc"
+replace_nH       = true
+errors           = false
+duplicate_policy = "preserve-first"
 ```
 
 | Key          | Type   | Default     | Description                                        |
@@ -86,6 +87,7 @@ errors     = false
 | `funcfile`   | `str` or `bool` | `true`      | Path to a `.jfunc` auxiliary file; `true` scans the network dir, `false` skips loading |
 | `replace_nH` | `bool` | `true`      | Expand `nh` / `nhe` shorthands in rate expressions |
 | `errors`     | `bool` | `false`     | Treat conservation violations as fatal             |
+| `duplicate_policy` | `str` | `"preserve-first"` | Resolve duplicate rate coefficients over the same temperature range: `preserve-first`, `preserve-last`, or `error`. The `--duplicate-policy` CLI flag overrides this; this in turn overrides the network `jaff.toml` `[network].duplicate_policy` |
 
 Besides these scalar keys, `[network]` also holds the subtables below
 (`radiation`, `rates`, `reactions`).

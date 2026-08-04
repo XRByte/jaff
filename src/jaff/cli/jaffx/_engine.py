@@ -44,7 +44,7 @@ import typer
 from ... import Network, NetworkArgs
 from ...common import motd
 from ...io import JaffLogger
-from .._helper import funcfile_arg
+from .._helper import DuplicatePolicy, funcfile_arg
 
 
 class JaffX:
@@ -72,6 +72,8 @@ class JaffX:
             net_args.label = args.label
         if args.replace_nh is not None:
             net_args.replace_nH = args.replace_nh
+        if args.duplicate_policy is not None:
+            net_args.duplicate_policy = args.duplicate_policy
 
         return Network(**asdict(net_args))
 
@@ -130,6 +132,7 @@ def _make_args(
     label: Optional[str] = None,
     funcfile: Optional[str] = None,
     replace_nh: Optional[bool] = None,
+    duplicate_policy: Optional[str] = None,
     tmin: Optional[float] = None,
     tmax: Optional[float] = None,
     nT: Optional[int] = None,
@@ -148,6 +151,7 @@ def _make_args(
         # Map "true"/"false" onto booleans, matching the old argparse type.
         funcfile=funcfile_arg(funcfile) if funcfile is not None else None,
         replace_nh=replace_nh,
+        duplicate_policy=duplicate_policy,
         tmin=tmin,
         tmax=tmax,
         nT=nT,
@@ -193,6 +197,14 @@ _REPLACE_NH = typer.Option(
     "--replace-nh/--no-replace-nh",
     help="Standardize hydrogen density symbols if true",
 )
+_DUP_POLICY = typer.Option(
+    None,
+    "--duplicate-policy",
+    metavar="POLICY",
+    help="How to resolve duplicate rate coefficients over the same temperature "
+    "range: preserve-first, preserve-last, or error. Overrides the network "
+    "jaff.toml; defaults to preserve-first",
+)
 _FILE = typer.Option(..., "-f", "--file", metavar="FILE", help="Output file path/name")
 
 
@@ -203,6 +215,7 @@ def _export_table_command(
     label: Optional[str],
     funcfile: Optional[str],
     replace_nh: Optional[bool],
+    duplicate_policy: Optional[str],
     tmin: Optional[float],
     tmax: Optional[float],
     nT: Optional[int],
@@ -220,6 +233,7 @@ def _export_table_command(
             label=label,
             funcfile=funcfile,
             replace_nh=replace_nh,
+            duplicate_policy=duplicate_policy,
             tmin=tmin,
             tmax=tmax,
             nT=nT,
@@ -241,6 +255,7 @@ def export_txt(
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
     replace_nh: Optional[bool] = _REPLACE_NH,
+    duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
     tmin: Optional[float] = typer.Option(
         None,
         "--tmin",
@@ -302,6 +317,7 @@ def export_txt(
         label,
         funcfile,
         replace_nh,
+        duplicate_policy.value if duplicate_policy is not None else None,
         tmin,
         tmax,
         nT,
@@ -321,6 +337,7 @@ def export_hdf5(
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
     replace_nh: Optional[bool] = _REPLACE_NH,
+    duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
     tmin: Optional[float] = typer.Option(
         None,
         "--tmin",
@@ -382,6 +399,7 @@ def export_hdf5(
         label,
         funcfile,
         replace_nh,
+        duplicate_policy.value if duplicate_policy is not None else None,
         tmin,
         tmax,
         nT,
@@ -401,11 +419,19 @@ def export_jaff(
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
     replace_nh: Optional[bool] = _REPLACE_NH,
+    duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
 ):
     """Export the network to a .jaff file (gzip-compressed JSON payload)."""
     JaffX().export_jaff(
         _make_args(
-            network, file=file, label=label, funcfile=funcfile, replace_nh=replace_nh
+            network,
+            file=file,
+            label=label,
+            funcfile=funcfile,
+            replace_nh=replace_nh,
+            duplicate_policy=duplicate_policy.value
+            if duplicate_policy is not None
+            else None,
         )
     )
 
@@ -416,10 +442,19 @@ def get_num_species(
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
     replace_nh: Optional[bool] = _REPLACE_NH,
+    duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
 ):
     """Print the number of species."""
     JaffX().get_nspec(
-        _make_args(network, label=label, funcfile=funcfile, replace_nh=replace_nh)
+        _make_args(
+            network,
+            label=label,
+            funcfile=funcfile,
+            replace_nh=replace_nh,
+            duplicate_policy=duplicate_policy.value
+            if duplicate_policy is not None
+            else None,
+        )
     )
 
 
@@ -429,10 +464,19 @@ def get_num_reactions(
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
     replace_nh: Optional[bool] = _REPLACE_NH,
+    duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
 ):
     """Print the number of reactions."""
     JaffX().get_nreact(
-        _make_args(network, label=label, funcfile=funcfile, replace_nh=replace_nh)
+        _make_args(
+            network,
+            label=label,
+            funcfile=funcfile,
+            replace_nh=replace_nh,
+            duplicate_policy=duplicate_policy.value
+            if duplicate_policy is not None
+            else None,
+        )
     )
 
 
