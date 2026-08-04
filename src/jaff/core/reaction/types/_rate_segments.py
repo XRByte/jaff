@@ -1,12 +1,7 @@
-from typing import TYPE_CHECKING
-
-from sympy import Basic, Piecewise, symbols
+from sympy import Basic, Expr, Piecewise, symbols
 
 from ....types import Catalogue
 from . import RateSegment
-
-if TYPE_CHECKING:
-    from sympy import Expr
 
 
 class RateSegments(Catalogue[RateSegment]):
