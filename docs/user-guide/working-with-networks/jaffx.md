@@ -49,6 +49,7 @@ options. These mirror the [`Network` constructor](network.md#constructor):
 | `--label`      | Override the network label (defaults to the file stem)                           |
 | `--funcfile`   | Path to a `.jfunc` auxiliary file; `true` scans the network dir (default); `false` skips loading |
 | `--replace-nh` | `--replace-nh` / `--no-replace-nh` — expand `nh`/`nhe` density shorthands        |
+| `--duplicate-policy` | Resolve duplicate rate coefficients over the same temperature range: `preserve-first` (default), `preserve-last`, or `error`. Overrides the network `jaff.toml` `[network].duplicate_policy` |
 
 ---
 

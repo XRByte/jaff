@@ -91,8 +91,8 @@ class Species(Catalogue[Specie]):
         if not isinstance(specie, Specie):
             raise ValueError(f"'{specie}' must be an instance of 'Specie'")
 
-        if specie.name not in self._by_name:
-            self._by_name[specie.name] = specie
+        if specie.name not in self._by_prop:
+            self._by_prop[specie.name] = specie
             self._by_serialized[specie.serialized] = specie
             self._list.append(specie)
             self.count = len(self._list)
@@ -150,7 +150,7 @@ class Species(Catalogue[Specie]):
         -------
         Specie
         """
-        return self._by_name[name]
+        return self._by_prop[name]
 
     def get_list(self) -> list[Specie]:
         """Return the underlying ordered list of ``Specie`` objects.

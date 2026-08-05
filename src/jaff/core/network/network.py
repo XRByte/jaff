@@ -33,8 +33,6 @@ from sympy import (
     Function,
     Idx,
     MatrixSymbol,
-    Max,
-    Min,
     parse_expr,
     symbols,
 )
@@ -55,7 +53,7 @@ from ...physics import (
 )
 from ..elements import Elements
 from ..parsers import NetworkParser
-from ..reaction import Reaction, Reactions
+from ..reaction import RateSegment, RateSegments, Reaction, Reactions
 from ..species import Specie, Species
 from ._spec import NetworkSpec
 
@@ -129,6 +127,7 @@ class Network:
         errors: bool = False,
         label: str | None = None,
         funcfile: bool | str | Path = True,
+        duplicate_policy: str | None = None,  # preserve-first, preserve-last, error
         replace_nH: bool = True,
         rad_bands: list[str | int | float | Basic] = [],
         rad_powerlaw_index: int | float = 0,
@@ -164,6 +163,13 @@ class Network:
             (default), JAFF scans the network's directory for
             ``<network>.jfunc``.  Pass ``False`` to skip auxiliary-function
             loading entirely.
+        duplicate_policy : str | None, optional
+            How to resolve two rate coefficients sharing a reaction, mechanism,
+            and temperature range: ``"preserve-first"`` (keep the first, drop
+            later duplicates), ``"preserve-last"`` (keep the last), or
+            ``"error"`` (raise a ``ParserError``).  When ``None`` (default),
+            JAFF reads the network ``jaff.toml`` ``[network].duplicate_policy``
+            key, falling back to ``"preserve-first"``.
         replace_nH : bool, optional
             When ``True`` (default), the shorthand symbol ``nh`` (and ``n_H``,
             ``n_He``) in rate expressions is expanded to a sum of
@@ -199,6 +205,7 @@ class Network:
             errors,
             label,
             funcfile,
+            duplicate_policy,
             replace_nH,
             rad_bands,
             rad_powerlaw_index,
@@ -247,12 +254,11 @@ class Network:
             self.__load_network()
         else:
             self.__load_network_from_jaff_file(jaff_props)
-        self.__normalize_network_extras(replace_nH)
+        self.__normalize_network_extras(replace_nH, loaded_from_jaff_file)
 
         self.check_sink_sources(errors)
         self.check_recombinations(errors)
         self.check_isomers(errors)
-        self.check_unique_reactions(errors)
 
         self.__generate_reaction_matrices()
 
@@ -281,7 +287,6 @@ class Network:
         interp_funcs = set()
 
         n_photo = 0
-        tgas = symbols("tgas")
         default_tcutoff: str = "clip"
         config = self.spec.config
         reactions_config: dict = config.get("reactions", {})
@@ -350,30 +355,47 @@ class Network:
                     f"valid cutoffs are: {','.join(self._valid_tcutoffs)}"
                 )
 
-            # Extrapolate if not clip
-            if local_tcutoff == "clip":
-                clamp_key = (tmin, tmax)
-                if clamp_key not in self.__tgas_clamp_cache:
-                    self.__tgas_clamp_cache[clamp_key] = (
-                        Max(Min(tgas, tmax), tmin)
-                        if tmin and tmax
-                        else Max(tgas, tmin)
-                        if tmin
-                        else Min(tgas, tmax)
-                        if tmax
-                        else tgas
-                    )
-                local_subs_dict[tgas] = self.__tgas_clamp_cache[clamp_key]
-                for sym, expr in local_subs_dict.items():
-                    if sym != tgas and expr.has(tgas):
-                        local_subs_dict[sym] = expr.xreplace(
-                            {tgas: local_subs_dict[tgas]}
-                        )
-
             rate_expr, n_photo = self.__parse_rate(
                 aux_chem_rate, rate, aux_funcs, global_vars, n_photo
             )
             rate_expr = resolve_dependencies(rate_expr, local_subs_dict, aux_funcs)
+
+            rtype = reaction.get("type", "unknown")
+            if (srxn, rtype) in self.reactions:
+                rea = self.reactions[srxn, rtype]
+                if (tmin, tmax) in rea.rate_segments._by_prop:
+                    # Same reaction, mechanism, and temperature range with a
+                    # second rate coefficient — resolved per duplicate_policy.
+                    existing = rea.rate_segments._by_prop[(tmin, tmax)]
+                    if self.spec.duplicate_policy == "error":
+                        raise ParserError(
+                            f"Duplicate reaction: {rea.verbatim} [type={rtype}] "
+                            f"has two rate coefficients over the same temperature "
+                            f"range ({tmin}, {tmax}):\n"
+                            f"  existing: {existing.rate}\n"
+                            f"  new:      {rate_expr}\n"
+                            "Same reaction, same mechanism and overlapping "
+                            "temperature range cannot be resolved automatically. "
+                            "Deduplicate the source network."
+                        )
+
+                    kept, dropped = (
+                        (existing.rate, rate_expr)
+                        if self.spec.duplicate_policy == "preserve-first"
+                        else (rate_expr, existing.rate)
+                    )
+                    self.logger.warning(
+                        f"Duplicate rate for [cyan]{rea.verbatim}[/] "
+                        f"[type={rtype}] over T=({tmin}, {tmax}) resolved by "
+                        f"policy '{self.spec.duplicate_policy}': kept {kept}, "
+                        f"dropped {dropped}"
+                    )
+                    if self.spec.duplicate_policy == "preserve-first":
+                        continue
+                    # "preserve-last": fall through; add() replaces the segment.
+
+                rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
+                continue
 
             # deltarad{i}: radiation energy emission per photon energy (eV)
             # per reaction added to the moment-0 equations at codegen time
@@ -400,7 +422,8 @@ class Network:
                 dRad=deltaRad,
                 original_string=reaction["string"],
                 index=i,
-                type=reaction.get("type", "unknown"),
+                type=rtype,
+                t_cutoff=local_tcutoff,
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
@@ -469,11 +492,18 @@ class Network:
                 dRad=reaction["dRad"],
                 tmin=reaction["tmin"],
                 tmax=reaction["tmax"],
+                t_cutoff=reaction.get("t_cutoff", "clip"),
                 original_string=reaction["original_string"],
                 index=i,
                 type=reaction.get("reaction_type", "unknown"),
             )
             rea.custom_rad_rate = reaction["custom_rad_rate"]
+            segments = reaction.get("rate_segments")
+            if segments:
+                rea.rate_segments = RateSegments(
+                    [RateSegment(s["rate"], s["tmin"], s["tmax"]) for s in segments],
+                    rea.t_cutoff,
+                )
             self.reactions.add(rea)
 
             if rea.type == "photo":
@@ -490,7 +520,9 @@ class Network:
 
                 self.radiation.set_reaction_rate_coefficient(rea)
 
-    def __normalize_network_extras(self, replace_nH: bool):
+    def __normalize_network_extras(
+        self, replace_nH: bool, loaded_from_jaff: bool = False
+    ):
         """Standardize convenience symbols in all rate and auxiliary expressions.
 
         Replaces shorthand symbols (``nh``, ``ne``, ``ntot``, ``n_X``, …) with
@@ -503,11 +535,26 @@ class Network:
         replace_nH : bool
             When ``True``, expand hydrogen-density shorthands to sums over
             H-bearing species.
+        loaded_from_jaff : bool, optional
+            When ``True``, the network was restored from a ``.jaff`` file whose
+            stored ``rate`` is already the final (piecewise-collapsed,
+            standardized) expression.  Re-evaluating the rate segments would
+            wrap the already-collapsed rate in a second piecewise, so the stored
+            rate is used as-is instead.
         """
         nden = self.ndens
         for r in self.reactions:
-            r.rate = self._standardize_symbols(r.rate, replace_nH)
+            if loaded_from_jaff:
+                r.rate = self._standardize_symbols(r.rate, replace_nH)
+            elif r.type == "photo" and self.radiation is not None:
+                r.rate = self._standardize_symbols(r.rate, replace_nH)
+                r.rate_segments[0].rate = r.rate
+            else:
+                for seg in r.rate_segments:
+                    seg.rate = self._standardize_symbols(seg.rate, replace_nH)
+                r.rate = r.rate_segments.sort().evaluate_equivalent_rate()
 
+            r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
             dE_dt = r.dE * r.rate
             dRad_dt = r.dRad * r.rate
             for s in r.reactants.core:
@@ -686,19 +733,23 @@ class Network:
         if verbosity == 1:
             self.logger.info(f"Reactions not present in {self.label}:")
             print(
-                "\n".join([str(other.reactions[rea]) for rea in not_in_self]),
+                "\n".join(
+                    str(r) for rea in not_in_self for r in other.reactions.all(rea)
+                ),
                 "\n",
             )
 
             self.logger.info(f"Reactions not present in {other.label}:")
             print(
-                "\n".join([str(self.reactions[rea]) for rea in not_in_other]),
+                "\n".join(
+                    str(r) for rea in not_in_other for r in self.reactions.all(rea)
+                ),
                 "\n",
             )
 
             self.logger.info(f"Reactions present in both {self.label} and {other.label}:")
             print(
-                "\n".join([str(self.reactions[rea]) for rea in common]),
+                "\n".join(str(r) for rea in common for r in self.reactions.all(rea)),
                 "\n",
             )
 
@@ -847,44 +898,6 @@ class Network:
 
         if has_errors and errors:
             self.logger.error("Isomer errors found")
-            sys.exit(1)
-
-    def check_unique_reactions(self, errors):
-        """Warn if duplicate reactions (same species, same type, same T range) are found.
-
-        Two reactions are considered true duplicates when their serialized
-        forms match, their temperature ranges are identical, they have the
-        same reaction type, and they are not merely isomer variants of each
-        other.
-
-        Parameters
-        ----------
-        errors : bool
-            If ``True``, call ``sys.exit(1)`` when duplicates are detected.
-        """
-        has_duplicates = False
-        buckets: dict[str, list] = {}
-        for rea in self.reactions:
-            buckets.setdefault(rea.serialized, []).append(rea)
-
-        for group in buckets.values():
-            if len(group) < 2:
-                continue
-            for i, rea1 in enumerate(group):
-                for rea2 in group[i + 1 :]:
-                    if rea1.tmin != rea2.tmin or rea1.tmax != rea2.tmax:
-                        continue
-                    if rea1.is_isomer_version(rea2):
-                        continue
-                    if rea1.type != rea2.type:
-                        continue
-                    self.logger.warning(
-                        f"Duplicate reaction found: [cyan]{rea1.get_verbatim()}[/]"
-                    )
-                    has_duplicates = True
-
-        if has_duplicates and errors:
-            self.logger.error("Duplicate reactions found")
             sys.exit(1)
 
     @cached_property

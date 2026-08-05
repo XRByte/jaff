@@ -2,6 +2,21 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
+
+class DuplicatePolicy(str, Enum):
+    """Valid ``--duplicate-policy`` values shared by the JAFF CLI tools.
+
+    Selects how two rate coefficients sharing a reaction, mechanism, and
+    temperature range are resolved during network construction (see
+    :class:`~jaff.core.network.NetworkSpec`).
+    """
+
+    preserve_first = "preserve-first"
+    preserve_last = "preserve-last"
+    error = "error"
+
 
 def funcfile_arg(value: str) -> bool | str:
     """

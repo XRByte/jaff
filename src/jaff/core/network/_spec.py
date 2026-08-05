@@ -18,13 +18,12 @@ class NetworkSpec:
 
     * ``fname`` is resolved to an absolute path (a filesystem path or a
       predefined network name; see :meth:`resolve_network_path`);
-    * ``funcfile`` is validated and coerced to ``bool`` or :class:`~pathlib.Path`;
     * ``config`` (a ``jaff.toml`` path, or auto-detected next to the network
       file) is loaded into its parsed ``[network]`` section — a dict, since
       that is what the network actually consumes.
-    * ``funcfile`` is resolved to the actual ``.jfunc`` file (scanning next to
-      the network file when ``True``) and its contents are parsed into
-      :attr:`aux_funcs`.
+    * ``funcfile`` is coerced to ``bool`` / :class:`~pathlib.Path`, then
+      resolved to the actual ``.jfunc`` file (scanning next to the network
+      file when ``True``) and its contents are parsed into :attr:`aux_funcs`.
 
     Every field is required — ``Network`` always supplies all of them, so the
     library defaults live in one place (the ``Network`` constructor signature).
@@ -36,13 +35,39 @@ class NetworkSpec:
     config : dict
         Parsed ``[network]`` section of the ``jaff.toml`` config (``{}`` when
         none is supplied or auto-detected).
+    errors : bool
+        If ``True``, conservation violations and duplicate reactions are fatal.
+    label : str or None
+        Optional human-readable label for the network.
     funcfile : bool | Path
         ``True`` to scan the network directory, ``False`` to skip, or the
         resolved path of the ``.jfunc`` file actually used.
     aux_funcs : dict
         Parsed auxiliary functions from the ``.jfunc`` file (``{}`` when none).
         Exposed for inspection/debugging.
+    duplicate_policy : str
+        How to resolve two rate coefficients sharing a reaction, mechanism, and
+        temperature range: ``"preserve-first"`` (keep the first, drop later
+        ones), ``"preserve-last"`` (keep the last), or ``"error"`` (raise).
+        Resolved from the constructor argument, else the network ``jaff.toml``
+        ``[network].duplicate_policy`` key, else ``"preserve-first"``.
+    replace_nH : bool
+        Whether density symbols are rewritten in terms of ``nH``.
+    rad_bands : list
+        Radiation-field band definitions.
+    rad_powerlaw_index : int | float
+        Spectral power-law index of the radiation field.
+    rad_energy_density : bool
+        Whether the radiation field is given as an energy density.
+    c : float
+        Speed of light in the unit system used by the network.
+    _from_cli : bool
+        Internal flag marking construction from the command-line interface.
+    _metadata : dict
+        Internal per-reaction/network metadata carried through construction.
     """
+
+    DUPLICATE_POLICIES = ["preserve-first", "preserve-last", "error"]
 
     def __init__(
         self,
@@ -51,6 +76,7 @@ class NetworkSpec:
         errors: bool,
         label: str | None,
         funcfile: bool | str | Path,
+        duplicate_policy: str | None,
         replace_nH: bool,
         rad_bands: list,
         rad_powerlaw_index: int | float,
@@ -70,9 +96,17 @@ class NetworkSpec:
         self.funcfile: bool | Path = (
             funcfile if isinstance(funcfile, bool) else Path(funcfile)
         )
+        resolved_policy = (
+            duplicate_policy or self.config.get("duplicate_policy") or "preserve-first"
+        )
+        if resolved_policy not in self.DUPLICATE_POLICIES:
+            raise ValueError(
+                f"Invalid duplicate policy: {resolved_policy}\n"
+                f"Valid duplicate policies are {', '.join(self.DUPLICATE_POLICIES)}"
+            )
+        self.duplicate_policy: str = resolved_policy
         # Resolves funcfile to the actual .jfunc path (when True) and parses it.
         self.aux_funcs: dict = self._load_aux_funcs()
-
         self.replace_nH: bool = replace_nH
         self.rad_bands: list = rad_bands
         self.rad_powerlaw_index: int | float = rad_powerlaw_index

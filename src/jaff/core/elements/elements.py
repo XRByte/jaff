@@ -221,7 +221,7 @@ class Elements(Catalogue):
         -------
         Element
         """
-        return self._by_name[symbol]
+        return self._by_prop[symbol]
 
     def get_list(self) -> list[Element]:
         """Return the underlying ordered list of ``Element`` objects.

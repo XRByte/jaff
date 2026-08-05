@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+from sympy import Piecewise, symbols
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -201,17 +202,18 @@ class TestNetworkParsers:
             network = Network(kida_file)
 
         # Check reactions have temperature limits
+        tgas = symbols("tgas")
         for reaction in network.reactions:
             assert hasattr(reaction, "tmin")
             assert hasattr(reaction, "tmax")
 
-            # Check that rate expressions have min/max applied for temperature-dependent rates
-            rate_str = str(reaction.rate)
-            if "tgas" in rate_str.lower():  # Only check temperature-dependent reactions
-                if reaction.tmin is not None and reaction.tmin > 0:
-                    assert "max" in rate_str.lower()
-                if reaction.tmax is not None and reaction.tmax > 0:
-                    assert "min" in rate_str.lower()
+            # A temperature-dependent rate with a defined bound holds that
+            # boundary value under the default "clip" cutoff, i.e. it is wrapped
+            # in a Piecewise.
+            rate = reaction.rate
+            if tgas in rate.free_symbols and reaction.t_cutoff == "clip":
+                if reaction.tmin is not None or reaction.tmax is not None:
+                    assert rate.has(Piecewise)
 
     def test_comment_and_empty_line_handling(self, fixtures_dir):
         """Test that comments and empty lines are properly handled."""

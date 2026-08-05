@@ -23,6 +23,23 @@ class KidaReaction(NetworkFormat):
         "PHOTON": "_PHOTON",
     }
 
+    #: KIDA ``itype`` -> JAFF reaction type (see the network-file header).
+    ITYPE_TYPE = {
+        1: "cosmic_ray",
+        2: "cosmic_ray",
+        3: "photo",
+        4: "two_body",
+        5: "two_body",
+        6: "radiative_association",
+        7: "associative_detachment",
+        8: "recombination",
+        9: "grain",
+        10: "special",
+    }
+
+    #: KIDA ``itype`` -> agent/catalyst pseudo-species injected as a reactant.
+    ITYPE_AGENT = {1: "_CR", 2: "_CRP", 3: "_PHOTON", 9: "_GRAIN"}
+
     @cache
     def _global_re(self, ctx: ParseContext) -> re.Pattern:
         return re.compile(r"^(?!\s*[!#@]).{34}.{57}")
@@ -35,7 +52,8 @@ class KidaReaction(NetworkFormat):
             r"\s*(?P<ka>[^\s]+)"
             r"\s*(?P<kb>[^\s]+)"
             r"\s*(?P<kc>[^\s]+)"
-            r"\s*[^\s]+\s*[^\s]+\s*[^\s]+\s*[^\s]+"
+            r"\s*[^\s]+\s*[^\s]+\s*[^\s]+"
+            r"\s*(?P<itype>[^\s]+)"
             r"\s*(?P<tmin>[^\s]+)"
             r"\s*(?P<tmax>[^\s]+)"
             r"\s*(?P<formula>[^\s]+)"
@@ -68,6 +86,7 @@ class KidaReaction(NetworkFormat):
         tmin: float = float(local.group("tmin"))
         tmax: float = float(local.group("tmax"))
         formula: int = int(local.group("formula"))
+        itype: int = int(local.group("itype"))
 
         t_min = tmin if tmin > 0 else None
         t_max = tmax if tmax < 9999.0 else None
@@ -92,10 +111,11 @@ class KidaReaction(NetworkFormat):
         rr = [self.SPECIAL_MAP.get(r, r) for r in rr]
         pp = [self.SPECIAL_MAP.get(p, p) for p in pp]
 
-        if formula == 2 and "_PHOTON" not in rr:
-            rr.append("_PHOTON")
-        elif formula == 1 and not any(cr in rr for cr in ("_CR", "_CRP", "_CRPHOT")):
-            rr.append("_CR")
+        rtype = self._reaction_type(itype, rr)
+
+        agent = self.ITYPE_AGENT.get(itype)
+        if agent is not None and not (set(rr) & {agent, "_CR", "_CRP", "_CRPHOT"}):
+            rr.append(agent)
 
         ctx.parsed_list.append(
             {
@@ -104,7 +124,7 @@ class KidaReaction(NetworkFormat):
                 "tmin": t_min,
                 "tmax": t_max,
                 "rate": rate,
-                "type": self._reaction_type(formula, rr),
+                "type": rtype,
                 "string": ctx.line.strip(),
             }
         )
@@ -114,19 +134,39 @@ class KidaReaction(NetworkFormat):
         ctx.raise_error("Invalid KIDA reaction detected")
 
     @staticmethod
-    def _reaction_type(formula: int, rr: list[str]) -> str:
-        """Conclude the reaction type from the KIDA formula index and reactants.
+    def _reaction_type(itype: int, rr: list[str]) -> str:
+        """Conclude the reaction type from the KIDA ``itype`` column.
 
-        1 = cosmic-ray, 2 = photoprocess. Otherwise a reaction with three or
-        more real (non-pseudo) reactants is three-body; else ``"unknown"``.
-        Reactant-count classification is rate-independent, so it survives
-        custom auxiliary-function rates.
+        The KIDA ``itype`` integer is the authoritative physical classification
+        (defined in the network-file header):
+
+        ===== =======================================================
+        itype meaning
+        ===== =======================================================
+        1     direct cosmic-ray ionization/dissociation
+        2     cosmic-ray-induced (secondary UV) ionization/dissociation
+        3     FUV photo-dissociation/ionization
+        4     neutral-neutral / ion-neutral
+        5     exchange
+        6     radiative association
+        7     associative detachment
+        8     recombination
+        9     grain-assisted (H2 formation, recombination)
+        10    other special
+        ===== =======================================================
+
+        A reaction with three or more real (non-pseudo) reactants is labelled
+        ``"3_body"`` regardless of ``itype``, reflecting the flux arity.
+
+        Parameters
+        ----------
+        itype : int
+            KIDA reaction-type index (1-10).
+        rr : list[str]
+            Reactant names, after ``SPECIAL_MAP`` normalization but before agent
+            pseudo-species injection.
         """
-        agent = {1: "cosmic_ray", 2: "photo"}.get(formula)
-        if agent:
-            return agent
-
         if sum(1 for r in rr if not r.startswith("_")) >= 3:
             return "3_body"
 
-        return "unknown"
+        return KidaReaction.ITYPE_TYPE.get(itype, "unknown")

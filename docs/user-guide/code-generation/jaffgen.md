@@ -66,6 +66,7 @@ appended — so the generator always wins on a path collision.
 | `--funcfile`   | Path to a `.jfunc` auxiliary file; `true` scans the network dir; `false` skips     |
 | `--replace-nH` | `--replace-nH` / `--no-replace-nH` — expand `nh`/`nhe` shorthands (default: on)    |
 | `--errors`     | `--errors` / `--no-errors` — exit on conservation violations instead of warning    |
+| `--duplicate-policy` | Resolve duplicate rate coefficients over the same temperature range: `preserve-first` (default), `preserve-last`, or `error`. Overrides `jaffgen.toml` and the network `jaff.toml` |
 
 When `--network` is a built-in network name (a sub-directory of `networks/`),
 it resolves to the single `.jet` file inside that directory — the directory

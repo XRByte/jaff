@@ -255,8 +255,12 @@ list):
 net.check_sink_sources(errors=False)     # species never produced, or never consumed
 net.check_recombinations(errors=False)   # cations lacking an electron recombination
 net.check_isomers(errors=False)          # species sharing one atomic composition
-net.check_unique_reactions(errors=False) # duplicate reactions (same species, type, T-range)
 ```
+
+Duplicate reactions (same species, mechanism/`type`, and temperature range) are
+resolved at load time by the network's
+[`duplicate_policy`](jaff-toml.md#duplicate-policy) rather than by a separate
+check.
 
 <!-- prettier-ignore -->
 !!! note "The checks report, they don't return"

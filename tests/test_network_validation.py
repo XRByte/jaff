@@ -15,6 +15,7 @@ from jaff.io import JaffLogger
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from jaff import Network, Reaction, Specie
+from jaff.errors import ParserError
 
 
 class TestNetworkValidation:
@@ -308,8 +309,8 @@ class TestNetworkValidation:
         finally:
             os.unlink(temp_file)
 
-    def test_check_unique_reactions_with_duplicates(self):
-        """Test detection of duplicate reactions."""
+    def test_duplicate_rate_warns_and_collapses(self):
+        """A same-range duplicate is collapsed at parse time with a warning."""
         # Create network with duplicate reactions
         with tempfile.NamedTemporaryFile(mode="w", suffix=".dat", delete=False) as f:
             f.write("# Network with duplicate reactions\n")
@@ -324,19 +325,20 @@ class TestNetworkValidation:
 
                 network = Network(temp_file)
 
-            # Check that duplicate warning was printed
+            # Default preserve-first collapses the pair to one reaction and
+            # warns that a duplicate rate was dropped.
+            assert network.reactions.count == 1
             duplicate_warnings = [
                 call
                 for call in mock_logger.warning.call_args_list
-                if "Duplicate reaction found" in str(call)
+                if "Duplicate rate for" in str(call)
             ]
             assert len(duplicate_warnings) > 0
         finally:
             os.unlink(temp_file)
 
-    def test_check_unique_reactions_errors_true(self):
-        """Test that errors=True causes sys.exit when duplicates detected."""
-        # Create network with duplicate reactions
+    def test_duplicate_error_policy_raises(self):
+        """duplicate_policy='error' rejects a same-range duplicate."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".dat", delete=False) as f:
             f.write("# Network with duplicate reactions\n")
             f.write("H + H -> H2 [10,1000] 1e-10\n")
@@ -345,11 +347,8 @@ class TestNetworkValidation:
 
         try:
             with patch("builtins.print"):
-                with patch("sys.exit") as mock_exit:
-                    network = Network(temp_file, errors=True)
-                    # Should call sys.exit due to duplicate reactions
-                    # May be called multiple times for different validation errors
-                    assert mock_exit.called
+                with pytest.raises(ParserError, match="Duplicate reaction"):
+                    Network(temp_file, duplicate_policy="error")
         finally:
             os.unlink(temp_file)
 
@@ -361,16 +360,12 @@ class TestNetworkValidation:
             with patch.object(Network, "check_sink_sources") as mock_sink:
                 with patch.object(Network, "check_recombinations") as mock_recomb:
                     with patch.object(Network, "check_isomers") as mock_isomers:
-                        with patch.object(
-                            Network, "check_unique_reactions"
-                        ) as mock_unique:
-                            network = Network(sample_file, errors=False)
+                        network = Network(sample_file, errors=False)
 
         # Verify all validation methods were called
         mock_sink.assert_called_once_with(False)
         mock_recomb.assert_called_once_with(False)
         mock_isomers.assert_called_once_with(False)
-        mock_unique.assert_called_once_with(False)
 
     def test_validation_with_dummy_species_ignored(self):
         """Test that dummy species are ignored in sink/source detection."""

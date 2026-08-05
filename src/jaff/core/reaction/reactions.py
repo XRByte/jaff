@@ -7,7 +7,7 @@ Reactions can be looked up by verbatim string
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, SupportsIndex, cast, overload
 
 from sympy import Basic
 
@@ -24,7 +24,14 @@ class Reactions(Catalogue[Reaction]):
 
     Reactions can be looked up by verbatim string (``reactions["H + H2O+ -> H2 + OH+"]``)
     or by serialized form (``reactions["H_H2O+__H2_OH+"]``).
+
+    Both indexes map a key to a *list* of reactions: several reactions may
+    share a verbatim string or serialized form when they differ only by
+    mechanism/``type`` (e.g. thermal vs cosmic-ray desorption).
     """
+
+    _by_prop: dict[str, list[Reaction]]  # type: ignore[assignment]
+    _by_serialized: dict[str, list[Reaction]]  # type: ignore[assignment]
 
     def __init__(self, reactions: list[Reaction] | None = None):
         """Initialise the reactions catalogue.
@@ -34,15 +41,90 @@ class Reactions(Catalogue[Reaction]):
         reactions : list[Reaction] | None, optional
             Initial reactions.  If ``None``, an empty catalogue is created.
         """
-        _by_name: dict[str, Reaction] | None = None
-        _by_serialized: dict[str, Reaction] = {}
+        _by_name: dict[str, list[Reaction]] | None = None
+        _by_serialized: dict[str, list[Reaction]] = {}
 
         if reactions is not None:
-            _by_name = {r.verbatim: r for r in reactions}
-            _by_serialized = {r.serialized: r for r in reactions}
+            _by_name = {}
+            for r in reactions:
+                _by_name.setdefault(r.verbatim, []).append(r)
+                _by_serialized.setdefault(r.serialized, []).append(r)
 
-        super().__init__(reactions, _by_name)
+        super().__init__(
+            reactions,
+            cast("dict[Any, Reaction | list[Reaction]] | None", _by_name),
+            check_length=False,
+        )
         self._by_serialized = _by_serialized
+
+    @overload
+    def __getitem__(self, key: str) -> Reaction | list[Reaction]: ...
+
+    @overload
+    def __getitem__(self, key: SupportsIndex) -> Reaction: ...
+
+    @overload
+    def __getitem__(self, key: tuple[str, str]) -> Reaction: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> list[Reaction]: ...
+
+    def __getitem__(self, key):
+        """Look up a reaction by serialized/verbatim string, ``(id, type)``, or index.
+
+        Several reactions may share a serialized form or verbatim string when
+        they differ only by mechanism/``type``, so string lookup is
+        *scalar-or-list*:
+
+        * ``str`` — the reactions with that serialized form (checked first) or
+          verbatim string.  Returns the sole :class:`Reaction` when the key is
+          unique, or a ``list`` of reactions when several mechanisms share it.
+          Raise :exc:`KeyError` when the key is absent.  Use the ``(id, type)``
+          form to always pick one, or :meth:`all` / :meth:`from_serialized` for
+          an always-collection result.
+        * ``tuple`` — ``(id, type)``: return the reaction whose serialized form
+          or verbatim string is *id* and whose ``type`` is *type* (exactly one
+          must match).
+        * ``int`` / ``slice`` — positional access, delegated to the base list.
+
+        Parameters
+        ----------
+        key : str, tuple[str, str], int, or slice
+
+        Returns
+        -------
+        Reaction or list[Reaction]
+            A single ``Reaction`` for a unique string, tuple, or int key; a
+            list for an ambiguous string key or a slice.
+
+        Raises
+        ------
+        KeyError
+            If a string key is missing, or a tuple key does not match exactly
+            one reaction.
+        """
+        if isinstance(key, tuple):
+            ident, rtype = key
+            group = self._by_serialized.get(ident) or self._by_prop.get(ident, [])
+            matches = [r for r in group if r.type == rtype]
+
+            if len(matches) != 1:
+                raise KeyError(f"{key!r}: {len(matches)} matches")
+
+            return matches[0]
+
+        if isinstance(key, str):
+            # Serialized form first, then verbatim string; both map to a list.
+            # Unwrap to a scalar when unique, else hand back the whole group.
+            for index in (self._by_serialized, self._by_prop):
+                group = index.get(key)
+                if group is not None:
+                    return group[0] if len(group) == 1 else group
+
+            raise KeyError(f"{key!r} not found in catalogue")
+
+        # int / slice — delegate to base (positional list access)
+        return super().__getitem__(key)
 
     def __repr__(self):
         return f"Catalogue({self.verbatim()!r})"
@@ -62,13 +144,46 @@ class Reactions(Catalogue[Reaction]):
         if not isinstance(reaction, Reaction):
             raise ValueError(f"'{reaction}' must be an instance of 'Reaction'")
 
-        self._by_name[reaction.verbatim] = reaction
-        self._by_serialized[reaction.serialized] = reaction
+        self._by_prop.setdefault(reaction.verbatim, []).append(reaction)
+        self._by_serialized.setdefault(reaction.serialized, []).append(reaction)
         self._list.append(reaction)
         self.count = len(self._list)
 
-    def from_serialized(self, serialized: str) -> Reaction:
-        """Look up a reaction by its serialized form.
+    def __contains__(self, item) -> bool:
+        """Test membership by ``Reaction``, name/serialized string, or
+        ``(serialized, type)`` tuple.
+
+        Parameters
+        ----------
+        item : Reaction, str, or tuple[str, str]
+            * ``str`` — checks verbatim names and serialized forms.
+            * ``tuple`` — ``(serialized, type)``: true if a reaction with that
+              serialized form *and* type exists.
+            * otherwise — positional membership in the list.
+
+        Returns
+        -------
+        bool
+        """
+        if isinstance(item, tuple):
+            ident, rtype = item
+            group = self._by_serialized.get(ident) or self._by_prop.get(ident, [])
+
+            return any(r.type == rtype for r in group)
+
+        if isinstance(item, str):
+            return item in self._by_prop or item in self._by_serialized
+
+        return item in self._list
+
+    def from_serialized(self, serialized: str) -> list[Reaction]:
+        """Return all reactions sharing a serialized form.
+
+        A serialized form (species-only) can be shared by several reactions
+        that differ by mechanism/``type`` (e.g. thermal vs cosmic-ray
+        desorption).  All matching reactions are returned as a list, whatever
+        the count.  For scalar-or-list ergonomics use ``reactions[serialized]``;
+        for a non-raising ``Vector`` use :meth:`all`.
 
         Parameters
         ----------
@@ -77,9 +192,31 @@ class Reactions(Catalogue[Reaction]):
 
         Returns
         -------
-        Reaction
+        list[Reaction]
+
+        Raises
+        ------
+        KeyError
+            If no reaction has that serialized form.
         """
         return self._by_serialized[serialized]
+
+    def all(self, serialized: str) -> Vector[Reaction]:
+        """Return all reactions sharing *serialized* (empty if none).
+
+        Unlike :meth:`from_serialized`, a missing key yields an empty
+        ``Vector`` rather than raising.
+
+        Parameters
+        ----------
+        serialized : str
+            Canonical ``"<sorted_reactants>__<sorted_products>"`` form.
+
+        Returns
+        -------
+        Vector[Reaction]
+        """
+        return Vector(self._by_serialized.get(serialized, []))
 
     def from_verbatim(self, verbatim: str, type: str | None = None) -> Reaction | None:
         """Look up a reaction by its verbatim string.
@@ -90,14 +227,17 @@ class Reactions(Catalogue[Reaction]):
             Human-readable string (e.g. ``"H + H2O+ -> H2 + OH+"``).
         type : str or None, optional
             If supplied, return ``None`` when the reaction type does not match.
+            Also disambiguates when several reactions share a verbatim string.
 
         Returns
         -------
         Reaction or None
         """
-        rea = self._by_name[verbatim]
-        if type is None or rea.type == type:
-            return rea
+        for rea in self._by_prop.get(verbatim, []):
+            if type is None or rea.type == type:
+                return rea
+
+        return None
 
     def get_list(self) -> list[Reaction]:
         """Return the underlying ordered list of ``Reaction`` objects.
@@ -111,6 +251,10 @@ class Reactions(Catalogue[Reaction]):
     def get(self, reaction: str, type: str | None = None) -> Reaction | None:
         """Look up a reaction by name or serialized form, with optional type filter.
 
+        When *type* is supplied and *reaction* is a serialized form shared by
+        several mechanisms, the exact ``(serialized, type)`` match is returned.
+        Never raises: a missing or ambiguous lookup yields ``None``.
+
         Parameters
         ----------
         reaction : str
@@ -122,7 +266,19 @@ class Reactions(Catalogue[Reaction]):
         -------
         Reaction or None
         """
-        rea = self[reaction]
+        if type is not None and (
+            reaction in self._by_serialized or reaction in self._by_prop
+        ):
+            try:
+                return self[reaction, type]
+            except KeyError:
+                return None
+
+        try:
+            rea = self[reaction]
+        except KeyError:
+            return None
+
         if type is None or rea.type == type:
             return rea
 
@@ -132,7 +288,9 @@ class Reactions(Catalogue[Reaction]):
         Parameters
         ----------
         type : str
-            One of ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``.
+            A reaction type string, e.g. ``"photo"``, ``"cosmic_ray"``,
+            ``"3_body"``, ``"unknown"``, or a grain surface-mechanism type
+            (see :class:`~jaff.core.reaction.Reaction`).
 
         Returns
         -------

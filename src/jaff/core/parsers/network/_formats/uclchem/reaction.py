@@ -1,5 +1,6 @@
 """UCLCHEM format: comma-delimited reactions with a ``NAN`` sentinel column."""
 
+import math
 import re
 from functools import cache
 
@@ -39,6 +40,37 @@ class UclchemReaction(NetworkFormat):
         "LHDES",
         "SURFSWAP",
         "THERM",
+    }
+
+    MECHANISM_TYPE = {
+        "FREEZE": "freeze",
+        "THERM": "desorption_thermal",
+        "DESCR": "desorption_cr",
+        "DEUVCR": "desorption_uvcr",
+        "DESOH2": "desorption_h2",
+        "ER": "eley_rideal",
+        "ERDES": "eley_rideal_desorption",
+        "LH": "langmuir_hinshelwood",
+        "LHDES": "langmuir_hinshelwood_desorption",
+        "H2FORM": "h2_formation",
+        "BULKSWAP": "bulk_swap",
+        "SURFSWAP": "surface_swap",
+    }
+
+    # Mechanisms whose rate coefficient JAFF cannot yet emit as a closed-form
+    # expression (need dust temperature, a surface-diffusion competition
+    # formula, or coupling to another reaction's rate).  Forced to ``0.0``.
+    # See README.md for the per-mechanism rationale and source references.
+    UNSUPPORTED_RATE = {
+        "THERM",
+        "DESOH2",
+        "LH",
+        "LHDES",
+        "ER",
+        "ERDES",
+        "H2FORM",
+        "BULKSWAP",
+        "SURFSWAP",
     }
 
     @cache
@@ -98,25 +130,61 @@ class UclchemReaction(NetworkFormat):
             if p.strip().upper() not in self.IGNORE_SPECIES
         ]
 
-        rate = "0.0"
+        mechanism_type: str | None = next(
+            (
+                self.MECHANISM_TYPE[r.strip().upper()]
+                for r in rr
+                if r.strip().upper() in self.MECHANISM_TYPE
+            ),
+            None,
+        )
+
+        omega = 0.5
         rate_dict = {
+            # Cosmic-ray ionisation:  k = alpha * zeta
             "CRP": f"{ka:.2e} * crate",
-            "CRPHOT": f"{ka:.2e} * (tgas/3e2)**({kb:.2f}) * crate",
-            "PHOTON": f"{ka:.2e} * fuv * exp(-{kc:.2f} * av)",
+            # CR-induced photoreaction (UCLCHEM):
+            #   k = alpha * gama/(1-omega) * (T/300)**beta * zeta
+            "CRPHOT": (f"{ka * kc / (1.0 - omega):.2e} * (tgas/3e2)**({kb:.2f}) * crate"),
+            # UV photoreaction:  k = alpha * radfield * exp(-gama*Av) / 1.7
+            # (the 1.7 converts the Draine field to Habing units).
+            "PHOTON": f"{ka / 1.7:.2e} * chi * exp(-{kc:.2f} * av)",
+            # Freeze-out:  k = freezeFactor * alpha * v_th * sqrt(T/m) * sigma_grain
             "FREEZE": f"(1e0 + {kb:.2e} * 1.671e-3/tgas/asize)*nuth*sigmah*sqrt(tgas/m)",
+            # CR thermal desorption (Hasegawa & Herbst 1993):
+            #   k = 4*pi*zeta*1.64e-4 * surfaceArea * phi * alpha,
+            #   surfaceArea per H = 4 * sigma_grain.
+            "DESCR": f"{ka * 4.0 * math.pi * 1.64e-4 * 4.0:.2e} * sigmah * phi * crate",
+            # CR-induced UV photodesorption:
+            #   k = sigma_grain * uv_yield * 4.875e3 * zeta
+            #        * (1 + (radfield/uvcreff)/zeta * exp(-1.8*Av)) * alpha
+            "DEUVCR": (
+                f"{ka * 4.875e3:.2e} * sigmah * uv_yield * crate"
+                f" * (1e0 + (chi/uvcreff)/crate * exp(-1.8 * av))"
+            ),
         }
+
+        # Two-body Kooij/Arrhenius default (zero exponents dropped).
+        rate = f"{ka:.2e}"
+        if kb != 0.0:
+            rate += f" * (tgas/3e2)**({kb:.2f})"
+        if kc != 0.0:
+            rate += f" * exp(-{kc:.2f}/tgas)"
+
         for r in rr:
-            if r.upper() in rate_dict:
-                rate = rate_dict[r.upper()]
+            token = r.strip().upper()
+            if token in rate_dict:
+                rate = rate_dict[token]
                 break
+            if token in self.UNSUPPORTED_RATE:
+                rate = "0.0"
+                break
+
         rr = [r for r in rr if r.strip().upper() not in self.IGNORE_SPECIES]
 
         # Normalise exotics after rate selection (which keys off raw tokens).
         rr = [self.SPECIAL_MAP.get(r, r) for r in rr]
         pp = [self.SPECIAL_MAP.get(p, p) for p in pp]
-
-        # FIXME: old parser sets rate = "0.0" at the very end
-        rate = "0.0"
 
         ctx.parsed_list.append(
             {
@@ -125,7 +193,9 @@ class UclchemReaction(NetworkFormat):
                 "tmin": t_min,
                 "tmax": t_max,
                 "rate": rate,
-                "type": self._reaction_type(rate, rr),
+                "type": mechanism_type
+                if mechanism_type is not None
+                else self._reaction_type(rate, rr),
                 "string": ctx.line.strip(),
             }
         )
@@ -140,8 +210,8 @@ class UclchemReaction(NetworkFormat):
         ``"cosmic_ray"``, three or more real reactants -> ``"3_body"``. Only
         then is the rate inspected (``photo``/``av`` -> ``"photo"``, ``crate``
         -> ``"cosmic_ray"``, ``ntot`` -> ``"3_body"``); otherwise ``"unknown"``.
-        The UCLCHEM rate is FIXME-forced to ``"0.0"`` upstream, so the rate
-        fallback never contributes; classification relies on the reactants.
+        This fallback only runs for reactions without a mechanism keyword (the
+        keyworded ones are classified via :data:`MECHANISM_TYPE`).
         """
         if "_PHOTON" in rr:
             return "photo"
@@ -159,7 +229,7 @@ class UclchemReaction(NetworkFormat):
             return "photo"
         if "ntot" in r:
             return "3_body"
-            
+
         return "unknown"
 
     def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:

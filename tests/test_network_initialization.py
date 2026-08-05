@@ -85,14 +85,11 @@ class TestNetworkInitialization:
                     with patch.object(Network, "check_recombinations", MagicMock()):
                         with patch.object(Network, "check_isomers", MagicMock()):
                             with patch.object(
-                                Network, "check_unique_reactions", MagicMock()
+                                Network,
+                                "_Network__generate_reaction_matrices",
+                                MagicMock(),
                             ):
-                                with patch.object(
-                                    Network,
-                                    "_Network__generate_reaction_matrices",
-                                    MagicMock(),
-                                ):
-                                    network = Network(test_path)
+                                network = Network(test_path)
 
         assert network.label == "network_file"
 
@@ -136,19 +133,15 @@ class TestNetworkInitialization:
                     with patch.object(Network, "check_recombinations") as mock_recomb:
                         with patch.object(Network, "check_isomers") as mock_isomers:
                             with patch.object(
-                                Network, "check_unique_reactions"
-                            ) as mock_unique:
-                                with patch.object(
-                                    Network, "_Network__generate_reaction_matrices"
-                                ) as mock_matrices:
-                                    network = Network(sample_kida_file, errors=True)
+                                Network, "_Network__generate_reaction_matrices"
+                            ) as mock_matrices:
+                                network = Network(sample_kida_file, errors=True)
 
         # Verify all methods were called
         mock_load.assert_called_once_with()
         mock_sink.assert_called_once_with(True)
         mock_recomb.assert_called_once_with(True)
         mock_isomers.assert_called_once_with(True)
-        mock_unique.assert_called_once_with(True)
         mock_matrices.assert_called_once()
 
     def test_empty_network_file(self, fixtures_dir):

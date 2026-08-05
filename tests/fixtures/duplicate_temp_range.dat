@@ -1,0 +1,5 @@
+# ABOUTME: KIDA fixture with a duplicate reaction over the same temperature range
+# ABOUTME: Exercises the duplicate_policy resolution (preserve-first/last/error)
+H       + H       + H                          H2      + H                                 5.00e-30  0.00e+00  0.00e+00 2.00e+00 0.00e+00 logn  4  10  1000  3
+H+      + e-                                   H                                           1.00e-13  0.00e+00  0.00e+00 2.00e+00 0.00e+00 logn  8  10  10000  3
+H+      + e-                                   H                                           9.99e-13  0.00e+00  0.00e+00 2.00e+00 0.00e+00 logn  8  10  10000  3
