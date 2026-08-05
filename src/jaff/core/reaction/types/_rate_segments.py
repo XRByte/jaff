@@ -127,11 +127,12 @@ class RateSegments(Catalogue[RateSegment]):
 
             a = prev.tmax  # left boundary
             b = seg.tmin  # right boundary
-            # Linear interpolation of the two rates across the gap [a, b].
-            interp = (prev.rate * (b - tgas) + seg.rate * (tgas - a)) / (b - a)
+            if a != b:
+                # Linear interpolation of the two rates across the gap [a, b].
+                interp = (prev.rate * (b - tgas) + seg.rate * (tgas - a)) / (b - a)
 
-            segs.append((interp, tgas < seg.tmin))
-            segs.append(_body(seg))
+                segs.append((interp, tgas < seg.tmin))
+                segs.append(_body(seg))
 
         # Upper edge: hold the boundary rate above tmax (clip, when an upper
         # bound exists); otherwise the last segment extends unbounded.
