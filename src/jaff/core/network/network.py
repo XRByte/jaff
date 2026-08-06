@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import re
 import sys
+from dataclasses import dataclass
 from functools import cached_property, lru_cache, reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -73,6 +74,63 @@ def _parse_rate_expr(rate: str) -> Expr:
     immutable, making the shared objects safe to reuse.
     """
     return parse_expr(rate, evaluate=False)
+
+
+@dataclass(frozen=True)
+class SinkSourceReport:
+    """Structured result of :meth:`Network.check_sink_sources`.
+
+    Attributes
+    ----------
+    sinks : frozenset[str]
+        Species names consumed but never produced.
+    sources : frozenset[str]
+        Species names produced but never consumed.
+    """
+
+    sinks: frozenset[str]
+    sources: frozenset[str]
+
+    @property
+    def ok(self) -> bool:
+        """``True`` when neither sinks nor sources were found."""
+        return not self.sinks and not self.sources
+
+
+@dataclass(frozen=True)
+class RecombinationReport:
+    """Structured result of :meth:`Network.check_recombinations`.
+
+    Attributes
+    ----------
+    missing : frozenset[str]
+        Positively charged species names lacking an electron recombination.
+    """
+
+    missing: frozenset[str]
+
+    @property
+    def ok(self) -> bool:
+        """``True`` when every cation has an electron recombination."""
+        return not self.missing
+
+
+@dataclass(frozen=True)
+class IsomerReport:
+    """Structured result of :meth:`Network.check_isomers`.
+
+    Attributes
+    ----------
+    groups : tuple[tuple[str, ...], ...]
+        Groups of two or more species names sharing an atomic composition.
+    """
+
+    groups: tuple[tuple[str, ...], ...]
+
+    @property
+    def ok(self) -> bool:
+        """``True`` when no isomer groups were found."""
+        return not self.groups
 
 
 class Network:
@@ -801,8 +859,8 @@ class Network:
         self.logger.info(f'{len(not_in_self)} species are missing in "{self.label}"')
         self.logger.info(f'{len(not_in_other)} species are missing in "{other.label}"')
 
-    def check_sink_sources(self, errors: bool) -> None:
-        """Warn (or abort) if any species is never produced or never consumed.
+    def check_sink_sources(self, errors: bool) -> SinkSourceReport:
+        """Report (and warn, or abort) species never produced or never consumed.
 
         A *sink* species appears as a reactant in at least one reaction but
         is never produced.  A *source* species is produced but never consumed.
@@ -812,38 +870,52 @@ class Network:
         ----------
         errors : bool
             If ``True``, call ``sys.exit()`` when sinks or sources are found.
+
+        Returns
+        -------
+        SinkSourceReport
+            The sinks and sources found (empty when the network is balanced).
         """
         produced = {p.name for rea in self.reactions for p in rea.products}
         consumed = {r.name for rea in self.reactions for r in rea.reactants}
         species_names = {s.name for s in self.species if s.name != "_DUMMY"}
 
-        sinks = species_names - produced
-        sources = species_names - consumed
+        report = SinkSourceReport(
+            sinks=frozenset(species_names - produced),
+            sources=frozenset(species_names - consumed),
+        )
 
-        for name in sinks:
+        for name in report.sinks:
             self.logger.info(f"Sink: [cyan]{name}[/]")
 
-        for name in sources:
+        for name in report.sources:
             self.logger.info(f"Source: [cyan]{name}[/]")
 
-        if sinks:
+        if report.sinks:
             self.logger.warning("Sink detected")
 
-        if sources:
+        if report.sources:
             self.logger.warning("Source detected")
 
-        if (sinks or sources) and errors:
+        if not report.ok and errors:
             self.logger.error("Exiting since errors are enabled")
             sys.exit()
 
-    def check_recombinations(self, errors: bool) -> None:
-        """Warn if any positively charged species has no electron recombination reaction.
+        return report
+
+    def check_recombinations(self, errors: bool) -> RecombinationReport:
+        """Report (and warn, or abort) cations lacking an electron recombination.
 
         Parameters
         ----------
         errors : bool
             If ``True``, call ``sys.exit(1)`` when recombination reactions
             are missing.
+
+        Returns
+        -------
+        RecombinationReport
+            The positively charged species with no electron recombination.
         """
         electron_recomb_species = set()
 
@@ -855,24 +927,25 @@ class Network:
                     if r.name != "e-":
                         electron_recomb_species.add(r.name)
 
-        has_errors = False
+        missing = {
+            sp.name
+            for sp in self.species
+            if sp.charge > 0 and sp.name not in electron_recomb_species
+        }
 
-        for sp in self.species:
-            if sp.charge <= 0:
-                continue
+        for name in missing:
+            self.logger.warning(f"Electron recombination not found for [cyan]{name}[/]")
 
-            if sp.name not in electron_recomb_species:
-                has_errors = True
-                self.logger.warning(
-                    f"Electron recombination not found for [cyan]{sp.name}[/]"
-                )
+        report = RecombinationReport(missing=frozenset(missing))
 
-        if has_errors and errors:
+        if not report.ok and errors:
             self.logger.error("Recombination errors found")
             sys.exit(1)
 
-    def check_isomers(self, errors: bool) -> None:
-        """Warn if two or more species share the same atomic composition (isomers).
+        return report
+
+    def check_isomers(self, errors: bool) -> IsomerReport:
+        """Report (and warn, or abort) species sharing the same atomic composition.
 
         Isomers are detected by comparing ``Specie.exploded`` tuples.  For
         example, HCO+ and HOC+ both have ``["C", "H", "O", "+"]`` and would
@@ -882,23 +955,31 @@ class Network:
         ----------
         errors : bool
             If ``True``, call ``sys.exit(1)`` when isomers are found.
+
+        Returns
+        -------
+        IsomerReport
+            Groups of two or more species names sharing a composition.
         """
-        groups = {}
+        buckets: dict[tuple, list[str]] = {}
 
         for sp in self.species:
             key = tuple(sp.exploded)
-            groups.setdefault(key, []).append(f"[cyan]{sp.name}[/]")
+            buckets.setdefault(key, []).append(sp.name)
 
-        has_errors = False
+        groups = tuple(tuple(names) for names in buckets.values() if len(names) > 1)
 
-        for _, names in groups.items():
-            if len(names) > 1:
-                has_errors = True
-                self.logger.warning(f"Isomers detected: {', '.join(names)}")
+        for names in groups:
+            markup = ", ".join(f"[cyan]{name}[/]" for name in names)
+            self.logger.warning(f"Isomers detected: {markup}")
 
-        if has_errors and errors:
+        report = IsomerReport(groups=groups)
+
+        if not report.ok and errors:
             self.logger.error("Isomer errors found")
             sys.exit(1)
+
+        return report
 
     @cached_property
     def ndens(self) -> MatrixSymbol:
