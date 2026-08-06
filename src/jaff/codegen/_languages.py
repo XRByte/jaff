@@ -213,7 +213,7 @@ class Fortran(Language):
     assignment_op = "="
     line_end = ""
     matrix_sep = ", "
-    code_gen = staticmethod(sp.fcode)
+    code_gen = staticmethod(functools.partial(sp.fcode, standard=95))
     idx_offset = 1
     comment = "!"
     types: ClassVar[dict[str, str]] = {}
