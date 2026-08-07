@@ -36,7 +36,7 @@ AMREX_GPU_HOST_DEVICE AMREX_INLINE void actual_jac(const burn_t &state,
   jac($idx+1$, $idx+1$) = $expr$;
   // $JAFF END
   // $JAFF SUB nspec, nbands
-  for (int i = 1; i <= total_eqns; i++) {
+  for (int i = 1; i <= INT_NEQS; i++) {
     jac($nspec+1$, i) /= state.rho;
   }
   // $JAFF END
