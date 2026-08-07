@@ -190,7 +190,7 @@ class Network:
         rad_bands: list[str | int | float | Basic] = [],
         rad_powerlaw_index: int | float = 0,
         rad_energy_density: bool = False,
-        c: float = constants.c.cgs.value,  # Speed of light in cgs unit
+        c: float | str = constants.c.cgs.value,  # Speed of light in cgs unit
         _from_cli: bool = False,
         _metadata: dict[str, Any] = {},
     ):
@@ -241,8 +241,8 @@ class Network:
         rad_energy_density : bool, optional
             If ``True``, radiation moments are energy densities rather than
             number densities, default ``False``.
-        c : float, optional
-            Speed of light in CGS units (cm s⁻¹).  Defaults to
+        c : float | str, optional
+            Speed of light in CGS units (cm s⁻¹) or a symbol.  Defaults to
             ``constants.c.cgs.value``.
         _from_cli : bool, optional
             Internal flag: suppresses the MOTD banner when ``True``.

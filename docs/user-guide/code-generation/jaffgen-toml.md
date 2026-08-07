@@ -81,13 +81,13 @@ errors           = false
 duplicate_policy = "preserve-first"
 ```
 
-| Key          | Type   | Default     | Description                                        |
-| ------------ | ------ | ----------- | -------------------------------------------------- |
-| `label`      | `str`  | file stem   | Human-readable network name                        |
-| `funcfile`   | `str` or `bool` | `true`      | Path to a `.jfunc` auxiliary file; `true` scans the network dir, `false` skips loading |
-| `replace_nH` | `bool` | `true`      | Expand `nh` / `nhe` shorthands in rate expressions |
-| `errors`     | `bool` | `false`     | Treat conservation violations as fatal             |
-| `duplicate_policy` | `str` | `"preserve-first"` | Resolve duplicate rate coefficients over the same temperature range: `preserve-first`, `preserve-last`, or `error`. The `--duplicate-policy` CLI flag overrides this; this in turn overrides the network `jaff.toml` `[network].duplicate_policy` |
+| Key                | Type            | Default            | Description                                                                                                                                                                                                                                       |
+| ------------------ | --------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `label`            | `str`           | file stem          | Human-readable network name                                                                                                                                                                                                                       |
+| `funcfile`         | `str` or `bool` | `true`             | Path to a `.jfunc` auxiliary file; `true` scans the network dir, `false` skips loading                                                                                                                                                            |
+| `replace_nH`       | `bool`          | `true`             | Expand `nh` / `nhe` shorthands in rate expressions                                                                                                                                                                                                |
+| `errors`           | `bool`          | `false`            | Treat conservation violations as fatal                                                                                                                                                                                                            |
+| `duplicate_policy` | `str`           | `"preserve-first"` | Resolve duplicate rate coefficients over the same temperature range: `preserve-first`, `preserve-last`, or `error`. The `--duplicate-policy` CLI flag overrides this; this in turn overrides the network `jaff.toml` `[network].duplicate_policy` |
 
 Besides these scalar keys, `[network]` also holds the subtables below
 (`radiation`, `rates`, `reactions`).
@@ -129,12 +129,12 @@ energy_density  = false            # true = energy density; false = photon densi
 rsl             = 2.99792458e10    # speed of light (cm/s). Used to configure reduced speed of light for solvers
 ```
 
-| Key               | Type           | Default                 | Description                                                           |
-| ----------------- | -------------- | ----------------------- | --------------------------------------------------------------------- |
-| `bands`           | `list`         | `[]`                    | Band boundaries in eV; omit to disable photochemistry                 |
-| `power_law_index` | `int or float` | `0`                     | Spectral index for band integration                                   |
-| `energy_density`  | `bool`         | `false`                 | Radiation density variable type. `radeden` when `true` else `photden` |
-| `rsl`             | `float`        | `constants.c.cgs.value` | Speed of light override (maps to the `c` constructor arg)             |
+| Key               | Type             | Default                 | Description                                                                                       |
+| ----------------- | ---------------- | ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `bands`           | `list`           | `[]`                    | Band boundaries in eV; omit to disable photochemistry                                             |
+| `power_law_index` | `int or float`   | `0`                     | Spectral index for band integration                                                               |
+| `energy_density`  | `bool`           | `false`                 | Radiation density variable type. `radeden` when `true` else `photden`                             |
+| `rsl`             | `float` or `str` | `constants.c.cgs.value` | Speed of light override (maps to the `c` constructor arg). Becomes a symbol if passed as a string |
 
 `power_law_index` is used to configure the weight factor of the photo-reaction cross-sections (Refer to the [Photochemistry](../designing-networks/photochemistry.md) section for more information).
 
