@@ -9,13 +9,39 @@ import json
 import math
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import sympy as sp
 from sympy.core.function import AppliedUndef
 from sympy.matrices.expressions.matexpr import MatrixElement
 
-from jaff import Builder, Network
+from jaff import Network
+from jaff.cli import JaffGen
+
+
+def _jaffgen(network_path, template, outdir, lang="cxx"):
+    """Drive the ``jaffgen`` engine in-process (same path as the CLI).
+
+    All CLI options default to ``None`` except the ones supplied here, matching
+    ``jaffgen --network <net> --template <name> --outdir <dir> --lang <lang>``.
+    """
+    args = SimpleNamespace(
+        network=str(network_path),
+        config=None,
+        label=None,
+        funcfile=None,
+        duplicate_policy=None,
+        replace_nH=None,
+        errors=None,
+        network_config=None,
+        outdir=str(outdir),
+        indir=None,
+        files=None,
+        template=template,
+        lang=lang,
+    )
+    JaffGen(args)
 
 REPO = Path(__file__).resolve().parent.parent
 GOLDEN = Path(__file__).parent / "golden"
@@ -25,7 +51,13 @@ NETWORKS = {
     "h_photo": REPO / "networks" / "h_photoionization" / "h_photo.jet",
     "GOW": REPO / "networks" / "GOW" / "GOW.jet",
 }
-ALL_TEMPLATES = ["python_solve_ivp", "microphysics", "fortran_dlsodes", "kokkos_ode"]
+# Default language per template (needed for extensionless files like _parameters).
+ALL_TEMPLATES = {
+    "python_solve_ivp": "python",
+    "microphysics": "cxx",
+    "fortran_dlsodes": "fortran",
+    "kokkos_ode": "cxx",
+}
 
 # Fixed values for the "unknown" free variables so rates/Jacobian evaluate to
 # concrete numbers.  Any scalar symbol not listed falls back to _DEFAULT_CONST.
@@ -134,9 +166,7 @@ def _assert_close(actual, expected, label):
 @pytest.mark.parametrize("name", list(NETWORKS))
 def test_microphysics_output_matches_golden(name, tmp_path):
     """Generated microphysics files match the committed golden byte-for-byte."""
-    Builder(Network(str(NETWORKS[name]))).build(
-        template="microphysics", output_dir=str(tmp_path)
-    )
+    _jaffgen(NETWORKS[name], template="microphysics", outdir=tmp_path)
     generated = {p.name: p.read_bytes() for p in tmp_path.iterdir() if p.is_file()}
 
     gdir = GOLDEN / f"{name}_microphysics"
@@ -185,12 +215,10 @@ def test_rates_and_jacobian_match_golden(name):
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("template", ALL_TEMPLATES)
+@pytest.mark.parametrize("template", list(ALL_TEMPLATES))
 def test_gow_generates_for_all_templates(template, tmp_path):
     """The GOW network builds without error and emits non-empty files."""
-    Builder(Network(str(NETWORKS["GOW"]))).build(
-        template=template, output_dir=str(tmp_path)
-    )
+    _jaffgen(NETWORKS["GOW"], template=template, outdir=tmp_path, lang=ALL_TEMPLATES[template])
     files = [p for p in tmp_path.iterdir() if p.is_file()]
     assert files, f"template {template} produced no files"
     assert all(p.stat().st_size > 0 for p in files), f"empty output file for {template}"
