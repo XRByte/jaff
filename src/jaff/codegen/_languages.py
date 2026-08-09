@@ -15,13 +15,13 @@ from ..errors import InvalidLanguageError
 # Fortran free-form line wrapping                                              #
 # --------------------------------------------------------------------------- #
 
-# Significant column count for a free-form Fortran line (max 132 per F90+).
-# Two columns are reserved on a wrapped line for the trailing " &" marker.
-_FORTRAN_WIDTH = 132
-# Continuation lines are indented under their statement (visual only in free
-# form) and the wrapped line ends with the " &" continuation marker.
+# Significant column count for a free-form Fortran line (max 132 per F90+; we
+# wrap conservatively at 120).  Two columns are reserved on a wrapped line for
+# the trailing " &" marker.
+_FORTRAN_WIDTH = 120
 _FORTRAN_CONT_INDENT = "      "
 _FORTRAN_CONT_MARK = " &"
+_FORTRAN_CONT_LEAD = "&"
 _FORTRAN_ATOM = re.compile(
     r"[A-Za-z_]\w*\s*\(\s*\d+(?:\s*,\s*\d+)*\s*\)"  # integer-indexed array ref
     r"|[A-Za-z_]\w*"  # identifier / intrinsic name
@@ -123,17 +123,20 @@ def _fortran_free_wrap(code: str, width: int = _FORTRAN_WIDTH) -> str:
             out.append(indent + content)
             continue
 
-        cont_indent = indent + _FORTRAN_CONT_INDENT
+        # Continuation lines begin with a leading "&" so a break inside a token
+        # (e.g. "**") rejoins exactly, with no inserted indentation blanks.
+        cont_prefix = indent + _FORTRAN_CONT_INDENT + _FORTRAN_CONT_LEAD
         tokens = _FORTRAN_ATOM.findall(content)
         line = indent
         prefix = indent
         for tok in tokens:
-            # Never start a line with the leftover whitespace from a break.
+            # Never start a line with the leftover whitespace from a break: a
+            # blank right after a leading "&" would be a significant blank.
             if line == prefix and tok.isspace():
                 continue
             if len(line) + len(tok) > limit and line != prefix:
                 out.append(line.rstrip() + _FORTRAN_CONT_MARK)
-                prefix = cont_indent
+                prefix = cont_prefix
                 line = prefix
                 if tok.isspace():
                     continue
