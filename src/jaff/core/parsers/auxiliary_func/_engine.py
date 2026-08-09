@@ -146,7 +146,7 @@ class AuxiliaryFunctionParser:
 
     def __parse_file(self) -> None:
         """Iterate over the file, handling line continuations before dispatching."""
-        with open(self.file, "r") as f:
+        with open(self.file, "r", encoding="utf-8") as f:
             for nline, line in enumerate(f, start=1):
                 self.nline = nline
                 self.og_line = line.strip()

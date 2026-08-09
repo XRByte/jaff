@@ -65,7 +65,7 @@ def make_network(tmp_path):
             lines = "\n".join(lines) + "\n"
         counter["n"] += 1
         path = tmp_path / (name or f"network_{counter['n']}.dat")
-        path.write_text(lines)
+        path.write_text(lines, encoding="utf-8")
         return Network(str(path), **kwargs)
 
     return _make

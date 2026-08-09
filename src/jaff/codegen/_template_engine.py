@@ -183,7 +183,7 @@ class TemplateParser:
         str
             Generated code as a string with all JAFF directives expanded.
         """
-        with open(self.file, "r") as f:
+        with open(self.file, "r", encoding="utf-8") as f:
             for nline, line in enumerate(f, start=1):
                 self.nline = nline
                 self.og_line = line

@@ -194,7 +194,7 @@ class Preprocessor:
         # original content until the matching PREPROCESS_END line).
         in_pragma = False
 
-        with open(file_path) as fh:
+        with open(file_path, encoding="utf-8") as fh:
             out = ""
 
             # Optionally prepend an auto-generated disclaimer header
@@ -241,5 +241,5 @@ class Preprocessor:
             fname_build = build_dir / file_path.name
 
             self.logger.info(f"Preprocessing {file_path} -> {fname_build}")
-            with open(fname_build, "w") as fout:
+            with open(fname_build, "w", encoding="utf-8") as fout:
                 fout.write(out)

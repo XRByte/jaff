@@ -152,7 +152,7 @@ class NetworkParser:
         Iterates over every line of :attr:`__file`, advancing the line counter
         and calling :meth:`__parse_line` for each.
         """
-        with open(self.__file, "r") as f:
+        with open(self.__file, "r", encoding="utf-8") as f:
             lines = f.readlines()
             for i, line in enumerate(
                 jaff_progress.track(lines, description=f"Parsing {self.__file.name}")

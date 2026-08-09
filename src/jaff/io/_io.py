@@ -853,7 +853,7 @@ def write_data_table(
 
     def to_text():
         """Write the table in quokka plain-text 1-D lookup format."""
-        with open(fname, "w") as fp:
+        with open(fname, "w", encoding="utf-8") as fp:
             fp.write("# JAFF auto-generated rate coefficient table\n")
             fp.write(f"# Network name: {label}\n")
             fp.write("# Reactions included\n")
