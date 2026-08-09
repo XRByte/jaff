@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sympy import Basic, Expr, Piecewise
+from sympy import Basic, Expr, Float, Integer, Piecewise
 from sympy.core.function import AppliedUndef
 
 from ..errors import ParserError
@@ -199,6 +199,46 @@ def resolve_symbolic_dependencies(
     return {sym: dfs(sym) for sym in dep_map}
 
 
+def float_piecewise_branches(expr: Basic) -> Basic:
+    """Cast bare integer *value* branches of every ``Piecewise`` to ``Float``.
+
+    A SymPy ``Piecewise`` prints to Fortran as ``merge(tsource, fsource,
+    cond)``, and Fortran's ``merge`` requires both value branches to share the
+    same type *and* kind.  When one branch is a real expression (``real*8``)
+    and another is a bare integer literal -- e.g. the ``0`` fallback of a
+    temperature-guarded rate, or the ``10``/``18`` regime constants in the H2
+    cosmic-ray heating term -- gfortran rejects it with *"fsource argument of
+    merge must be same type and kind as tsource"*.
+
+    This walks *expr* and, for every ``Piecewise`` (including nested ones),
+    replaces any branch **value** that is a bare :class:`sympy.Integer` with
+    the equivalent :class:`sympy.Float`, so it prints as ``0.0d0`` / ``10.0d0``
+    and matches the real-kind sibling branch.  Conditions are left untouched
+    (integer comparisons are fine), as are integer literals used as exponents
+    or array dimensions elsewhere in the expression -- only Piecewise branch
+    values are affected.
+
+    Parameters
+    ----------
+    expr : sympy.Basic
+        Any expression that may contain one or more ``Piecewise`` nodes.
+
+    Returns
+    -------
+    sympy.Basic
+        The expression with integer Piecewise branch values floated.
+    """
+
+    def _fix(pw: Piecewise) -> Piecewise:
+        new_args = [
+            (Float(value) if isinstance(value, Integer) else value, cond)
+            for value, cond in pw.args
+        ]
+        return Piecewise(*new_args, evaluate=False)
+
+    return expr.replace(lambda node: isinstance(node, Piecewise), _fix)
+
+
 def resolve_dependencies(
     expr: Basic,
     subs_dict: dict[Basic, Basic] | None = None,
@@ -251,9 +291,11 @@ def resolve_dependencies(
 
         # Built-in: ``merge(a, b, cond)`` → Piecewise
         if name == "merge":
-            subs_dict[f] = Piecewise(
-                (f.args[0], f.args[2]),
-                (f.args[1], True),
+            subs_dict[f] = float_piecewise_branches(
+                Piecewise(
+                    (f.args[0], f.args[2]),
+                    (f.args[1], True),
+                )
             )
 
         # Built-in: ``log10(x)`` → sympy natural-log form

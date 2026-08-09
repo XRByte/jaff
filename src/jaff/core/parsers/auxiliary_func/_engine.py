@@ -31,7 +31,7 @@ from typing import Any, Callable
 import sympy as sp
 from sympy.core.function import AppliedUndef
 
-from ....common import resolve_symbolic_dependencies
+from ....common import float_piecewise_branches, resolve_symbolic_dependencies
 from ....errors import ParserError
 from ._typing import AuxiliaryFunctionsDict
 
@@ -398,6 +398,8 @@ class AuxiliaryFunctionParser:
                 self.nline,
                 self.file,
             )
+
+        funcdef = float_piecewise_branches(funcdef)
 
         self.func_dict[self.current_func]["def"] = funcdef
         self.func_dict[self.current_func].pop("locals")
