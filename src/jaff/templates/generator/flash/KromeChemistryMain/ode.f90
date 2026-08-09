@@ -12,20 +12,30 @@ module ode
         integer::neq
         real*8::t
         real*8::n(nspecs+1), dn(nspecs+1)
-        real*8::y(nspecs), tgas, flux(nreactions)
+        real*8::y(nspecs), tgas, flux(nreactions), crate, av
 
         y = n(1:nspecs)
         tgas = n(idx_tgas)
 
-        flux = get_fluxes(y, tgas, common_crate, common_av)
+        ! Local aliases for the cosmic-ray rate and visual extinction.
+        ! The generated energy equation references these by their bare
+        ! network names, so alias them rather than rewriting the wrapped
+        ! expression (a length-changing rewrite would overflow the line).
+        crate = common_crate
+        av = common_av
+
+        flux = get_fluxes(y, tgas, crate, av)
 
         ! $JAFF REPEAT idx, ode_expression IN ode_expressions
         dn($idx+1$) = $ode_expression$
         ! $JAFF END
 
-        ! Temperature is held fixed across the chemistry substep; FLASH updates
-        ! it through the EOS after the network is applied.
-        dn(idx_tgas) = 0d0
+        ! Gas energy time-derivative (chemical heating/cooling). The
+        ! generated expression carries species number densities as
+        ! nden(i,1); map them onto the local y(i) vector.
+        ! $JAFF SUB dedt $[REPLACE nden\(\s*(\d+),\s*1\s*\) y(\1)]$
+        dn(idx_tgas) = $dedt$
+        ! $JAFF END
 
     end subroutine fex
 

@@ -3,12 +3,177 @@ from __future__ import annotations
 import copy
 import functools
 import inspect
+import re
 from collections.abc import Callable
 from typing import Any, ClassVar
 
 import sympy as sp
 
 from ..errors import InvalidLanguageError
+
+# --------------------------------------------------------------------------- #
+# Fortran fixed-form line wrapping                                             #
+# --------------------------------------------------------------------------- #
+
+# Width of a fixed-form Fortran line (columns 1-72 are significant, 73+ ignored).
+_FORTRAN_WIDTH = 72
+# Statement lines start in column 7; continuation lines carry a marker in
+# column 6.  Match SymPy's own layout: 6 leading spaces / "     @ ".
+_FORTRAN_STMT_PREFIX = "      "
+_FORTRAN_CONT_PREFIX = "     @ "
+_FORTRAN_ATOM = re.compile(
+    r"[A-Za-z_]\w*\s*\(\s*\d+(?:\s*,\s*\d+)*\s*\)"  # integer-indexed array ref
+    r"|[A-Za-z_]\w*"  # identifier / intrinsic name
+    r"|\d+\.?\d*(?:[dDeE][+-]?\d+)?"  # numeric literal (incl. d-exponent)
+    r"|\s+"  # run of whitespace
+    r"|."  # any single other character
+)
+
+_FORTRAN_NOWRAP_LEADERS = (
+    "real",
+    "integer",
+    "logical",
+    "complex",
+    "double",
+    "character",
+    "type",
+    "implicit",
+    "use",
+    "module",
+    "subroutine",
+    "function",
+    "end",
+    "contains",
+    "return",
+    "common",
+    "parameter",
+    "save",
+    "dimension",
+    "external",
+    "intrinsic",
+    "data",
+    "include",
+)
+
+
+def _fortran_fixed_wrap(code: str, width: int = _FORTRAN_WIDTH) -> str:
+    """Re-flow fixed-form Fortran so no token is split across a continuation.
+
+    SymPy's ``fcode`` wraps long expressions at column 72 by breaking wherever
+    the limit falls -- including in the middle of a token such as
+    ``nden(1, 1)``.  A split token defeats regex post-processing (and reads
+    badly), so this reconstructs each logical statement and re-wraps it,
+    choosing break points only *between* atomic tokens.  The maximum atom is
+    far shorter than the line width, so every emitted line still fits in
+    ``width`` columns.
+
+    Parameters
+    ----------
+    code : str
+        Fixed-form Fortran as produced by :func:`sympy.fcode` (statement lines
+        plus ``@``-marked continuation lines).
+    width : int, optional
+        Significant column count.  Default 72.
+
+    Returns
+    -------
+    str
+        Equivalent code whose continuations never fall inside a token.
+    """
+    # Rebuild logical statements: fold every "@" continuation line back onto
+    # the statement it continues.
+    logical: list[str] = []
+    for phys in code.split("\n"):
+        stripped = phys.lstrip()
+        if stripped.startswith("@"):
+            logical[-1] += stripped[1:].lstrip()
+        else:
+            logical.append(phys)
+
+    out: list[str] = []
+    for stmt in logical:
+        content = stmt.strip()
+        if len(_FORTRAN_STMT_PREFIX + content) <= width:
+            out.append(_FORTRAN_STMT_PREFIX + content)
+            continue
+
+        tokens = _FORTRAN_ATOM.findall(content)
+        line = _FORTRAN_STMT_PREFIX
+        prefix = _FORTRAN_STMT_PREFIX
+        for tok in tokens:
+            # Never start a line with the leftover whitespace from a break.
+            if line == prefix and tok.isspace():
+                continue
+            if len(line) + len(tok) > width and line != prefix:
+                out.append(line.rstrip())
+                prefix = _FORTRAN_CONT_PREFIX
+                line = prefix
+                if tok.isspace():
+                    continue
+            line += tok
+        if line.strip():
+            out.append(line.rstrip())
+
+    return "\n".join(out)
+
+
+def _fortran_code_gen(expr: Any, **kwargs: Any) -> str:
+    """Serialise *expr* to fixed-form Fortran with split-safe line wrapping."""
+    return _fortran_fixed_wrap(sp.fcode(expr, standard=95, **kwargs))
+
+
+def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
+    """Re-wrap every over-long executable statement in a fixed-form source.
+
+    :func:`_fortran_code_gen` only wraps expressions that pass through
+    :func:`sympy.fcode`.  Many generated statements -- e.g. the species ODE
+    right-hand sides ``dn(i) = -flux(1) + flux(3) + ...`` -- are assembled by
+    plain string concatenation and never reach the printer, so they can exceed
+    the 72-column fixed-form limit.  This pass walks the finished source and
+    re-wraps each executable statement that is too long, splitting only between
+    atomic tokens (array references such as ``flux(3)`` stay intact).
+
+    Declarations, structural keywords and comment lines are left untouched, as
+    are statements that already fit within *width*.
+
+    Parameters
+    ----------
+    text : str
+        Complete generated Fortran source.
+    width : int, optional
+        Significant column count.  Default 72.
+
+    Returns
+    -------
+    str
+        Source with over-long executable statements wrapped.
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        # Gather any continuation lines belonging to this logical statement.
+        unit = [line]
+        j = i + 1
+        while j < len(lines) and lines[j].lstrip().startswith("@"):
+            unit.append(lines[j])
+            j += 1
+        i = j
+
+        stripped = line.lstrip()
+        leader = stripped.split("(", 1)[0].split()[0].lower() if stripped else ""
+        is_comment = stripped.startswith("!")
+        is_decl = "::" in line or leader in _FORTRAN_NOWRAP_LEADERS
+
+        if is_comment or is_decl:
+            out.extend(unit)
+        elif len(unit) > 1 or len(line) > width:
+            out.append(_fortran_fixed_wrap("\n".join(unit), width))
+        else:
+            out.append(line)
+
+    return "\n".join(out)
 
 
 class Language:
@@ -213,7 +378,7 @@ class Fortran(Language):
     assignment_op = "="
     line_end = ""
     matrix_sep = ", "
-    code_gen = staticmethod(functools.partial(sp.fcode, standard=95))
+    code_gen = staticmethod(_fortran_code_gen)
     idx_offset = 1
     comment = "!"
     types: ClassVar[dict[str, str]] = {}
