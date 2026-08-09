@@ -33,9 +33,10 @@ module ode
         ! Gas energy time-derivative (chemical heating/cooling). The
         ! generated expression carries species number densities as
         ! nden(i,1); map them onto the local y(i) vector.
-        ! $JAFF SUB dedt $[REPLACE nden\(\s*(\d+),\s*1\s*\) y(\1)]$
+        ! $JAFF SUB dedt $[REPLACE nden\s*\(\s*(\d+)\s*,\s*1\s*\) y(\1)]$
         dn(idx_tgas) = $dedt$
         ! $JAFF END
+        dn(idx_tgas) = dn(idx_tgas) / (1.5d0 * sum(y) * 1.380649d-16)
 
     end subroutine fex
 

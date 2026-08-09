@@ -12,7 +12,7 @@ module reactions
 
         k = 0d0
 
-        ! $JAFF REPEAT idx, rate IN rates $[REPLACE nden\(\s*(\d+),\s*1\s*\) y(\1)]$
+        ! $JAFF REPEAT idx, rate IN rates $[REPLACE nden\s*\(\s*(\d+)\s*,\s*1\s*\) y(\1)]$
         k($idx+1$) = $rate$
         ! $JAFF END
 
