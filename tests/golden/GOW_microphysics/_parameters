@@ -1,0 +1,67 @@
+@namespace: eos
+
+eos_gamma_default       real          1.4
+
+# define the specie names, and their masses and gammas
+# $JAFF REPEAT idx, specie IN species
+species_0_name          string        "H"
+species_1_name          string        "H+"
+species_2_name          string        "e-"
+species_3_name          string        "H2"
+species_4_name          string        "H2+"
+species_5_name          string        "He"
+species_6_name          string        "He+"
+species_7_name          string        "C"
+species_8_name          string        "C+"
+species_9_name          string        "CO"
+species_10_name          string        "HCO+"
+species_11_name          string        "O"
+species_12_name          string        "Si"
+species_13_name          string        "Si+"
+species_14_name          string        "CHx"
+species_15_name          string        "OHx"
+species_16_name          string        "H3+"
+species_17_name          string        "O+"
+# $JAFF END
+
+# $JAFF REPEAT idx, specie IN species
+species_0_gamma         real          5./3.
+species_1_gamma         real          5./3.
+species_2_gamma         real          5./3.
+species_3_gamma         real          5./3.
+species_4_gamma         real          5./3.
+species_5_gamma         real          5./3.
+species_6_gamma         real          5./3.
+species_7_gamma         real          5./3.
+species_8_gamma         real          5./3.
+species_9_gamma         real          5./3.
+species_10_gamma         real          5./3.
+species_11_gamma         real          5./3.
+species_12_gamma         real          5./3.
+species_13_gamma         real          5./3.
+species_14_gamma         real          5./3.
+species_15_gamma         real          5./3.
+species_16_gamma         real          5./3.
+species_17_gamma         real          5./3.
+# $JAFF END
+
+# $JAFF REPEAT idx, specie_mass IN specie_masses
+species_0_mass          real          1.673773e-24
+species_1_mass          real          1.6728620616289998e-24
+species_2_mass          real          9.10938371e-28
+species_3_mass          real          3.347546e-24
+species_4_mass          real          3.3466350616289996e-24
+species_5_mass          real          6.646473e-24
+species_6_mass          real          6.645562061629e-24
+species_7_mass          real          1.9944730000000003e-23
+species_8_mass          real          1.9943819061629003e-23
+species_9_mass          real          4.651236000000001e-23
+species_10_mass          real          4.8185222061629005e-23
+species_11_mass          real          2.6567630000000005e-23
+species_12_mass          real          4.663707e-23
+species_13_mass          real          4.6636159061629004e-23
+species_14_mass          real          2.1618503000000003e-23
+species_15_mass          real          2.8241403000000005e-23
+species_16_mass          real          5.020408061629e-24
+species_17_mass          real          2.656671906162901e-23
+# $JAFF END

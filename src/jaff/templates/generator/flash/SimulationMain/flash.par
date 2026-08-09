@@ -50,7 +50,7 @@ dtinit = 1.0e8
 dtmin  = 1.0e6
 dtmax  = 1.0e12
 
-basenm     = "cie_"
+basenm     = "jaff_"
 
 # $JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign $[POS j NEG k]$
 plot_var_$idx+1$ = "$specie_with_normalized_sign$"

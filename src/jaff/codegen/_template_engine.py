@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from ..errors import ParserError
 from ..types import IndexedList
-from ._languages import Language
+from ._languages import Language, wrap_fortran_source
 from ._typing import CommandProps, IdxSpanResult, IndexedReturn
 from .codegen import Codegen
 
@@ -183,11 +183,14 @@ class TemplateParser:
         str
             Generated code as a string with all JAFF directives expanded.
         """
-        with open(self.file, "r") as f:
+        with open(self.file, "r", encoding="utf-8") as f:
             for nline, line in enumerate(f, start=1):
                 self.nline = nline
                 self.og_line = line
                 self.__parse_line(line)
+
+        if self.cg.lang.name == "fortran":
+            self.modified = wrap_fortran_source(self.modified)
 
         return self.modified
 

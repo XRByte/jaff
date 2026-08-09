@@ -207,7 +207,7 @@ class Radiation:
         bands: list[int | float | str | sp.Basic],
         powerlaw_idx: int | float,
         energy_density: bool,
-        c: float,
+        c: float | str,
     ):
         """Parse band edges and construct one :class:`RadiationGroup` per band.
 
@@ -222,15 +222,15 @@ class Radiation:
         energy_density : bool
             If ``True``, radiation is tracked as energy density (eV cm⁻³);
             if ``False``, as photon number density (cm⁻³).
-        c : float
-            Speed of light in cm/s (CGS).
+        c : float | str
+            Speed of light in cm/s (CGS) or a string to be converted to a symbol.
         """
         self.network: Network = network
         self.bands: list[int | float | sp.Basic] = []
         self.powerlaw_idx: int | float = powerlaw_idx
         self.energy_density: bool = energy_density
         # Speed of light (cm/s) for k = c * σ * n(E) expressions
-        self.c: float = c
+        self.c: float | sp.Basic = sp.symbols(c) if isinstance(c, str) else c
 
         self.__parse_bands(bands)
         self.nbands: int = len(self.bands) - 1

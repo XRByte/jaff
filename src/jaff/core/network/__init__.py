@@ -1,5 +1,17 @@
 from ._args import NetworkArgs
 from ._spec import NetworkSpec
-from .network import Network
+from .network import (
+    IsomerReport,
+    Network,
+    RecombinationReport,
+    SinkSourceReport,
+)
 
-__all__ = ["Network", "NetworkArgs", "NetworkSpec"]
+__all__ = [
+    "IsomerReport",
+    "Network",
+    "NetworkArgs",
+    "NetworkSpec",
+    "RecombinationReport",
+    "SinkSourceReport",
+]

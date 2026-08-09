@@ -3,15 +3,11 @@
 
 import io
 import os
-import sys
 import tempfile
 from contextlib import redirect_stderr, redirect_stdout
 
 import pytest
 import sympy
-
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import jaff.core.network as jn
 from jaff import Network

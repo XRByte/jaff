@@ -3,12 +3,257 @@ from __future__ import annotations
 import copy
 import functools
 import inspect
+import re
 from collections.abc import Callable
 from typing import Any, ClassVar
 
 import sympy as sp
 
 from ..errors import InvalidLanguageError
+
+# --------------------------------------------------------------------------- #
+# Fortran free-form line wrapping                                              #
+# --------------------------------------------------------------------------- #
+
+# Significant column count for a free-form Fortran line (max 132 per F90+; we
+# wrap conservatively at 120).  Two columns are reserved on a wrapped line for
+# the trailing " &" marker.
+_FORTRAN_WIDTH = 120
+_FORTRAN_CONT_INDENT = "      "
+_FORTRAN_CONT_MARK = "&"
+_FORTRAN_CONT_LEAD = "&"
+_FORTRAN_ATOM = re.compile(
+    r"[A-Za-z_]\w*\s*\(\s*\d+(?:\s*,\s*\d+)*\s*\)"  # integer-indexed array ref
+    r"|[A-Za-z_]\w*"  # identifier / intrinsic name
+    r"|\d+\.?\d*(?:[dDeE][+-]?\d+)?"  # numeric literal (incl. d-exponent)
+    r"|\*\*"  # power operator (kept whole so a break never splits it)
+    r"|//"  # string-concatenation operator
+    r"|[<>=/]="  # two-char relational operators (<=, >=, ==, /=)
+    r"|\s+"  # run of whitespace
+    r"|."  # any single other character
+)
+
+_FORTRAN_MAX_EXP = 308
+_FORTRAN_CLAMP_LIT = "1.0d300"
+# Real literal with an explicit d/e exponent: mantissa, exponent letter, sign,
+# digits.  The lookbehind avoids matching inside an identifier or after a dot.
+_FORTRAN_REAL_LIT = re.compile(r"(?<![\w.])\d+\.?\d*[dDeE]([+-]?)(\d+)")
+
+
+def sanitize_fortran_literals(text: str) -> str:
+    """Clamp real literals whose exponent overflows real*8 to a finite sentinel.
+
+    A literal such as ``3.04782042452573d+83651`` -- produced when SymPy
+    constant-folds an interpolation fit (``10**poly``) at an out-of-domain
+    boundary inside an always-false cooling-domain guard -- exceeds the IEEE
+    double exponent range (~308) and is unrepresentable, so gfortran rejects it
+    with *"Syntax error in expression"*.  Every overflowing positive-exponent
+    literal is replaced by ``1.0d300``; because they occur only in numerically
+    inert guard conditions the replacement does not change behaviour.  Negative
+    (underflowing) exponents are legal and left untouched.
+
+    Parameters
+    ----------
+    text : str
+        Generated Fortran source.
+
+    Returns
+    -------
+    str
+        Source with overflowing real literals clamped.
+    """
+
+    def _clamp(m: "re.Match[str]") -> str:
+        sign, digits = m.group(1), m.group(2)
+        if sign != "-" and int(digits) > _FORTRAN_MAX_EXP:
+            return _FORTRAN_CLAMP_LIT
+        return m.group(0)
+
+    return _FORTRAN_REAL_LIT.sub(_clamp, text)
+
+
+_FORTRAN_NOWRAP_LEADERS = (
+    "real",
+    "integer",
+    "logical",
+    "complex",
+    "double",
+    "character",
+    "type",
+    "implicit",
+    "use",
+    "module",
+    "subroutine",
+    "function",
+    "end",
+    "contains",
+    "return",
+    "common",
+    "parameter",
+    "save",
+    "dimension",
+    "external",
+    "intrinsic",
+    "data",
+    "include",
+)
+
+
+def _fortran_fold(code: str) -> list[str]:
+    """Fold free-form ``&`` continuations back into logical statements.
+
+    A free-form continuation is a line whose predecessor ends with ``&``; the
+    continued line may optionally begin with its own leading ``&``.  Both
+    markers are stripped and the fragments concatenated so each returned entry
+    is one whole logical statement (leading indentation of the first physical
+    line preserved).
+    """
+    logical: list[str] = []
+    open_cont = False
+    for phys in code.split("\n"):
+        if open_cont:
+            frag = phys.strip()
+            if frag.startswith("&"):
+                frag = frag[1:]
+            elif frag:
+                frag = " " + frag
+            logical[-1] += frag
+        else:
+            logical.append(phys.rstrip())
+        # A trailing "&" (now on the folded line) opens the next continuation.
+        if logical[-1].rstrip().endswith("&"):
+            logical[-1] = logical[-1].rstrip()[:-1].rstrip()
+            open_cont = True
+        else:
+            open_cont = False
+    return logical
+
+
+def _fortran_free_wrap(code: str, width: int = _FORTRAN_WIDTH) -> str:
+    """Re-flow free-form Fortran so no token is split across a continuation.
+
+    SymPy's ``fcode`` (``source_format='free'``) wraps long expressions by
+    breaking wherever the limit falls -- including in the middle of a token
+    such as ``nden(1, 1)`` or ``flux(3)``.  A split token defeats regex
+    post-processing (and reads badly), so this reconstructs each logical
+    statement and re-wraps it, choosing break points only *between* atomic
+    tokens.  Wrapped lines end with the free-form ``&`` continuation marker;
+    the maximum atom is far shorter than the line width, so every emitted line
+    fits within ``width`` columns.
+
+    Parameters
+    ----------
+    code : str
+        Free-form Fortran as produced by :func:`sympy.fcode` (statement lines
+        plus ``&``-continued lines).
+    width : int, optional
+        Significant column count.  Default 132.
+
+    Returns
+    -------
+    str
+        Equivalent code whose continuations never fall inside a token.
+    """
+    out: list[str] = []
+    # Room for the trailing " &" marker on any line that will be continued.
+    limit = width - len(_FORTRAN_CONT_MARK)
+    for stmt in _fortran_fold(code):
+        indent = stmt[: len(stmt) - len(stmt.lstrip())]
+        content = stmt.strip()
+        if not content:
+            out.append("")
+            continue
+        if len(indent) + len(content) <= width:
+            out.append(indent + content)
+            continue
+
+        # Continuation lines begin with a leading "&" so a break inside a token
+        # (e.g. "**") rejoins exactly, with no inserted indentation blanks.
+        cont_prefix = indent + _FORTRAN_CONT_INDENT + _FORTRAN_CONT_LEAD
+        tokens = _FORTRAN_ATOM.findall(content)
+        line = indent
+        prefix = indent
+        for tok in tokens:
+            # Never start a line with the leftover whitespace from a break: a
+            # blank right after a leading "&" would be a significant blank.
+            if line == prefix and tok.isspace():
+                continue
+            if len(line) + len(tok) > limit and line != prefix:
+                broke_at_space = line.endswith(" ") or tok.isspace()
+                out.append(line.rstrip() + _FORTRAN_CONT_MARK)
+                prefix = cont_prefix
+                line = prefix + " " if broke_at_space else prefix
+                if tok.isspace():
+                    continue
+            line += tok
+        if line.strip():
+            out.append(line.rstrip())
+
+    return "\n".join(out)
+
+
+def _fortran_code_gen(expr: Any, **kwargs: Any) -> str:
+    """Serialise *expr* to free-form Fortran with split-safe line wrapping."""
+    return _fortran_free_wrap(sp.fcode(expr, standard=95, source_format="free", **kwargs))
+
+
+def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
+    """Re-wrap every over-long executable statement in a fixed-form source.
+
+    :func:`_fortran_code_gen` only wraps expressions that pass through
+    :func:`sympy.fcode`.  Many generated statements -- e.g. the species ODE
+    right-hand sides ``dn(i) = -flux(1) + flux(3) + ...`` -- are assembled by
+    plain string concatenation and never reach the printer, so they can exceed
+    the free-form line limit.  This pass walks the finished source and re-wraps
+    each executable statement that is too long, splitting only between atomic
+    tokens (array references such as ``flux(3)`` stay intact).
+
+    Declarations, structural keywords and comment lines are left untouched, as
+    are statements that already fit within *width*.
+
+    Parameters
+    ----------
+    text : str
+        Complete generated Fortran source.
+    width : int, optional
+        Significant column count.  Default 72.
+
+    Returns
+    -------
+    str
+        Source with over-long executable statements wrapped.
+    """
+    # Clamp any real literal whose exponent overflows real*8 before wrapping,
+    # so an absurd token (e.g. ``3.04d+83651``) never survives into the output.
+    text = sanitize_fortran_literals(text)
+
+    lines = text.split("\n")
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        # Gather any continuation lines belonging to this logical statement: in
+        # free form, a line is continued when it ends with a trailing "&".
+        unit = [line]
+        j = i + 1
+        while unit[-1].rstrip().endswith("&") and j < len(lines):
+            unit.append(lines[j])
+            j += 1
+        i = j
+
+        stripped = line.lstrip()
+        leader = stripped.split("(", 1)[0].split()[0].lower() if stripped else ""
+        is_comment = stripped.startswith("!")
+        is_decl = "::" in line or leader in _FORTRAN_NOWRAP_LEADERS
+
+        if is_comment or is_decl:
+            out.extend(unit)
+        elif len(unit) > 1 or len(line) > width:
+            out.append(_fortran_free_wrap("\n".join(unit), width))
+        else:
+            out.append(line)
+
+    return "\n".join(out)
 
 
 class Language:
@@ -213,7 +458,7 @@ class Fortran(Language):
     assignment_op = "="
     line_end = ""
     matrix_sep = ", "
-    code_gen = staticmethod(sp.fcode)
+    code_gen = staticmethod(_fortran_code_gen)
     idx_offset = 1
     comment = "!"
     types: ClassVar[dict[str, str]] = {}

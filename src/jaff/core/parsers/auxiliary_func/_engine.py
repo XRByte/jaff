@@ -31,7 +31,7 @@ from typing import Any, Callable
 import sympy as sp
 from sympy.core.function import AppliedUndef
 
-from ....common import resolve_symbolic_dependencies
+from ....common import float_piecewise_branches, resolve_symbolic_dependencies
 from ....errors import ParserError
 from ._typing import AuxiliaryFunctionsDict
 
@@ -146,7 +146,7 @@ class AuxiliaryFunctionParser:
 
     def __parse_file(self) -> None:
         """Iterate over the file, handling line continuations before dispatching."""
-        with open(self.file, "r") as f:
+        with open(self.file, "r", encoding="utf-8") as f:
             for nline, line in enumerate(f, start=1):
                 self.nline = nline
                 self.og_line = line.strip()
@@ -398,6 +398,8 @@ class AuxiliaryFunctionParser:
                 self.nline,
                 self.file,
             )
+
+        funcdef = float_piecewise_branches(funcdef)
 
         self.func_dict[self.current_func]["def"] = funcdef
         self.func_dict[self.current_func].pop("locals")

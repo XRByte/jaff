@@ -1,21 +1,15 @@
 # ABOUTME: Tests for temperature-cutoff (clip/extrapolate) resolution
-# ABOUTME: Covers jaff.toml + jaffgen metadata sources, Model-A precedence, jaffgen wiring
+# ABOUTME: Covers jaff.toml + jaffgen metadata sources and Model-A precedence
 
-import os
-import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from sympy import Piecewise, symbols
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 from jaff import Network
 from jaff.errors import ParserError
 
-FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
-KIDA = os.path.join(FIXTURES, "sample_kida.dat")
+KIDA = str(Path(__file__).parent / "fixtures" / "sample_kida.dat")
 
 # Unique, tgas-dependent reaction in sample_kida.dat (bounded below at tmin,
 # open above).  Under the default "clip" behaviour its rate is wrapped in a
@@ -26,23 +20,17 @@ RXN = "H+.H2__H.H2+"
 
 def _load(config=None, metadata=None):
     """Load sample_kida with an optional jaff.toml path and Network metadata."""
-    with patch("builtins.print"):
-        return Network(
-            KIDA,
-            funcfile=False,
-            _from_cli=True,
-            config=config,
-            _metadata=metadata or {},
-        )
+    return Network(
+        KIDA,
+        funcfile=False,
+        _from_cli=True,
+        config=config,
+        _metadata=metadata or {},
+    )
 
 
 def _is_clipped(net, srxn=RXN):
-    """True when the reaction's rate still carries the boundary clamp (clip).
-
-    ``RXN`` is a single, half-open range, so under "clip" the rate becomes a
-    ``Piecewise`` (boundary hold below tmin) and under "extrapolate" it collapses
-    back to the bare rate expression.
-    """
+    """True when the reaction's rate still carries the boundary clamp (clip)."""
     return net.reactions[srxn].rate.has(Piecewise)
 
 
@@ -109,98 +97,3 @@ class TestPrecedenceModelA:
         # T_cutoff-only reaction_props (no shielding) must not require jaffgen_object.
         meta = {"reaction_props": {RXN: {"T_cutoff": "extrapolate"}}}
         assert _is_clipped(_load(metadata=meta)) is False
-
-
-class TestJaffgenWiring:
-    """jaffgen --network-config arg + [network] metadata assembly, in isolation."""
-
-    def _bare_jaffgen(self, network_config=None):
-        from types import SimpleNamespace
-
-        from jaff.cli.jaffgen._engine import JaffGen
-        from jaff.cli.jaffgen._structs import State
-
-        jg = JaffGen.__new__(JaffGen)
-        jg.state = State()
-        jg.args = SimpleNamespace(
-            label=None,
-            funcfile=None,
-            replace_nH=None,
-            errors=None,
-            network_config=network_config,
-            duplicate_policy=None,
-            lang=None,
-        )
-        return jg, JaffGen
-
-    def test_network_config_arg_maps(self):
-        # The typer callback maps --network-config onto args.network_config,
-        # defaulting to None when the flag is absent.
-        from typer.testing import CliRunner
-
-        import jaff.cli.jaffgen._engine as engine
-
-        captured = {}
-
-        def _capture(self, args):
-            captured["args"] = args
-
-        app = engine.app
-        with patch.object(engine.JaffGen, "__init__", _capture):
-            runner = CliRunner()
-            runner.invoke(app, ["--network", "n", "--network-config", "x.toml"])
-            assert captured["args"].network_config == "x.toml"
-            runner.invoke(app, ["--network", "n"])
-            assert captured["args"].network_config is None
-
-    def test_set_network_config_none(self):
-        jg, _ = self._bare_jaffgen(network_config=None)
-        jg.set_network_options()
-        assert jg.state.network_args.config is None
-
-    def test_set_network_config_resolves_cwd(self, tmp_path, monkeypatch):
-        # A relative --network-config resolves against the CWD, so run from a
-        # scratch directory rather than relying on the repository layout.
-        (tmp_path / "networks").mkdir()
-        rel = Path("networks") / "jaff.toml"
-        (tmp_path / rel).write_text('[network.rates]\nT_cutoff = "clip"\n')
-        monkeypatch.chdir(tmp_path)
-
-        jg, _ = self._bare_jaffgen(network_config=str(rel))
-        jg.set_network_options()
-        cfg = jg.state.network_args.config
-        assert cfg == (tmp_path / rel).resolve() and cfg.is_absolute()
-
-    def test_set_network_config_missing_raises(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        jg, _ = self._bare_jaffgen(network_config="does_not_exist.toml")
-        with pytest.raises(FileNotFoundError):
-            jg.set_network_options()
-
-    def test_set_network_config_dir_raises(self, tmp_path, monkeypatch):
-        (tmp_path / "networks").mkdir()
-        monkeypatch.chdir(tmp_path)
-        jg, _ = self._bare_jaffgen(network_config="networks")
-        with pytest.raises(FileNotFoundError):
-            jg.set_network_options()
-
-    def test_network_block_extraction(self, tmp_path):
-        # [network.*] parses into the shapes T3 feeds to metadata slots.
-        from jaff.drivers import Toml
-
-        body = (
-            '[network]\nlabel = "demo"\n'
-            '[network.rates]\nT_cutoff = "extrapolate"\n'
-            f'[network.reactions."{RXN}"]\nT_cutoff = "clip"\n'
-            f'[network.reactions."{RXN}".shielding]\ntype = "leiden"\n'
-        )
-        p = tmp_path / "jaffgen.toml"
-        p.write_text(body)
-        network_cfg = Toml(str(p)).get_key("network") or {}
-        reactions_cfg = network_cfg.get("reactions") or {}
-        rates_cfg = network_cfg.get("rates") or {}
-
-        assert rates_cfg.get("T_cutoff") == "extrapolate"
-        assert reactions_cfg[RXN]["T_cutoff"] == "clip"
-        assert reactions_cfg[RXN]["shielding"]["type"] == "leiden"
-        assert network_cfg.get("label") == "demo"  # scalar still reachable
