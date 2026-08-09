@@ -30,6 +30,45 @@ _FORTRAN_ATOM = re.compile(
     r"|."  # any single other character
 )
 
+_FORTRAN_MAX_EXP = 308
+_FORTRAN_CLAMP_LIT = "1.0d300"
+# Real literal with an explicit d/e exponent: mantissa, exponent letter, sign,
+# digits.  The lookbehind avoids matching inside an identifier or after a dot.
+_FORTRAN_REAL_LIT = re.compile(r"(?<![\w.])\d+\.?\d*[dDeE]([+-]?)(\d+)")
+
+
+def sanitize_fortran_literals(text: str) -> str:
+    """Clamp real literals whose exponent overflows real*8 to a finite sentinel.
+
+    A literal such as ``3.04782042452573d+83651`` -- produced when SymPy
+    constant-folds an interpolation fit (``10**poly``) at an out-of-domain
+    boundary inside an always-false cooling-domain guard -- exceeds the IEEE
+    double exponent range (~308) and is unrepresentable, so gfortran rejects it
+    with *"Syntax error in expression"*.  Every overflowing positive-exponent
+    literal is replaced by ``1.0d300``; because they occur only in numerically
+    inert guard conditions the replacement does not change behaviour.  Negative
+    (underflowing) exponents are legal and left untouched.
+
+    Parameters
+    ----------
+    text : str
+        Generated Fortran source.
+
+    Returns
+    -------
+    str
+        Source with overflowing real literals clamped.
+    """
+
+    def _clamp(m: "re.Match[str]") -> str:
+        sign, digits = m.group(1), m.group(2)
+        if sign != "-" and int(digits) > _FORTRAN_MAX_EXP:
+            return _FORTRAN_CLAMP_LIT
+        return m.group(0)
+
+    return _FORTRAN_REAL_LIT.sub(_clamp, text)
+
+
 _FORTRAN_NOWRAP_LEADERS = (
     "real",
     "integer",
@@ -178,6 +217,10 @@ def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
     str
         Source with over-long executable statements wrapped.
     """
+    # Clamp any real literal whose exponent overflows real*8 before wrapping,
+    # so an absurd token (e.g. ``3.04d+83651``) never survives into the output.
+    text = sanitize_fortran_literals(text)
+
     lines = text.split("\n")
     out: list[str] = []
     i = 0
