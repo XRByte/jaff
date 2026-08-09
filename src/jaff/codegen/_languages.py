@@ -12,15 +12,16 @@ import sympy as sp
 from ..errors import InvalidLanguageError
 
 # --------------------------------------------------------------------------- #
-# Fortran fixed-form line wrapping                                             #
+# Fortran free-form line wrapping                                              #
 # --------------------------------------------------------------------------- #
 
-# Width of a fixed-form Fortran line (columns 1-72 are significant, 73+ ignored).
-_FORTRAN_WIDTH = 72
-# Statement lines start in column 7; continuation lines carry a marker in
-# column 6.  Match SymPy's own layout: 6 leading spaces / "     @ ".
-_FORTRAN_STMT_PREFIX = "      "
-_FORTRAN_CONT_PREFIX = "     @ "
+# Significant column count for a free-form Fortran line (max 132 per F90+).
+# Two columns are reserved on a wrapped line for the trailing " &" marker.
+_FORTRAN_WIDTH = 132
+# Continuation lines are indented under their statement (visual only in free
+# form) and the wrapped line ends with the " &" continuation marker.
+_FORTRAN_CONT_INDENT = "      "
+_FORTRAN_CONT_MARK = " &"
 _FORTRAN_ATOM = re.compile(
     r"[A-Za-z_]\w*\s*\(\s*\d+(?:\s*,\s*\d+)*\s*\)"  # integer-indexed array ref
     r"|[A-Za-z_]\w*"  # identifier / intrinsic name
@@ -56,57 +57,83 @@ _FORTRAN_NOWRAP_LEADERS = (
 )
 
 
-def _fortran_fixed_wrap(code: str, width: int = _FORTRAN_WIDTH) -> str:
-    """Re-flow fixed-form Fortran so no token is split across a continuation.
+def _fortran_fold(code: str) -> list[str]:
+    """Fold free-form ``&`` continuations back into logical statements.
 
-    SymPy's ``fcode`` wraps long expressions at column 72 by breaking wherever
-    the limit falls -- including in the middle of a token such as
-    ``nden(1, 1)``.  A split token defeats regex post-processing (and reads
-    badly), so this reconstructs each logical statement and re-wraps it,
-    choosing break points only *between* atomic tokens.  The maximum atom is
-    far shorter than the line width, so every emitted line still fits in
-    ``width`` columns.
+    A free-form continuation is a line whose predecessor ends with ``&``; the
+    continued line may optionally begin with its own leading ``&``.  Both
+    markers are stripped and the fragments concatenated so each returned entry
+    is one whole logical statement (leading indentation of the first physical
+    line preserved).
+    """
+    logical: list[str] = []
+    open_cont = False
+    for phys in code.split("\n"):
+        if open_cont:
+            frag = phys.strip()
+            if frag.startswith("&"):
+                frag = frag[1:].lstrip()
+            logical[-1] += frag
+        else:
+            logical.append(phys.rstrip())
+        # A trailing "&" (now on the folded line) opens the next continuation.
+        if logical[-1].rstrip().endswith("&"):
+            logical[-1] = logical[-1].rstrip()[:-1].rstrip()
+            open_cont = True
+        else:
+            open_cont = False
+    return logical
+
+
+def _fortran_free_wrap(code: str, width: int = _FORTRAN_WIDTH) -> str:
+    """Re-flow free-form Fortran so no token is split across a continuation.
+
+    SymPy's ``fcode`` (``source_format='free'``) wraps long expressions by
+    breaking wherever the limit falls -- including in the middle of a token
+    such as ``nden(1, 1)`` or ``flux(3)``.  A split token defeats regex
+    post-processing (and reads badly), so this reconstructs each logical
+    statement and re-wraps it, choosing break points only *between* atomic
+    tokens.  Wrapped lines end with the free-form ``&`` continuation marker;
+    the maximum atom is far shorter than the line width, so every emitted line
+    fits within ``width`` columns.
 
     Parameters
     ----------
     code : str
-        Fixed-form Fortran as produced by :func:`sympy.fcode` (statement lines
-        plus ``@``-marked continuation lines).
+        Free-form Fortran as produced by :func:`sympy.fcode` (statement lines
+        plus ``&``-continued lines).
     width : int, optional
-        Significant column count.  Default 72.
+        Significant column count.  Default 132.
 
     Returns
     -------
     str
         Equivalent code whose continuations never fall inside a token.
     """
-    # Rebuild logical statements: fold every "@" continuation line back onto
-    # the statement it continues.
-    logical: list[str] = []
-    for phys in code.split("\n"):
-        stripped = phys.lstrip()
-        if stripped.startswith("@"):
-            logical[-1] += stripped[1:].lstrip()
-        else:
-            logical.append(phys)
-
     out: list[str] = []
-    for stmt in logical:
+    # Room for the trailing " &" marker on any line that will be continued.
+    limit = width - len(_FORTRAN_CONT_MARK)
+    for stmt in _fortran_fold(code):
+        indent = stmt[: len(stmt) - len(stmt.lstrip())]
         content = stmt.strip()
-        if len(_FORTRAN_STMT_PREFIX + content) <= width:
-            out.append(_FORTRAN_STMT_PREFIX + content)
+        if not content:
+            out.append("")
+            continue
+        if len(indent) + len(content) <= width:
+            out.append(indent + content)
             continue
 
+        cont_indent = indent + _FORTRAN_CONT_INDENT
         tokens = _FORTRAN_ATOM.findall(content)
-        line = _FORTRAN_STMT_PREFIX
-        prefix = _FORTRAN_STMT_PREFIX
+        line = indent
+        prefix = indent
         for tok in tokens:
             # Never start a line with the leftover whitespace from a break.
             if line == prefix and tok.isspace():
                 continue
-            if len(line) + len(tok) > width and line != prefix:
-                out.append(line.rstrip())
-                prefix = _FORTRAN_CONT_PREFIX
+            if len(line) + len(tok) > limit and line != prefix:
+                out.append(line.rstrip() + _FORTRAN_CONT_MARK)
+                prefix = cont_indent
                 line = prefix
                 if tok.isspace():
                     continue
@@ -118,8 +145,8 @@ def _fortran_fixed_wrap(code: str, width: int = _FORTRAN_WIDTH) -> str:
 
 
 def _fortran_code_gen(expr: Any, **kwargs: Any) -> str:
-    """Serialise *expr* to fixed-form Fortran with split-safe line wrapping."""
-    return _fortran_fixed_wrap(sp.fcode(expr, standard=95, **kwargs))
+    """Serialise *expr* to free-form Fortran with split-safe line wrapping."""
+    return _fortran_free_wrap(sp.fcode(expr, standard=95, source_format="free", **kwargs))
 
 
 def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
@@ -129,9 +156,9 @@ def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
     :func:`sympy.fcode`.  Many generated statements -- e.g. the species ODE
     right-hand sides ``dn(i) = -flux(1) + flux(3) + ...`` -- are assembled by
     plain string concatenation and never reach the printer, so they can exceed
-    the 72-column fixed-form limit.  This pass walks the finished source and
-    re-wraps each executable statement that is too long, splitting only between
-    atomic tokens (array references such as ``flux(3)`` stay intact).
+    the free-form line limit.  This pass walks the finished source and re-wraps
+    each executable statement that is too long, splitting only between atomic
+    tokens (array references such as ``flux(3)`` stay intact).
 
     Declarations, structural keywords and comment lines are left untouched, as
     are statements that already fit within *width*.
@@ -153,10 +180,11 @@ def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
     i = 0
     while i < len(lines):
         line = lines[i]
-        # Gather any continuation lines belonging to this logical statement.
+        # Gather any continuation lines belonging to this logical statement: in
+        # free form, a line is continued when it ends with a trailing "&".
         unit = [line]
         j = i + 1
-        while j < len(lines) and lines[j].lstrip().startswith("@"):
+        while unit[-1].rstrip().endswith("&") and j < len(lines):
             unit.append(lines[j])
             j += 1
         i = j
@@ -169,7 +197,7 @@ def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
         if is_comment or is_decl:
             out.extend(unit)
         elif len(unit) > 1 or len(line) > width:
-            out.append(_fortran_fixed_wrap("\n".join(unit), width))
+            out.append(_fortran_free_wrap("\n".join(unit), width))
         else:
             out.append(line)
 
