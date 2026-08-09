@@ -20,12 +20,15 @@ from ..errors import InvalidLanguageError
 # the trailing " &" marker.
 _FORTRAN_WIDTH = 120
 _FORTRAN_CONT_INDENT = "      "
-_FORTRAN_CONT_MARK = " &"
+_FORTRAN_CONT_MARK = "&"
 _FORTRAN_CONT_LEAD = "&"
 _FORTRAN_ATOM = re.compile(
     r"[A-Za-z_]\w*\s*\(\s*\d+(?:\s*,\s*\d+)*\s*\)"  # integer-indexed array ref
     r"|[A-Za-z_]\w*"  # identifier / intrinsic name
     r"|\d+\.?\d*(?:[dDeE][+-]?\d+)?"  # numeric literal (incl. d-exponent)
+    r"|\*\*"  # power operator (kept whole so a break never splits it)
+    r"|//"  # string-concatenation operator
+    r"|[<>=/]="  # two-char relational operators (<=, >=, ==, /=)
     r"|\s+"  # run of whitespace
     r"|."  # any single other character
 )
@@ -111,7 +114,9 @@ def _fortran_fold(code: str) -> list[str]:
         if open_cont:
             frag = phys.strip()
             if frag.startswith("&"):
-                frag = frag[1:].lstrip()
+                frag = frag[1:]
+            elif frag:
+                frag = " " + frag
             logical[-1] += frag
         else:
             logical.append(phys.rstrip())
@@ -174,9 +179,10 @@ def _fortran_free_wrap(code: str, width: int = _FORTRAN_WIDTH) -> str:
             if line == prefix and tok.isspace():
                 continue
             if len(line) + len(tok) > limit and line != prefix:
+                broke_at_space = line.endswith(" ") or tok.isspace()
                 out.append(line.rstrip() + _FORTRAN_CONT_MARK)
                 prefix = cont_prefix
-                line = prefix
+                line = prefix + " " if broke_at_space else prefix
                 if tok.isspace():
                     continue
             line += tok
