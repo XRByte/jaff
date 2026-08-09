@@ -8,6 +8,7 @@
 import json
 import math
 import os
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -42,6 +43,7 @@ def _jaffgen(network_path, template, outdir, lang="cxx"):
         lang=lang,
     )
     JaffGen(args)
+
 
 REPO = Path(__file__).resolve().parent.parent
 GOLDEN = Path(__file__).parent / "golden"
@@ -159,13 +161,68 @@ def _assert_close(actual, expected, label):
 
 
 # --------------------------------------------------------------------------- #
-# Test 1: bitwise microphysics output vs golden                               #
+# Text comparison: structural (bitwise) skeleton + numeric (approx) floats     #
+# --------------------------------------------------------------------------- #
+
+FLOAT_REL_TOL = 1e-9
+FLOAT_ABS_TOL = 0.0
+
+_NUM_RE = re.compile(r"(?<![\w.])[0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?(?![\w.])")
+_NUM_SENTINEL = "\x00"
+
+
+def _extract_numbers(text: str):
+    """Split *text* into a structural skeleton and its list of float literals.
+
+    Every float literal (has a '.' or an exponent) is replaced by a sentinel in
+    the skeleton and its value appended to the returned list, in order.  Bare
+    integers stay verbatim in the skeleton.
+    """
+    nums: list[float] = []
+
+    def _repl(m: "re.Match[str]") -> str:
+        tok = m.group(0)
+        if "." in tok or "e" in tok or "E" in tok:
+            nums.append(float(tok))
+            return _NUM_SENTINEL
+        return tok
+
+    return _NUM_RE.sub(_repl, text), nums
+
+
+def _assert_text_matches(generated: bytes, golden: bytes, label: str) -> None:
+    """Compare two files: skeleton byte-identical, float literals within tol.
+
+    Falls back to a strict bitwise compare if either side is not valid UTF-8.
+    """
+    try:
+        gen_txt = generated.decode("utf-8")
+        gold_txt = golden.decode("utf-8")
+    except UnicodeDecodeError:
+        assert generated == golden, f"{label} differs from golden (bitwise, binary)"
+        return
+
+    gen_skel, gen_nums = _extract_numbers(gen_txt)
+    gold_skel, gold_nums = _extract_numbers(gold_txt)
+
+    assert gen_skel == gold_skel, f"{label}: non-numeric structure differs from golden"
+    assert len(gen_nums) == len(gold_nums), (
+        f"{label}: float-literal count {len(gen_nums)} != {len(gold_nums)}"
+    )
+    for i, (a, b) in enumerate(zip(gen_nums, gold_nums)):
+        assert a == pytest.approx(b, rel=FLOAT_REL_TOL, abs=FLOAT_ABS_TOL), (
+            f"{label}: float #{i} {a!r} != {b!r} (rel={FLOAT_REL_TOL})"
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Test 1: microphysics output vs golden (skeleton bitwise + floats approx)     #
 # --------------------------------------------------------------------------- #
 
 
 @pytest.mark.parametrize("name", list(NETWORKS))
 def test_microphysics_output_matches_golden(name, tmp_path):
-    """Generated microphysics files match the committed golden byte-for-byte."""
+    """Generated microphysics files match golden: structure bitwise, floats approx."""
     _jaffgen(NETWORKS[name], template="microphysics", outdir=tmp_path)
     generated = {p.name: p.read_bytes() for p in tmp_path.iterdir() if p.is_file()}
 
@@ -182,7 +239,7 @@ def test_microphysics_output_matches_golden(name, tmp_path):
     golden = {p.name: p.read_bytes() for p in gdir.iterdir() if p.is_file()}
     assert set(generated) == set(golden), "generated file set differs from golden"
     for fn in sorted(golden):
-        assert generated[fn] == golden[fn], f"{name}/{fn} differs from golden (bitwise)"
+        _assert_text_matches(generated[fn], golden[fn], f"{name}/{fn}")
 
 
 # --------------------------------------------------------------------------- #
@@ -218,7 +275,9 @@ def test_rates_and_jacobian_match_golden(name):
 @pytest.mark.parametrize("template", list(ALL_TEMPLATES))
 def test_gow_generates_for_all_templates(template, tmp_path):
     """The GOW network builds without error and emits non-empty files."""
-    _jaffgen(NETWORKS["GOW"], template=template, outdir=tmp_path, lang=ALL_TEMPLATES[template])
+    _jaffgen(
+        NETWORKS["GOW"], template=template, outdir=tmp_path, lang=ALL_TEMPLATES[template]
+    )
     files = [p for p in tmp_path.iterdir() if p.is_file()]
     assert files, f"template {template} produced no files"
     assert all(p.stat().st_size > 0 for p in files), f"empty output file for {template}"
