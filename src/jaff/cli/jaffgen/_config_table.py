@@ -30,6 +30,14 @@ key accepts mappings of the form::
 This reads the ``max`` property of ``/other/dataset`` and stores it as the
 HDF5 attribute ``my_attr`` on ``/some/dataset``.  Supported property names
 are: ``max``, ``min``, ``mean``, ``median``, ``length``.
+
+A value may also be a **list**, resolved element-wise, so computed references
+and literals can be mixed::
+
+    [table.target."/co".attrs]
+    Ndim = 2                                  # literal
+    Nx   = ["/co/TCO.length", "/co/x.length"] # list of computed references
+    spacing = ["log", "log"]                  # list of literals
 """
 
 import copy
@@ -165,8 +173,8 @@ class ConfigTable:
         * **CSV → HDF5**: Wraps each requested column as a ``"linear"``
           HDF5 dataset under the declared path.
 
-        After path remapping, any ``attrs`` entries are processed and injected
-        via :meth:`set_attr`.
+        After path remapping, any ``attrs`` entries are resolved via
+        :meth:`__resolve_attr_value` and injected onto their target path.
 
         Returns
         -------
@@ -229,21 +237,22 @@ class ConfigTable:
                     "_dtype": HDF5Dict._from_np()[self.source_tree[items["col"]].dtype],
                 }
 
-        # Inject HDF5 attributes derived from other datasets in the tree.
+        # Inject HDF5 attributes. Each value is resolved to either a computed
+        # statistic (``"/path.property"`` reference), a plain literal, or a list
+        # of those resolved element-wise.
         for path, items in target_hdf_tree.items():
             if "attrs" not in items:
                 continue
 
-            for var, attr in items["attrs"].items():
-                # Attribute references must be "path.property" (exactly one dot).
-                tokens = attr.split(".")
-                if len(tokens) != 2:
-                    raise ValueError(f"Invalid attribute: {attr}")
-
-                prop_path = tokens[0]
-                prop = tokens[1]
-
-                self.set_attr(target_tree, path, prop_path, var, prop)
+            for var, value in items["attrs"].items():
+                resolved = self.__resolve_attr_value(target_tree, value)
+                target_tree[path] = {
+                    **target_tree.get(path, {}),
+                    "_attrs": {
+                        **target_tree.get(path, {}).get("_attrs", {}),
+                        var: resolved,
+                    },
+                }
 
         return HDF5Dict(target_tree)
 
@@ -386,45 +395,53 @@ class ConfigTable:
     # Attribute helpers
     # ------------------------------------------------------------------
 
-    def set_attr(
-        self,
-        target_tree: dict,
-        path: str,
-        prop_path: str,
-        var: str,
-        prop: str,
-    ) -> None:
+    def __resolve_attr_value(self, target_tree: dict, value: Any) -> Any:
         """
-        Inject a single computed HDF5 attribute into *target_tree*.
+        Resolve one attribute value from the config to its stored form.
 
-        Merges the new attribute into the ``_attrs`` sub-dict of the dataset
-        at *path*, creating it if absent.
+        The resolution rules are:
+
+        * **list** — resolved element-wise (a list of resolved values).
+        * **string of the form** ``"/path.property"`` where *property* is a key
+          of :attr:`attr_dict` — a computed statistic read from the dataset at
+          ``/path`` in *target_tree* (e.g. ``"/co/TCO.max"``).
+        * **anything else** — a literal, stored verbatim (numbers, booleans, and
+          plain strings such as ``"log"`` or ``"K"``).
 
         Parameters
         ----------
         target_tree : dict
-            The in-progress target tree being built.
-        path : str
-            HDF5 path of the dataset that will receive the attribute.
-        prop_path : str
-            HDF5 path of the dataset whose data is used to compute the value.
-        var : str
-            Name of the attribute to set on *path*.
-        prop : str
-            Statistical property to compute from the source data (e.g.
-            ``"max"``, ``"min"``).  Must be a key in :attr:`attr_dict`.
+            The in-progress target tree the references are computed against.
+        value : Any
+            Raw attribute value from the TOML config.
 
         Returns
         -------
-        None
+        Any
+            The resolved attribute value (scalar, literal, or list thereof).
+
+        Raises
+        ------
+        ValueError
+            If a value parses as a ``"/path.property"`` reference but ``/path``
+            is not present in *target_tree*.
         """
-        target_tree[path] = {
-            **target_tree.get(path, {}),
-            "_attrs": {
-                **target_tree.get(path, {}).get("_attrs", {}),
-                var: self.get_attr(target_tree, prop_path, prop),
-            },
-        }
+        if isinstance(value, list):
+            return [self.__resolve_attr_value(target_tree, v) for v in value]
+
+        if isinstance(value, str):
+            # A computed reference is "<path>.<property>" where <property> is a
+            # known statistic; the "." also distinguishes it from a plain literal
+            # such as "log". Anything else is stored verbatim.
+            prop_path, sep, prop = value.rpartition(".")
+            if sep and prop in self.attr_dict:
+                if prop_path not in target_tree:
+                    raise ValueError(
+                        f"Attribute reference path not found in target tree: {value}"
+                    )
+                return self.get_attr(target_tree, prop_path, prop)
+
+        return value
 
     def get_attr(self, target_tree: dict, prop_path: str, prop: str) -> Any:
         """
