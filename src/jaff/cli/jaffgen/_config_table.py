@@ -37,6 +37,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from ...common._helper import CSV_EXTENSIONS, HDF_EXTENSIONS
@@ -196,9 +197,21 @@ class ConfigTable:
                 if "h5path" not in items:
                     continue
 
-                target_tree[path] = self.source_tree[items["h5path"]]
-                if items["h5path"] != path and items["h5path"] in target_tree:
-                    target_tree.pop(items["h5path"])
+                h5path = items["h5path"]
+                # A list of source paths declares a *composite* dataset: several
+                # source datasets folded into a single compound (named-column) or
+                # N-D array dataset. A bare string keeps the single-move behaviour.
+                if isinstance(h5path, list):
+                    target_tree[path] = self.__build_composite(h5path, items)
+                    # The folded-in source datasets are consumed; drop them so
+                    # they don't also pass through at their old locations.
+                    for src in map(self.__norm_path, h5path):
+                        target_tree.pop(src, None)
+                    continue
+
+                target_tree[path] = self.source_tree[h5path]
+                if h5path != path and h5path in target_tree:
+                    target_tree.pop(h5path)
 
         elif self.source_props["type"] == "csv":
             assert isinstance(self.source_tree, dict)
@@ -233,6 +246,141 @@ class ConfigTable:
                 self.set_attr(target_tree, path, prop_path, var, prop)
 
         return HDF5Dict(target_tree)
+
+    # ------------------------------------------------------------------
+    # Composite datasets
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def __norm_path(path: str) -> str:
+        """Normalise a source path to an absolute HDF5 path (leading ``/``)."""
+        return path if path.startswith("/") else "/" + path
+
+    def __build_composite(self, h5path: list[str], items: dict[str, Any]) -> dict:
+        """
+        Fold several source datasets into one composite HDF5 dataset.
+
+        Triggered when a ``[table.target."/path"]`` heading declares its
+        ``h5path`` as a **list** of source paths.  The ``type`` key selects the
+        storage layout (default ``"compound"``):
+
+        * ``"compound"`` — a NumPy structured (record) array, one named column
+          per source dataset.  Column names come from the ``names`` list, or
+          from each source path's final component when ``names`` is absent.
+        * ``"ndarray"`` — a single N-D array of shape ``(Ncols, *xlens)``, where
+          ``Ncols`` is the number of source datasets and ``xlens`` are the
+          lengths of the axis datasets listed under ``regrid.x``.  Each source
+          column is reshaped to the axis grid and stacked along a new leading
+          axis.
+
+        Parameters
+        ----------
+        h5path : list of str
+            Source dataset paths to combine.  Missing leading slashes are
+            normalised.
+        items : dict
+            The target heading's sub-config (may hold ``type``, ``names``,
+            ``regrid``).
+
+        Returns
+        -------
+        dict
+            A leaf dataset dict (``_kind``/``_data``/``_dtype``/``_attrs``).
+
+        Raises
+        ------
+        ValueError
+            If the source columns differ in length, if ``names`` length does
+            not match, if ``type`` is unrecognised, or (``ndarray``) if
+            ``regrid.x`` is missing or the reshape does not fit.
+        """
+        paths = [self.__norm_path(p) for p in h5path]
+        leaves = [self.source_tree[p] for p in paths]
+
+        # Every column must share a length to form a single dataset.
+        lengths = {len(leaf["_data"]) for leaf in leaves}
+        if len(lengths) != 1:
+            raise ValueError(
+                f"Composite columns must share a length; got {lengths} for {paths}"
+            )
+
+        kind = items.get("type", "compound")
+        if kind == "compound":
+            return self.__build_compound(paths, leaves, items)
+        if kind == "ndarray":
+            return self.__build_ndarray(paths, leaves, items)
+        raise ValueError(
+            f"Unknown composite type {kind!r} (expected 'compound' or 'ndarray')"
+        )
+
+    def __build_compound(
+        self, paths: list[str], leaves: list[dict], items: dict[str, Any]
+    ) -> dict:
+        """Build a structured-array (compound) leaf from *leaves*.
+
+        Column names are taken from ``items['names']`` when present, otherwise
+        from each source path's final component.
+        """
+        names = items.get("names") or [p.rsplit("/", 1)[-1] for p in paths]
+        if len(names) != len(paths):
+            raise ValueError(
+                f"names length {len(names)} != h5path length {len(paths)}"
+            )
+
+        np_fields = [
+            (name, np.asarray(leaf["_data"]).dtype)
+            for name, leaf in zip(names, leaves)
+        ]
+        data = np.empty(len(leaves[0]["_data"]), dtype=np_fields)
+        for name, leaf in zip(names, leaves):
+            data[name] = leaf["_data"]
+
+        return {
+            "_kind": "compound",
+            "_data": data,
+            # Reuse each source leaf's own JAFF dtype token for the field schema.
+            "_dtype": {name: leaf["_dtype"] for name, leaf in zip(names, leaves)},
+            "_attrs": {},
+        }
+
+    def __build_ndarray(
+        self, paths: list[str], leaves: list[dict], items: dict[str, Any]
+    ) -> dict:
+        """Build an ``(Ncols, *xlens)`` N-D array leaf from *leaves*.
+
+        Axis lengths are read from the ``regrid.x`` dataset list; each source
+        column is reshaped to that grid and stacked along a new leading axis.
+        """
+        xpaths = items.get("regrid", {}).get("x")
+        if xpaths is None:
+            raise ValueError(
+                "ndarray composite requires a 'regrid.x' axis list to define shape"
+            )
+        if isinstance(xpaths, str):
+            xpaths = [xpaths]
+
+        xlens = [
+            len(self.source_tree[self.__norm_path(x)]["_data"]) for x in xpaths
+        ]
+        expected = int(np.prod(xlens))
+
+        cols = []
+        for path, leaf in zip(paths, leaves):
+            arr = np.asarray(leaf["_data"])
+            if arr.size != expected:
+                raise ValueError(
+                    f"{path}: size {arr.size} does not match axis grid {xlens} "
+                    f"(product {expected})"
+                )
+            cols.append(arr.reshape(xlens))
+
+        data = np.stack(cols, axis=0)  # (Ncols, *xlens)
+        return {
+            "_kind": "linear",
+            "_data": data,
+            "_dtype": HDF5Dict._from_np()[data.dtype],
+            "_attrs": {},
+        }
 
     # ------------------------------------------------------------------
     # Attribute helpers

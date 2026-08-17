@@ -1,0 +1,60 @@
+# [network.radiation]
+# bands = [13.6, "inf"]
+# power_law_index = 0
+# energy_density = false
+# rsl = "c_hat"
+
+[[table]]
+[table.source]
+path = "default"
+
+[table.target]
+path = "GOW.hdf5"
+default_group = "/"
+
+[table.target."/c0/data"]
+h5path = ["/co/LLTECO", "/co/alphaCO", "nhalfCO"]
+
+[table.target."/c0/data".regrid]
+spacing = "log"  # linear, fast-log
+x = ["/co/TCO", "co/NeffCO"]
+n_points = [10, 11]
+
+[table.target."/c0".attrs]
+Ndim = 2
+Nout = 3
+Nx = ["/co/TCO.length", "/co/NeffCO.length"]
+spacing = ["log", "log"]
+xlo = ["/co/TCO.min", "/co/NeffCO.min"]
+xhigh = ["/co/TCO.max", "/co/NeffCO.max"]
+
+[table.target."/l0/data"]
+h5path = ["/co/L0CO"]
+
+[table.target."/l0/data".regrid]
+spacing = "log"  # linear, fast-log
+x = "/co/TCO"
+n_points = 10
+
+[table.target."/l0".attrs]
+Ndim = 1
+Nout = 1
+Nx = ["/co/TCO.length"]
+spacing = ["log", "log"]
+xlo = ["/co/TCO.min"]
+xhigh = ["/co/TCO.max"]
+
+[table.target."/dust/data"]
+h5path = ["/co/L0CO"]
+
+[table.target."/dust/data".regrid]
+spacing = "log"
+x = "/dust/logTg"
+
+[table.target."/dust".attrs]
+Ndim = 2
+Nout = 1
+Nx = ["/dust/logTg.length", "/dust/lognH.length"]
+spacing = ["log", "log"]
+xlo = ["/dust/logTg.min", "/dust/lognH.min"]
+xhigh = ["/dust/logTg.max", "/dust/lognH.max"]
