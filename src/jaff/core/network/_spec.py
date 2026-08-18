@@ -59,7 +59,7 @@ class NetworkSpec:
         Spectral power-law index of the radiation field.
     rad_energy_density : bool
         Whether the radiation field is given as an energy density.
-    c : float
+    c : float or str
         Speed of light in the unit system used by the network.
     _from_cli : bool
         Internal flag marking construction from the command-line interface.
@@ -81,7 +81,7 @@ class NetworkSpec:
         rad_bands: list,
         rad_powerlaw_index: int | float,
         rad_energy_density: bool,
-        c: float,
+        c: float | str,
         _from_cli: bool,
         _metadata: dict[str, Any],
     ):

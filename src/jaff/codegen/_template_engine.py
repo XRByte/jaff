@@ -1639,6 +1639,13 @@ class TemplateParser:
                     "reaction_verbatim": {
                         "func": lambda r: self.net.reactions[r].verbatim
                     },
+                    "aux_func": {
+                        "func": lambda f: self.cg.lang.code_gen(
+                            self.net.spec.aux_funcs[f]["def"],
+                            strict=False,
+                            allow_unknown_functions=True,
+                        )
+                    },
                 },
             },
             # HAS command: check entity existence (returns 1 or 0)

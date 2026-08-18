@@ -1085,7 +1085,7 @@
     D = Array([0.4535, 2.234, -6.266, 1.442, 0.05089])
 
     # Cooling rate
-    return 1e-28 * n_e * (d2g / d2g_solar) * \
+    return 1e-28 * n_e * nH * (d2g / d2g_solar) * \
         tgas**(D[0] + D[1]/lnx) * \
         exp( D[2] + (D[3] - D[4]*lnx)*lnx )
 
