@@ -9,7 +9,7 @@ def main():
     masses = DATA_DIR / "atom_mass.csv"
     df = pd.read_csv(
         masses,
-        sep=r"\s+",
+        sep=r"\s*,\s*",
         index_col=0,
         dtype={"Protons": "Int64", "Neutrons": "Int64", "Electrons": "Int64"},
     )
