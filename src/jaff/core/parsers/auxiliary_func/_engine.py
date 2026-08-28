@@ -436,15 +436,26 @@ class AuxiliaryFunctionParser:
             f_data = self.func_dict[name]
             expr = f_data["def"]
 
-            # Substitute each call to another jfunc function with its body.
-            for func in expr.atoms(AppliedUndef):
-                func_name = func.func.__name__.lower()
-                if func_name in self.func_dict:
+            while True:
+                calls = sorted(
+                    (
+                        f
+                        for f in expr.atoms(AppliedUndef)
+                        if f.func.__name__.lower() in self.func_dict
+                    ),
+                    key=sp.srepr,
+                )
+                if not calls:
+                    break
+
+                repl = {}
+                for func in calls:
+                    func_name = func.func.__name__.lower()
                     nested_f_def = dfs_resolve_func(func_name)
                     nested_f_args = self.func_dict[func_name]["args"]
                     arg_map = dict(zip(nested_f_args, func.args))
-                    resolved_call = nested_f_def.subs(arg_map)
-                    expr = expr.subs(func, resolved_call)
+                    repl[func] = nested_f_def.subs(arg_map)
+                expr = expr.xreplace(repl)
 
             visiting.remove(name)
             resolved_defs[name] = expr

@@ -29,7 +29,7 @@ def _jaffgen(network_path, template, outdir, lang="cxx"):
     """
     args = SimpleNamespace(
         network=str(network_path),
-        config=None,
+        config=str(FIXTURE_CONFIG),
         label=None,
         funcfile=None,
         duplicate_policy=None,
@@ -47,6 +47,7 @@ def _jaffgen(network_path, template, outdir, lang="cxx"):
 
 REPO = Path(__file__).resolve().parent.parent
 GOLDEN = Path(__file__).parent / "golden"
+FIXTURE_CONFIG = Path(__file__).parent / "fixtures" / "jaffgen.toml"
 UPDATE = os.environ.get("JAFF_UPDATE_GOLDEN") == "1"
 
 NETWORKS = {
