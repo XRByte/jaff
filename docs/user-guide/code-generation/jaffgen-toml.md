@@ -214,21 +214,41 @@ The engine loads the source into a flat tree, builds a target tree from your
       so datasets you don't remap pass through unchanged; a remapped source path
       is removed from its old location. Omit `h5path` to leave a dataset where it
       already is.
+    - **`h5path = ["/a", "/b", …]`** (HDF5 → HDF5, *composite*) — fold several
+      source datasets into a **single** dataset at this heading's path. The
+      folded-in sources are consumed (removed from their old locations). A `type`
+      key picks the layout:
+        - **`type = "compound"`** (default) — a record/table dataset, one named
+          column per source. Column names come from a `names = [...]` list, or
+          from each source path's final component when `names` is omitted. All
+          sources must share a length.
+        - **`type = "ndarray"`** — a single array of shape `(Ncols, *xlens)`:
+          `Ncols` source columns stacked along a new leading axis, each reshaped
+          to the grid whose axis lengths are the lengths of the datasets listed
+          under this heading's `regrid.x`. Each source's flat size must equal the
+          product of those axis lengths.
     - **`col = "ColName"`** (CSV → HDF5) — write the named CSV column as the
       dataset at this heading's path. Only columns named by a `col` are written;
       nested paths create the intermediate groups (e.g. `/co/1d/Temp`).
 
 3. **Attributes.** A `.attrs` sub-table on a heading attaches HDF5 attributes to
-   that path. Each attribute **value** is a `"/target/path.property"` reference —
-   a statistic computed from the **target** tree at write time. Supported
-   properties: `max`, `min`, `mean`, `median`, `length`. Because they read the
-   target tree, the referenced path must exist in the output (e.g. the remapped
-   path, not the original source path).
+   that path. Each attribute **value** is one of:
+    - a `"/target/path.property"` **reference** — a statistic computed from the
+      **target** tree at write time. Supported properties: `max`, `min`, `mean`,
+      `median`, `length`. Because they read the target tree, the referenced path
+      must exist in the output (e.g. the remapped path, not the original source
+      path).
+    - a plain **literal** — number, boolean, or string (e.g. `units = "K"`,
+      `Ndim = 2`, `spacing = "log"`).
+    - a **list** mixing either of the above, resolved element-wise — e.g.
+      `Nx = ["/co/TCO.length", "/co/NeffCO.length"]` (a list of references) or
+      `spacing = ["log", "log"]` (a list of literals).
 
 <!-- prettier-ignore -->
-!!! warning "Attribute values are computed references, not literals"
-    Every `.attrs` value must be of the form `"/path.property"` or a plain literal
-    such as `units = "K"`.
+!!! note "Distinguishing references from literals"
+    A string is treated as a computed reference only when it ends in
+    `.<property>` for one of the supported property names; every other string
+    (including `"log"` and `"K"`) is stored verbatim.
 
 `default_group` sets the output root group (default `/`). For CSV sides,
 `delimiter` and `comment` configure parsing/writing.
@@ -253,6 +273,28 @@ h5path = "/co/TCO"           # move source /co/TCO here (other datasets copy thr
 [table.target."/temperature".attrs]
 tmax = "/temperature.max"    # computed from the data now at /temperature
 npts = "/temperature.length"
+```
+
+#### Composite datasets
+
+Fold several source datasets into one. As a compound (named-column) dataset:
+
+```toml
+[table.target."/c0/data"]
+h5path = ["/co/LLTECO", "/co/alphaCO", "/co/nhalfCO"]
+type   = "compound"                       # default; may be omitted
+names  = ["LLTE", "alpha", "nhalf"]       # optional; else path stems are used
+```
+
+Or as a single `(Ncols, *xlens)` N-D array, gridded over the `regrid.x` axes:
+
+```toml
+[table.target."/c0/data"]
+h5path = ["/co/LLTECO", "/co/alphaCO"]
+type   = "ndarray"
+
+[table.target."/c0/data".regrid]
+x = ["/co/TCO", "/co/NeffCO"]             # shape becomes (2, len TCO, len NeffCO)
 ```
 
 ### CSV → HDF5
