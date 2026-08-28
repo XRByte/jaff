@@ -50,7 +50,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
    1.0e-50
 )
 : (
-   cse26
+   cse25
 ));
   const amrex::Real cse28 = cse17/(cse27 + 1);
   const amrex::Real cse29 = cse27*cse28;
