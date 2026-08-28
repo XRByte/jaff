@@ -29,7 +29,7 @@ def _jaffgen(network_path, template, outdir, lang="cxx"):
     """
     args = SimpleNamespace(
         network=str(network_path),
-        config=None,
+        config=str(FIXTURE_CONFIG),
         label=None,
         funcfile=None,
         duplicate_policy=None,
@@ -47,6 +47,7 @@ def _jaffgen(network_path, template, outdir, lang="cxx"):
 
 REPO = Path(__file__).resolve().parent.parent
 GOLDEN = Path(__file__).parent / "golden"
+FIXTURE_CONFIG = Path(__file__).parent / "fixtures" / "jaffgen.toml"
 UPDATE = os.environ.get("JAFF_UPDATE_GOLDEN") == "1"
 
 NETWORKS = {
@@ -224,7 +225,14 @@ def _assert_text_matches(generated: bytes, golden: bytes, label: str) -> None:
 def test_microphysics_output_matches_golden(name, tmp_path):
     """Generated microphysics files match golden: structure bitwise, floats approx."""
     _jaffgen(NETWORKS[name], template="microphysics", outdir=tmp_path)
-    generated = {p.name: p.read_bytes() for p in tmp_path.iterdir() if p.is_file()}
+    # ``.toml`` (config copy) and ``.hdf5`` (binary data table) outputs are not
+    # part of the text-golden comparison and are skipped on both sides.
+    skip_ext = {".toml", ".hdf5"}
+    generated = {
+        p.name: p.read_bytes()
+        for p in tmp_path.iterdir()
+        if p.is_file() and p.suffix not in skip_ext
+    }
 
     gdir = GOLDEN / f"{name}_microphysics"
     if UPDATE:
@@ -236,7 +244,11 @@ def test_microphysics_output_matches_golden(name, tmp_path):
         pytest.skip(f"golden refreshed: {gdir}")
 
     assert gdir.is_dir(), f"no golden for {name}; run JAFF_UPDATE_GOLDEN=1"
-    golden = {p.name: p.read_bytes() for p in gdir.iterdir() if p.is_file()}
+    golden = {
+        p.name: p.read_bytes()
+        for p in gdir.iterdir()
+        if p.is_file() and p.suffix not in skip_ext
+    }
     assert set(generated) == set(golden), "generated file set differs from golden"
     for fn in sorted(golden):
         _assert_text_matches(generated[fn], golden[fn], f"{name}/{fn}")

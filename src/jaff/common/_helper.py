@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sympy import Basic, Expr, Float, Integer, Piecewise
+from sympy import Basic, Expr, Float, Integer, Piecewise, srepr
 from sympy.core.function import AppliedUndef
 
 from ..errors import ParserError
@@ -280,7 +280,7 @@ def resolve_dependencies(
     if aux_funcs is None:
         aux_funcs = {}
 
-    for f in expr.atoms(AppliedUndef):
+    for f in sorted(expr.atoms(AppliedUndef), key=srepr):
         name = f.func.__name__.lower()
 
         # Check the direct substitution table first (case-insensitive key match)
@@ -316,7 +316,9 @@ def resolve_dependencies(
                 )
             )
 
-            subs_dict[f] = func_def.xreplace(arg_map)
+            subs_dict[f] = resolve_dependencies(
+                func_def.xreplace(arg_map), subs_dict, aux_funcs
+            )
 
     return expr.xreplace(subs_dict)
 
