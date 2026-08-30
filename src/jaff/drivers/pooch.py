@@ -173,3 +173,19 @@ def download_shielding() -> None:
 
     for file in ["shielding/leiden.hdf5"]:
         pooch.fetch_file(file)
+
+
+def download_background_radiation() -> None:
+    """Fetch the background-radiation data file into ``data/background_radiation``.
+
+    Downloads the collapsed background-radiation HDF5 file from the ANU mirror,
+    caching it under the package ``data/background_radiation`` directory. Files
+    already present and hash-valid are not re-downloaded.
+    """
+    pooch = Pooch(
+        "https://www.mso.anu.edu.au/~anishs",
+        DATA_DIR,
+    )
+
+    for file in ["background_radiation/radiation.hdf5"]:
+        pooch.fetch_file(file)
