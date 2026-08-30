@@ -669,7 +669,6 @@
     # their equation 44, using the coefficients from their Table 2
     # for the R_V = 3.1, b_c = 4.0, ISRF case.
     # chi_pe Radiation field in Draine (1972) units
-    # av V-band extinction in magnitudes
     # d2g Dust to gas mass ratio
     # tgas Gas temperature in K
     # nH Number density of H nuclei in cm^-3

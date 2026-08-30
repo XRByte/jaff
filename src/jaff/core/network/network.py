@@ -178,6 +178,15 @@ class Network:
     #: Valid temperature cutoff behaviours for rate expressions.
     _valid_tcutoffs: list[str] = ["clip", "extrapolate"]
 
+    _simple_map: dict[str, str] = {
+        "nh0": "H",
+        "nh2": "H2",
+        "ne": "e-",
+        "nhp": "H+",
+    }
+
+    _n_suffixes: dict[str, str] = {"p": "+", "m": "-", "0": ""}
+
     def __init__(
         self,
         fname: str | Path,
@@ -1082,15 +1091,8 @@ class Network:
                 self.__element_sums[element] = sum(terms) if terms else None
             return self.__element_sums[element]
 
-        simple_map = {
-            "nh0": "H",
-            "nh2": "H2",
-            "ne": "e-",
-            "nhp": "H+",
-        }
-
-        # n_X suffix convention: Xp→X+, X0→X, Xm→X-
-        n_suffixes = {"p": "+", "m": "-", "0": ""}
+        simple_map = self._simple_map
+        n_suffixes = self._n_suffixes
 
         for fs in expr.free_symbols:
             name = str(fs)
