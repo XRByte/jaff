@@ -261,6 +261,14 @@ class JaffGen:
                 sn.rad_energy_density = v
             sn.c = nr.get("rsl") or sn.c
 
+            # A [network.radiation.dust] table enables dust; its
+            # background_field key selects the background radiation field.
+            dust_cfg = nr.get("dust")
+            if dust_cfg is not None:
+                sn.dust = True
+                if (v := dust_cfg.get("background_field")) is not None:
+                    sn.background_field = v
+
     def set_template(self, template: str | None) -> None:
         """
         Resolve a named built-in template and collect its files.
@@ -626,6 +634,8 @@ class JaffGen:
             rad_bands=sn.rad_bands,
             rad_powerlaw_index=sn.rad_powerlaw_index,
             rad_energy_density=sn.rad_energy_density,
+            dust=sn.dust,
+            background_field=sn.background_field,
             c=sn.c,
             _from_cli=sn._from_cli,
             _metadata=sn._metadata,
