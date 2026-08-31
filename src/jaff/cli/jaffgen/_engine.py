@@ -266,10 +266,11 @@ class JaffGen:
             if (v := nr.get("background_field")) is not None:
                 sn.background_field = v
 
-            # The presence of a [network.radiation.dust] table enables the dust
-            # module (photoelectric emission, ...).
-            if nr.get("dust") is not None:
-                sn.dust = True
+        # The presence of a [network.dust] table enables the dust module
+        # (photoelectric emission, ...); it is a network-level module, not a
+        # radiation sub-property.
+        if np.get("dust") is not None:
+            sn.dust = True
 
     def set_template(self, template: str | None) -> None:
         """
