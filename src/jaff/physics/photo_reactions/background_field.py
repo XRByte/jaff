@@ -1,3 +1,15 @@
+"""Reference background radiation field loaded from the bundled HDF5 store.
+
+A :class:`BackgroundField` is the tabulated spectrum of a named reference
+radiation field (``"draine"``, an ISRF variant, a blackbody, ...) used as the
+normalisation for scaled-field quantities such as the photoelectric-band
+``chi_pe`` (see :class:`~jaff.physics.dust.PhotoelectricEmission`).
+
+The fields live in ``data/background_radiation/radiation.hdf5``, one group per
+field, each with co-sorted ``wavelength`` (ascending, nm) and ``intensity``
+(photon flux, photons s⁻¹ cm⁻² nm⁻¹) datasets.
+"""
+
 from typing import TYPE_CHECKING
 
 from ...config import DATA_DIR
@@ -8,7 +20,32 @@ if TYPE_CHECKING:
 
 
 class BackgroundField:
+    """Tabulated reference radiation field.
+
+    Parameters
+    ----------
+    type : str, optional
+        Field name -- the HDF5 group to load (default ``"draine"``).
+
+    Attributes
+    ----------
+    type : str
+        The field name that was loaded.
+    wavelength : numpy.ndarray
+        Wavelength grid in nm, ascending.
+    intensity : numpy.ndarray
+        Photon-flux spectrum aligned with :attr:`wavelength`, in
+        photons s⁻¹ cm⁻² nm⁻¹.
+    """
+
     def __init__(self, type: str = "draine"):
+        """Load the named background field from the bundled HDF5 store.
+
+        Parameters
+        ----------
+        type : str, optional
+            Field name / HDF5 group to load, by default ``"draine"``.
+        """
         self.type: str = type
 
         bgrad = HDF5().to_dict(

@@ -1,3 +1,25 @@
+"""Photoelectric emission: the scaled radiation field in the photoelectric band.
+
+Photoelectric heating by dust grains is driven by far-UV photons in the
+photoelectric band ``[E_low, E_high] = [6, 13.6] eV`` (from the grain work
+function up to the hydrogen ionisation edge).  Rate expressions parametrise
+this by ``chi_pe`` -- the local radiation field scaled to a reference
+(Draine/ISRF) field, integrated over that band.
+
+:class:`PhotoelectricEmission` computes ``chi_pe`` as the ratio of two energy
+densities in the photoelectric band:
+
+- **numerator**: the energy density carried by the network's own radiation
+  bands (:attr:`Radiation.groups`), summing the fraction of each band that
+  overlaps ``[E_low, E_high]``;
+- **denominator**: the energy density of the reference background field
+  (:attr:`Radiation.background_field`) in the same band.
+
+Both are in erg/cm³, so ``chi_pe`` is dimensionless.  The resulting symbol is
+substituted into rate expressions when a network is built with ``dust=True``
+and radiation enabled.
+"""
+
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -12,7 +34,32 @@ if TYPE_CHECKING:
 
 
 class PhotoelectricEmission:
+    """Scaled photoelectric-band radiation field (``chi_pe``) for a network.
+
+    Parameters
+    ----------
+    network : Network
+        The parent network; its :attr:`~jaff.core.network.Network.radiation`
+        supplies both the band densities and the reference background field.
+
+    Attributes
+    ----------
+    net : Network
+        Back-reference to the parent network.
+    E_low : astropy.units.Quantity
+        Lower edge of the photoelectric band (grain work function, 6 eV).
+    E_high : astropy.units.Quantity
+        Upper edge of the photoelectric band (H ionisation edge, 13.6 eV).
+    """
+
     def __init__(self, network: Network):
+        """Initialise the photoelectric-emission model.
+
+        Parameters
+        ----------
+        network : Network
+            The parent network.
+        """
         # photoelectric emission activation energy in eV
         self.E_low: u.Quantity = 6.0 * u.eV
         # photoelectric emission cutoff energy in eV
@@ -21,6 +68,38 @@ class PhotoelectricEmission:
 
     @cached_property
     def chi(self) -> None | Expr | float:
+        """Scaled radiation field in the photoelectric band (``chi_pe``).
+
+        Computes the dimensionless ratio
+
+        ::
+
+            chi_pe = u_bands(6-13.6 eV) / u_background(6-13.6 eV)
+
+        where ``u_bands`` is the energy density summed over the network's
+        radiation bands (each band weighted by the fraction of its energy that
+        falls in the photoelectric band) and ``u_background`` is the energy
+        density of the reference background field in the same band.
+
+        The background field is tabulated as a photon-flux spectrum
+        ``I(lambda)`` (photons s⁻¹ cm⁻² nm⁻¹).  Its energy density follows from
+        ``u = integral I(lambda) * E_photon / c dlambda = h integral I/lambda
+        dlambda`` (the speed of light cancels), evaluated over the band; the
+        ``nm -> cm`` factor makes ``h/lambda`` a photon energy in CGS.
+
+        Returns
+        -------
+        None or sympy.Expr or float
+            The ``chi_pe`` expression (symbolic in the band density variables),
+            or ``None`` when the network has no radiation field configured.
+
+        Notes
+        -----
+        Numerator and denominator are both energy densities in erg/cm³, so the
+        result is dimensionless.  In photon-density mode each band's symbol is a
+        photon number density, converted to an energy density by multiplying by
+        the band-average photon energy ``eavg`` (erg).
+        """
         rad = self.net.radiation
         if rad is None:
             return None
