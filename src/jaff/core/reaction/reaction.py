@@ -663,7 +663,7 @@ class Reaction:
                 "eavg": (
                     None
                     if group.eavg is None
-                    else to_float_or_none(group.eavg * u.erg.to(u.eV).value)
+                    else to_float_or_none(group.eavg * u.erg.to(u.eV))
                 ),
                 "xsec": to_float_or_none(group.props.get(self, {}).get("xsec")),
                 "xsec_frac": to_float_or_none(group.props.get(self, {}).get("xsec_frac")),

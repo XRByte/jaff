@@ -114,7 +114,7 @@ class PhotoelectricEmission:
                 self.E_high.to(u.nm, equivalencies=u.spectral()).value,
                 self.E_low.to(u.nm, equivalencies=u.spectral()).value,
             ),
-        ) * (h.cgs.value / u.nm.to(u.cm).value)
+        ) * (h.cgs.value / u.nm.to(u.cm))
 
         for grp in rad.groups:
             lower = max(grp.lower, self.E_low.value)

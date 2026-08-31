@@ -283,7 +283,7 @@ class Radiation:
                     self.energy_profile_sym, self.E_sym, (grp.lower, grp.upper)
                 )
                 / self.photden_tot
-            ) * u.eV.to(u.erg).value
+            ) * u.eV.to(u.erg)
 
     def set_reaction_rate_coefficient(self, reaction: Reaction) -> None:
         """
@@ -370,23 +370,24 @@ class Radiation:
         # Reset any back-references from a previous run before repopulating.
         reaction.rad_groups = []
 
-        for i, lower in enumerate(self.bands[:-1]):
-            upper = self.bands[i + 1]
-
+        for grp in self.groups:
             # ∫ n(E) dE over the band — used as normalisation for averages.
             photden_band = smart_integrate(
-                self.ph_profile_sym, self.E_sym, (lower, upper)
+                self.ph_profile_sym, self.E_sym, (grp.lower, grp.upper)
             )
 
             # Photon-number-weighted average cross section in the band:
             # <σ>_i = ∫ σ(E) n(E) dE / ∫ n(E) dE
             pr_xsec_avg = (
-                arr_integrate(pr_xsec * energy_profile, E, (lower, upper)) / photden_band
+                arr_integrate(pr_xsec * energy_profile, E, (grp.lower, grp.upper))
+                / photden_band
             )
             rad_xsec_avg = (
                 (
                     arr_integrate(
-                        xsec["photo_absorption"] * energy_profile, E, (lower, upper)
+                        xsec["photo_absorption"] * energy_profile,
+                        E,
+                        (grp.lower, grp.upper),
                     )
                     / photden_band
                 )
@@ -396,31 +397,33 @@ class Radiation:
 
             # Integral of the user-supplied dRad (radiation energy per photon
             # energy, erg/eV) over the band -> energy per reaction event (erg).
-            delta_rad_band = smart_integrate(reaction.dRad, self.E_sym, (lower, upper))
+            delta_rad_band = smart_integrate(
+                reaction.dRad, self.E_sym, (grp.lower, grp.upper)
+            )
 
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
             # (units: s⁻¹ for photon-density mode, cm³ s⁻¹ for two-body)
-            k = self.c * self.den[sp.Idx(i)] * rad_xsec_avg
+            k = self.c * self.den[sp.Idx(grp.index)] * rad_xsec_avg
             if "shielding" in reaction._metadata:
                 if "value" in reaction._metadata["shielding"]:
                     k *= reaction._metadata["shielding"]["value"]
                 else:
                     k *= Photochemistry.shielding(reaction, self.network)
 
-            self.groups[i].props[reaction] = {
+            grp.props[reaction] = {
                 "k": k,
                 "xsec": rad_xsec_avg,
                 "xsec_frac": rad_xsec_avg / xsec_tot,  # fraction of total cross section
                 "delta_rad": delta_rad_band,
             }
-            reaction.rad_groups.append(self.groups[i])
+            reaction.rad_groups.append(grp)
 
             # In energy-density mode, convert from "per eV" to "per photon"
             # by dividing by the band-average energy <E>_i.
             k_tot += (
                 k
                 * (1.0 if not xsec["_equations"]["pa"] else (pr_xsec_avg / rad_xsec_avg))
-                / (self.groups[i].eavg if self.energy_density else 1)
+                / (grp.eavg if self.energy_density else 1)
             )
 
         reaction.rate = k_tot
@@ -470,10 +473,9 @@ class Radiation:
         # Reset any back-references from a previous run before repopulating.
         reaction.rad_groups = []
 
-        for i, lower in enumerate(self.bands[:-1]):
-            upper = self.bands[i + 1]
+        for grp in self.groups:
             # Band-integrated dRad (numerator of the fraction).
-            delta_rad_band = smart_integrate(reaction.dRad, E, (lower, upper))
+            delta_rad_band = smart_integrate(reaction.dRad, E, (grp.lower, grp.upper))
             # Fraction of the total radiation coupling attributed to this band.
             xsec_frac = (
                 0.0 if delta_rad_total_is_zero else delta_rad_band / delta_rad_total
@@ -481,13 +483,13 @@ class Radiation:
             # Scale the total user-supplied rate by the band fraction.
             k = reaction.rate * xsec_frac
 
-            self.groups[i].props[reaction] = {
+            grp.props[reaction] = {
                 "k": k,
                 "xsec": None,  # No tabulated cross section for custom reactions
                 "xsec_frac": xsec_frac,
                 "delta_rad": delta_rad_band,
             }
-            reaction.rad_groups.append(self.groups[i])
+            reaction.rad_groups.append(grp)
 
     def ordered_index(self, idx: int, order: int) -> tuple[int, int]:
         """
