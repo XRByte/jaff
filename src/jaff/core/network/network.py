@@ -1045,6 +1045,32 @@ class Network:
             [(s.mass or 0.0) * self.ndens[Idx(s.index)] for s in self.species],
         )
 
+    @cached_property
+    def n_hnuc(self) -> Expr:
+        """Total hydrogen-nuclei number density ``Σ_i n_H(i) · nden[i]``.
+
+        Each species contributes its hydrogen-atom count (``H2`` counts twice,
+        ``H+`` once, ...) times its number density, so the sum is the total H
+        nuclei density rather than a molecular count.  This is the symbolic
+        expansion of the ``nh`` / ``n_H`` shorthand used in rate expressions
+        (see :meth:`_standardize_symbols`), cached so every consumer shares
+        one expression.
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic total hydrogen-nuclei number density.  ``Float(0.0)`` when
+            the network contains no H-bearing species.
+        """
+        nden = self.ndens
+        terms = [
+            count * nden[Idx(i)]
+            for i, spec in enumerate(self.species)
+            if (count := spec.exploded.count("H")) > 0
+        ]
+
+        return sum(terms) if terms else Float(0.0)
+
     def eos(self, gamma: float = 1.6666666666667) -> Expr:
         """Symbolic ideal-gas specific internal energy of the network.
 
@@ -1101,6 +1127,7 @@ class Network:
                     if count > 0:
                         terms.append(count * nden[Idx(i)])
                 self.__element_sums[element] = sum(terms) if terms else None
+
             return self.__element_sums[element]
 
         simple_map = self._simple_map
@@ -1115,7 +1142,7 @@ class Network:
                 repl = self.ntot
 
             elif low_name == "nh":
-                repl = get_element_sum("H") if replace_nH else symbols("nh")
+                repl = self.n_hnuc if replace_nH else symbols("nh")
 
             elif low_name in simple_map:
                 spec_name = simple_map[low_name]
