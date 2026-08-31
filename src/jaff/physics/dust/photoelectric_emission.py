@@ -5,6 +5,7 @@ from astropy import units as u
 from sympy import Expr
 
 from ...common import arr_integrate, smart_integrate
+from ..constants import h
 
 if TYPE_CHECKING:
     from ...core.network import Network
@@ -23,20 +24,18 @@ class PhotoelectricEmission:
         if rad is None:
             return None
 
-        chi = 0.0
+        num_tot = 0.0
         # Background radiation intensity integrated within the photoelectric band
-        # and multiplied by c to get the energy density
-        den: Expr | float = (
-            arr_integrate(
-                rad.background_field.intensity,
-                rad.background_field.wavelength,
-                (
-                    self.E_high.to(u.nm, equivalencies=u.spectral()).value,
-                    self.E_low.to(u.nm, equivalencies=u.spectral()).value,
-                ),
-            )
-            * rad.c
-        )
+        # and normalized to get the energy density
+        den: Expr | float = arr_integrate(
+            rad.background_field.intensity / rad.background_field.wavelength,
+            rad.background_field.wavelength,  # wavelength is in nm
+            (
+                self.E_high.to(u.nm, equivalencies=u.spectral()).value,
+                self.E_low.to(u.nm, equivalencies=u.spectral()).value,
+            ),
+        ) * (h.to(u.eV * u.s).value / u.nm.to(u.cm).value)
+
         for grp in rad.groups:
             lower = max(grp.lower, self.E_low.value)
             upper = (
@@ -63,6 +62,6 @@ class PhotoelectricEmission:
             if rad.energy_density is False:
                 num *= grp.eavg or 0.0
 
-            chi += num / den
+            num_tot += num
 
-        return chi
+        return num_tot / den  # chi
