@@ -1152,6 +1152,17 @@ class Network:
                     if core in self.species:
                         repl = nden[Idx(self.species[core].index)]
 
+            elif low_name.startswith("rc_"):
+                try:
+                    num = int(name[3:])
+                except ValueError:
+                    self.logger.error(
+                        f"The 'rc_' keyword in {self.spec.funcfile} must be followed by an integer\n"
+                        f"denoting the reaction number. Found {name}"
+                    )
+
+                repl = self.reactions[num].rate
+
             if repl is not None:
                 reps[fs] = repl
 
