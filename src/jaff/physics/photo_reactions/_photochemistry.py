@@ -53,7 +53,6 @@ class Photochemistry:
         """
         download_xsecs()
         download_shielding()
-        download_background_radiation()
 
     def get_verner_xsec(self, reaction: Reaction) -> Basic | None:
         """

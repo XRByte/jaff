@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from ...config import DATA_DIR
 from ...drivers import HDF5
+from ...drivers.pooch import download_background_radiation
 
 if TYPE_CHECKING:
     import numpy as np
@@ -49,6 +50,8 @@ class BackgroundField:
             Field name / HDF5 group to load, by default ``"draine"``.
         """
         self.type: str = type
+
+        download_background_radiation()
 
         bgrad = HDF5().to_dict(
             f"{DATA_DIR / 'background_radiation' / 'radiation.hdf5'}::{type}"
