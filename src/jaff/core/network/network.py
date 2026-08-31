@@ -640,7 +640,7 @@ class Network:
                 dE_dt *= nden[self.species[s.name].index]
                 dRad_dt *= nden[self.species[s.name].index]
             self.dEdt_chem += dE_dt
-            self.dRad_dt_extra += r.dRad  # type: ignore
+            self.dRad_dt_extra += dRad_dt
         self.dEdt_chem = self._standardize_symbols(self.dEdt_chem, replace_nH)
         self.dRad_dt_extra = self._standardize_symbols(self.dRad_dt_extra, replace_nH)
 

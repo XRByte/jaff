@@ -248,25 +248,22 @@ def get_sradodes(
         group_dRad_dt_extra = Float(0.0)
         for reaction, props in group.props.items():
             rrate = props["k"]
-            # Accumulate any user-supplied radiation source terms
-            group_dRad_dt_extra += rrate * props["delta_rad"]
             # Multiply by all reactant number densities (mass-action kinetics)
+            # so rrate becomes the full reaction flux (k * prod(nden)).
             for reactant in reaction.reactants.core:
                 rrate *= nden[Idx(species[str(reactant)].index)]
 
             # Photochemical reactions *remove* radiation, hence the minus sign.
             group_rate -= rrate
+            group_dRad_dt_extra += props["delta_rad"] * rrate
 
         # The flux-moment equation is obtained by substituting den → rflux in
         # the density-moment equation (two-moment closure).
         flux = group_rate.xreplace(flux_map)
 
-        # Add the user-supplied dRad term to the density equation.
-        # If we are tracking photon number density instead, divide by the
-        # band-average photon energy (erg) to convert to photon rate units.
-        group_rate += group_dRad_dt_extra / (
-            1 if radiation.energy_density else (group.eavg or 1)
-        )
+        # Add the user-supplied dRad term to the density equation.  Divide by
+        # the band-average photon energy in BOTH modes:
+        group_rate += group_dRad_dt_extra / (group.eavg or 1)
 
         grate[group.index] = group_rate
         gflux[group.index] = flux

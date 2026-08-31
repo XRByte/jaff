@@ -364,22 +364,21 @@ class Radiation:
             upper = self.bands[i + 1]
 
             # ∫ n(E) dE over the band — used as normalisation for averages.
-            self.photden_tot = smart_integrate(
+            photden_band = smart_integrate(
                 self.ph_profile_sym, self.E_sym, (lower, upper)
             )
 
             # Photon-number-weighted average cross section in the band:
             # <σ>_i = ∫ σ(E) n(E) dE / ∫ n(E) dE
             pr_xsec_avg = (
-                arr_integrate(pr_xsec * energy_profile, E, (lower, upper))
-                / self.photden_tot
+                arr_integrate(pr_xsec * energy_profile, E, (lower, upper)) / photden_band
             )
             rad_xsec_avg = (
                 (
                     arr_integrate(
                         xsec["photo_absorption"] * energy_profile, E, (lower, upper)
                     )
-                    / self.photden_tot
+                    / photden_band
                 )
                 if xsec["_equations"]["pa"]
                 else pr_xsec_avg
