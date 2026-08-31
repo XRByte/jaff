@@ -46,6 +46,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from astropy import units as u
 from sympy import (
     Basic,
     Expr,
@@ -657,7 +658,11 @@ class Reaction:
             {
                 "lower": to_float_or_none(group.lower),
                 "upper": to_float_or_none(group.upper),
-                "eavg": to_float_or_none(group.eavg),
+                "eavg": (
+                    None
+                    if group.eavg is None
+                    else to_float_or_none(group.eavg * u.erg.to(u.eV).value)
+                ),
                 "xsec": to_float_or_none(group.props.get(self, {}).get("xsec")),
                 "xsec_frac": to_float_or_none(group.props.get(self, {}).get("xsec_frac")),
             }

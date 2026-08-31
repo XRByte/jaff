@@ -12,10 +12,11 @@ if TYPE_CHECKING:
 
 
 class PhotoelectricEmission:
-    E_low: u.Quantity = 6.0 * u.eV  # photoelectric emission activation energy in eV
-    E_high: u.Quantity = 13.6 * u.eV  # photoelectric emission cutoff energy in eV
-
     def __init__(self, network: Network):
+        # photoelectric emission activation energy in eV
+        self.E_low: u.Quantity = 6.0 * u.eV
+        # photoelectric emission cutoff energy in eV
+        self.E_high: u.Quantity = 13.6 * u.eV
         self.net: Network = network
 
     @cached_property
@@ -34,7 +35,7 @@ class PhotoelectricEmission:
                 self.E_high.to(u.nm, equivalencies=u.spectral()).value,
                 self.E_low.to(u.nm, equivalencies=u.spectral()).value,
             ),
-        ) * (h.to(u.eV * u.s).value / u.nm.to(u.cm).value)
+        ) * (h.cgs.value / u.nm.to(u.cm).value)
 
         for grp in rad.groups:
             lower = max(grp.lower, self.E_low.value)

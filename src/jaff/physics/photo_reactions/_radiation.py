@@ -51,6 +51,7 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import sympy as sp
+from astropy import units as u
 
 from ...common._integrators import arr_integrate, smart_integrate
 from .._typing import RadiationGroupReactionProps
@@ -110,9 +111,10 @@ class RadiationGroup:
           (eV/cm³/s or cm⁻³/s depending on the radiation mode).
 
     eavg : float or None
-        Photon-number-weighted average energy of this band in eV, computed
-        lazily by :meth:`Radiation.set_reaction_rate_coefficient` and shared
-        across all reactions in the band.
+        Photon-number-weighted average energy of this band, in **erg** (the
+        band-edge integral is in eV and converted via :data:`EV_TO_ERG`), so
+        that dividing rate/ODE terms by it stays CGS-consistent.  Computed in
+        :class:`Radiation.__init__` and shared across all reactions in the band.
     """
 
     def __init__(
@@ -274,7 +276,7 @@ class Radiation:
                     self.energy_profile_sym, self.E_sym, (grp.lower, grp.upper)
                 )
                 / self.photden_tot
-            )
+            ) * u.eV.to(u.erg).value
 
     def set_reaction_rate_coefficient(self, reaction: Reaction) -> None:
         """
