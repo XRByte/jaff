@@ -261,13 +261,15 @@ class JaffGen:
                 sn.rad_energy_density = v
             sn.c = nr.get("rsl") or sn.c
 
-            # A [network.radiation.dust] table enables dust; its
-            # background_field key selects the background radiation field.
-            dust_cfg = nr.get("dust")
-            if dust_cfg is not None:
+            # background_field is a radiation property (selects the reference
+            # field used to scale chi_pe), so it lives in [network.radiation].
+            if (v := nr.get("background_field")) is not None:
+                sn.background_field = v
+
+            # The presence of a [network.radiation.dust] table enables the dust
+            # module (photoelectric emission, ...).
+            if nr.get("dust") is not None:
                 sn.dust = True
-                if (v := dust_cfg.get("background_field")) is not None:
-                    sn.background_field = v
 
     def set_template(self, template: str | None) -> None:
         """
