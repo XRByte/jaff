@@ -33,16 +33,23 @@ average cross section in band *i* is::
     <σ>_i = ∫_{E_lo}^{E_hi} σ(E) n(E) dE  /  ∫_{E_lo}^{E_hi} n(E) dE
 
 The symbolic rate coefficient stored in the radiation density variable
-``den[i]`` (either energy density *u_i* in eV/cm³ or photon density *n_i*
+``den[i]`` (either energy density *u_i* in erg/cm³ or photon density *n_i*
 in cm⁻³) is::
 
     k_i = c * den[i] * <σ>_i          (photon density mode)
     k_i = c * den[i] * <σ>_i / <E>_i  (energy density mode)
 
 where *c* is the speed of light and ``<E>_i`` is the band-average photon
-energy.
+energy (``eavg``).
 
-All energies are in eV throughout this module.
+Energy units
+------------
+Band edges, the photon-energy symbol ``E`` and the cross-section tables are
+all in **eV**, and the band-average cross sections are energy-unit-free ratios.
+The one quantity carrying a net energy dimension, the band-average photon
+energy ``eavg`` (``<E>_i``), is converted to **erg** (see :data:`EV_TO_ERG`)
+so the rate coefficients and radiation-moment ODEs are consistent with the CGS
+solver; the ``radeden`` field is therefore an energy density in erg/cm³.
 """
 
 from __future__ import annotations
@@ -107,8 +114,8 @@ class RadiationGroup:
           (cm²), or ``None`` for custom-rate reactions.
         - ``"xsec_frac"`` : fraction of the total cross section (or total
           ``dRad``) attributed to this band (dimensionless).
-        - ``"delta_rad"`` : integrated ``dRad`` over the band
-          (eV/cm³/s or cm⁻³/s depending on the radiation mode).
+        - ``"delta_rad"`` : integrated ``dRad`` over the band -- the radiation
+          energy added to the band per reaction event (erg).
 
     eavg : float or None
         Photon-number-weighted average energy of this band, in **erg** (the
@@ -193,7 +200,7 @@ class Radiation:
         0 (flat photon spectrum).
     energy_density : bool
         If ``True`` the radiation field is tracked as energy density
-        (eV cm⁻³); if ``False`` as photon number density (cm⁻³).  This
+        (erg cm⁻³); if ``False`` as photon number density (cm⁻³).  This
         controls the name of the symbolic density variable (``"radeden"`` vs.
         ``"photden"``) and the normalisation of rate coefficients.
     c : float
@@ -236,7 +243,7 @@ class Radiation:
         powerlaw_idx : int or float
             Power-law spectral index *α* for ``n(E) ∝ E^(α-2)``.
         energy_density : bool
-            If ``True``, radiation is tracked as energy density (eV cm⁻³);
+            If ``True``, radiation is tracked as energy density (erg cm⁻³);
             if ``False``, as photon number density (cm⁻³).
         c : float | str
             Speed of light in cm/s (CGS) or a string to be converted to a symbol.
@@ -251,7 +258,7 @@ class Radiation:
 
         self.__parse_bands(bands)
         self.nbands: int = len(self.bands) - 1
-        # Symbolic radiation density variable: energy density (eV/cm³) or
+        # Symbolic radiation density variable: energy density (erg/cm³) or
         # photon number density (cm⁻³), depending on the mode.
         self.den = sp.MatrixSymbol(
             "radeden" if self.energy_density else "photden", self.nbands, 1
@@ -308,8 +315,9 @@ class Radiation:
         reaction : Reaction
             The photochemical reaction to process.  ``reaction.dRad`` must
             be a SymPy expression in the symbol ``E`` (photon energy in eV)
-            describing the radiation energy-density source/sink rate
-            (eV cm⁻³ s⁻¹ per unit energy).
+            describing the radiation energy the reaction adds to the field per
+            unit photon energy (erg/eV); integrated over each band it gives the
+            energy added per reaction event (erg).
 
         Returns
         -------
@@ -386,8 +394,8 @@ class Radiation:
                 else pr_xsec_avg
             )
 
-            # Integral of the user-supplied radiation energy source per reaction
-            # per photon energy dRad over the band (eV per band).
+            # Integral of the user-supplied dRad (radiation energy per photon
+            # energy, erg/eV) over the band -> energy per reaction event (erg).
             delta_rad_band = smart_integrate(reaction.dRad, self.E_sym, (lower, upper))
 
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i

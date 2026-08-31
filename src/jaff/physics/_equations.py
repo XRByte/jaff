@@ -154,8 +154,8 @@ def get_sradodes(
 
     The radiation field is described by two moments per band:
 
-    - **Energy/photon density** ``den[i]`` (``radeden`` or ``photden``
-      depending on ``radiation.energy_density``).
+    - **Energy/photon density** ``den[i]`` (``radeden`` in erg/cm³, or
+      ``photden`` in cm⁻³, depending on ``radiation.energy_density``).
     - **Energy/photon flux** ``rflux[i]``.
 
     For each band *i* the function computes:
@@ -205,11 +205,14 @@ def get_sradodes(
 
     Notes
     -----
-    The ``dRad`` contribution from each reaction is in energy-density rate
-    units (erg cm⁻³ s⁻¹).  When the radiation field is tracked as a *photon*
-    density rather than an energy density (``radiation.energy_density=False``),
-    the term is divided by the band's average photon energy ``group.eavg``
-    (in erg) to convert to photon-density rate units (cm⁻³ s⁻¹).
+    Each reaction's ``dRad`` contribution is its band-integrated ``delta_rad``
+    (the radiation energy added per reaction event, erg) times the reaction
+    flux ``k * prod(nden)``, then divided by the band-average photon energy
+    ``group.eavg`` (erg) in **both** modes.  In energy-density mode ``props["k"]``
+    already carries an extra ``eavg`` (``radeden`` is an energy density), so the
+    division recovers the true flux and the result is erg cm⁻³ s⁻¹ added to
+    ``radeden``; in photon-density mode the division converts the per-event
+    energy to a photon count, giving cm⁻³ s⁻¹ added to ``photden``.
 
     The substitution ``den[i] → rflux[i]`` (via ``xreplace``) yields the
     flux-divergence term needed in the first-moment (flux) equation of the
