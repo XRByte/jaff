@@ -10,6 +10,8 @@ field, each with co-sorted ``wavelength`` (ascending, nm) and ``intensity``
 (photon flux, photons s⁻¹ cm⁻² nm⁻¹) datasets.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from ...config import DATA_DIR

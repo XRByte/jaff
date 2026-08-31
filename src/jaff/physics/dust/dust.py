@@ -10,6 +10,8 @@ radiation field ``chi_pe`` supplied by :attr:`Dust.pe`) are substituted into
 reaction-rate expressions during network standardisation.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from .photoelectric_emission import PhotoelectricEmission

@@ -319,7 +319,7 @@ net = Network(
 )
 ```
 
-From a [`jaffgen.toml`](../code-generation/jaffgen-toml.md#network-dust-section)
+From a [`jaffgen.toml`](../code-generation/jaffgen-toml.md#networkdust-section)
 add a `[network.dust]` table and a `background_field` key under
 `[network.radiation]`. If either radiation or dust is missing when a rate
 references `chi_pe`, generation aborts with a `ParserError`.

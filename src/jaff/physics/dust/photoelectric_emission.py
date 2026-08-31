@@ -20,6 +20,8 @@ substituted into rate expressions when a network is built with ``dust=True``
 and radiation enabled.
 """
 
+from __future__ import annotations
+
 from functools import cached_property
 from typing import TYPE_CHECKING
 

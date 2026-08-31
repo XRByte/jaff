@@ -140,7 +140,7 @@ background_field = "draine"         # reference field used to scale chi_pe
 
 `power_law_index` is used to configure the weight factor of the photo-reaction cross-sections (Refer to the [Photochemistry](../designing-networks/photochemistry.md) section for more information).
 
-`background_field` only matters when the [dust module](#network-dust-section) is
+`background_field` only matters when the [dust module](#networkdust-section) is
 enabled; it names the reference field that `chi_pe` is scaled against.
 
 ---
