@@ -259,6 +259,8 @@ class JaffGen:
                 sn.rad_powerlaw_index = v
             if (v := nr.get("energy_density")) is not None:
                 sn.rad_energy_density = v
+            if (v := nr.get("use_proxy_photoreaction")) is not None:
+                sn.use_proxy_photoreaction = v
             sn.c = nr.get("rsl") or sn.c
 
             # background_field is a radiation property (selects the reference
@@ -637,6 +639,7 @@ class JaffGen:
             rad_bands=sn.rad_bands,
             rad_powerlaw_index=sn.rad_powerlaw_index,
             rad_energy_density=sn.rad_energy_density,
+            use_proxy_photoreaction=sn.use_proxy_photoreaction,
             dust=sn.dust,
             background_field=sn.background_field,
             c=sn.c,

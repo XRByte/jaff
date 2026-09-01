@@ -200,7 +200,7 @@ class Network:
         rad_bands: list[str | int | float | Basic] = [],
         rad_powerlaw_index: int | float = 0,
         rad_energy_density: bool = False,
-        dust: bool = False,
+        use_proxy_photoreaction: bool = False,
         background_field: str = "draine",
         c: float | str = constants.c.cgs.value,  # Speed of light in cgs unit
         _from_cli: bool = False,
@@ -317,6 +317,7 @@ class Network:
             if len(rad_bands) > 0
             else None
         )
+        self._use_proxy_photoreaction: bool = use_proxy_photoreaction
         self.__photochemistry: None | Photochemistry = None
         self.dust: Dust | None = Dust(self) if dust else None
         self.__element_sums: dict[str, Expr | None] = {}
@@ -511,7 +512,7 @@ class Network:
 
             if rea.type == "photo":
                 if self.__photochemistry is None:
-                    self.__photochemistry = Photochemistry()
+                    self.__photochemistry = Photochemistry(self._use_proxy_photoreaction)
 
                 rea.xsecs_dict = self.__photochemistry.get_xsec(rea)
 

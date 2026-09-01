@@ -30,6 +30,7 @@ class NetworkArgs:
     rad_bands: list = field(default_factory=list)
     rad_powerlaw_index: int | float = 0
     rad_energy_density: bool = False
+    use_proxy_photoreaction: bool = False
     dust: bool = False
     background_field: str = "draine"
     c: float = constants.c.cgs.value
