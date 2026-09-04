@@ -39,17 +39,6 @@ class Dust:
         substitution (the Draine field scaled to the photoelectric band).
     """
 
-    _valid_rv: tuple[float, ...] = (3.1, 4.0, 5.5)
-
-    _valid_reductions: tuple[str | None, ...] = (
-        "extinction",
-        "absorption",
-        "scattering",
-        "transport",
-        "none",
-        None,
-    )
-
     def __init__(
         self,
         network: Network,
@@ -75,24 +64,11 @@ class Dust:
             (1st) moment; same choices as *u_reduction*.  Default
             ``"transport"``.
         """
-        if props.rv not in self._valid_rv:
-            raise ValueError(
-                f"Invalid R_V {props.rv!r} for dust model. "
-                f"Available models: {', '.join(str(v) for v in self._valid_rv)}"
-            )
-
-        for label, value in (
-            ("u_reduction", props.u_reduction),
-            ("f_reduction", props.f_reduction),
-        ):
-            if value not in self._valid_reductions:
-                raise ValueError(
-                    f"Invalid {label} {value!r} for dust model. Available "
-                    f"reductions: {', '.join(str(v) for v in self._valid_reductions)}"
-                )
 
         self.net: Network = network
-        self.pe: PhotoelectricEmission = PhotoelectricEmission(network)
+        self.pe: PhotoelectricEmission = PhotoelectricEmission(
+            network, props.pe_threshold_low, props.pe_threshold_high
+        )
         self.rv: float = props.rv
         self.u_reduction: str | None = props.u_reduction
         self.f_reduction: str | None = props.f_reduction

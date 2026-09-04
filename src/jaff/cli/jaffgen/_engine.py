@@ -280,6 +280,10 @@ class JaffGen:
                 sn.dust_u_reduction = v
             if (v := dp.get("f_reduction")) is not None:
                 sn.dust_f_reduction = v
+            if (v := dp.get("pe_threshold_low")) is not None:
+                sn.dust_pe_threshold_low = v
+            if (v := dp.get("pe_threshold_high")) is not None:
+                sn.dust_pe_threshold_high = v
 
     def set_template(self, template: str | None) -> None:
         """
@@ -659,6 +663,8 @@ class JaffGen:
                     rv=sn.dust_rv,
                     u_reduction=sn.dust_u_reduction,
                     f_reduction=sn.dust_f_reduction,
+                    pe_threshold_low=sn.dust_pe_threshold_low,
+                    pe_threshold_high=sn.dust_pe_threshold_high,
                 )
                 if sn.dust
                 else None

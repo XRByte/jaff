@@ -35,6 +35,8 @@ class NetworkArgs:
     dust_rv: float = 5.5
     dust_u_reduction: str | None = "absorption"
     dust_f_reduction: str | None = "transport"
+    dust_pe_threshold_low: float = 6.0
+    dust_pe_threshold_high: float = 13.6
     background_field: str = "draine"
     c: float = constants.c.cgs.value
     _from_cli: bool = True

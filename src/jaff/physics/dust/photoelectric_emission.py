@@ -54,7 +54,7 @@ class PhotoelectricEmission:
         Upper edge of the photoelectric band (H ionisation edge, 13.6 eV).
     """
 
-    def __init__(self, network: Network):
+    def __init__(self, network: Network, e_low: float = 6, e_high: float = 13.6):
         """Initialise the photoelectric-emission model.
 
         Parameters
@@ -63,9 +63,9 @@ class PhotoelectricEmission:
             The parent network.
         """
         # photoelectric emission activation energy in eV
-        self.E_low: u.Quantity = 6.0 * u.eV
+        self.E_low: u.Quantity = e_low * u.eV
         # photoelectric emission cutoff energy in eV
-        self.E_high: u.Quantity = 13.6 * u.eV
+        self.E_high: u.Quantity = e_high * u.eV
         self.net: Network = network
 
     @cached_property
