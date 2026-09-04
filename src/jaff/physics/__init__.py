@@ -1,6 +1,6 @@
 from . import constants
 from ._equations import get_eos, get_sfluxes, get_sodes, get_sradodes
-from .dust import Dust
+from .dust import Dust, DustProps
 from .photo_reactions._photochemistry import Photochemistry
 from .photo_reactions._radiation import (
     Radiation,

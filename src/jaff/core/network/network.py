@@ -203,10 +203,7 @@ class Network:
         use_proxy_photoreaction: bool = False,
         background_field: str = "draine",
         c: float | str = constants.c.cgs.value,  # Speed of light in cgs unit
-        dust: bool = False,
-        dust_rv: float = 5.5,
-        dust_u_reduction: str | None = "absorption",
-        dust_f_reduction: str | None = "transport",
+        dust_props: DustProps | None = None,
         _from_cli: bool = False,
         _metadata: dict[str, Any] = {},
     ):
@@ -324,7 +321,7 @@ class Network:
         self._use_proxy_photoreaction: bool = use_proxy_photoreaction
         self.__photochemistry: None | Photochemistry = None
         self.dust: Dust | None = (
-            Dust(self, dust_rv, dust_u_reduction, dust_f_reduction) if dust else None
+            Dust(self, dust_props) if dust_props is not None else None
         )
         self.__element_sums: dict[str, Expr | None] = {}
         self.__tgas_clamp_cache: dict[tuple[float | None, float | None], Expr] = {}

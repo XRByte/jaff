@@ -45,6 +45,7 @@ from ...config import TEMPLATES_DIR, predefined_templates
 from ...drivers import Toml
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
+from ...physics import DustProps
 from .._helper import DuplicatePolicy, funcfile_arg
 from ._structs import DEFAULT_OUTPUT, ResolvedPath, State
 
@@ -645,11 +646,12 @@ class JaffGen:
             rad_bands=sn.rad_bands,
             rad_powerlaw_index=sn.rad_powerlaw_index,
             rad_energy_density=sn.rad_energy_density,
-            use_proxy_photoreaction=sn.use_proxy_photoreaction,
-            dust=sn.dust,
-            dust_rv=sn.dust_rv,
-            dust_u_reduction=sn.dust_u_reduction,
-            dust_f_reduction=sn.dust_f_reduction,
+            use_proxy_pr=sn.use_proxy_photoreaction,
+            dust_props=DustProps(
+                rv=sn.dust_rv,
+                u_reduction=sn.dust_u_reduction,
+                f_reduction=sn.dust_f_reduction,
+            ),
             background_field=sn.background_field,
             c=sn.c,
             _from_cli=sn._from_cli,

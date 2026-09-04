@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from jaff.physics.dust._dustprops import DustProps
+
 from .photoelectric_emission import PhotoelectricEmission
 from .tabular import Tabular
 
@@ -52,9 +54,7 @@ class Dust:
     def __init__(
         self,
         network: Network,
-        rv: float = 5.5,
-        u_reduction: str | None = "absorption",
-        f_reduction: str | None = "transport",
+        props: DustProps,
     ):
         """Build the dust model and its process sub-objects.
 
@@ -76,13 +76,16 @@ class Dust:
             (1st) moment; same choices as *u_reduction*.  Default
             ``"transport"``.
         """
-        if rv not in self._valid_rv:
+        if props.rv not in self._valid_rv:
             raise ValueError(
-                f"Invalid R_V {rv!r} for dust model. "
+                f"Invalid R_V {props.rv!r} for dust model. "
                 f"Available models: {', '.join(str(v) for v in self._valid_rv)}"
             )
 
-        for label, value in (("u_reduction", u_reduction), ("f_reduction", f_reduction)):
+        for label, value in (
+            ("u_reduction", props.u_reduction),
+            ("f_reduction", props.f_reduction),
+        ):
             if value not in self._valid_reductions:
                 raise ValueError(
                     f"Invalid {label} {value!r} for dust model. Available "
@@ -91,7 +94,7 @@ class Dust:
 
         self.net: Network = network
         self.pe: PhotoelectricEmission = PhotoelectricEmission(network)
-        self.rv: float = rv
-        self.u_reduction: str | None = u_reduction
-        self.f_reduction: str | None = f_reduction
+        self.rv: float = props.rv
+        self.u_reduction: str | None = props.u_reduction
+        self.f_reduction: str | None = props.f_reduction
         self.tabular: Tabular = Tabular(self)
