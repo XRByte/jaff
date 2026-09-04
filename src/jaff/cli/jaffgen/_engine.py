@@ -643,17 +643,25 @@ class JaffGen:
             funcfile=sn.funcfile,
             duplicate_policy=sn.duplicate_policy,
             replace_nH=sn.replace_nH,
-            radiation_props=RadiationProps(
-                bands=sn.rad_bands,
-                profile_index=sn.rad_profile_index,
-                mode=sn.rad_mode,
-                c=sn.c,
-                background_field=sn.background_field,
+            radiation_props=(
+                RadiationProps(
+                    bands=sn.rad_bands,
+                    profile_index=sn.rad_profile_index,
+                    mode=sn.rad_mode,
+                    c=sn.c,
+                    background_field=sn.background_field,
+                )
+                if sn.rad_bands
+                else None
             ),
-            dust_props=DustProps(
-                rv=sn.dust_rv,
-                u_reduction=sn.dust_u_reduction,
-                f_reduction=sn.dust_f_reduction,
+            dust_props=(
+                DustProps(
+                    rv=sn.dust_rv,
+                    u_reduction=sn.dust_u_reduction,
+                    f_reduction=sn.dust_f_reduction,
+                )
+                if sn.dust
+                else None
             ),
             use_proxy_photoreaction=sn.use_proxy_photoreaction,
             _from_cli=sn._from_cli,
