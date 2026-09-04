@@ -356,13 +356,13 @@ class Radiation:
         # where α = powerlaw_idx.  The factor E^(α-2) arises from
         # n(E) = u(E)/E and u(E) ∝ E^(α-1).
         E = xsec["photon_energy"]  # photon energy array in eV
-        energy_profile = E ** (self.powerlaw_idx - 2)
+        ph_profile = self.get_photden_profile(E)
         k_tot = sp.Float(0.0)  # Accumulates total rate coefficient over all bands
 
         # Total cross section integrated over the full spectrum (cm²),
         # stored on the reaction for later reference
         xsec_tot = (
-            arr_integrate(pr_xsec * energy_profile, E, (self.bands[0], self.bands[-1]))
+            arr_integrate(pr_xsec * ph_profile, E, (self.bands[0], self.bands[-1]))
             / self.photden_tot
         )
         reaction.rad_xsecs = xsec_tot
@@ -379,13 +379,13 @@ class Radiation:
             # Photon-number-weighted average cross section in the band:
             # <σ>_i = ∫ σ(E) n(E) dE / ∫ n(E) dE
             pr_xsec_avg = (
-                arr_integrate(pr_xsec * energy_profile, E, (grp.lower, grp.upper))
+                arr_integrate(pr_xsec * ph_profile, E, (grp.lower, grp.upper))
                 / photden_band
             )
             rad_xsec_avg = (
                 (
                     arr_integrate(
-                        xsec["photo_absorption"] * energy_profile,
+                        xsec["photo_absorption"] * ph_profile,
                         E,
                         (grp.lower, grp.upper),
                     )
@@ -621,3 +621,23 @@ class Radiation:
                         f"The integral for average energy will diverge since the radiation band starts from bands[0]: {self.bands[0]}\n"
                         "Please try a non-zero value"
                     )
+
+        if (
+            float(self.powerlaw_idx) <= 1.0
+            and isinstance(self.bands[0], (float, int))
+            and float(self.bands[0]) < 1.0
+        ):
+            self.network.logger.warning(
+                f"Radiation band starts at bands[0]={self.bands[0]} eV with "
+                f"power_law_index={self.powerlaw_idx}: the photon-number "
+                "normalisation integral ∫E^(α-2)dE is lower-edge divergent "
+                "(exponent ≤ -1) and near E→0 becomes ill-conditioned, which "
+                "can yield a negative/garbage photon density. Use a non-zero "
+                "bands[0] ≳ 1 eV or a larger power_law_index."
+            )
+
+    def get_photden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
+        return ph_energy ** (self.powerlaw_idx - 2)
+
+    def get_eden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
+        return ph_energy ** (self.powerlaw_idx - 1)

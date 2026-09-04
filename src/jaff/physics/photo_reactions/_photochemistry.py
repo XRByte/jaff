@@ -21,7 +21,6 @@ from sympy import Basic, Expr, sympify
 from ...config import JAFF_DIR
 from ...drivers import HDF5, JaffDb
 from ...drivers.pooch import (
-    download_background_radiation,
     download_shielding,
     download_xsecs,
 )

@@ -203,6 +203,10 @@ class Network:
         use_proxy_photoreaction: bool = False,
         background_field: str = "draine",
         c: float | str = constants.c.cgs.value,  # Speed of light in cgs unit
+        dust: bool = False,
+        dust_rv: float = 5.5,
+        dust_u_reduction: str | None = "absorption",
+        dust_f_reduction: str | None = "transport",
         _from_cli: bool = False,
         _metadata: dict[str, Any] = {},
     ):
@@ -304,7 +308,7 @@ class Network:
         self.dEdt_chem: Basic = Float(0.0)
         self.dEdt_other: Basic = Float(0.0)
         self.dRad_dt_extra: Basic = Float(0.0)
-        self._dust_enabled = dust
+        self._dust_enabled: bool = dust
         self.radiation: Radiation | None = (
             Radiation(
                 self,
@@ -319,7 +323,9 @@ class Network:
         )
         self._use_proxy_photoreaction: bool = use_proxy_photoreaction
         self.__photochemistry: None | Photochemistry = None
-        self.dust: Dust | None = Dust(self) if dust else None
+        self.dust: Dust | None = (
+            Dust(self, dust_rv, dust_u_reduction, dust_f_reduction) if dust else None
+        )
         self.__element_sums: dict[str, Expr | None] = {}
         self.__tgas_clamp_cache: dict[tuple[float | None, float | None], Expr] = {}
 
@@ -1237,7 +1243,7 @@ class Network:
         list[Expr]
             One SymPy expression per radiation band.
         """
-        return get_sradodes(self.radiation, self.species, order)
+        return get_sradodes(self, order)
 
     def to_hdf5(
         self,

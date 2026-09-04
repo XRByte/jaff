@@ -31,7 +31,7 @@ from .constants import k_B
 
 if TYPE_CHECKING:
     from .. import Network, Reactions, Species
-    from .photo_reactions._radiation import Radiation
+    from ..physics import RadiationGroup
 
 
 def get_sfluxes(reactions: "Reactions", species: Species) -> list[Expr]:
@@ -146,9 +146,7 @@ def get_sodes(reactions: "Reactions", species: Species) -> list[Basic]:
     return sodes
 
 
-def get_sradodes(
-    radiation: "Radiation" | None, species: Species, order: int = 0
-) -> list[Expr]:
+def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
     """
     Build symbolic radiation-moment ODE right-hand sides for all frequency bands.
 
@@ -218,31 +216,21 @@ def get_sradodes(
     flux-divergence term needed in the first-moment (flux) equation of the
     two-moment radiation transport system.
     """
-    if radiation is None:
+    if net.radiation is None:
         raise RuntimeError("No radiation bands found. Radiation odes cannot be generated")
 
     if order not in [0, 1, 2, 3]:
         raise ValueError("Invalid order: Supported orders are 0, 1, 2, 3")
 
-    rad_groups = radiation.groups
-    nden = MatrixSymbol("nden", species.core.count, 1)
+    rad_groups = net.radiation.groups
+    nden = MatrixSymbol("nden", net.species.core.count, 1)
 
-    # Choose the symbolic name for the radiation density variable based on
-    # whether the field is tracked as energy density (erg/cm³) or photon
-    # number density (cm⁻³).
-    den = MatrixSymbol(
-        "radeden" if radiation.energy_density else "photden",
-        radiation.nbands,
-        1,
-    )
-    rflux = MatrixSymbol("rflux", radiation.nbands, 1)
+    rflux = MatrixSymbol("rflux", net.radiation.nbands, 1)
     # Mapping used to obtain the flux-moment equation from the density-moment
     # equation: replace each density symbol den[i] with the flux rflux[i].
-    flux_map = {den[Idx(i)]: rflux[Idx(i)] for i in range(radiation.nbands)}
-    grate, gflux = (
-        [Float(0.0)] * radiation.nbands,
-        [Float(0.0)] * radiation.nbands,
-    )
+    flux_map = {g.sym: rflux[Idx(i)] for i, g in enumerate(net.radiation.groups)}
+    grate: list[Expr | float] = [Float(0.0) for _ in range(net.radiation.nbands)]
+    gflux: list[Expr | float] = [Float(0.0) for _ in range(net.radiation.nbands)]
 
     for group in jaff_progress.track(
         rad_groups, description="Generating radiation equations"
@@ -254,7 +242,7 @@ def get_sradodes(
             # Multiply by all reactant number densities (mass-action kinetics)
             # so rrate becomes the full reaction flux (k * prod(nden)).
             for reactant in reaction.reactants.core:
-                rrate *= nden[Idx(species[str(reactant)].index)]
+                rrate *= nden[Idx(net.species[str(reactant)].index)]
 
             # Photochemical reactions *remove* radiation, hence the minus sign.
             group_rate -= rrate
@@ -268,20 +256,55 @@ def get_sradodes(
         # the band-average photon energy in BOTH modes:
         group_rate += group_dRad_dt_extra / (group.eavg or 1)
 
+        if net.dust is not None:
+            group_rate, flux = handle_dust_reduction(net, group, group_rate, flux, rflux)
+
         grate[group.index] = group_rate
         gflux[group.index] = flux
 
     # Allocate output array: 2 slots per band (one density, one flux).
-    radodes: list[Expr] = [Float(0.0) for _ in range(2 * radiation.nbands)]
+    radodes: list[Expr] = [Float(0.0) for _ in range(2 * net.radiation.nbands)]
 
     # Place each (rate, flux) pair at the positions dictated by the chosen
     # ordering convention.
     for i, (rate, flux) in enumerate(zip(grate, gflux)):
-        ei, fi = radiation.ordered_index(i, order)
+        ei, fi = net.radiation.ordered_index(i, order)
         radodes[ei] = rate
         radodes[fi] = flux
 
     return radodes
+
+
+def handle_dust_reduction(
+    net: Network, group: RadiationGroup, grate: Expr, gflux: Expr, rflux: MatrixSymbol
+) -> tuple[Expr, Expr]:
+    assert net.radiation is not None
+    assert net.dust is not None
+
+    u_reduction = net.dust.u_reduction
+    f_reduction = net.dust.f_reduction
+    if u_reduction not in (None, "none"):
+        grate -= (
+            symbols("Zd")
+            * net.radiation.c
+            * group.sym
+            * net.n_hnuc
+            * net.dust.tabular.avg_cross_section_per_hnuc(
+                u_reduction, (group.lower, group.upper)
+            )
+        )
+    if f_reduction not in (None, "none"):
+        gflux -= (
+            symbols("Zd")
+            * net.radiation.c
+            * rflux[Idx(group.index)]
+            * net.n_hnuc
+            * net.dust.tabular.avg_cross_section_per_hnuc(
+                f_reduction, (group.lower, group.upper)
+            )
+        )
+
+    return grate, gflux
 
 
 @cache

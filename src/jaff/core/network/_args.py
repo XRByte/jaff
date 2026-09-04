@@ -32,6 +32,9 @@ class NetworkArgs:
     rad_energy_density: bool = False
     use_proxy_photoreaction: bool = False
     dust: bool = False
+    dust_rv: float = 5.5
+    dust_u_reduction: str | None = "absorption"
+    dust_f_reduction: str | None = "transport"
     background_field: str = "draine"
     c: float = constants.c.cgs.value
     _from_cli: bool = True

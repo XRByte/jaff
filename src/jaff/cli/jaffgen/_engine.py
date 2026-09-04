@@ -271,8 +271,14 @@ class JaffGen:
         # The presence of a [network.dust] table enables the dust module
         # (photoelectric emission, ...); it is a network-level module, not a
         # radiation sub-property.
-        if np.get("dust") is not None:
+        if (dp := np.get("dust")) is not None:
             sn.dust = True
+            if (v := dp.get("rv")) is not None:
+                sn.dust_rv = v
+            if (v := dp.get("u_reduction")) is not None:
+                sn.dust_u_reduction = v
+            if (v := dp.get("f_reduction")) is not None:
+                sn.dust_f_reduction = v
 
     def set_template(self, template: str | None) -> None:
         """
@@ -641,6 +647,9 @@ class JaffGen:
             rad_energy_density=sn.rad_energy_density,
             use_proxy_photoreaction=sn.use_proxy_photoreaction,
             dust=sn.dust,
+            dust_rv=sn.dust_rv,
+            dust_u_reduction=sn.dust_u_reduction,
+            dust_f_reduction=sn.dust_f_reduction,
             background_field=sn.background_field,
             c=sn.c,
             _from_cli=sn._from_cli,

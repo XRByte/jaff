@@ -116,7 +116,6 @@
     # tgas Gas temperature in K
     # chi_pe Radiation field effecting photoelectric emission
     # in grains in Draine (1972) units
-    # av V-band extinction in magnitudes
     # ne Free electron number density in cm^-3
     # c0 Fitting coefficient
     # c1 Fitting coefficient
@@ -227,18 +226,17 @@
 
     return 3.0e-17 * (d2g / d2g_solar) * (nH / nH0)
 
-@function chemRate15(d2g, tgas, chi_pe, av, nH, ne)
+@function chemRate15(d2g, tgas, chi_pe, nH, ne)
     # Reaction 15: H+ + e- -> H (grain-assisted)
     # d2g Dust to gas mass ratio
     # tgas Gas temperature in K
     # chi_pe ISRF strength affecting grain photoelectric
     # effect normalized to the Draine (1978) field
-    # av Visual extinction in magnitudes
     # nH Number density of H nuclei in cm^-3
     # ne Number density of free electrons in cm^-3
     # This is a grain-assisted reaction for which the true rate
-    # is k_gr(av, ne, tgas) * (d2g / d2g_solar) * nH+ * nH, where
-    # k_gr(av, ne, tgas) is a specified function.
+    # is k_gr(ne, tgas) * (d2g / d2g_solar) * nH+ * nH, where
+    # k_gr(ne, tgas) is a specified function.
 
     # Gong's coefficients for H+
     c0 = 12.25
@@ -250,21 +248,20 @@
     c6 = 1.102e-5
 
     # Compute final rate
-    return kgr_gong(tgas, chi_pe, av, ne, c0, c1, c2, c3, c4, c5, c6) * \
+    return kgr_gong(tgas, chi_pe, ne, c0, c1, c2, c3, c4, c5, c6) * \
         (d2g / d2g_solar) * nH/ne
 
-@function chemRate16(d2g, tgas, chi_pe, av, nH, ne)
+@function chemRate16(d2g, tgas, chi_pe, nH, ne)
     # Reaction 16: C+ + e- -> C (grain-assisted)
     # d2g Dust to gas mass ratio
     # tgas Gas temperature in K
     # chi_pe ISRF strength affecting grain photoelectric
     # effect normalized to the Draine (1978) field
-    # av Visual extinction in magnitudes
     # nH Number density of H nuclei in cm^-3
     # ne Number density of free electrons in cm^-3
     # This is a grain-assisted reaction for which the true rate
-    # is k_gr(av, ne, tgas) * (d2g / d2g_solar) * nC+ * nH, where
-    # k_gr(av, ne, tgas) is a specified function.
+    # is k_gr(ne, tgas) * (d2g / d2g_solar) * nC+ * nH, where
+    # k_gr(ne, tgas) is a specified function.
 
     # Gong's coefficients for C+
     c0 = 45.58
@@ -276,21 +273,20 @@
     c6 = 1.333e-4
 
     # Compute final rate
-    return kgr_gong(tgas, chi_pe, av, ne, c0, c1, c2, c3, c4, c5, c6) * \
+    return kgr_gong(tgas, chi_pe, ne, c0, c1, c2, c3, c4, c5, c6) * \
         (d2g / d2g_solar) * nH/ne
 
-@function chemRate17(d2g, tgas, chi_pe, av, nH, ne)
+@function chemRate17(d2g, tgas, chi_pe, nH, ne)
     # Reaction 17: He+ + e- -> He (grain-assisted)
     # d2g Dust to gas mass ratio
     # tgas Gas temperature in K
     # chi_pe ISRF strength affecting grain photoelectric
     # effect normalized to the Draine (1978) field
-    # av Visual extinction in magnitudes
     # nH Number density of H nuclei in cm^-3
     # ne Number density of free electrons in cm^-3
     # This is a grain-assisted reaction for which the true rate
-    # is k_gr(av, ne, tgas) * (d2g / d2g_solar) * nHe+ * nH, where
-    # k_gr(av, ne, tgas) is a specified function.
+    # is k_gr(ne, tgas) * (d2g / d2g_solar) * nHe+ * nH, where
+    # k_gr(ne, tgas) is a specified function.
 
     # Gong's coefficients for He+
     c0 = 5.572
@@ -302,20 +298,19 @@
     c6 = 5.494e-7
 
     # Compute final rate
-    return kgr_gong(tgas, chi_pe, av, ne, c0, c1, c2, c3, c4, c5, c6) * \
+    return kgr_gong(tgas, chi_pe, ne, c0, c1, c2, c3, c4, c5, c6) * \
         (d2g / d2g_solar) * nH/ne
 
-@function chemRate18(d2g, tgas, chi_pe, av, nH, ne)
+@function chemRate18(d2g, tgas, chi_pe, nH, ne)
     # Reaction 18: Si+ + e- -> Si (grain-assisted)
     # d2g Dust to gas mass ratio
     # tgas Gas temperature in K
     # chi_pe ISRF strength normalized to the Draine (1978) field
-    # av Visual extinction in magnitudes
     # nH Number density of H nuclei in cm^-3
     # ne Number density of free electrons in cm^-3
     # This is a grain-assisted reaction for which the true rate
-    # is k_gr(av, ne, tgas) * (d2g / d2g_solar) * nSi+ * nH, where
-    # k_gr(av, ne, tgas) is a specified function.
+    # is k_gr(ne, tgas) * (d2g / d2g_solar) * nSi+ * nH, where
+    # k_gr(ne, tgas) is a specified function.
 
     # Gong's coefficients for Si+
     c0 = 2.166
@@ -327,7 +322,7 @@
     c6 = 7.538e-5
 
     # Compute final rate
-    return kgr_gong(tgas, chi_pe, av, ne, c0, c1, c2, c3, c4, c5, c6) * \
+    return kgr_gong(tgas, chi_pe, ne, c0, c1, c2, c3, c4, c5, c6) * \
         (d2g / d2g_solar) * nH/ne
 
 @function chemRate19(tgas, ne)
@@ -597,7 +592,7 @@
     sec_per_prim = kcr_H_fac(nH, nH0, nH2)
     return qcr(nH, ne, nH0, nH2) * eV / sec_per_prim
 
-@function deltaE2(nH, nH0, nH2)
+# @function deltaE2(nH, nH0, nH2)
     # Reaction 2: He + CR -> He+ + e-
     # nH Number density of H nuclei in cm^-3
     # nH0 Number densty of H0 atoms in cm^-3
@@ -608,10 +603,10 @@
     # expressions also include secondaries, so we need to divide
     # those out to get the right energy deposition per primary.
 
-    sec_per_prim = kcr_H_fac(nH, nH0, nH2)
-    return qcr(nH, ne, nH0, nH2) * eV / sec_per_prim
+#    sec_per_prim = kcr_H_fac(nH, nH0, nH2)
+#    return qcr(nH, ne, nH0, nH2) * eV / sec_per_prim
 
-@function deltaE13(tgas, nH, nH0, nH2, chi, av)
+@function deltaE13(tgas, nH, nH0, nH2, chi)
     # Reaction 13: H2 + photon -> H + H
     # tgas Gas temperature in K
     # nH Number density of H nuclei in cm^-3
@@ -624,12 +619,11 @@
     # energy is desposited to the gas as thermal energy by collisions.
     # The result is from Visser+ (2018)
 
-    k_photo = 5.7e-11 * chi * exp(-4.18 * av) * fshield_H2(ncol_H2)
-    f = 1 / (1 + ncrH2(tgas, nH, nH0, nH2, k_photo) / nH)
+    f = 1 / (1 + ncrH2(tgas, nH, nH0, nH2, rc_13) / nH)
 
     return (0.4 + 8 * 2 * f) * eV
 
-@function deltaE14(tgas, nH, nH0, nH2, chi, av)
+@function deltaE14(tgas, nH, nH0, nH2, chi)
     # Reaction 14: H + H -> H2 (grain-assisted)
     # tgas Gas temperature in K
     # nH Number density of H nuclei in cm^-3
@@ -639,8 +633,7 @@
     # here is equation 6.43 of Hollenbach & McKee (1979), but with ncrH2
     # updated using the model of Visser+ (2018)
 
-    k_photo = 5.7e-11 * chi * exp(-4.18 * av) * fshield_H2(ncol_H2)
-    f = 1 / (1 + ncrH2(tgas, nH, nH0, nH2, k_photo) / nH)
+    f = 1 / (1 + ncrH2(tgas, nH, nH0, nH2, rc_14) / nH)
 
     return (0.2 + 4.2*f) * eV
 
@@ -663,7 +656,7 @@
 
 #### Heating functions ####
 
-@function heating_grainPE(chi_pe, av, d2g, tgas, nH, ne)
+@function heating_grainPE(chi_pe, d2g, tgas, nH, ne)
     # Grain photoelectric heating rate, in erg cm^-3 s^-1. The
     # expression here comes from Weingartner & Draine (2001),
     # their equation 44, using the coefficients from their Table 2
@@ -1174,12 +1167,12 @@
     # On the other hand, recombination of e- onto grains is included here,
     # because we do not explicitly treat this reaction
 
-    return heating_grainPE(chi_pe, av, d2g, tgas, n_H, n_e) \
+    return heating_grainPE(chi_pe, d2g, tgas, n_H, n_e) \
         - cooling_LyA(n_H0, n_e, tgas) \
         - cooling_H2(n_H2, n_H0, n_Hp, n_He, n_e, tgas) \
         - cooling_Cplus(n_Cp, n_H0, n_H2, n_e, tgas) \
         - cooling_C0(n_C0, n_H0, n_H2, n_e, tgas) \
         - cooling_O0(n_O0, n_H0, n_H2, n_e, tgas) \
         - cooling_CO(n_CO, n_H0, n_H2, n_e, tgas, gradv, n_H) \
-        - cooling_dust_coll(chi_pe, av, d2g, tgas, n_H) \
-        - cooling_dust_rec(chi_pe, av, d2g, tgas, n_e)
+        - cooling_dust_coll(chi_pe, d2g, tgas, n_H) \
+        - cooling_dust_rec(chi_pe, d2g, tgas, n_e)
