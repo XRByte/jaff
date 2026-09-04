@@ -40,8 +40,8 @@ class Photochemistry:
     Verner data files.
     """
 
-    def __init__(self, use_proxy_photoreaction: bool = False):
-        self.use_proxy_photoreaction: bool = use_proxy_photoreaction
+    def __init__(self, network: Network):
+        self.net = network
         """Ensure the cross-section and shielding data files are available locally.
 
         Constructing a :class:`Photochemistry` triggers
@@ -116,11 +116,12 @@ class Photochemistry:
             single ``photodecay`` cross-section array (``None`` when absent).
             Returns ``None`` if the reaction has no cross-section entry.
         """
+        assert self.net.radiation is not None
         with JaffDb() as jdb:
             table = jdb.table("photo_reaction_cross_sections")
             rs = (
                 reaction.serialized
-                if not self.use_proxy_photoreaction
+                if not self.net.radiation._use_proxy_pr
                 else reaction.normalized_proxy_reaction_str()
             )
             rows: list = table.rows(conditions=f"reaction = '{rs}'")

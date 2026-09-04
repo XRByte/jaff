@@ -45,9 +45,10 @@ from ...io import JaffLogger, jaff_progress
 from ...io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
 from ...physics import (
     Dust,
+    DustProps,
     Photochemistry,
     Radiation,
-    constants,
+    RadiationProps,
     get_eos,
     get_sfluxes,
     get_sodes,
@@ -197,12 +198,7 @@ class Network:
         funcfile: bool | str | Path = True,
         duplicate_policy: str | None = None,  # preserve-first, preserve-last, error
         replace_nH: bool = True,
-        rad_bands: list[str | int | float | Basic] = [],
-        rad_powerlaw_index: int | float = 0,
-        rad_energy_density: bool = False,
-        use_proxy_photoreaction: bool = False,
-        background_field: str = "draine",
-        c: float | str = constants.c.cgs.value,  # Speed of light in cgs unit
+        radiation_props: RadiationProps | None = None,
         dust_props: DustProps | None = None,
         _from_cli: bool = False,
         _metadata: dict[str, Any] = {},
@@ -278,10 +274,6 @@ class Network:
             funcfile,
             duplicate_policy,
             replace_nH,
-            rad_bands,
-            rad_powerlaw_index,
-            rad_energy_density,
-            c,
             _from_cli,
             _metadata,
         )
@@ -305,20 +297,9 @@ class Network:
         self.dEdt_chem: Basic = Float(0.0)
         self.dEdt_other: Basic = Float(0.0)
         self.dRad_dt_extra: Basic = Float(0.0)
-        self._dust_enabled: bool = dust
         self.radiation: Radiation | None = (
-            Radiation(
-                self,
-                rad_bands,
-                rad_powerlaw_index,
-                rad_energy_density,
-                c,
-                background_field,
-            )
-            if len(rad_bands) > 0
-            else None
+            Radiation(self, radiation_props) if radiation_props is not None else None
         )
-        self._use_proxy_photoreaction: bool = use_proxy_photoreaction
         self.__photochemistry: None | Photochemistry = None
         self.dust: Dust | None = (
             Dust(self, dust_props) if dust_props is not None else None
@@ -515,7 +496,7 @@ class Network:
 
             if rea.type == "photo":
                 if self.__photochemistry is None:
-                    self.__photochemistry = Photochemistry(self._use_proxy_photoreaction)
+                    self.__photochemistry = Photochemistry(self)
 
                 rea.xsecs_dict = self.__photochemistry.get_xsec(rea)
 
@@ -591,7 +572,7 @@ class Network:
 
             if rea.type == "photo":
                 if self.__photochemistry is None:
-                    self.__photochemistry = Photochemistry()
+                    self.__photochemistry = Photochemistry(self)
                 rea.xsecs_dict = self.__photochemistry.get_xsec(rea) or reaction.get(
                     "xsecs_dict"
                 )

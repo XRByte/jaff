@@ -153,7 +153,7 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
     The radiation field is described by two moments per band:
 
     - **Energy/photon density** ``den[i]`` (``radeden`` in erg/cm³, or
-      ``photden`` in cm⁻³, depending on ``radiation.energy_density``).
+      ``photden`` in cm⁻³, depending on ``radiation.mode``).
     - **Energy/photon flux** ``rflux[i]``.
 
     For each band *i* the function computes:

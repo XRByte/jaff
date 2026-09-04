@@ -141,7 +141,7 @@ class PhotoelectricEmission:
             num = grp.sym * energy_frac  # type: ignore
 
             # multiply with average energy in group if number densities are enabled
-            if rad.energy_density is False:
+            if rad.mode == "nph":
                 num *= grp.eavg or 0.0
 
             num_tot += num

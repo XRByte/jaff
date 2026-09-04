@@ -45,7 +45,7 @@ from ...config import TEMPLATES_DIR, predefined_templates
 from ...drivers import Toml
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
-from ...physics import DustProps
+from ...physics import DustProps, RadiationProps
 from .._helper import DuplicatePolicy, funcfile_arg
 from ._structs import DEFAULT_OUTPUT, ResolvedPath, State
 
@@ -256,10 +256,10 @@ class JaffGen:
         nr = np.get("radiation") or {}
         if nr:
             sn.rad_bands = nr.get("bands") or sn.rad_bands
-            if (v := nr.get("power_law_index")) is not None:
-                sn.rad_powerlaw_index = v
-            if (v := nr.get("energy_density")) is not None:
-                sn.rad_energy_density = v
+            if (v := nr.get("profile_index")) is not None:
+                sn.rad_profile_index = v
+            if (v := nr.get("mode")) is not None:
+                sn.rad_mode = v
             if (v := nr.get("use_proxy_photoreaction")) is not None:
                 sn.use_proxy_photoreaction = v
             sn.c = nr.get("rsl") or sn.c
@@ -643,17 +643,19 @@ class JaffGen:
             funcfile=sn.funcfile,
             duplicate_policy=sn.duplicate_policy,
             replace_nH=sn.replace_nH,
-            rad_bands=sn.rad_bands,
-            rad_powerlaw_index=sn.rad_powerlaw_index,
-            rad_energy_density=sn.rad_energy_density,
-            use_proxy_pr=sn.use_proxy_photoreaction,
+            radiation_props=RadiationProps(
+                bands=sn.rad_bands,
+                profile_index=sn.rad_profile_index,
+                mode=sn.rad_mode,
+                use_proxy_pr=sn.use_proxy_photoreaction,
+                c=sn.c,
+                background_field=sn.background_field,
+            ),
             dust_props=DustProps(
                 rv=sn.dust_rv,
                 u_reduction=sn.dust_u_reduction,
                 f_reduction=sn.dust_f_reduction,
             ),
-            background_field=sn.background_field,
-            c=sn.c,
             _from_cli=sn._from_cli,
             _metadata=sn._metadata,
         )

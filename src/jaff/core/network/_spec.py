@@ -78,10 +78,6 @@ class NetworkSpec:
         funcfile: bool | str | Path,
         duplicate_policy: str | None,
         replace_nH: bool,
-        rad_bands: list,
-        rad_powerlaw_index: int | float,
-        rad_energy_density: bool,
-        c: float | str,
         _from_cli: bool,
         _metadata: dict[str, Any],
     ):
@@ -108,10 +104,6 @@ class NetworkSpec:
         # Resolves funcfile to the actual .jfunc path (when True) and parses it.
         self.aux_funcs: dict = self._load_aux_funcs()
         self.replace_nH: bool = replace_nH
-        self.rad_bands: list = rad_bands
-        self.rad_powerlaw_index: int | float = rad_powerlaw_index
-        self.rad_energy_density: bool = rad_energy_density
-        self.c: float = c
         self._from_cli: bool = _from_cli
         self._metadata: dict[str, Any] = _metadata
 

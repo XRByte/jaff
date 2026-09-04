@@ -54,7 +54,7 @@ solver; the ``radeden`` field is therefore an energy density in erg/cm³.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 import sympy as sp
@@ -69,6 +69,7 @@ from .background_field import BackgroundField
 if TYPE_CHECKING:
     from ...core.network import Network
     from ...core.reaction import Reaction
+    from ...physics import RadiationProps
 
 
 class RadiationGroup:
@@ -198,7 +199,7 @@ class Radiation:
         Power-law index *α* for the assumed photon-number spectrum
         ``n(E) ∝ E^(α-2)``.  Typical values: 1 (flat energy spectrum),
         0 (flat photon spectrum).
-    energy_density : bool
+    mode : bool
         If ``True`` the radiation field is tracked as energy density
         (erg cm⁻³); if ``False`` as photon number density (cm⁻³).  This
         controls the name of the symbolic density variable (``"radeden"`` vs.
@@ -213,7 +214,7 @@ class Radiation:
         Parsed band-edge list (``"inf"`` replaced by ``sympy.oo``).
     powerlaw_idx : int or float
         Power-law index passed to the constructor.
-    energy_density : bool
+    mode : bool
         Whether the field is tracked as energy density or photon density.
     c : float
         Speed of light in cm/s.
@@ -226,11 +227,7 @@ class Radiation:
     def __init__(
         self,
         network: Network,
-        bands: list[int | float | str | sp.Basic],
-        powerlaw_idx: int | float,
-        energy_density: bool,
-        c: float | str,
-        background_field: str = "draine",
+        props: RadiationProps,
     ):
         """Parse band edges and construct one :class:`RadiationGroup` per band.
 
@@ -242,33 +239,35 @@ class Radiation:
             boundary (converted to ``sympy.oo``).
         powerlaw_idx : int or float
             Power-law spectral index *α* for ``n(E) ∝ E^(α-2)``.
-        energy_density : bool
+        mode : bool
             If ``True``, radiation is tracked as energy density (erg cm⁻³);
             if ``False``, as photon number density (cm⁻³).
         c : float | str
             Speed of light in cm/s (CGS) or a string to be converted to a symbol.
         """
         self.network: Network = network
-        self.bands: list[int | float | sp.Basic] = []
-        self.powerlaw_idx: int | float = powerlaw_idx
-        self.energy_density: bool = energy_density
+        self.bands: list[int | float | sp.Basic] = props.bands
+        self.profile_idx: int | float = props.profile_index
+        self.mode: str = props.mode
         # Speed of light (cm/s) for k = c * σ * n(E) expressions
-        self.c: float | sp.Symbol = sp.symbols(c) if isinstance(c, str) else c
-        self.background_field = BackgroundField(background_field)
+        self.c: float | sp.Symbol = (
+            sp.symbols(props.c) if isinstance(props.c, str) else props.c
+        )
+        self.background_field = BackgroundField(props.background_field)
+        self._use_proxy_pr: bool = props.use_proxy_pr
 
-        self.__parse_bands(bands)
         self.nbands: int = len(self.bands) - 1
         # Symbolic radiation density variable: energy density (erg/cm³) or
         # photon number density (cm⁻³), depending on the mode.
         self.den = sp.MatrixSymbol(
-            "radeden" if self.energy_density else "photden", self.nbands, 1
+            "radeden" if self.mode == "u" else "photden", self.nbands, 1
         )
         self.groups: list[RadiationGroup] = [
             RadiationGroup(lower, self.bands[i + 1], i, self.den[sp.Idx(i)])  # type: ignore
             for i, lower in enumerate(self.bands[:-1])
         ]
         self.E_sym: sp.Symbol = sp.Symbol("E")
-        self.ph_profile_sym: sp.Expr = self.E_sym ** (self.powerlaw_idx - 2)
+        self.ph_profile_sym: sp.Expr = self.E_sym ** (self.profile_idx - 2)
         self.energy_profile_sym: sp.Expr = self.E_sym * self.ph_profile_sym
 
         self.photden_tot = smart_integrate(
@@ -423,7 +422,7 @@ class Radiation:
             k_tot += (
                 k
                 * (1.0 if not xsec["_equations"]["pa"] else (pr_xsec_avg / rad_xsec_avg))
-                / (grp.eavg if self.energy_density else 1)
+                / (grp.eavg if self.mode == "u" else 1)
             )
 
         reaction.rate = k_tot
@@ -549,95 +548,8 @@ class Radiation:
 
         return ei, fi
 
-    def __parse_bands(self, bands: list[float | int | str | sp.Basic]):
-        """
-        Validate and store the band-edge list, replacing ``"inf"`` with ``sympy.oo``.
-
-        Also checks that the power-law photon-number spectrum is integrable
-        over the supplied band range when energy-density mode is active.
-        The average energy ``<E>_i = ∫ E·n(E) dE / ∫ n(E) dE`` must
-        converge; this requires:
-
-        - The lower edge to be non-zero when the spectral index is steep
-          enough to cause a divergence at ``E → 0``.
-        - The upper edge to be finite when the spectral index is shallow
-          enough to cause a divergence at ``E → ∞``.
-
-        Parameters
-        ----------
-        bands : list of (float, int, str, or sympy.Basic)
-            Mutable band-edge list; modified in-place to replace any
-            ``"inf"`` string with ``sympy.oo``.
-
-        Raises
-        ------
-        RuntimeError
-            If the average-energy integral would diverge given the supplied
-            band edges and power-law index.
-        """
-        # Replace the sentinel string "inf" with SymPy's infinity symbol.
-        if "inf" in bands:
-            inf_index = bands.index("inf")
-            bands[inf_index] = sp.oo
-
-        self.bands = cast(list[int | float | sp.Basic], bands)
-
-        if self.energy_density:
-            # The average-energy integral uses the *energy-density* spectrum
-            # u(E) ∝ E^(α-1), so the integral ∫ E · u(E) dE ∝ ∫ E^α dE.
-            # The effective power-law index for the ∫ E·n(E) dE integral is
-            # pl_index = (α-2) + 1 = α - 1.
-            pl_index: float = float(self.powerlaw_idx) - 1.0
-
-            if pl_index == -1.0:
-                # Integrand ~ E^(-1): log-divergence at both E=0 and E=∞.
-                if (
-                    isinstance(self.bands[0], (float, int))
-                    and float(self.bands[0]) == 0.0
-                ):
-                    raise RuntimeError(
-                        f"The integral for average energy will diverge since the radiation band starts from bands[0]: {self.bands[0]}\n"
-                        "Please try a non-zero value"
-                    )
-                if self.bands[-1] == sp.oo:
-                    raise RuntimeError(
-                        f'The integral for average energy will diverge since the radiation band ends at bands[{len(self.bands) - 1}]: "inf"\n'
-                        "Please try a non-infinite value or change the power_law_index"
-                    )
-            elif pl_index + 1.0 > 0.0:
-                # Integrand ~ E^p with p > -1: diverges at E → ∞.
-                if self.bands[-1] == sp.oo:
-                    raise RuntimeError(
-                        f'The integral for average energy will diverge since the radiation band ends at bands[{len(self.bands) - 1}]: "inf"\n'
-                        "Please try a non-infinite value or change the power_law_index"
-                    )
-            elif pl_index + 1.0 < 0.0:
-                # Integrand ~ E^p with p < -1: diverges at E → 0.
-                if (
-                    isinstance(self.bands[0], (float, int))
-                    and float(self.bands[0]) == 0.0
-                ):
-                    raise RuntimeError(
-                        f"The integral for average energy will diverge since the radiation band starts from bands[0]: {self.bands[0]}\n"
-                        "Please try a non-zero value"
-                    )
-
-        if (
-            float(self.powerlaw_idx) <= 1.0
-            and isinstance(self.bands[0], (float, int))
-            and float(self.bands[0]) < 1.0
-        ):
-            self.network.logger.warning(
-                f"Radiation band starts at bands[0]={self.bands[0]} eV with "
-                f"power_law_index={self.powerlaw_idx}: the photon-number "
-                "normalisation integral ∫E^(α-2)dE is lower-edge divergent "
-                "(exponent ≤ -1) and near E→0 becomes ill-conditioned, which "
-                "can yield a negative/garbage photon density. Use a non-zero "
-                "bands[0] ≳ 1 eV or a larger power_law_index."
-            )
-
     def get_photden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
-        return ph_energy ** (self.powerlaw_idx - 2)
+        return ph_energy ** (self.profile_idx - 2)
 
     def get_eden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
-        return ph_energy ** (self.powerlaw_idx - 1)
+        return ph_energy ** (self.profile_idx - 1)

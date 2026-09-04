@@ -28,8 +28,8 @@ class NetworkArgs:
     duplicate_policy: str | None = None
     replace_nH: bool = True
     rad_bands: list = field(default_factory=list)
-    rad_powerlaw_index: int | float = 0
-    rad_energy_density: bool = False
+    rad_profile_index: int | float = 0
+    rad_mode: str = "nph"
     use_proxy_photoreaction: bool = False
     dust: bool = False
     dust_rv: float = 5.5

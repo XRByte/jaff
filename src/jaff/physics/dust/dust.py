@@ -14,8 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from jaff.physics.dust._dustprops import DustProps
-
+from . import DustProps
 from .photoelectric_emission import PhotoelectricEmission
 from .tabular import Tabular
 
