@@ -29,7 +29,7 @@ from astropy import units as u
 from sympy import Expr
 
 from ...common import arr_integrate, smart_integrate
-from ..constants import h
+from ..constants import c, h
 
 if TYPE_CHECKING:
     from ...core.network import Network
@@ -146,4 +146,4 @@ class PhotoelectricEmission:
 
             num_tot += num
 
-        return num_tot / den  # chi
+        return (num_tot / den) * (rad.c / c.cgs.value)  # chi
