@@ -200,6 +200,7 @@ class Network:
         replace_nH: bool = True,
         radiation_props: RadiationProps | None = None,
         dust_props: DustProps | None = None,
+        use_proxy_photoreaction: bool = False,
         _from_cli: bool = False,
         _metadata: dict[str, Any] = {},
     ):
@@ -300,6 +301,7 @@ class Network:
         self.radiation: Radiation | None = (
             Radiation(self, radiation_props) if radiation_props is not None else None
         )
+        self._use_proxy_photoreaction: bool = use_proxy_photoreaction
         self.__photochemistry: None | Photochemistry = None
         self.dust: Dust | None = (
             Dust(self, dust_props) if dust_props is not None else None

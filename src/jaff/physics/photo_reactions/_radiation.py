@@ -254,7 +254,6 @@ class Radiation:
             sp.symbols(props.c) if isinstance(props.c, str) else props.c
         )
         self.background_field = BackgroundField(props.background_field)
-        self._use_proxy_pr: bool = props.use_proxy_pr
 
         self.nbands: int = len(self.bands) - 1
         # Symbolic radiation density variable: energy density (erg/cm³) or

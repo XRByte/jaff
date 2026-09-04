@@ -116,12 +116,11 @@ class Photochemistry:
             single ``photodecay`` cross-section array (``None`` when absent).
             Returns ``None`` if the reaction has no cross-section entry.
         """
-        assert self.net.radiation is not None
         with JaffDb() as jdb:
             table = jdb.table("photo_reaction_cross_sections")
             rs = (
                 reaction.serialized
-                if not self.net.radiation._use_proxy_pr
+                if not self.net._use_proxy_photoreaction
                 else reaction.normalized_proxy_reaction_str()
             )
             rows: list = table.rows(conditions=f"reaction = '{rs}'")

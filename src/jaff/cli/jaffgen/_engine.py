@@ -647,7 +647,6 @@ class JaffGen:
                 bands=sn.rad_bands,
                 profile_index=sn.rad_profile_index,
                 mode=sn.rad_mode,
-                use_proxy_pr=sn.use_proxy_photoreaction,
                 c=sn.c,
                 background_field=sn.background_field,
             ),
@@ -656,6 +655,7 @@ class JaffGen:
                 u_reduction=sn.dust_u_reduction,
                 f_reduction=sn.dust_f_reduction,
             ),
+            use_proxy_photoreaction=sn.use_proxy_photoreaction,
             _from_cli=sn._from_cli,
             _metadata=sn._metadata,
         )

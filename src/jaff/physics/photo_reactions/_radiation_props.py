@@ -30,7 +30,6 @@ class RadiationProps:
         bands: list[str | float | Basic] = [],
         profile_index: float = 0.0,
         mode: str = "nph",  # nph or u,
-        use_proxy_pr: bool = False,
         c: float | str = constants.c.cgs.value,
         background_field: str = "draine",
     ):
@@ -39,17 +38,8 @@ class RadiationProps:
         self.profile_index: float = self._validate_profile_index(profile_index)
         self.mode: str = self._validate_mode(mode)
         self.bands: list[float | Basic] = self._validate_bands(bands)
-        self.use_proxy_pr: bool = self._validate_proxy_pr_policy(use_proxy_pr)
         self.c: float | str = self._validate_c(c)
         self.background_field: str = self._validate_field(background_field)
-
-    def _validate_proxy_pr_policy(self, policy: bool) -> bool:
-        if isinstance(policy, bool):
-            return policy
-
-        raise ParserError(
-            f"'use_proxy_pr' must be of type <boolean>. Found {type(policy)}"
-        )
 
     def _validate_c(self, c) -> float | str:
         if isinstance(c, (float, int, str)):
