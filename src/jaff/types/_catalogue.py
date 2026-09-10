@@ -152,7 +152,7 @@ class Catalogue(Generic[T]):
         """
         if isinstance(key, str):
             if key not in self._by_prop and key not in self._by_serialized:
-                raise KeyError(f"{key}' not found in catalogue")
+                raise KeyError(f"'{key}' not found in catalogue")
 
             if key in self._by_prop:
                 return self._by_prop[key]
