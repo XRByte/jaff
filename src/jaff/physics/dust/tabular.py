@@ -4,7 +4,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
-from astropy import units as u
 from sympy import Basic, Expr
 
 from ...common import arr_integrate

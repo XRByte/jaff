@@ -273,24 +273,66 @@ class Species(Catalogue[Specie]):
         if "e-" in self:
             return self["e-"].index
 
-    def normalized_names(self, pos: str = "p", neg: str = "n") -> Vector[str]:
+    def normalized_names(self, pos: str = "j", neg: str = "k") -> Vector[str]:
         """Return species names normalized for use as code identifiers.
 
-        All characters are lower-cased; ``"+"`` is replaced with *pos* and
-        ``"-"`` with *neg*.
+        Each name is stripped and lower-cased; ``"+"`` is replaced with *pos*
+        and ``"-"`` with *neg*.  The defaults ``j``/``k`` mirror the scheme in
+        :meth:`Specie.get_fidx` (``.strip().lower()`` with the same
+        replacements), so the two agree for ordinary species -- though only
+        partially: ``get_fidx`` special-cases the electron to ``"idx_e"``,
+        whereas here ``e-`` normalizes to ``"ek"``.
+
+        Choosing ``j``/``k`` avoids the charge-marker-versus-element-letter
+        collision that ``p``/``n`` suffered (e.g. neutral tin ``Sn`` versus the
+        sulfur anion ``S-`` -> ``sk``).  It is *not*, however, injective:
+        because names are lower-cased, case-distinct species collapse onto the
+        same key (``CO``/``Co``, ``CS``/``Cs``, ``NO``/``No`` -> ``co``/``cs``/
+        ``no``).  See :meth:`charge_reverse_map`, which raises on such a clash.
 
         Parameters
         ----------
         pos : str, optional
-            Replacement for ``"+"``, by default ``"p"``.
+            Replacement for ``"+"``, by default ``"j"``.
         neg : str, optional
-            Replacement for ``"-"``, by default ``"n"``.
+            Replacement for ``"-"``, by default ``"k"``.
 
         Returns
         -------
         Vector[str]
         """
-        return Vector([s.name.lower().replace("+", pos).replace("-", neg) for s in self])
+        return Vector(
+            [s.name.replace("+", pos).replace("-", neg).strip().lower() for s in self]
+        )
+
+    def charge_reverse_map(self) -> dict[str, Specie]:
+        """Map each species' j/k-normalized identifier back to the ``Specie``.
+
+        Built from :meth:`normalized_names` with the default ``j``/``k`` scheme.
+        The mapping avoids charge-marker/element-letter collisions but is not
+        injective in general: because :meth:`normalized_names` lower-cases,
+        case-distinct species (e.g. ``CO`` and ``Co``) collapse onto the same
+        key.  Any such duplicate key raises :exc:`ValueError`.
+
+        Returns
+        -------
+        dict[str, Specie]
+
+        Raises
+        ------
+        ValueError
+            If two species normalize to the same identifier.
+        """
+        out: dict[str, Specie] = {}
+        for name, sp in zip(self.normalized_names(), self):
+            if name in out:
+                raise ValueError(
+                    f"Charge-normalized name collision: {name!r} maps to both "
+                    f"{out[name].name!r} and {sp.name!r}"
+                )
+            out[name] = sp
+
+        return out
 
     def neutral(self, attr: str = "") -> Vector[Specie | int]:
         """Return neutral (charge == 0) species or one of their attributes.
