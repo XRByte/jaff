@@ -184,10 +184,8 @@ class Network:
         "nh0": "H",
         "nh2": "H2",
         "ne": "e-",
-        "nhp": "H+",
+        "nhj": "H+",
     }
-
-    _n_suffixes: dict[str, str] = {"p": "+", "m": "-", "0": ""}
 
     def __init__(
         self,
@@ -307,6 +305,7 @@ class Network:
             Dust(self, dust_props) if dust_props is not None else None
         )
         self.__element_sums: dict[str, Expr | None] = {}
+        self.__charge_reverse: dict[str, Specie] | None = None
         self.__tgas_clamp_cache: dict[tuple[float | None, float | None], Expr] = {}
 
         self.logger.info(f"Loading network from {self.spec.fname}")
@@ -1118,7 +1117,6 @@ class Network:
             return self.__element_sums[element]
 
         simple_map = self._simple_map
-        n_suffixes = self._n_suffixes
 
         for fs in expr.free_symbols:
             name = str(fs)
@@ -1157,14 +1155,29 @@ class Network:
                     else:
                         repl = symbols(f"n{core.lower()}")
 
-                else:
-                    if core == "e":
-                        core = "e-"
-                    elif core[-1] in n_suffixes:
-                        core = core[:-1] + n_suffixes[core[-1]]
+                elif core == "e":
+                    if "e-" in self.species:
+                        repl = nden[Idx(self.species["e-"].index)]
 
-                    if core in self.species:
-                        repl = nden[Idx(self.species[core].index)]
+                else:
+                    if self.__charge_reverse is None:
+                        # Assumes a collision-free network; raises ValueError on
+                        # case-distinct colliding species (e.g. CO / Co).
+                        self.__charge_reverse = self.species.charge_reverse_map()
+
+                    key = core.lower()
+                    sp = self.__charge_reverse.get(key)
+                    if sp is None and key.endswith("0"):
+                        # Trailing 0 = explicit neutral marker; drop and retry.
+                        sp = self.__charge_reverse.get(key[:-1])
+
+                    if sp is not None:
+                        repl = nden[Idx(sp.index)]
+                    else:
+                        self.logger.error(
+                            f"Density symbol 'n_{core}' does not resolve to a "
+                            f"species in this network."
+                        )
 
             elif low_name.startswith("rc_"):
                 try:

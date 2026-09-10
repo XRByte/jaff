@@ -35,3 +35,48 @@ def test_charge_reverse_map_raises_on_case_collision(make_network):
     net = make_network(["CO + Co -> CO + Co [10,1000] 1e-10"])
     with pytest.raises(ValueError):
         net.species.charge_reverse_map()
+
+
+def test_decode_multi_charge_density(make_network):
+    import sympy
+    net = make_network(
+        [
+            "He+ + He+ -> He++ + He [10,1000] 1e-10",
+            "He++ + E -> He+ [10,1000] 1e-10",
+        ]
+    )
+    expr = net._standardize_symbols(sympy.Symbol("n_Hejj"), True)
+    idx = net.species["He++"].index
+    assert expr == net.ndens[sympy.Idx(idx)]
+
+
+def test_decode_single_cation(make_network):
+    import sympy
+    net = make_network(["C + C+ -> C+ + C [10,1000] 1e-10"])
+    expr = net._standardize_symbols(sympy.Symbol("n_Cj"), True)
+    idx = net.species["C+"].index
+    assert expr == net.ndens[sympy.Idx(idx)]
+
+
+def test_decode_neutral_zero_suffix(make_network):
+    import sympy
+    net = make_network(["O + O -> O + O [10,1000] 1e-10"])
+    expr = net._standardize_symbols(sympy.Symbol("n_O0"), True)
+    idx = net.species["O"].index
+    assert expr == net.ndens[sympy.Idx(idx)]
+
+
+def test_decode_neutral_h_vs_sum(make_network):
+    import sympy
+    net = make_network(["H + H+ -> H+ + H [10,1000] 1e-10"])
+    expr = net._standardize_symbols(sympy.Symbol("n_H0"), True)
+    idx = net.species["H"].index
+    assert expr == net.ndens[sympy.Idx(idx)]
+
+
+def test_decode_electron(make_network):
+    import sympy
+    net = make_network(["H -> H+ + e- [10,1000] 1e-10"])
+    expr = net._standardize_symbols(sympy.Symbol("n_e"), True)
+    idx = net.species["e-"].index
+    assert expr == net.ndens[sympy.Idx(idx)]
