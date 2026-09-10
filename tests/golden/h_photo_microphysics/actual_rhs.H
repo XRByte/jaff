@@ -18,8 +18,8 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
 
   using namespace Rates;
 
-  // $JAFF REPEAT idx, rhs, cse IN rhses $[REPLACE radeden\[\s*(\d+)\s*\] state.rn[\1] REPLACE photden\[\s*(\d+)\s*\] state.rn[\1] REPLACE rflux\[\s*(\d+)\s*\] state.rn[2*\1+1] REPLACE nden\[\s*(\d+)\s*\] state.xn[\1] REPLACE tgas state.T REPLACE c_hat state.c_hat  RADIATION True]$
-  const amrex::Real cse0 = state.c_hat*state.xn[0]*state.rn[0];
+  // $JAFF REPEAT idx, rhs, cse IN rhses $[REPLACE radeden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE photden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE rflux\[\s*(\d+)\s*\] state.rn[2*\1+1] REPLACE nden\[\s*(\d+)\s*\] state.xn[\1] REPLACE tgas state.T REPLACE c_hat state.c_hat  RADIATION True]$
+  const amrex::Real cse0 = state.c_hat*state.xn[0]*state.rn[2*0];
   const amrex::Real cse1 = 1.6911086202976345e-18*cse0;
   const amrex::Real cse2 = cse1 - 1.6594178159829075e-10*std::pow(state.T, -0.69999999999999996)*state.xn[1]*state.xn[2];
 
@@ -39,9 +39,9 @@ template <class MatrixType>
 AMREX_GPU_HOST_DEVICE AMREX_INLINE void actual_jac(const burn_t &state,
                                                    MatrixType &jac) {
 
-  // $JAFF REPEAT idx, expr, cse IN jacobian $[REPLACE radeden\[\s*(\d+)\s*\] state.rn[\1] REPLACE photden\[\s*(\d+)\s*\] state.rn[\1] REPLACE rflux\[\s*(\d+)\s*\] state.rn[2*\1+1] REPLACE nden\[\s*(\d+)\s*\] state.xn[\1] REPLACE tgas state.T REPLACE c_hat state.c_hat RADIATION True USE_DEDT True]$
+  // $JAFF REPEAT idx, expr, cse IN jacobian $[REPLACE radeden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE photden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE rflux\[\s*(\d+)\s*\] state.rn[2*\1+1] REPLACE nden\[\s*(\d+)\s*\] state.xn[\1] REPLACE tgas state.T REPLACE c_hat state.c_hat RADIATION True USE_DEDT True]$
   const amrex::Real cse0 = 1.6911086202976345e-18*state.c_hat;
-  const amrex::Real cse1 = cse0*state.rn[0];
+  const amrex::Real cse1 = cse0*state.rn[2*0];
   const amrex::Real cse2 = -cse1;
   const amrex::Real cse3 = std::pow(state.T, -0.69999999999999996);
   const amrex::Real cse4 = 1.6594178159829075e-10*cse3;
@@ -73,7 +73,7 @@ AMREX_GPU_HOST_DEVICE AMREX_INLINE void actual_jac(const burn_t &state,
   jac(3, 3) = cse12;
   jac(3, 4) = cse8;
   jac(3, 5) = cse9;
-  jac(4, 1) = cse13*state.rn[0];
+  jac(4, 1) = cse13*state.rn[2*0];
   jac(4, 2) = -cse15*cse16;
   jac(4, 3) = -cse14*cse16*state.xn[1];
   jac(4, 4) = 0.66666666666670005*cse7*(-6.8732206446569561e-27*cse15*cse3*state.xn[1] + 9.5308659605909776e-28*cse3*state.xn[1]*state.xn[2]);
