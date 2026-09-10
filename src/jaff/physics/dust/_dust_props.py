@@ -54,7 +54,7 @@ class DustProps:
         ----------
         rv : float, optional
             Total-to-selective extinction ratio R_V selecting the WD01/Draine
-            dust model.  Intended to be one of :attr:`_valid_rv` (``3.1``,
+            dust model.  Must be one of :attr:`_valid_rv` (``3.1``,
             ``4.0``, ``5.5``); default ``3.1``.
         u_reduction : str | None, optional
             Dust cross-section kind used to attenuate the radiation *density*
@@ -89,12 +89,21 @@ class DustProps:
         )
 
     def _validate_rv(self, rv: float) -> float:
-        """Type-check ``rv`` (int/float) only; does not enforce membership in
-        :attr:`_valid_rv`.  Raises :class:`ParserError` on a non-numeric value."""
-        if isinstance(rv, (int, float)):
-            return rv
+        """Validate ``rv``: must be numeric and one of :attr:`_valid_rv`.
 
-        raise ParserError(f"rv must be of type <float>. Found {type(rv)}")
+        Raises :class:`ParserError` on a non-numeric value or an R_V that has no
+        corresponding grain-model table.
+        """
+        if not isinstance(rv, (int, float)):
+            raise ParserError(f"rv must be of type <float>. Found {type(rv)}")
+
+        if rv not in self._valid_rv:
+            raise ParserError(
+                f"Invalid rv {rv}. Supported values are "
+                f"{', '.join(str(v) for v in self._valid_rv)}"
+            )
+
+        return rv
 
     def _validate_reductions(
         self, u_reduction: str | None, f_reduction: str | None
