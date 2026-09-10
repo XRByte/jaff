@@ -316,6 +316,7 @@ Both are energy densities in `erg cm⁻³`, so `chi_pe` is dimensionless.
 `chi_pe` needs **radiation transport and the dust module** both on. From Python:
 
 ```python
+<<<<<<< HEAD
 from jaff.physics import RadiationProps, DustProps
 
 net = Network(
@@ -325,6 +326,13 @@ net = Network(
         background_field="draine",         # reference field for the scaling
     ),
     dust_props=DustProps(),                # enables the dust module
+=======
+net = Network(
+    "networks/GOW/GOW.jet",
+    rad_bands=[6.0, 11.2, 13.6, "inf"],  # band edges in eV
+    dust=True,                            # enables the dust module
+    background_field="draine",            # reference field for the scaling
+>>>>>>> upstream
 )
 ```
 

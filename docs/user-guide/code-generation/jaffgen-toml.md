@@ -131,14 +131,14 @@ background_field = "draine"         # reference field used to scale chi_pe
 use_proxy_photoreaction = false     # use proxy photo-reactions when computing cross-sections
 ```
 
-| Key                       | Type             | Default                 | Description                                                                                       |
-| ------------------------- | ---------------- | ----------------------- | ------------------------------------------------------------------------------------------------- |
-| `bands`                   | `list`           | `[]`                    | Band boundaries in eV; omit to disable photochemistry                                             |
-| `profile_index`           | `int or float`   | `0`                     | Spectral index for band integration                                                               |
+| Key                       | Type             | Default                 | Description                                                                                                      |
+| ------------------------- | ---------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `bands`                   | `list`           | `[]`                    | Band boundaries in eV; omit to disable photochemistry                                                            |
+| `profile_index`           | `int or float`   | `0`                     | Spectral index for band integration                                                                              |
 | `mode`                    | `str`            | `"nph"`                 | Radiation density variable type: `"nph"` (photon number density, `photden`) or `"u"` (energy density, `radeden`) |
-| `rsl`                     | `float` or `str` | `constants.c.cgs.value` | Speed of light override (maps to the `c` `RadiationProps` arg). Becomes a symbol if passed as a string |
-| `background_field`        | `str`            | `"draine"`              | Reference radiation field (HDF5 group name) used to scale the photoelectric-band `chi_pe` symbol  |
-| `use_proxy_photoreaction` | `bool`           | `false`                 | Whether to use proxy photo-reactions when computing cross-sections instead of bypassing them      |
+| `rsl`                     | `float` or `str` | `constants.c.cgs.value` | Speed of light override (maps to the `c` `RadiationProps` arg). Becomes a symbol if passed as a string           |
+| `background_field`        | `str`            | `"draine"`              | Reference radiation field (HDF5 group name) used to scale the photoelectric-band `chi_pe` symbol                 |
+| `use_proxy_photoreaction` | `bool`           | `false`                 | Whether to use proxy photo-reactions when computing cross-sections instead of bypassing them                     |
 
 `profile_index` is used to configure the weight factor of the photo-reaction cross-sections (Refer to the [Photochemistry](../designing-networks/photochemistry.md) section for more information).
 
@@ -164,13 +164,34 @@ pe_threshold_low = 6                # photoelectric band lower edge (eV)
 pe_threshold_high = 13.6            # photoelectric band upper edge (eV)
 ```
 
-| Key                 | Type           | Default        | Description                                                                                     |
-| ------------------- | -------------- | -------------- | ----------------------------------------------------------------------------------------------- |
-| `rv`                | `float`        | `3.1`          | Extinction-curve total-to-selective ratio; one of `3.1`, `4.0`, `5.5`                           |
-| `u_reduction`       | `str`          | `"absorption"` | Radiation energy-density reduction kind: `extinction`, `absorption`, `scattering`, `transport`, `none` |
-| `f_reduction`       | `str`          | `"transport"`  | Radiation flux reduction kind (same set of values as `u_reduction`)                             |
-| `pe_threshold_low`  | `float`        | `6.0`          | Photoelectric band lower edge in eV (grain work function)                                        |
-| `pe_threshold_high` | `float`        | `13.6`         | Photoelectric band upper edge in eV (hydrogen ionisation edge)                                   |
+| Key                 | Type    | Default        | Description                                                                                            |
+| ------------------- | ------- | -------------- | ------------------------------------------------------------------------------------------------------ |
+| `rv`                | `float` | `3.1`          | Extinction-curve total-to-selective ratio; one of `3.1`, `4.0`, `5.5`                                  |
+| `u_reduction`       | `str`   | `"absorption"` | Radiation energy-density reduction kind: `extinction`, `absorption`, `scattering`, `transport`, `none` |
+| `f_reduction`       | `str`   | `"transport"`  | Radiation flux reduction kind (same set of values as `u_reduction`)                                    |
+| `pe_threshold_low`  | `float` | `6.0`          | Photoelectric band lower edge in eV (grain work function)                                              |
+| `pe_threshold_high` | `float` | `13.6`         | Photoelectric band upper edge in eV (hydrogen ionisation edge)                                         |
+
+The dust module needs radiation enabled — a `[network.radiation]` block with
+non-empty `bands` — because `chi_pe` is built from the radiation bands and the
+`background_field` reference; generation aborts otherwise.
+
+`background_field` only matters when the [dust module](#networkdust-section) is
+enabled; it names the reference field that `chi_pe` is scaled against.
+
+---
+
+## `[network.dust]` section
+
+Present this (possibly empty) table to enable the **dust module**. It maps to the
+`dust=True` constructor argument and activates dust-driven physics — currently
+photoelectric emission, which supplies the [`chi_pe`](../designing-networks/photochemistry.md#self-consistent-photoelectric-field-chi_pe)
+symbol (the local field scaled to the photoelectric band).
+
+```toml
+[network.dust]
+# presence alone enables the dust module; no keys are required yet
+```
 
 The dust module needs radiation enabled — a `[network.radiation]` block with
 non-empty `bands` — because `chi_pe` is built from the radiation bands and the
