@@ -1,5 +1,55 @@
 # ABOUTME: j/k charge-symbol convention — encoding, reverse map, decode, collisions.
+from pathlib import Path
+from types import SimpleNamespace
+
 import pytest
+
+
+@pytest.mark.parametrize(
+    "template,lang,outfile",
+    [
+        ("fortran_dlsodes", "fortran", "commons.f90"),
+        ("kokkos_ode", "cxx", "chemistry_ode.hpp"),
+    ],
+)
+def test_template_uses_jk_identifiers(tmp_path, template, lang, outfile):
+    """Regression guard: species-index templates emit j/k identifiers, not p/n.
+
+    Self-contained — writes its own minimal network with a doubly-charged
+    ``He++`` species (exercising the multi-charge, all-signs-replaced path ->
+    ``hejj``) instead of depending on a bundled network file.
+    """
+    from jaff.cli import JaffGen
+
+    net = tmp_path / "net.dat"
+    net.write_text(
+        "He+ + He+ -> He++ + He [10,1000] 1e-10\n"
+        "He++ + e- -> He+ [10,1000] 1e-10\n",
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "out"
+    outdir.mkdir()
+
+    fixture_config = Path(__file__).parent / "fixtures" / "jaffgen.toml"
+    args = SimpleNamespace(
+        network=str(net),
+        config=str(fixture_config),
+        label=None,
+        funcfile=None,
+        duplicate_policy=None,
+        replace_nH=None,
+        errors=None,
+        network_config=None,
+        outdir=str(outdir),
+        indir=None,
+        files=None,
+        template=template,
+        lang=lang,
+    )
+    JaffGen(args)
+    text = (outdir / outfile).read_text()
+    assert "idx_hejj" in text      # He++ -> j/k
+    assert "idx_hepp" not in text  # old p/n gone
 
 
 def test_normalized_names_defaults_are_jk(make_network):
