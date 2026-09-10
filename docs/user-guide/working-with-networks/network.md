@@ -55,30 +55,33 @@ Network(
     errors=False,
     label=None,
     funcfile=True,
+    duplicate_policy=None,
     replace_nH=True,
-    rad_bands=[],
-    rad_powerlaw_index=0,
-    rad_energy_density=False,
-    c=29979245800.0,
+    radiation_props=None,
+    dust_props=None,
+    use_proxy_photoreaction=False,
 )
 ```
 
-| Parameter            | Type                  | Default                 | Description                                                                                                             |
-| -------------------- | --------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `fname`              | `str or Path`         | —                       | Path to the network file (required); `.jaff` files are loaded as binary                                                 |
-| `config`             | `str or Path or None` | `None`                  | Path to a `jaff.toml` config file; `None` auto-detects one in the network file's dir                                    |
-| `errors`             | `bool`                | `False`                 | Treat conservation violations / duplicates as fatal (exit) instead of warning                                           |
-| `label`              | `str or None`         | `None`                  | Human-readable network name (defaults to the file stem)                                                                 |
-| `funcfile`           | `bool or str or Path` | `True`                  | Path to a `.jfunc` auxiliary file; `True` scans the network dir; `False` skips loading                                  |
-| `replace_nH`         | `bool`                | `True`                  | Expand `nh` / `nhe` shorthand into sums of `nden[i]` over H/He-bearing species                                          |
-| `rad_bands`          | `list`                | `[]`                    | Radiation band boundaries; an empty list disables radiation transport                                                   |
-| `rad_powerlaw_index` | `int or float`        | `0`                     | Power-law spectral index for the radiation field                                                                        |
-| `rad_energy_density` | `bool`                | `False`                 | Radiation moments are energy densities (`False`) or photon densities (`False`)                                          |
-| `c`                  | `float` or `str`      | `constants.c.cgs.value` | Speed of light in CGS (cm s⁻¹) or string to be used as a symbol; override when using rsla in radiation codegen manually |
+| Parameter                 | Type                       | Default | Description                                                                                                                         |
+| ------------------------- | -------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `fname`                   | `str or Path`              | —       | Path to the network file (required); `.jaff` files are loaded as binary                                                            |
+| `config`                  | `str or Path or None`      | `None`  | Path to a `jaff.toml` config file; `None` auto-detects one in the network file's dir                                              |
+| `errors`                  | `bool`                     | `False` | Treat conservation violations / duplicates as fatal (exit) instead of warning                                                     |
+| `label`                   | `str or None`              | `None`  | Human-readable network name (defaults to the file stem)                                                                           |
+| `funcfile`                | `bool or str or Path`      | `True`  | Path to a `.jfunc` auxiliary file; `True` scans the network dir; `False` skips loading                                            |
+| `duplicate_policy`        | `str or None`              | `None`  | Resolve duplicate rate coefficients: `preserve-first`, `preserve-last`, or `error`; `None` reads `jaff.toml` (default first-wins) |
+| `replace_nH`              | `bool`                     | `True`  | Expand `nh` / `nhe` shorthand into sums of `nden[i]` over H/He-bearing species                                                    |
+| `radiation_props`         | `RadiationProps or None`   | `None`  | Radiation-field configuration (bands, spectral index, mode, speed of light, background field); `None` disables radiation transport |
+| `dust_props`              | `DustProps or None`        | `None`  | Dust-module configuration (Rv, radiation reductions, photoelectric band edges); `None` disables the dust module                    |
+| `use_proxy_photoreaction` | `bool`                     | `False` | Use proxy photo-reactions when computing cross-sections instead of bypassing them                                                 |
 
 ### Examples
 
 ```python
+from jaff import Network
+from jaff.physics import RadiationProps
+
 # Minimal load
 net = Network("networks/GOW/GOW.jet")
 
@@ -95,8 +98,7 @@ net = Network(
 # With radiation bands (needed for photochemistry during code generation)
 net = Network(
     "networks/h_photoionization/h_photo.jet",
-    rad_bands=[13.6, "inf"],
-    rad_energy_density=False,
+    radiation_props=RadiationProps(bands=[13.6, "inf"], mode="nph"),
 )
 ```
 
@@ -117,8 +119,9 @@ net = Network(
 | `dEdt_chem`       | `sympy.Basic`     | Symbolic total chemical heating/cooling rate (erg cm⁻³ s⁻¹)                     |
 | `dEdt_other`      | `sympy.Basic`     | Extra heating/cooling from a `heatingcoolingrate` aux function (else `0`)       |
 | `dRad_dt_extra`   | `sympy.Basic`     | Extra radiation-moment source terms from `@function` aux definitions (else `0`) |
-| `radiation`       | `Radiation\|None` | Radiation field object; `None` when no `rad_bands` are configured               |
+| `radiation`       | `Radiation\|None` | Radiation field object; `None` when no `radiation_props` are configured         |
 | `mass_dict`       | `dict`            | Element mass dictionary used to build the species                               |
+| `n_hnuc`          | `sympy.Expr`      | Symbolic total hydrogen-nuclei density `Σ_i H-count(i)·nden[i]` (cached); the expansion of the `nh` / `n_H` shorthand |
 
 ```python
 net = Network("networks/h_photoionization/h_photo.jet")
@@ -224,7 +227,7 @@ for specie, expr in zip(net.species, net.sodes()):
 
 ```python
 net.sfluxes()       # list[Expr] — per-reaction flux  k_i * nden[r1] * nden[r2] ...
-net.sradodes(0)     # list[Expr] — radiation moment ODEs (order 0), if rad_bands set
+net.sradodes(0)     # list[Expr] — radiation moment ODEs (order 0), if radiation configured
 ```
 
 A flux is just the reaction rate times its reactant densities; the species ODEs
@@ -325,7 +328,7 @@ net2 = Network("gow.jaff")     # reload — same species, reactions, and ODEs
 <!-- prettier-ignore -->
 !!! warning "Networks with undefined functions can't be serialized"
     If any rate contains an undefined SymPy function — most commonly an
-    unresolved `photorates(...)` (a photo-reaction loaded without `rad_bands`)
+    unresolved `photorates(...)` (a photo-reaction loaded without `radiation_props`)
     or a custom `interp(...)` — `to_jaff` raises `ValueError`, because such
     expressions cannot be round-tripped through the JSON schema. Resolve the
     radiation/interpolation first, or keep those networks in their text form.

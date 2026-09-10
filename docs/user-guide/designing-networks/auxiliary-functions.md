@@ -130,6 +130,24 @@ runtime-supplied symbol.)
     `Network(..., replace_nH=False)` instead keeps `nh` / `nhe` as standalone
     free symbols.
 
+### Referencing other rate coefficients — `rc_<N>`
+
+Inside a custom `@function` body you can reference the auto-generated rate
+coefficient of another reaction by index with the reserved symbol `rc_<N>`,
+where `N` is the 0-based reaction index. JAFF resolves `rc_<N>` to the computed
+rate coefficient (the `rate` of `network.reactions[N]`), so you can build one
+reaction's rate or energy term out of another's without restating its Arrhenius
+expression.
+
+```text
+@function chemRate7(tgas)
+    # Reuse the coefficient of reaction 3 (e.g. a shared temperature fit)
+    return 0.5 * rc_3
+```
+
+A malformed index (`rc_` not followed by an integer) raises an error naming the
+offending symbol and the `.jfunc` file it came from.
+
 ---
 
 ## Reserved Function Names
@@ -268,7 +286,7 @@ The heating cooling function is used to add any non-chemical heating and cooling
 
 ## Radiation Source Terms — `deltaRad<N>`
 
-When a network is loaded with radiation transport enabled (by passing `rad_bands` to `Network`), JAFF builds a set of **radiation moment equations** alongside the chemical ODEs. A `deltaRad<N>` function supplies the radiation energy (in ergs) per photon energy (in eV) that photo-reaction _N_ adds to the local field, expressed in ergs/eV.
+When a network is loaded with radiation transport enabled (by passing `radiation_props=RadiationProps(bands=...)` to `Network`), JAFF builds a set of **radiation moment equations** alongside the chemical ODEs. A `deltaRad<N>` function supplies the radiation energy (in ergs) per photon energy (in eV) that photo-reaction _N_ adds to the local field, expressed in ergs/eV.
 
 ```text
 @function deltaRad5()
@@ -280,14 +298,14 @@ The body must be a function of the photon-energy symbol `E`. JAFF integrates it 
 
 ### Radiation density variable — `radeden` / `photden`
 
-Each radiation band carries one density unknown in the generated equations. Its symbolic name depends on how the field is tracked, set by the `rad_energy_density` flag on `Network`:
+Each radiation band carries one density unknown in the generated equations. Its symbolic name depends on how the field is tracked, set by the `mode` of the `RadiationProps` object passed to `Network` (`radiation_props=RadiationProps(bands=..., mode="nph"|"u")`):
 
-| `rad_energy_density` | Density variable | Quantity tracked         | Units    |
-| -------------------- | ---------------- | ------------------------ | -------- |
-| `True`               | `radeden[i]`     | Radiation energy density | erg cm⁻³ |
-| `False` (default)    | `photden[i]`     | Photon number density    | cm⁻³     |
+| `RadiationProps.mode` | Density variable | Quantity tracked         | Units    |
+| --------------------- | ---------------- | ------------------------ | -------- |
+| `"u"`                 | `radeden[i]`     | Radiation energy density | erg cm⁻³ |
+| `"nph"` (default)     | `photden[i]`     | Photon number density    | cm⁻³     |
 
-Here `i` indexes the radiation band. The photo-reaction rate coefficient for band $i$ is $k_i = c \cdot den_i \cdot {\langle \sigma \rangle}_i$, where ${\langle \sigma \rangle}_i$ is the band-averaged photoionisation cross section and `c` is the speed of light. In energy-density mode the `deltaRad` contribution is divided by the band-average photon energy to convert it to the matching units.
+Here `i` indexes the radiation band. The photo-reaction rate coefficient for band $i$ is $k_i = c \cdot den_i \cdot {\langle \sigma \rangle}_i$, where ${\langle \sigma \rangle}_i$ is the band-averaged photoionisation cross section and `c` is the speed of light. In energy-density mode (`mode="u"`) the `deltaRad` contribution is divided by the band-average photon energy to convert it to the matching units.
 
 ### Custom rates and `deltaRad`
 

@@ -17,6 +17,7 @@ JAFF ships a set of ready-to-use reaction networks in the `networks/` directory.
 | [`cie_h`](#cie_h)                         | PRIZMO      | 2         | Collisional ionization equilibrium of H   |
 | [`h2form`](#h2form)                       | PRIZMO      | 1         | H₂ formation with an analytic solution    |
 | [`GOW`](#gow)                             | KIDA        | ~50       | Gong, Ostriker & Wolfire (2017)           |
+| [`GOW++`](#gow_1)                         | KIDA        | ~50       | GOW with self-consistent photochemistry   |
 | [`COthin`](#cothin)                       | KROME       | ~287      | CO chemistry (Glover+2010)                |
 | [`popsicle_semenov`](#popsicle_semenov)   | KROME       | ~116      | Primordial + metal chemistry for POPSICLE |
 | [`uclchem_small_gas`](#uclchem_small_gas) | UCLCHEM     | ~563      | Small gas-phase network from UCLCHEM      |
@@ -142,6 +143,37 @@ GOW.hdf5
 - **`radiative_cooling/`** — radiative cooling coefficients for the H+He and
   metal (`Z`) components as a function of radiation temperature, indexed by
   `log_Trad`.
+
+---
+
+## GOW++
+
+**File:** `networks/GOW++/GOW++.jet`
+
+A self-consistent photochemistry variant of [GOW](#gow). The reaction list is
+identical to `GOW`, but the custom function file (`GOW++.jfunc`) replaces the
+assumed external radiation field with the network's own **self-consistent
+photoelectric field** `chi_pe`: the far-UV heating and photoelectric-emission
+terms are driven by the radiation bands JAFF actually solves, scaled to the
+reference `background_field`. As a result this network requires both radiation
+and the [dust module](dust.md) to be enabled (`chi_pe` is supplied by dust); it
+otherwise reuses the same `GOW.hdf5` interpolation tables as `GOW`.
+
+**Reference:** [Gong, Ostriker & Wolfire, ApJ 843, 38 (2017)](https://doi.org/10.3847/1538-4357/aa7561)
+
+The `GOW++` directory ships:
+
+```text
+GOW++/
+├── GOW++.jet      reaction network (KIDA format; same reactions as GOW)
+├── GOW++.jfunc    custom functions using the self-consistent chi_pe field
+├── GOW++.hdf5     interpolation tables (shared with GOW via a symlink)
+└── jaff.toml      per-network defaults (temperature-cutoff behaviour)
+```
+
+See [Dust](dust.md) and
+[Photochemistry → Self-consistent photoelectric field](photochemistry.md#self-consistent-photoelectric-field-chi_pe)
+for the physics behind `chi_pe`.
 
 ---
 

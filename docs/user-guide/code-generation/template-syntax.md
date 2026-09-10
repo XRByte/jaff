@@ -226,9 +226,12 @@ Modifiers go inside `$[...]$` at the end of the command line.
 | `USE_DEDT`  | `TRUE/FALSE` | Include the internal-energy row in the Jacobian | `jacobian`          |
 | `RADIATION` | `TRUE/FALSE` | Include radiation ODE / Jacobian terms          | `rhses`, `jacobian` |
 | `REPLACE`   | `pat repl`   | Regex replacement on the output                 | All                 |
+| `POS`       | `str`        | `+` replacement string for normalized sign      | `species_with_normalized_sign` |
+| `NEG`       | `str`        | `-` replacement string for normalized sign      | `species_with_normalized_sign` |
 
 `REPLACE` rewrites generated output after expansion. This is handy for mapping JAFF's
-standard symbols (`tgas`, `nden[…]`, `photden[…]`) onto your code's own names:
+standard symbols (`tgas`, `nden[…]`, `radeden[…]`, `photden[…]`, `rflux[…]`) onto your
+code's own names:
 
 ```cpp
 // $JAFF REPEAT idx, rate IN rates $[REPLACE tgas T]$
@@ -240,8 +243,12 @@ Modifiers chain. A realistic Jacobian directive remaps several array accessors
 and switches on radiation and the energy row at once:
 
 ```cpp
-// $JAFF REPEAT idx, expr, cse IN jacobian $[REPLACE nden\[\s*(\d+)\s*\] state.xn[\1] REPLACE photden\[\s*(\d+)\s*\] state.rn[\1] REPLACE rflux\[\s*(\d+)\s*\] state.rn[2*\1+1] RADIATION True USE_DEDT True]$
+// $JAFF REPEAT idx, expr, cse IN jacobian $[REPLACE nden\[\s*(\d+)\s*\] state.xn[\1] REPLACE radeden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE photden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE rflux\[\s*(\d+)\s*\] state.rn[2*\1+1] RADIATION True USE_DEDT True]$
 ```
+
+`POS` and `NEG` set the strings substituted for the `+` and `-` charge markers when
+expanding `species_with_normalized_sign`. They default to `j` / `k` (so `H+` → `hj`,
+`e-` → `ek`); override them to match another convention, e.g. `$[POS j NEG k]$`.
 
 ### Expression-generating collections
 

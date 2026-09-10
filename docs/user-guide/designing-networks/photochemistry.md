@@ -47,8 +47,8 @@ The radiation field is divided into contiguous energy bands. You specify the ban
 ```toml
 [network.radiation]
 bands             = [13.6, "inf"]   # band edges in eV; "inf" for open upper bound
-power_law_index   = 0               # photon-number spectrum index α
-energy_density    = false           # use photon density (false) or energy density (true)
+profile_index   = 0               # photon-number spectrum index α
+mode    = "nph"           # photon number density ("nph") or energy density ("u")
 rsl               = 2.99792458e10   # speed of light (cm/s)
 ```
 
@@ -60,7 +60,7 @@ $$
 n(E) \propto E^{\alpha - 2}
 $$
 
-where $\alpha$ is `power_law_index`. Setting $\alpha = 0$ gives $n(E) \propto E^{-2}$, i.e. equal energy per logarithmic bin which is the default assumption.
+where $\alpha$ is `profile_index`. Setting $\alpha = 0$ gives $n(E) \propto E^{-2}$, i.e. equal energy per logarithmic bin which is the default assumption.
 
 ### Band-averaged cross section
 
@@ -72,13 +72,13 @@ $$
 
 ### Rate coefficient
 
-In **photon-density mode** (`energy_density = false`):
+In **photon-density mode** (`mode = "nph"`):
 
 $$
 k_i = c \cdot \langle\sigma\rangle_i
 $$
 
-In **energy-density mode** (`energy_density = true`):
+In **energy-density mode** (`mode = "u"`):
 
 $$
 k_i = \frac{c \cdot \langle\sigma\rangle_i}{\langle E\rangle_i}
@@ -284,6 +284,11 @@ band** — from the grain work function (`6 eV`) up to the hydrogen ionisation
 edge (`13.6 eV`). Rate and heating expressions parametrise this by `chi_pe`: the
 local radiation field in that band, scaled to a reference (Draine/ISRF) field.
 
+The band edges are configurable via
+`DustProps(pe_threshold_low=..., pe_threshold_high=...)` (defaults `6.0` and
+`13.6` eV), or the matching `pe_threshold_low` / `pe_threshold_high` keys in the
+`[network.dust]` table.
+
 Whereas the plain [`chi`](network-formats.md#rate-expression-variables) symbol is
 a runtime input (an assumed external field), `chi_pe` is computed **from the
 network's own radiation bands**, so photoelectric heating stays consistent with
@@ -311,11 +316,15 @@ Both are energy densities in `erg cm⁻³`, so `chi_pe` is dimensionless.
 `chi_pe` needs **radiation transport and the dust module** both on. From Python:
 
 ```python
+from jaff.physics import RadiationProps, DustProps
+
 net = Network(
     "networks/GOW/GOW.jet",
-    rad_bands=[6.0, 11.2, 13.6, "inf"],  # band edges in eV
-    dust=True,                            # enables the dust module
-    background_field="draine",            # reference field for the scaling
+    radiation_props=RadiationProps(
+        bands=[6.0, 11.2, 13.6, "inf"],   # band edges in eV
+        background_field="draine",         # reference field for the scaling
+    ),
+    dust_props=DustProps(),                # enables the dust module
 )
 ```
 
@@ -323,6 +332,10 @@ From a [`jaffgen.toml`](../code-generation/jaffgen-toml.md#networkdust-section)
 add a `[network.dust]` table and a `background_field` key under
 `[network.radiation]`. If either radiation or dust is missing when a rate
 references `chi_pe`, generation aborts with a `ParserError`.
+
+Under a reduced speed of light (`rsl` / `RadiationProps(c="c_hat")`), `chi_pe`
+is scaled by `c_reduced / c` so the photoelectric field stays consistent with
+the reduced-speed radiation transport (commit `cddf25d`).
 
 Reference the symbol in any rate or `.jfunc` expression exactly like `chi`; JAFF
 substitutes the computed expression when the network is built.
@@ -333,13 +346,16 @@ substitutes the computed expression when the network is built.
 
 ```python
 from jaff import Network
+from jaff.physics import RadiationProps
 
 # Enable photochemistry by declaring radiation bands
 net = Network(
     "networks/h_photoionization/h_photo.jet",
-    rad_bands=[13.6, float("inf")],   # band edges in eV
-    rad_powerlaw_index=0,
-    rad_energy_density=False,
+    radiation_props=RadiationProps(
+        bands=[13.6, "inf"],   # band edges in eV
+        profile_index=0,
+        mode="nph",
+    ),
 )
 
 # Inspect photochemical reactions

@@ -12,7 +12,7 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 
 ## Constructor
 
-`#!python Network(fname, config=None, errors=False, label=None, funcfile=True, replace_nH=True, rad_bands=[], rad_powerlaw_index=0, rad_energy_density=False, c=constants.c.cgs.value)`
+`#!python Network(fname, config=None, errors=False, label=None, funcfile=True, duplicate_policy=None, replace_nH=True, radiation_props=None, dust_props=None, use_proxy_photoreaction=False)`
 
 **Parameters**
 
@@ -31,20 +31,20 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 **funcfile** : _bool, str, or Path, optional_
 : Path to .jfunc auxiliary functions file. `True` (default) scans the network directory; `False` skips.
 
+**duplicate_policy** : _str or None, optional_
+: Resolve duplicate rate coefficients (same reaction, mechanism, and temperature range): `preserve-first`, `preserve-last`, or `error`. When `None` (default), the network's `jaff.toml` value is used, falling back to `preserve-first`.
+
 **replace_nH** : _bool, optional_
 : Replace nH/nHe symbols with species density sums. Default `True`.
 
-**rad_bands** : _list, optional_
-: Radiation band boundaries enabling radiation transport. Default `[]`.
+**radiation_props** : _RadiationProps or None, optional_
+: Radiation-field configuration (bands, spectral index, mode, speed of light, background field). `None` (default) disables radiation transport.
 
-**rad_powerlaw_index** : _int or float, optional_
-: Spectral power-law index. Default `0`.
+**dust_props** : _DustProps or None, optional_
+: Dust-module configuration (Rv, radiation reductions, photoelectric band edges). `None` (default) disables the dust module.
 
-**rad_energy_density** : _bool, optional_
-: Interpret radiation as energy density. Default `False`.
-
-**c** : _float, optional_
-: Speed of light in CGS. Default `constants.c.cgs.value`.
+**use_proxy_photoreaction** : _bool, optional_
+: Use proxy photo-reactions when computing cross-sections instead of bypassing them. Default `False`.
 
 **Raises**
 
@@ -71,3 +71,4 @@ _FileNotFoundError_
 | `ndens`           | `sympy.MatrixSymbol`| Symbolic `nden` column vector of species number densities, shape (n_species, 1); `nden[i]` is species `i`           |
 | `ntot`            | `sympy.Expr`        | Total number density, `Σ_i nden[i]` over all species                                                                |
 | `rho`             | `sympy.Expr`        | Mass density, `Σ_i m_i · nden[i]`; species with unset mass contribute `0`                                           |
+| `n_hnuc`          | `sympy.Expr`        | Total hydrogen-nuclei density, `Σ_i H-count(i) · nden[i]` (cached); the symbolic expansion of the `nh` / `n_H` shorthand |

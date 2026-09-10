@@ -11,7 +11,7 @@ tags:
 Band-averaged cross sections for this reaction, one row per radiation band, as a
 tidy `pandas.DataFrame`. Assembled from the `rad_groups` back-references, which
 are populated when a radiation field is configured on the network (via the
-`rad_bands` argument to `Network`). Intended as the data source for band bar
+`radiation_props` argument to `Network`). Intended as the data source for band bar
 plots (see the `show_bands` option of [`plot_xsecs`](plot_xsecs.md)).
 
 **Returns**
@@ -34,7 +34,12 @@ band index.
 **Example**
 
 ```python
-net = Network("networks/h_photoionization/h_photo.jet", rad_bands=[1, 13.6, 100, "inf"])
+from jaff.physics import RadiationProps
+
+net = Network(
+    "networks/h_photoionization/h_photo.jet",
+    radiation_props=RadiationProps(bands=[1, 13.6, 100, "inf"]),
+)
 rxn = net.reactions.photo_reactions()[0]
 rxn.band_xsecs          # DataFrame: lower / upper / eavg / xsec / xsec_frac
 rxn.plot_xsecs(show_bands=True)   # overlay the band-averaged bars on σ(E)
