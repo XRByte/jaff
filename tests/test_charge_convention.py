@@ -130,3 +130,24 @@ def test_decode_electron(make_network):
     expr = net._standardize_symbols(sympy.Symbol("n_e"), True)
     idx = net.species["e-"].index
     assert expr == net.ndens[sympy.Idx(idx)]
+
+
+def test_cie_h_chemrate_resolves_hepp_density():
+    """react_cie_h.jfunc's chemRate2() returns ``n_Hejj`` (He++ density).
+
+    After migrating the density symbol to the j/k convention, that symbol must
+    decode to the He++ number-density reference ``nden[<He++ index>, 0]``. The
+    reference is a ``MatrixElement`` embedded in a reaction rate, so we look for
+    it among the rates' MatrixElement atoms (free_symbols would only yield the
+    bare ``nden`` MatrixSymbol, not the indexed element).
+    """
+    from pathlib import Path
+    from sympy.matrices.expressions.matexpr import MatrixElement
+    import sympy
+    from jaff import Network
+
+    root = Path(__file__).resolve().parents[1]
+    net = Network(str(root / "networks" / "cie_h" / "react_cie_h.jet"))
+    idx = net.species["He++"].index
+    used = set().union(*(r.rate.atoms(MatrixElement) for r in net.reactions))
+    assert net.ndens[sympy.Idx(idx)] in used

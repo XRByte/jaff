@@ -762,12 +762,12 @@
     # Compute cooling rate
     return n_H0 * cooling_2level(T10, A10, g0, g1, k10, tgas)
 
-@function cooling_H2(n_H2, n_H0, n_Hp, n_He, n_e, tgas)
+@function cooling_H2(n_H2, n_H0, n_Hj, n_He, n_e, tgas)
     # Cooling rate for H2
     # n_H2 Number density of hydrogen molecules, in cm^-3
     # n_H0 Number density of neutral hydrogen atoms, in cm^-3
-    # n_Hp Number density of H+ ions, in cm^-3
-    # n_H3 Number density of He nuclei, in cm^-3
+    # n_Hj Number density of H+ ions, in cm^-3
+    # n_He Number density of He nuclei, in cm^-3
     # n_e Number density of free electrons, in cm^-3
     # tgas Gas temperature in K
 
@@ -834,7 +834,7 @@
     )
 
     # Get low-density cooling rate
-    Lambda_n0 = L_H0 * n_H0 + L_H2 * n_H2 + L_He * n_He + L_Hp * n_Hp + L_e * n_e
+    Lambda_n0 = L_H0 * n_H0 + L_H2 * n_H2 + L_He * n_He + L_Hp * n_Hj + L_e * n_e
 
     # Get LTE cooling rate from rotational and vibrational modes
     Lambda_LTE_rot = (9.5e-22*T3**3.76) / (1.+0.12*T3**2.1) \
@@ -934,12 +934,12 @@
     )
     return n_C0 * cool_rate
 
-@function cooling_Cplus(n_Cp, n_H0, n_H2, n_e, tgas)
+@function cooling_Cplus(n_Cj, n_H0, n_H2, n_e, tgas)
     # Cooling rate due to C+ emission; C+ is treated as a two-level
     # system and the cooling rate is computed assuming optically
     # thin conditions. Collision rate coefficient approximations
     # are set to match those used by Gong et al.
-    # n_Cp Number density of C+ ions, in cm^-3
+    # n_Cj Number density of C+ ions, in cm^-3
     # n_H0 Number density of neutral hydrogen atoms, in cm^-3
     # n_H2 Number density of hydrogen molecules, in cm^-3
     # n_e Number density of free electrons, in cm^-3
@@ -964,7 +964,7 @@
     k10 = k_e * n_e + k_H * n_H0 + (k_oH2 * f_oH2 + k_pH2 * f_pH2) * n_H2
 
     # Compute cooling rate
-    return n_Cp * cooling_2level(T10, A10, g0, g1, k10, tgas)
+    return n_Cj * cooling_2level(T10, A10, g0, g1, k10, tgas)
 
 # Cooling for oxygen species
 
@@ -1142,7 +1142,7 @@
 
 #### Total heating and cooling rate not associated with chemical reactions ####
 
-@function heatingCoolingRate(chi_pe, d2g, tgas, n_H, n_H0, n_H2, n_Cp, n_C0, n_O0, n_CO, n_e, gradv)
+@function heatingCoolingRate(chi_pe, d2g, tgas, n_H, n_H0, n_H2, n_Cj, n_C0, n_O0, n_CO, n_e, gradv)
     # Total heating - cooling rate from all processes
     # chi_pe Radiation field effecting photoelectric emission
     # in grains in Draine (1972) units
@@ -1151,7 +1151,7 @@
     # n_H Number density of H nuclei, in cm^-3
     # n_H0 Number density of neutral hydrogen atoms, in cm^-3
     # n_H2 Number density of hydrogen molecules, in cm^-3
-    # n_Cp Number density of C+ ions, in cm^-3
+    # n_Cj Number density of C+ ions, in cm^-3
     # n_C0 Number density of atomic C, in cm^-3
     # n_O0 Number density of atomic O, in cm^-3
     # n_CO Number density of CO molecules, in cm^-3
@@ -1169,8 +1169,8 @@
 
     return heating_grainPE(chi_pe, d2g, tgas, n_H, n_e) \
         - cooling_LyA(n_H0, n_e, tgas) \
-        - cooling_H2(n_H2, n_H0, n_Hp, n_He, n_e, tgas) \
-        - cooling_Cplus(n_Cp, n_H0, n_H2, n_e, tgas) \
+        - cooling_H2(n_H2, n_H0, n_Hj, n_He, n_e, tgas) \
+        - cooling_Cplus(n_Cj, n_H0, n_H2, n_e, tgas) \
         - cooling_C0(n_C0, n_H0, n_H2, n_e, tgas) \
         - cooling_O0(n_O0, n_H0, n_H2, n_e, tgas) \
         - cooling_CO(n_CO, n_H0, n_H2, n_e, tgas, gradv, n_H) \
