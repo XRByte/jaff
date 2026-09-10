@@ -86,25 +86,30 @@ following conventions:
 | `nh`              | Sum over all H-bearing species (H nucleus density)                          |
 | `nh0`             | Density of `H`                                                              |
 | `nh2`             | Density of `H2`                                                             |
-| `nhp`             | Density of `H+`                                                             |
+| `nhj`             | Density of `H+`                                                             |
 | `ne`              | Density of the electron (`e-`)                                              |
 | `n_<species>`     | Density of the named species (see suffix rules below)                       |
 
 There is no standalone `nhe` shorthand — to get the He-nucleus sum, write `n_He`.
 
-For the general `n_<species>` form, the part after `n_` is mapped to a species
-name with a small suffix convention:
+For the general `n_<species>` form, the part after `n_` is matched against the
+network's species by its j/k-normalized identifier:
 
-- trailing `p` → `+`, trailing `m` → `-`, trailing `0` → neutral (suffix dropped).
-  So `n_Cp` → `C+`, `n_O0` → `O`, `n_Hep` → `He+`.
+- `"+"` is written `j`, `"-"` is written `k`, and a trailing `0` marks an
+  explicit neutral (the `0` is dropped on a miss). So `n_Cj` → `C+`,
+  `n_Hejj` → `He++`, `n_O0` → `O`, `n_Hej` → `He+`.
 - `n_e` → the electron (`e-`).
 - `n_H` and `n_He` are treated as the H- and He-nucleus **element sums** (`n_H`
   is equivalent to `nh`), not a single species.
 - any other `n_<species>` resolves to that exact species' density, e.g. `n_CO` → `CO`.
 
+Resolution is an exact reverse lookup, not a trailing-character guess, so
+multiply-ionized species and element symbols that end in a charge letter (e.g.
+Potassium `K`, tin `Sn`) are unambiguous.
+
 <!-- prettier-ignore -->
 !!! warning "Density symbol casing"
-    The fixed shorthands (`ntot`, `nh`, `ne`, `nh0`, `nh2`, `nhp`) are matched
+    The fixed shorthands (`ntot`, `nh`, `ne`, `nh0`, `nh2`, `nhj`) are matched
     case-insensitively. The species part of the general `n_<species>` form is
     **case-sensitive** and must match the species name exactly as it appears in
     the network (`n_CO`, not `n_co`). A symbol that does not resolve to a species
@@ -247,11 +252,11 @@ The heating cooling function is used to add any non-chemical heating and cooling
 
 ```text
 @function heatingCoolingRate(chi, av, d2g, tgas, n_H, n_H0, n_H2,
-                              n_Cp, n_C0, n_O0, n_CO, n_e, gradv)
+                              n_Cj, n_C0, n_O0, n_CO, n_e, gradv)
     return heating_grainPE(chi, av, d2g, tgas, n_H, n_e) \
         - cooling_LyA(n_H0, n_e, tgas) \
-        - cooling_H2(n_H2, n_H0, n_Hp, n_He, n_e, tgas) \
-        - cooling_Cplus(n_Cp, n_H0, n_H2, n_e, tgas) \
+        - cooling_H2(n_H2, n_H0, n_Hj, n_He, n_e, tgas) \
+        - cooling_Cplus(n_Cj, n_H0, n_H2, n_e, tgas) \
         - cooling_C0(n_C0, n_H0, n_H2, n_e, tgas) \
         - cooling_O0(n_O0, n_H0, n_H2, n_e, tgas) \
         - cooling_CO(n_CO, n_H0, n_H2, n_e, tgas, gradv) \
