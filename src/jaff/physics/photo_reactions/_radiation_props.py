@@ -9,6 +9,34 @@ from .. import constants
 
 
 class RadiationProps:
+    """Radiation-field configuration passed to :class:`Network` / :class:`Radiation`.
+
+    Holds the settings that describe the discretised radiation field and its
+    assumed spectrum, validating each on construction.
+
+    The ``mode`` selects how the field is tracked: ``"nph"`` for photon number
+    density (cm⁻³) or ``"u"`` for energy density (erg cm⁻³).  ``bands`` is the
+    ordered list of photon-energy band edges (eV) defining the frequency bands.
+    ``profile_index`` is the spectral index *α* of the assumed photon-number
+    spectrum ``n(E) ∝ E^(α-2)``.  ``c`` is the speed of light (a float in cm/s,
+    or a string such as ``"c_hat"`` for a reduced speed of light that becomes a
+    symbol downstream).  ``background_field`` names the background radiation
+    field.
+
+    Attributes
+    ----------
+    profile_index : float
+        Validated spectral index *α*.
+    mode : str
+        Validated mode, ``"nph"`` or ``"u"`` (lower-cased).
+    bands : list of (float or sympy.Basic)
+        Validated band-edge list, with ``"inf"`` replaced by ``sympy.oo``.
+    c : float or str
+        Validated speed of light in cm/s, or a string to become a symbol.
+    background_field : str
+        Validated background-field name (lower-cased).
+    """
+
     # Vaiid modes
     # nph: Photon number density
     # u: Enregy desnity
@@ -33,7 +61,33 @@ class RadiationProps:
         c: float | str = constants.c.cgs.value,
         background_field: str = "draine",
     ):
+        """Validate and store the radiation-field configuration.
 
+        Parameters
+        ----------
+        bands : list of (str, float, or sympy.Basic), optional
+            Ordered photon-energy band edges in eV (default ``[]``).  The
+            string ``"inf"`` is accepted in the last slot and replaced with
+            ``sympy.oo``.
+        profile_index : float, optional
+            Spectral index *α* of the photon-number spectrum
+            ``n(E) ∝ E^(α-2)`` (default ``0.0``).  Must be an int or float.
+        mode : str, optional
+            Radiation-tracking mode (default ``"nph"``); one of
+            ``("nph", "u")`` -- photon number density or energy density.
+        c : float or str, optional
+            Speed of light in cm/s (default the CGS value); may also be a
+            string such as ``"c_hat"`` for a reduced speed of light.
+        background_field : str, optional
+            Background radiation field (default ``"draine"``); one of
+            ``("bb_4000", "bb_10000", "bb_20000", "draine", "habing",
+            "mathis", "solar", "tw_hydra")`` (case-insensitive).
+
+        Raises
+        ------
+        ParserError
+            If any argument fails validation (invalid type, mode, or field).
+        """
         self.logger: logging.Logger = JaffLogger().get_logger()
         self.profile_index: float = self._validate_profile_index(profile_index)
         self.mode: str = self._validate_mode(mode)
@@ -106,6 +160,9 @@ class RadiationProps:
 
         Raises
         ------
+        ParserError
+            If ``bands`` contains a string entry other than ``"inf"`` in the
+            last slot.
         RuntimeError
             If the average-energy integral would diverge given the supplied
             band edges and power-law index.

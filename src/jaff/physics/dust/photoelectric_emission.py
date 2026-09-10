@@ -1,10 +1,11 @@
 """Photoelectric emission: the scaled radiation field in the photoelectric band.
 
 Photoelectric heating by dust grains is driven by far-UV photons in the
-photoelectric band ``[E_low, E_high] = [6, 13.6] eV`` (from the grain work
-function up to the hydrogen ionisation edge).  Rate expressions parametrise
-this by ``chi_pe`` -- the local radiation field scaled to a reference
-(Draine/ISRF) field, integrated over that band.
+photoelectric band ``[E_low, E_high]``, which defaults to ``[6, 13.6] eV``
+(from the grain work function up to the hydrogen ionisation edge) but is
+configurable via ``DustProps.pe_threshold_low`` / ``pe_threshold_high``.
+Rate expressions parametrise this by ``chi_pe`` -- the local radiation field
+scaled to a reference (Draine/ISRF) field, integrated over that band.
 
 :class:`PhotoelectricEmission` computes ``chi_pe`` as the ratio of two energy
 densities in the photoelectric band:
@@ -16,8 +17,8 @@ densities in the photoelectric band:
   (:attr:`Radiation.background_field`) in the same band.
 
 Both are in erg/cm³, so ``chi_pe`` is dimensionless.  The resulting symbol is
-substituted into rate expressions when a network is built with ``dust=True``
-and radiation enabled.
+substituted into rate expressions when a network is built with
+``Network(..., dust_props=DustProps(...))`` and radiation enabled.
 """
 
 from __future__ import annotations
@@ -49,9 +50,11 @@ class PhotoelectricEmission:
     net : Network
         Back-reference to the parent network.
     E_low : astropy.units.Quantity
-        Lower edge of the photoelectric band (grain work function, 6 eV).
+        Lower edge of the photoelectric band (grain work function, default
+        6 eV).
     E_high : astropy.units.Quantity
-        Upper edge of the photoelectric band (H ionisation edge, 13.6 eV).
+        Upper edge of the photoelectric band (H ionisation edge, default
+        13.6 eV).
     """
 
     def __init__(self, network: Network, e_low: float = 6, e_high: float = 13.6):
@@ -61,6 +64,12 @@ class PhotoelectricEmission:
         ----------
         network : Network
             The parent network.
+        e_low : float, optional
+            Lower edge of the photoelectric band, in eV.  Default ``6``;
+            threaded from ``DustProps.pe_threshold_low``.
+        e_high : float, optional
+            Upper edge of the photoelectric band, in eV.  Default ``13.6``;
+            threaded from ``DustProps.pe_threshold_high``.
         """
         # photoelectric emission activation energy in eV
         self.E_low: u.Quantity = e_low * u.eV

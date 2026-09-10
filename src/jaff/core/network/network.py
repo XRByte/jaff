@@ -241,19 +241,19 @@ class Network:
             ``n_He``) in rate expressions is expanded to a sum of
             ``nden[i]`` terms over all H-bearing (He-bearing) species.  Set
             to ``False`` to keep ``nh`` / ``nhe`` as free symbols.
-        rad_bands : list, optional
-            Radiation band boundaries used to construct the ``Radiation``
-            object.  An empty list (default) disables radiation transport.
-        rad_powerlaw_index : int | float, optional
-            Power-law spectral index for the radiation field, default ``0``.
-        rad_energy_density : bool, optional
-            If ``True``, radiation moments are energy densities rather than
-            number densities, default ``False``.
-        c : float | str, optional
-            Speed of light in CGS units (cm s⁻¹) or a symbol.  Defaults to
-            ``constants.c.cgs.value``.
-        _from_cli : bool, optional
-            Internal flag: suppresses the MOTD banner when ``True``.
+        radiation_props : RadiationProps | None, optional
+            Radiation configuration used to construct the network's
+            :class:`Radiation` object and enable photochemistry.  When
+            ``None`` (default), no radiation field is built and photochemistry
+            is disabled.
+        dust_props : DustProps | None, optional
+            Dust configuration used to construct the network's :class:`Dust`
+            object.  When ``None`` (default), the dust module is disabled.
+        use_proxy_photoreaction : bool, optional
+            When ``True``, cross-sections for photo-reactions are looked up
+            using the proxy photo-reaction string (via
+            :meth:`Reaction.normalized_proxy_reaction_str`) rather than the
+            reaction's standard serialized form.  Default ``False``.
 
         Raises
         ------
@@ -1098,6 +1098,12 @@ class Network:
 
         When replace_nH is False, H/He element sums become ``nh``/``nhe`` symbols
         instead of being expanded over all species.
+
+        Two further shorthands are resolved: ``rc_<int>`` is replaced by the
+        computed rate coefficient of reaction ``<int>`` (``self.reactions[N].rate``),
+        and ``chi_pe`` is replaced by the photoelectric field strength
+        ``self.dust.pe.chi`` (which requires both radiation and dust to be
+        enabled, otherwise a :class:`ParserError` is raised).
         """
         if expr == Float(0.0):
             return Float(0.0)

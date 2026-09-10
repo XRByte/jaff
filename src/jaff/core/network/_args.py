@@ -32,7 +32,7 @@ class NetworkArgs:
     rad_mode: str = "nph"
     use_proxy_photoreaction: bool = False
     dust: bool = False
-    dust_rv: float = 5.5
+    dust_rv: float = 3.1
     dust_u_reduction: str | None = "absorption"
     dust_f_reduction: str | None = "transport"
     dust_pe_threshold_low: float = 6.0

@@ -2,8 +2,9 @@
 
 :class:`Dust` is the container for the network's dust-related physics.  It is
 attached to a :class:`~jaff.core.network.Network` when the network is built
-with ``dust=True`` and groups the individual dust processes as sub-objects
-(currently photoelectric emission; more may be added later).
+with ``Network(..., dust_props=DustProps(...))`` and groups the individual
+dust processes as sub-objects (currently photoelectric emission and tabular
+dust cross sections; more may be added later).
 
 The symbols exposed by these sub-objects (e.g. the scaled photoelectric-band
 radiation field ``chi_pe`` supplied by :attr:`Dust.pe`) are substituted into
@@ -29,14 +30,28 @@ class Dust:
     ----------
     network : Network
         The parent network this dust model belongs to.
+    props : DustProps
+        Configuration object holding the dust model selection and radiation
+        reduction settings.
 
     Attributes
     ----------
-    network : Network
+    net : Network
         Back-reference to the parent network.
     pe : PhotoelectricEmission
         Photoelectric-emission model, source of the ``chi_pe`` symbol
         substitution (the Draine field scaled to the photoelectric band).
+    rv : float
+        Total-to-selective extinction ratio R_V (from ``props``) selecting
+        the WD01/Draine dust model.
+    u_reduction : str | None
+        Dust cross-section kind used to attenuate the radiation *density*
+        (0th) moment (from ``props``).
+    f_reduction : str | None
+        Dust cross-section kind used to attenuate the radiation *flux*
+        (1st) moment (from ``props``).
+    tabular : Tabular
+        Tabulated per-H-nucleus dust cross sections for the selected R_V.
     """
 
     def __init__(
@@ -50,19 +65,11 @@ class Dust:
         ----------
         network : Network
             The parent network.
-        rv : float, optional
-            Total-to-selective extinction ratio R_V selecting the WD01/Draine
-            dust model.  Must be one of :attr:`_valid_rv` (``3.1``, ``4.0``,
-            ``5.5``); default ``5.5``.
-        u_reduction : str | None, optional
-            Dust cross-section kind used to attenuate the radiation
-            *density* (0th) moment: ``"extinction"``, ``"absorption"``,
-            ``"scattering"``, ``"transport"``, or ``"none"`` to disable the
-            term.  Default ``"absorption"``.
-        f_reduction : str | None, optional
-            Dust cross-section kind used to attenuate the radiation *flux*
-            (1st) moment; same choices as *u_reduction*.  Default
-            ``"transport"``.
+        props : DustProps
+            Configuration object supplying the R_V dust-model selection
+            (``rv``, default ``3.1``), the radiation reduction kinds
+            (``u_reduction``, ``f_reduction``), and the photoelectric band
+            edges (``pe_threshold_low``, ``pe_threshold_high``).
         """
 
         self.net: Network = network

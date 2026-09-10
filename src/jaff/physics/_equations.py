@@ -170,11 +170,11 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
 
     Parameters
     ----------
-    radiation : Radiation or None
-        Radiation field descriptor containing band definitions and per-band
-        per-reaction rate coefficients.  Must not be ``None``.
-    species : Species
-        Collection of all chemical species (used for number-density indexing).
+    net : Network
+        The network whose :attr:`~Network.radiation` field supplies the band
+        definitions and per-band per-reaction rate coefficients, and whose
+        species provide number-density indexing.  ``net.radiation`` must not
+        be ``None``.
     order : {0, 1, 2, 3}, optional
         Layout convention for the output array:
 
@@ -197,7 +197,7 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
     Raises
     ------
     RuntimeError
-        If *radiation* is ``None`` (no bands have been configured).
+        If ``net.radiation`` is ``None`` (no bands have been configured).
     ValueError
         If *order* is not one of ``{0, 1, 2, 3}``.
 
@@ -278,6 +278,37 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
 def handle_dust_reduction(
     net: Network, group: RadiationGroup, grate: Expr, gflux: Expr, rflux: MatrixSymbol
 ) -> tuple[Expr, Expr]:
+    """Subtract dust absorption/transport reductions from a band's ODE terms.
+
+    For a single radiation band, this removes the radiation lost to dust from
+    the energy-density source term ``grate`` and the flux source term
+    ``gflux``.  Each reduction term is
+    ``Zd * c * <moment> * n_hnuc * avg_cross_section_per_hnuc(kind, band)``,
+    where ``<moment>`` is the band symbol ``group.sym`` for the energy density
+    and ``rflux[group.index]`` for the flux.  The energy-density and flux
+    reductions use the dust's ``u_reduction`` and ``f_reduction`` kinds
+    respectively; a kind that is ``None`` or ``"none"`` is skipped.
+
+    Parameters
+    ----------
+    net : Network
+        The network supplying the radiation field (``net.radiation``) and the
+        dust module (``net.dust``); both must be enabled.
+    group : RadiationGroup
+        The radiation band whose symbol, index, and energy bounds
+        (``group.lower``, ``group.upper``) select the averaged cross-section.
+    grate : Expr
+        The band's energy-density source term to reduce.
+    gflux : Expr
+        The band's flux source term to reduce.
+    rflux : MatrixSymbol
+        Flux moment symbol, indexed by band to form the flux reduction term.
+
+    Returns
+    -------
+    tuple of sympy.Expr
+        The updated ``(grate, gflux)`` pair with dust reductions subtracted.
+    """
     assert net.radiation is not None
     assert net.dust is not None
 

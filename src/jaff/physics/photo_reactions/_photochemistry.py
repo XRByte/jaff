@@ -41,7 +41,6 @@ class Photochemistry:
     """
 
     def __init__(self, network: Network):
-        self.net = network
         """Ensure the cross-section and shielding data files are available locally.
 
         Constructing a :class:`Photochemistry` triggers
@@ -51,6 +50,7 @@ class Photochemistry:
         fetch unless already cached). Instantiate once and reuse rather than per
         reaction.
         """
+        self.net = network
         download_xsecs()
         download_shielding()
 
@@ -100,6 +100,10 @@ class Photochemistry:
         The ``photo_reaction_cross_sections`` table maps the reaction key to an
         HDF5 group (Leiden preferred, NORAD as fallback) and records which
         processes are present.  The group is read into numpy arrays.
+
+        The look-up key is ``reaction.normalized_proxy_reaction_str()`` when
+        ``self.net._use_proxy_photoreaction`` is set, otherwise
+        ``reaction.serialized``.
 
         Parameters
         ----------
