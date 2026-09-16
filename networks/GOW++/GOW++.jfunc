@@ -592,7 +592,7 @@
     sec_per_prim = kcr_H_fac(nH, nH0, nH2)
     return qcr(nH, ne, nH0, nH2) * eV / sec_per_prim
 
-# @function deltaE2(nH, nH0, nH2)
+@function deltaE2(nH, nH0, nH2)
     # Reaction 2: He + CR -> He+ + e-
     # nH Number density of H nuclei in cm^-3
     # nH0 Number densty of H0 atoms in cm^-3
@@ -603,8 +603,8 @@
     # expressions also include secondaries, so we need to divide
     # those out to get the right energy deposition per primary.
 
-#    sec_per_prim = kcr_H_fac(nH, nH0, nH2)
-#    return qcr(nH, ne, nH0, nH2) * eV / sec_per_prim
+    sec_per_prim = kcr_H_fac(nH, nH0, nH2)
+    return qcr(nH, ne, nH0, nH2) * eV / sec_per_prim
 
 @function deltaE13(tgas, nH, nH0, nH2, chi)
     # Reaction 13: H2 + photon -> H + H
