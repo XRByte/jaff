@@ -438,7 +438,9 @@ class Radiation:
             grp.props[reaction] = {
                 "k": k,
                 "xsec": rad_xsec_avg,
-                "xsec_frac": rad_xsec_avg / xsec_tot,  # fraction of total cross section
+                "xsec_frac": rad_xsec_avg / xsec_tot
+                if xsec_tot != 0.0
+                else 0.0,  # fraction of total cross section
                 "delta_rad": delta_rad_band,
             }
             reaction.rad_groups.append(grp)
