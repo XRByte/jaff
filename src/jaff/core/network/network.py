@@ -617,7 +617,7 @@ class Network:
             else:
                 for seg in r.rate_segments:
                     seg.rate = self._standardize_symbols(seg.rate, replace_nH)
-                r.rate = r.rate_segments.sort().evaluate_equivalent_rate()
+                r.rate = r.rate_segments.sort().evaluate_equivalent_rate(r)
 
             r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
             dE_dt = r.dE * r.rate

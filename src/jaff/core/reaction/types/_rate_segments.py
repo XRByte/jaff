@@ -1,7 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sympy import Basic, Expr, Piecewise, symbols
 
 from ....types import Catalogue
 from . import RateSegment
+
+if TYPE_CHECKING:
+    from .. import Reaction
 
 
 class RateSegments(Catalogue[RateSegment]):
@@ -60,7 +67,7 @@ class RateSegments(Catalogue[RateSegment]):
     def __repr__(self):
         return "<RateSegment Object>"
 
-    def evaluate_equivalent_rate(self) -> Expr:
+    def evaluate_equivalent_rate(self, r: Reaction) -> Expr:
         """Collapse the segments into a single SymPy ``Piecewise`` rate.
 
         Segments must be sorted by ascending temperature (call :meth:`sort`
@@ -118,12 +125,10 @@ class RateSegments(Catalogue[RateSegment]):
             prev = ls[i]
             if prev.tmax is None or seg.tmin is None:
                 raise ValueError(
-                    "Multiple temperature range reactions should have well defined temperature"
+                    f"Reaction {r} should have a well defined temperature since it's a multi temperature range reaction"
                 )
             if prev.tmax > seg.tmin:
-                raise ValueError(
-                    "Temperature ranges shouldn't overlap for multi-temperature range reactions"
-                )
+                raise ValueError(f"Temperature ranges shouldn't overlap for reaction {r}")
 
             a = prev.tmax  # left boundary
             b = seg.tmin  # right boundary
