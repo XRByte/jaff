@@ -30,9 +30,13 @@ shared axes.
 
 ```python
 from jaff import Network
+from jaff.physics import RadiationProps
 from jaff.plotting import plot_rates, plot_xsecs
 
-net = Network("networks/h_photoionization/h_photo.jet", rad_bands=[1, 13.6, 100, "inf"])
+net = Network(
+    "networks/h_photoionization/h_photo.jet",
+    radiation_props=RadiationProps(bands=[1, 13.6, 100, "inf"]),
+)
 
 # One reaction, or many on shared axes with a legend.
 plot_rates(net.reactions[0])

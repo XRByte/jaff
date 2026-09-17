@@ -45,9 +45,10 @@ from ...io import JaffLogger, jaff_progress
 from ...io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
 from ...physics import (
     Dust,
+    DustProps,
     Photochemistry,
     Radiation,
-    constants,
+    RadiationProps,
     get_eos,
     get_sfluxes,
     get_sodes,
@@ -183,10 +184,8 @@ class Network:
         "nh0": "H",
         "nh2": "H2",
         "ne": "e-",
-        "nhp": "H+",
+        "nhj": "H+",
     }
-
-    _n_suffixes: dict[str, str] = {"p": "+", "m": "-", "0": ""}
 
     def __init__(
         self,
@@ -197,12 +196,9 @@ class Network:
         funcfile: bool | str | Path = True,
         duplicate_policy: str | None = None,  # preserve-first, preserve-last, error
         replace_nH: bool = True,
-        rad_bands: list[str | int | float | Basic] = [],
-        rad_powerlaw_index: int | float = 0,
-        rad_energy_density: bool = False,
-        dust: bool = False,
-        background_field: str = "draine",
-        c: float | str = constants.c.cgs.value,  # Speed of light in cgs unit
+        radiation_props: RadiationProps | None = None,
+        dust_props: DustProps | None = None,
+        use_proxy_photoreaction: bool = False,
         _from_cli: bool = False,
         _metadata: dict[str, Any] = {},
     ):
@@ -245,19 +241,19 @@ class Network:
             ``n_He``) in rate expressions is expanded to a sum of
             ``nden[i]`` terms over all H-bearing (He-bearing) species.  Set
             to ``False`` to keep ``nh`` / ``nhe`` as free symbols.
-        rad_bands : list, optional
-            Radiation band boundaries used to construct the ``Radiation``
-            object.  An empty list (default) disables radiation transport.
-        rad_powerlaw_index : int | float, optional
-            Power-law spectral index for the radiation field, default ``0``.
-        rad_energy_density : bool, optional
-            If ``True``, radiation moments are energy densities rather than
-            number densities, default ``False``.
-        c : float | str, optional
-            Speed of light in CGS units (cm s⁻¹) or a symbol.  Defaults to
-            ``constants.c.cgs.value``.
-        _from_cli : bool, optional
-            Internal flag: suppresses the MOTD banner when ``True``.
+        radiation_props : RadiationProps | None, optional
+            Radiation configuration used to construct the network's
+            :class:`Radiation` object and enable photochemistry.  When
+            ``None`` (default), no radiation field is built and photochemistry
+            is disabled.
+        dust_props : DustProps | None, optional
+            Dust configuration used to construct the network's :class:`Dust`
+            object.  When ``None`` (default), the dust module is disabled.
+        use_proxy_photoreaction : bool, optional
+            When ``True``, cross-sections for photo-reactions are looked up
+            using the proxy photo-reaction string (via
+            :meth:`Reaction.normalized_proxy_reaction_str`) rather than the
+            reaction's standard serialized form.  Default ``False``.
 
         Raises
         ------
@@ -277,10 +273,6 @@ class Network:
             funcfile,
             duplicate_policy,
             replace_nH,
-            rad_bands,
-            rad_powerlaw_index,
-            rad_energy_density,
-            c,
             _from_cli,
             _metadata,
         )
@@ -304,22 +296,16 @@ class Network:
         self.dEdt_chem: Basic = Float(0.0)
         self.dEdt_other: Basic = Float(0.0)
         self.dRad_dt_extra: Basic = Float(0.0)
-        self._dust_enabled = dust
         self.radiation: Radiation | None = (
-            Radiation(
-                self,
-                rad_bands,
-                rad_powerlaw_index,
-                rad_energy_density,
-                c,
-                background_field,
-            )
-            if len(rad_bands) > 0
-            else None
+            Radiation(self, radiation_props) if radiation_props is not None else None
         )
+        self._use_proxy_photoreaction: bool = use_proxy_photoreaction
         self.__photochemistry: None | Photochemistry = None
-        self.dust: Dust | None = Dust(self) if dust else None
+        self.dust: Dust | None = (
+            Dust(self, dust_props) if dust_props is not None else None
+        )
         self.__element_sums: dict[str, Expr | None] = {}
+        self.__charge_reverse: dict[str, Specie] | None = None
         self.__tgas_clamp_cache: dict[tuple[float | None, float | None], Expr] = {}
 
         self.logger.info(f"Loading network from {self.spec.fname}")
@@ -511,7 +497,7 @@ class Network:
 
             if rea.type == "photo":
                 if self.__photochemistry is None:
-                    self.__photochemistry = Photochemistry()
+                    self.__photochemistry = Photochemistry(self)
 
                 rea.xsecs_dict = self.__photochemistry.get_xsec(rea)
 
@@ -587,7 +573,7 @@ class Network:
 
             if rea.type == "photo":
                 if self.__photochemistry is None:
-                    self.__photochemistry = Photochemistry()
+                    self.__photochemistry = Photochemistry(self)
                 rea.xsecs_dict = self.__photochemistry.get_xsec(rea) or reaction.get(
                     "xsecs_dict"
                 )
@@ -631,7 +617,7 @@ class Network:
             else:
                 for seg in r.rate_segments:
                     seg.rate = self._standardize_symbols(seg.rate, replace_nH)
-                r.rate = r.rate_segments.sort().evaluate_equivalent_rate()
+                r.rate = r.rate_segments.sort().evaluate_equivalent_rate(r)
 
             r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
             dE_dt = r.dE * r.rate
@@ -1045,6 +1031,32 @@ class Network:
             [(s.mass or 0.0) * self.ndens[Idx(s.index)] for s in self.species],
         )
 
+    @cached_property
+    def n_hnuc(self) -> Expr:
+        """Total hydrogen-nuclei number density ``Σ_i n_H(i) · nden[i]``.
+
+        Each species contributes its hydrogen-atom count (``H2`` counts twice,
+        ``H+`` once, ...) times its number density, so the sum is the total H
+        nuclei density rather than a molecular count.  This is the symbolic
+        expansion of the ``nh`` / ``n_H`` shorthand used in rate expressions
+        (see :meth:`_standardize_symbols`), cached so every consumer shares
+        one expression.
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic total hydrogen-nuclei number density.  ``Float(0.0)`` when
+            the network contains no H-bearing species.
+        """
+        nden = self.ndens
+        terms = [
+            count * nden[Idx(i)]
+            for i, spec in enumerate(self.species)
+            if (count := spec.exploded.count("H")) > 0
+        ]
+
+        return sum(terms) if terms else Float(0.0)
+
     def eos(self, gamma: float = 1.6666666666667) -> Expr:
         """Symbolic ideal-gas specific internal energy of the network.
 
@@ -1086,6 +1098,12 @@ class Network:
 
         When replace_nH is False, H/He element sums become ``nh``/``nhe`` symbols
         instead of being expanded over all species.
+
+        Two further shorthands are resolved: ``rc_<int>`` is replaced by the
+        computed rate coefficient of reaction ``<int>`` (``self.reactions[N].rate``),
+        and ``chi_pe`` is replaced by the photoelectric field strength
+        ``self.dust.pe.chi`` (which requires both radiation and dust to be
+        enabled, otherwise a :class:`ParserError` is raised).
         """
         if expr == Float(0.0):
             return Float(0.0)
@@ -1101,10 +1119,10 @@ class Network:
                     if count > 0:
                         terms.append(count * nden[Idx(i)])
                 self.__element_sums[element] = sum(terms) if terms else None
+
             return self.__element_sums[element]
 
         simple_map = self._simple_map
-        n_suffixes = self._n_suffixes
 
         for fs in expr.free_symbols:
             name = str(fs)
@@ -1115,7 +1133,7 @@ class Network:
                 repl = self.ntot
 
             elif low_name == "nh":
-                repl = get_element_sum("H") if replace_nH else symbols("nh")
+                repl = self.n_hnuc if replace_nH else symbols("nh")
 
             elif low_name in simple_map:
                 spec_name = simple_map[low_name]
@@ -1143,14 +1161,40 @@ class Network:
                     else:
                         repl = symbols(f"n{core.lower()}")
 
-                else:
-                    if core == "e":
-                        core = "e-"
-                    elif core[-1] in n_suffixes:
-                        core = core[:-1] + n_suffixes[core[-1]]
+                elif core == "e":
+                    if "e-" in self.species:
+                        repl = nden[Idx(self.species["e-"].index)]
 
-                    if core in self.species:
-                        repl = nden[Idx(self.species[core].index)]
+                else:
+                    if self.__charge_reverse is None:
+                        # Assumes a collision-free network; raises ValueError on
+                        # case-distinct colliding species (e.g. CO / Co).
+                        self.__charge_reverse = self.species.charge_reverse_map()
+
+                    key = core.lower()
+                    sp = self.__charge_reverse.get(key)
+                    if sp is None and key.endswith("0"):
+                        # Trailing 0 = explicit neutral marker; drop and retry.
+                        sp = self.__charge_reverse.get(key[:-1])
+
+                    if sp is not None:
+                        repl = nden[Idx(sp.index)]
+                    else:
+                        self.logger.error(
+                            f"Density symbol 'n_{core}' does not resolve to a "
+                            f"species in this network."
+                        )
+
+            elif low_name.startswith("rc_"):
+                try:
+                    num = int(name[3:])
+                except ValueError:
+                    self.logger.error(
+                        f"The 'rc_' keyword in {self.spec.funcfile} must be followed by an integer\n"
+                        f"denoting the reaction number. Found {name}"
+                    )
+
+                repl = self.reactions[num].rate
 
             if repl is not None:
                 reps[fs] = repl
@@ -1198,7 +1242,7 @@ class Network:
         list[Expr]
             One SymPy expression per radiation band.
         """
-        return get_sradodes(self.radiation, self.species, order)
+        return get_sradodes(self, order)
 
     def to_hdf5(
         self,

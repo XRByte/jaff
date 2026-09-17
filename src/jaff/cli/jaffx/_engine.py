@@ -34,7 +34,6 @@ Examples
 """
 
 import logging
-from dataclasses import asdict
 from inspect import signature
 from types import SimpleNamespace
 from typing import Optional
@@ -75,7 +74,16 @@ class JaffX:
         if args.duplicate_policy is not None:
             net_args.duplicate_policy = args.duplicate_policy
 
-        return Network(**asdict(net_args))
+        return Network(
+            fname=net_args.fname,
+            config=net_args.config,
+            errors=net_args.errors,
+            label=net_args.label,
+            funcfile=net_args.funcfile,
+            duplicate_policy=net_args.duplicate_policy,
+            replace_nH=net_args.replace_nH,
+            _from_cli=net_args._from_cli,
+        )
 
     def export_table(self, args: SimpleNamespace, fmt: str) -> None:
         """Handle ``jaffx export hdf5`` / ``export txt``.

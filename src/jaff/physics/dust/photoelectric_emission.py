@@ -1,10 +1,11 @@
 """Photoelectric emission: the scaled radiation field in the photoelectric band.
 
 Photoelectric heating by dust grains is driven by far-UV photons in the
-photoelectric band ``[E_low, E_high] = [6, 13.6] eV`` (from the grain work
-function up to the hydrogen ionisation edge).  Rate expressions parametrise
-this by ``chi_pe`` -- the local radiation field scaled to a reference
-(Draine/ISRF) field, integrated over that band.
+photoelectric band ``[E_low, E_high]``, which defaults to ``[6, 13.6] eV``
+(from the grain work function up to the hydrogen ionisation edge) but is
+configurable via ``DustProps.pe_threshold_low`` / ``pe_threshold_high``.
+Rate expressions parametrise this by ``chi_pe`` -- the local radiation field
+scaled to a reference (Draine/ISRF) field, integrated over that band.
 
 :class:`PhotoelectricEmission` computes ``chi_pe`` as the ratio of two energy
 densities in the photoelectric band:
@@ -16,8 +17,8 @@ densities in the photoelectric band:
   (:attr:`Radiation.background_field`) in the same band.
 
 Both are in erg/cm³, so ``chi_pe`` is dimensionless.  The resulting symbol is
-substituted into rate expressions when a network is built with ``dust=True``
-and radiation enabled.
+substituted into rate expressions when a network is built with
+``Network(..., dust_props=DustProps(...))`` and radiation enabled.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from astropy import units as u
 from sympy import Expr
 
 from ...common import arr_integrate, smart_integrate
-from ..constants import h
+from ..constants import c, h
 
 if TYPE_CHECKING:
     from ...core.network import Network
@@ -49,23 +50,31 @@ class PhotoelectricEmission:
     net : Network
         Back-reference to the parent network.
     E_low : astropy.units.Quantity
-        Lower edge of the photoelectric band (grain work function, 6 eV).
+        Lower edge of the photoelectric band (grain work function, default
+        6 eV).
     E_high : astropy.units.Quantity
-        Upper edge of the photoelectric band (H ionisation edge, 13.6 eV).
+        Upper edge of the photoelectric band (H ionisation edge, default
+        13.6 eV).
     """
 
-    def __init__(self, network: Network):
+    def __init__(self, network: Network, e_low: float = 6, e_high: float = 13.6):
         """Initialise the photoelectric-emission model.
 
         Parameters
         ----------
         network : Network
             The parent network.
+        e_low : float, optional
+            Lower edge of the photoelectric band, in eV.  Default ``6``;
+            threaded from ``DustProps.pe_threshold_low``.
+        e_high : float, optional
+            Upper edge of the photoelectric band, in eV.  Default ``13.6``;
+            threaded from ``DustProps.pe_threshold_high``.
         """
         # photoelectric emission activation energy in eV
-        self.E_low: u.Quantity = 6.0 * u.eV
+        self.E_low: u.Quantity = e_low * u.eV
         # photoelectric emission cutoff energy in eV
-        self.E_high: u.Quantity = 13.6 * u.eV
+        self.E_high: u.Quantity = e_high * u.eV
         self.net: Network = network
 
     @cached_property
@@ -141,9 +150,9 @@ class PhotoelectricEmission:
             num = grp.sym * energy_frac  # type: ignore
 
             # multiply with average energy in group if number densities are enabled
-            if rad.energy_density is False:
+            if rad.mode == "nph":
                 num *= grp.eavg or 0.0
 
             num_tot += num
 
-        return num_tot / den  # chi
+        return (num_tot / den) * (rad.c / c.cgs.value)  # chi

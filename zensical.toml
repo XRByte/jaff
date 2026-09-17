@@ -30,7 +30,8 @@ nav = [
       "user-guide/designing-networks/network-formats.md",
       "user-guide/designing-networks/predefined-networks.md",
       "user-guide/designing-networks/auxiliary-functions.md",
-      "user-guide/designing-networks/photochemistry.md"
+      "user-guide/designing-networks/photochemistry.md",
+      "user-guide/designing-networks/dust.md"
     ] },
     { "Working with Networks" = [
       "user-guide/working-with-networks/index.md",

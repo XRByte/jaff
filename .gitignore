@@ -93,4 +93,5 @@ src/jaff/data/background_radiation/*.hdf5
 src/jaff/data/shielding/*.csv
 src/jaff/data/xsecs/*.hdf5
 src/jaff/data/xsecs/*.csv
+src/jaff/data/dust/*.hdf5
 registry.txt

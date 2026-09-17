@@ -36,10 +36,12 @@ jobs:
             - name: Cache downloaded xsec/shielding data
               uses: actions/cache@v4
               with:
-                  path: src/jaff/data
-                  key: jaff-data-${{ matrix.os }}-${{ hashFiles('src/jaff/registry.txt') }}
+                  path: |
+                      src/jaff/data
+                      !src/jaff/data/registry.txt
+                  key: jaff-data-v2-${{ matrix.os }}-${{ hashFiles('src/jaff/registry.txt') }}
                   restore-keys: |
-                      jaff-data-${{ matrix.os }}-
+                      jaff-data-v2-${{ matrix.os }}-
 
             - name: Run tests with pytest
               run: |

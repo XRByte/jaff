@@ -45,6 +45,7 @@ from ...config import TEMPLATES_DIR, predefined_templates
 from ...drivers import Toml
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
+from ...physics import DustProps, RadiationProps
 from .._helper import DuplicatePolicy, funcfile_arg
 from ._structs import DEFAULT_OUTPUT, ResolvedPath, State
 
@@ -255,10 +256,12 @@ class JaffGen:
         nr = np.get("radiation") or {}
         if nr:
             sn.rad_bands = nr.get("bands") or sn.rad_bands
-            if (v := nr.get("power_law_index")) is not None:
-                sn.rad_powerlaw_index = v
-            if (v := nr.get("energy_density")) is not None:
-                sn.rad_energy_density = v
+            if (v := nr.get("profile_index")) is not None:
+                sn.rad_profile_index = v
+            if (v := nr.get("mode")) is not None:
+                sn.rad_mode = v
+            if (v := nr.get("use_proxy_photoreaction")) is not None:
+                sn.use_proxy_photoreaction = v
             sn.c = nr.get("rsl") or sn.c
 
             # background_field is a radiation property (selects the reference
@@ -269,8 +272,18 @@ class JaffGen:
         # The presence of a [network.dust] table enables the dust module
         # (photoelectric emission, ...); it is a network-level module, not a
         # radiation sub-property.
-        if np.get("dust") is not None:
+        if (dp := np.get("dust")) is not None:
             sn.dust = True
+            if (v := dp.get("rv")) is not None:
+                sn.dust_rv = v
+            if (v := dp.get("u_reduction")) is not None:
+                sn.dust_u_reduction = v
+            if (v := dp.get("f_reduction")) is not None:
+                sn.dust_f_reduction = v
+            if (v := dp.get("pe_threshold_low")) is not None:
+                sn.dust_pe_threshold_low = v
+            if (v := dp.get("pe_threshold_high")) is not None:
+                sn.dust_pe_threshold_high = v
 
     def set_template(self, template: str | None) -> None:
         """
@@ -634,12 +647,29 @@ class JaffGen:
             funcfile=sn.funcfile,
             duplicate_policy=sn.duplicate_policy,
             replace_nH=sn.replace_nH,
-            rad_bands=sn.rad_bands,
-            rad_powerlaw_index=sn.rad_powerlaw_index,
-            rad_energy_density=sn.rad_energy_density,
-            dust=sn.dust,
-            background_field=sn.background_field,
-            c=sn.c,
+            radiation_props=(
+                RadiationProps(
+                    bands=sn.rad_bands,
+                    profile_index=sn.rad_profile_index,
+                    mode=sn.rad_mode,
+                    c=sn.c,
+                    background_field=sn.background_field,
+                )
+                if sn.rad_bands
+                else None
+            ),
+            dust_props=(
+                DustProps(
+                    rv=sn.dust_rv,
+                    u_reduction=sn.dust_u_reduction,
+                    f_reduction=sn.dust_f_reduction,
+                    pe_threshold_low=sn.dust_pe_threshold_low,
+                    pe_threshold_high=sn.dust_pe_threshold_high,
+                )
+                if sn.dust
+                else None
+            ),
+            use_proxy_photoreaction=sn.use_proxy_photoreaction,
             _from_cli=sn._from_cli,
             _metadata=sn._metadata,
         )

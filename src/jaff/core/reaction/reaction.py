@@ -42,7 +42,7 @@ stored verbatim.  See the UCLCHEM parser README for that format's mapping.
 from __future__ import annotations
 
 import sys
-from functools import cached_property
+from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -372,6 +372,25 @@ class Reaction:
         sp = ".".join(sorted([p.name for p in products]))
 
         return f"{sr}__{sp}"
+
+    @cache
+    def normalized_proxy_reaction_str(self):
+        """Serialize the reaction with proxy markers stripped from species names.
+
+        Any reactant or product whose name ends in the proxy marker ``"x"`` has
+        that trailing character removed, and the resulting species are
+        re-serialized.  The returned string is used as the cross-section lookup
+        key for proxy photo-reactions.
+
+        Returns
+        -------
+        str
+            The serialized reaction string with proxy markers removed.
+        """
+        rs = [Specie(r.name[:-1]) if r.name.endswith("x") else r for r in self.reactants]
+        ps = [Specie(p.name[:-1]) if p.name.endswith("x") else p for p in self.products]
+
+        return self.serialize(rs, ps)
 
     def check(self, errors: bool) -> None:
         """Validate mass and charge conservation for this reaction.

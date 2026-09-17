@@ -28,9 +28,15 @@ class NetworkArgs:
     duplicate_policy: str | None = None
     replace_nH: bool = True
     rad_bands: list = field(default_factory=list)
-    rad_powerlaw_index: int | float = 0
-    rad_energy_density: bool = False
+    rad_profile_index: int | float = 0
+    rad_mode: str = "nph"
+    use_proxy_photoreaction: bool = False
     dust: bool = False
+    dust_rv: float = 3.1
+    dust_u_reduction: str | None = "absorption"
+    dust_f_reduction: str | None = "transport"
+    dust_pe_threshold_low: float = 6.0
+    dust_pe_threshold_high: float = 13.6
     background_field: str = "draine"
     c: float = constants.c.cgs.value
     _from_cli: bool = True

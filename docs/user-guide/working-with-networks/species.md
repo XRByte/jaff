@@ -268,7 +268,7 @@ in the electron section.
 | -------------------- | ------------------- | ------------------------------------- |
 | `count`              | `int` (attribute)   | `3`                                   |
 | `names()`            | `Vector[str]`       | `['H', 'H+', 'e-']`                   |
-| `normalized_names()` | `Vector[str]`       | `['h', 'hp', 'en']`                   |
+| `normalized_names()` | `Vector[str]`       | `['h', 'hj', 'ek']`                   |
 | `masses()`           | `Vector[float]`     | `[1.674e-24, 1.674e-24, 9.109e-28]`   |
 | `charges()`          | `Vector[int]`       | `[0, 1, -1]`                          |
 | `charge_truths()`    | `Vector[int]`       | `[0, 1, 1]`                           |
@@ -281,9 +281,11 @@ in the electron section.
 A few are easy to misread:
 
 - **`normalized_names()`** makes each name a legal lowercase identifier:
-  `'+' → 'p'`, `'-' → 'n'`. So `H+` becomes `'hp'` and `e-` becomes `'en'`.
-  Pass `pos`/`neg` to override the replacement strings. (This is _not_ the same
-  as `fidx`, which uses `j`/`k`.)
+  `'+' → 'j'`, `'-' → 'k'`. So `H+` becomes `'hj'` and `e-` becomes `'ek'`.
+  Pass `pos`/`neg` to override the replacement strings. This uses the same
+  `j`/`k` scheme as `fidx`, so the two agree for ordinary species; they differ
+  only for the electron, which `normalized_names()` gives as `'ek'` whereas
+  `get_fidx` special-cases it to `idx_e`.
 - **`charge_truths()`** is a 0/1 mask, `1` where the specie is charged — useful
   for charge-conservation terms.
 - **`latex()`** on the catalogue defaults to `dollars=True` (wrapped in `$…$`),

@@ -1232,7 +1232,7 @@ class Codegen:
 
             if radiation and self.net.radiation:
                 radden_matrix = sp.MatrixSymbol(
-                    "radeden" if self.net.radiation.energy_density else "photden",
+                    "radeden" if self.net.radiation.mode == "u" else "photden",
                     self.net.radiation.nbands,
                     1,
                 )
@@ -1337,7 +1337,7 @@ class Codegen:
                         expr_str = rrdpattern.sub(
                             lambda m: _replace_y(
                                 m,
-                                "radeden" if rad.energy_density else "photden",
+                                "radeden" if rad.mode == "u" else "photden",
                             ),
                             expr_str,
                         )
@@ -1373,7 +1373,7 @@ class Codegen:
                 expr_str = rrdpattern.sub(
                     lambda m: _replace_y(
                         m,
-                        "radeden" if rad.energy_density else "photden",
+                        "radeden" if rad.mode == "u" else "photden",
                     ),
                     expr_str,
                 )

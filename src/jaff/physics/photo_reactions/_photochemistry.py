@@ -21,7 +21,6 @@ from sympy import Basic, Expr, sympify
 from ...config import JAFF_DIR
 from ...drivers import HDF5, JaffDb
 from ...drivers.pooch import (
-    download_background_radiation,
     download_shielding,
     download_xsecs,
 )
@@ -41,7 +40,7 @@ class Photochemistry:
     Verner data files.
     """
 
-    def __init__(self):
+    def __init__(self, network: Network):
         """Ensure the cross-section and shielding data files are available locally.
 
         Constructing a :class:`Photochemistry` triggers
@@ -51,6 +50,7 @@ class Photochemistry:
         fetch unless already cached). Instantiate once and reuse rather than per
         reaction.
         """
+        self.net = network
         download_xsecs()
         download_shielding()
 
@@ -101,6 +101,10 @@ class Photochemistry:
         HDF5 group (Leiden preferred, NORAD as fallback) and records which
         processes are present.  The group is read into numpy arrays.
 
+        The look-up key is ``reaction.normalized_proxy_reaction_str()`` when
+        ``self.net._use_proxy_photoreaction`` is set, otherwise
+        ``reaction.serialized``.
+
         Parameters
         ----------
         reaction : Reaction
@@ -118,7 +122,12 @@ class Photochemistry:
         """
         with JaffDb() as jdb:
             table = jdb.table("photo_reaction_cross_sections")
-            rows: list = table.rows(conditions=f"reaction = '{reaction.serialized}'")
+            rs = (
+                reaction.serialized
+                if not self.net._use_proxy_photoreaction
+                else reaction.normalized_proxy_reaction_str()
+            )
+            rows: list = table.rows(conditions=f"reaction = '{rs}'")
 
         if not rows:
             return None

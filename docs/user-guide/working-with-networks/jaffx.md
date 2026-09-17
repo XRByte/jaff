@@ -142,7 +142,7 @@ jaffx export jaff \
 <!-- prettier-ignore -->
 !!! warning "Same serialization limit as `Network.to_jaff`"
     Networks whose rates contain an undefined function — most often an
-    unresolved `photorates(...)` (a photo-reaction loaded without `rad_bands`)
+    unresolved `photorates(...)` (a photo-reaction loaded without `radiation_props`)
     or a custom `interp(...)` — cannot be serialized and will raise an error.
 
 ---

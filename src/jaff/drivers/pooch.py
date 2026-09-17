@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 import pooch
@@ -116,20 +117,37 @@ class Pooch:
         """
         if getattr(self, "_initialized", False):
             return
-        self._initialized = True
 
         self.pooch: pooch.Pooch = pooch.create(
             path=cache_path,
             base_url=base_url,
             registry=None,
         )
-        registry_path = pooch.retrieve(
-            url=f"{base_url}/registry.txt",
-            known_hash=None,
-            fname="registry.txt",
-            path=cache_path,
-        )
-        self.pooch.load_registry(registry_path)
+        if os.environ.get("JAFF_OFFLINE"):
+            self._initialized = True
+            return
+
+        cached_registry = Path(cache_path) / "registry.txt"
+
+        (Path(cache_path) / "registry.txt.new").unlink(missing_ok=True)
+        try:
+            fresh_registry = Path(
+                pooch.retrieve(
+                    url=f"{base_url}/registry.txt",
+                    known_hash=None,
+                    fname="registry.txt.new",
+                    path=cache_path,
+                )
+            )
+            if fresh_registry.stat().st_size == 0:
+                raise ValueError("downloaded registry.txt is empty")
+            fresh_registry.replace(cached_registry)
+        except Exception:
+            if not cached_registry.exists():
+                raise
+
+        self.pooch.load_registry(cached_registry)
+        self._initialized = True
 
     def fetch_file(self, filename: str) -> None:
         """Download ``filename`` from the registry, rendering a progress bar.
@@ -138,6 +156,8 @@ class Pooch:
         present and hash-valid) and progress is shown on the shared JAFF Rich
         bar via :class:`_JaffProgressBar`.
         """
+        if os.environ.get("JAFF_OFFLINE"):
+            return
         self.pooch.fetch(
             filename,
             progressbar=_JaffProgressBar(f"Downloading {filename}"),  # ty: ignore[invalid-argument-type]
@@ -188,4 +208,20 @@ def download_background_radiation() -> None:
     )
 
     for file in ["background_radiation/radiation.hdf5"]:
+        pooch.fetch_file(file)
+
+
+def download_dust() -> None:
+    """Fetch the line-shielding data files into ``data/shielding``.
+
+    Downloads the collapsed Leiden line-shielding HDF5 file from the ANU
+    mirror, caching it under the package ``data/shielding`` directory. Files
+    already present and hash-valid are not re-downloaded.
+    """
+    pooch = Pooch(
+        "https://www.mso.anu.edu.au/~anishs",
+        DATA_DIR,
+    )
+
+    for file in ["dust/dust.hdf5"]:
         pooch.fetch_file(file)

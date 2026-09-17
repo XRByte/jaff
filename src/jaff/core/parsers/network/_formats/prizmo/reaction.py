@@ -138,7 +138,7 @@ class PrizmoReaction(NetworkFormat):
             return "photo"
         if "ntot" in r:
             return "3_body"
-            
+
         return "unknown"
 
     def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
