@@ -126,16 +126,25 @@ class Pooch:
         if os.environ.get("JAFF_OFFLINE"):
             return
 
-        stale_registry = Path(cache_path) / "registry.txt"
-        stale_registry.unlink(missing_ok=True)
+        cached_registry = Path(cache_path) / "registry.txt"
 
-        registry_path = pooch.retrieve(
-            url=f"{base_url}/registry.txt",
-            known_hash=None,
-            fname="registry.txt",
-            path=cache_path,
-        )
-        self.pooch.load_registry(registry_path)
+        (Path(cache_path) / "registry.txt.new").unlink(missing_ok=True)
+        try:
+            fresh_registry = pooch.retrieve(
+                url=f"{base_url}/registry.txt",
+                known_hash=None,
+                fname="registry.txt.new",
+                path=cache_path,
+            )
+            if os.path.getsize(fresh_registry) == 0:
+                raise ValueError("downloaded registry.txt is empty")
+            os.replace(fresh_registry, cached_registry)
+        except Exception:
+            if not cached_registry.exists():
+                raise
+
+        self.pooch.load_registry(cached_registry)
+        self._initialized = True
 
     def fetch_file(self, filename: str) -> None:
         """Download ``filename`` from the registry, rendering a progress bar.
