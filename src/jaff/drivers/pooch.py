@@ -123,6 +123,12 @@ class Pooch:
             base_url=base_url,
             registry=None,
         )
+        if os.environ.get("JAFF_OFFLINE"):
+            return
+
+        stale_registry = Path(cache_path) / "registry.txt"
+        stale_registry.unlink(missing_ok=True)
+
         registry_path = pooch.retrieve(
             url=f"{base_url}/registry.txt",
             known_hash=None,
