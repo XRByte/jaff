@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 import pooch
@@ -116,7 +117,6 @@ class Pooch:
         """
         if getattr(self, "_initialized", False):
             return
-        self._initialized = True
 
         self.pooch: pooch.Pooch = pooch.create(
             path=cache_path,
@@ -124,21 +124,24 @@ class Pooch:
             registry=None,
         )
         if os.environ.get("JAFF_OFFLINE"):
+            self._initialized = True
             return
 
         cached_registry = Path(cache_path) / "registry.txt"
 
         (Path(cache_path) / "registry.txt.new").unlink(missing_ok=True)
         try:
-            fresh_registry = pooch.retrieve(
-                url=f"{base_url}/registry.txt",
-                known_hash=None,
-                fname="registry.txt.new",
-                path=cache_path,
+            fresh_registry = Path(
+                pooch.retrieve(
+                    url=f"{base_url}/registry.txt",
+                    known_hash=None,
+                    fname="registry.txt.new",
+                    path=cache_path,
+                )
             )
-            if os.path.getsize(fresh_registry) == 0:
+            if fresh_registry.stat().st_size == 0:
                 raise ValueError("downloaded registry.txt is empty")
-            os.replace(fresh_registry, cached_registry)
+            fresh_registry.replace(cached_registry)
         except Exception:
             if not cached_registry.exists():
                 raise
@@ -153,6 +156,8 @@ class Pooch:
         present and hash-valid) and progress is shown on the shared JAFF Rich
         bar via :class:`_JaffProgressBar`.
         """
+        if os.environ.get("JAFF_OFFLINE"):
+            return
         self.pooch.fetch(
             filename,
             progressbar=_JaffProgressBar(f"Downloading {filename}"),  # ty: ignore[invalid-argument-type]
