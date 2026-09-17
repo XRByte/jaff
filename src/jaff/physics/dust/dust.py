@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ...drivers.pooch import download_dust
 from . import DustProps
 from .photoelectric_emission import PhotoelectricEmission
 from .tabular import Tabular
@@ -71,6 +72,7 @@ class Dust:
             (``u_reduction``, ``f_reduction``), and the photoelectric band
             edges (``pe_threshold_low``, ``pe_threshold_high``).
         """
+        download_dust()
 
         self.net: Network = network
         self.pe: PhotoelectricEmission = PhotoelectricEmission(

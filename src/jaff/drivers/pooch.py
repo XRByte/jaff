@@ -189,3 +189,19 @@ def download_background_radiation() -> None:
 
     for file in ["background_radiation/radiation.hdf5"]:
         pooch.fetch_file(file)
+
+
+def download_dust() -> None:
+    """Fetch the line-shielding data files into ``data/shielding``.
+
+    Downloads the collapsed Leiden line-shielding HDF5 file from the ANU
+    mirror, caching it under the package ``data/shielding`` directory. Files
+    already present and hash-valid are not re-downloaded.
+    """
+    pooch = Pooch(
+        "https://www.mso.anu.edu.au/~anishs",
+        DATA_DIR,
+    )
+
+    for file in ["dust/dust.hdf5"]:
+        pooch.fetch_file(file)
