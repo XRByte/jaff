@@ -265,7 +265,6 @@ class Network:
         """
         self.logger: logging.Logger = JaffLogger().get_logger()
 
-
         self.spec: NetworkSpec = NetworkSpec(
             fname,
             config,
@@ -1097,6 +1096,13 @@ class Network:
             for product in reaction.products.core:
                 self.product_matrix[i, product.index] += 1
 
+    def _element_symbol(self, low: str) -> str | None:
+        """Canonical element symbol for a lower-cased token, or None."""
+        if not hasattr(self, "_element_lookup"):
+            self._element_lookup = {s.lower(): s for s in self.mass_dict}
+
+        return self._element_lookup.get(low)
+
     def _standardize_symbols(self, expr: Basic, expand_nuclei: bool) -> Expr:
         """Replace convenience symbols (nh, ne, ntot, n_X, …) with nden[i] references.
 
@@ -1161,8 +1167,33 @@ class Network:
 
             elif low_name.startswith("n_"):
                 core = name[2:]
+                core_low = core.lower()
 
-                if core in ["H", "He"]:
+                if core_low.endswith("_nuc"):
+                    base = core_low[:-4]
+                    if base.endswith(("j", "k")):
+                        raise ParserError(
+                            f"'{name}' is invalid: a nucleus sum is per-element, "
+                            f"so a charged nucleus alias is meaningless"
+                        )
+                    element = self._element_symbol(base)
+                    if element is None:
+                        raise ParserError(
+                            f"'{name}' requests a nucleus sum for unknown element "
+                            f"'{base}'"
+                        )
+                    if expand_nuclei:
+                        total = get_element_sum(element)
+                        if total is None:
+                            raise ParserError(
+                                f"'{name}': no species in the network bears "
+                                f"element '{element}'"
+                            )
+                        repl = total
+                    else:
+                        repl = symbols(f"n{base}_nuc")
+
+                elif core in ["H", "He"]:
                     if expand_nuclei:
                         repl = get_element_sum(core)
                     else:
