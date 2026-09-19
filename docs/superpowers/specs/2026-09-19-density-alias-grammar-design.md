@@ -91,10 +91,40 @@ and needs no change.
 
 ## Scope confinement (verified)
 
-No network-format file (`.jet`/`.dat`) uses the JAFF `n_X`/`n_X_nuc` convention
-in a rate expression. The `n_` grammar rework therefore affects only `.jfunc`
-consumers (GOW family) and user `.dat` inputs that opt into `n_X`. Network
-formats are not changed by this work.
+Every distinct `n_<token>` across all bundled network + `.jfunc` files was
+enumerated and classified. Result:
+
+- All **real** `n_X` density symbols live only in `.jfunc` (GOW family):
+  `n_e`, `n_H`, `n_H0`, `n_H2`, `n_He`, `n_C0`, `n_O0`, `n_CO`, `n_Cj`/`n_Hj`
+  (GOW/GOW++) and `n_Cp`/`n_Hp` (GOW_scpc's p-convention variant).
+- The `n_H`/`n_H0`/`n_Hp` seen in `cie_h`/`h2form` `.jet` files are **comment
+  lines** (`#`), never parsed.
+- The only real `n_` token in a network-format file is COthin's
+  `n_global(idx_H2)` — an applied function pre-mapped by the seed-globals
+  (`n_global(idx_h2)→nh2`), never a bare `n_*` symbol reaching the resolver.
+- `n_kCHx` (GOW) is a **local `@function` constant** (`= 2.31e-3`), inlined by
+  `resolve_symbolic_dependencies` before standardization; it never reaches the
+  `n_` resolver. Any such local `n_*` identifier is inlined the same way.
+
+The `n_` resolver runs only in phase 4 (`_standardize_symbols`) over
+`expr.free_symbols`, i.e. after all `@var`/`@function` inlining and after KROME
+seed-globals substitution. Network formats are therefore not changed by this
+work; only `.jfunc` migrates.
+
+## KROME/PRIZMO pipeline (untouched, verified non-colliding)
+
+1. Preprocess (`common/_helper.py:f90_convert`): strip `(:)`, `dexp(`→`exp(`,
+   Fortran `1.0d-3`→`1.0e-3`.
+2. Lower-case (`__normalize_rates`).
+3. Seed-globals substitution (`parsers/network/_engine.py`): `n(idx_h)`,
+   `n(idx_h2)`, `n_global(idx_h2)`, `get_hnuclei(n)` → bare `nh0`/`nh2`/`nh`.
+4. `_standardize_symbols`: resolves the KROME namespace `nh`/`nh0`/`nh2`/`ne`/
+   `nhj` (**kept**) and, separately, `n_*` (JAFF grammar — **changed**).
+
+A general regex translation of KROME tokens into the `n_X` grammar was rejected
+(see "NOT removed" above): `(:)` array slices, `idx_X` index arguments, and
+whole-array `n(:)` passing (`krate_stickSi(n(:),idx_CO,…)` in popsicle) cannot be
+disambiguated from scalar densities by a word-boundary regex.
 
 ## Flag rename
 

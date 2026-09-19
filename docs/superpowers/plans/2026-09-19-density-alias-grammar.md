@@ -392,8 +392,11 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 Token mapping (apply as whole-word replacements, case-sensitive on the token as
 written; do NOT touch `.jet`/`.dat`): `nH -> n_H_nuc`, `nH0 -> n_H`,
 `nH2 -> n_H2`, `nHj -> n_Hj`, `ne -> n_e`, `n_H -> n_H_nuc` (only where it meant
-H nuclei), `n_He -> n_He_nuc`, `n_H0 -> n_H`, `n_C0 -> n_C`, `n_O0 -> n_O`.
-Leave `n_Cj`, `n_Hj`, `n_Hejj`, `n_CO` unchanged. Because `@function`
+H nuclei), `n_He -> n_He_nuc`, `n_H0 -> n_H`, `n_C0 -> n_C`, `n_O0 -> n_O`,
+and for GOW_scpc's p-convention: `n_Cp -> n_Cj`, `n_Hp -> n_Hj`.
+Leave `n_Cj`, `n_Hj`, `n_Hejj`, `n_CO` unchanged. Do **not** touch the local
+`@function` constant `n_kCHx` (it is a scalar constant, not a density — it is
+inlined before resolution and must keep its name). Because `@function`
 parameters are local, rename each param at its signature *and* every use in that
 body *and* at the call sites passing it — work one function at a time.
 
