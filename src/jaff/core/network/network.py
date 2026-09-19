@@ -180,13 +180,6 @@ class Network:
     #: Valid temperature cutoff behaviours for rate expressions.
     _valid_tcutoffs: list[str] = ["clip", "extrapolate"]
 
-    _simple_map: dict[str, str] = {
-        "nh0": "H",
-        "nh2": "H2",
-        "ne": "e-",
-        "nhj": "H+",
-    }
-
     def __init__(
         self,
         fname: str | Path,
@@ -1135,8 +1128,6 @@ class Network:
 
             return self.__element_sums[element]
 
-        simple_map = self._simple_map
-
         for fs in expr.free_symbols:
             name = str(fs)
             low_name = name.lower()
@@ -1144,13 +1135,6 @@ class Network:
 
             if low_name == "ntot":
                 repl = self.ntot
-
-            elif low_name == "nh":
-                repl = self.n_hnuc if expand_nuclei else symbols("nh")
-
-            elif low_name in simple_map:
-                spec_name = simple_map[low_name]
-                repl = nden[Idx(self.species[spec_name].index)]
 
             elif low_name == "chi_pe":
                 if self.radiation is None:
@@ -1193,12 +1177,6 @@ class Network:
                     else:
                         repl = symbols(f"n{base}_nuc")
 
-                elif core in ["H", "He"]:
-                    if expand_nuclei:
-                        repl = get_element_sum(core)
-                    else:
-                        repl = symbols(f"n{core.lower()}")
-
                 elif core == "e":
                     if "e-" in self.species:
                         repl = nden[Idx(self.species["e-"].index)]
@@ -1211,16 +1189,13 @@ class Network:
 
                     key = core.lower()
                     sp = self.__charge_reverse.get(key)
-                    if sp is None and key.endswith("0"):
-                        # Trailing 0 = explicit neutral marker; drop and retry.
-                        sp = self.__charge_reverse.get(key[:-1])
 
                     if sp is not None:
                         repl = nden[Idx(sp.index)]
                     else:
-                        self.logger.error(
-                            f"Density symbol 'n_{core}' does not resolve to a "
-                            f"species in this network."
+                        raise ParserError(
+                            f"Density symbol '{name}' does not match any "
+                            f"species in this network"
                         )
 
             elif low_name.startswith("rc_"):

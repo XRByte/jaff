@@ -90,7 +90,7 @@ class KidaReaction:
             1: (
                 f"{ka:.2e} * crate"
                 if "CRP" not in rr
-                else f"{ka:.2e} * crate * 2.0 * nH2 / nH"
+                else f"{ka:.2e} * crate * 2.0 * n_H2 / n_H_nuc"
             ),
             2: f"{ka:.2e} * chi * exp(-{kc:.2e} * av)",
             3: f"{ka:.2e}"

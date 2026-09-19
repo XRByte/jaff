@@ -111,7 +111,7 @@ def test_decode_single_cation(make_network):
 def test_decode_neutral_zero_suffix(make_network):
     import sympy
     net = make_network(["O + O -> O + O [10,1000] 1e-10"])
-    expr = net._standardize_symbols(sympy.Symbol("n_O0"), True)
+    expr = net._standardize_symbols(sympy.Symbol("n_O"), True)
     idx = net.species["O"].index
     assert expr == net.ndens[sympy.Idx(idx)]
 
@@ -119,7 +119,7 @@ def test_decode_neutral_zero_suffix(make_network):
 def test_decode_neutral_h_vs_sum(make_network):
     import sympy
     net = make_network(["H + H+ -> H+ + H [10,1000] 1e-10"])
-    expr = net._standardize_symbols(sympy.Symbol("n_H0"), True)
+    expr = net._standardize_symbols(sympy.Symbol("n_H"), True)
     idx = net.species["H"].index
     assert expr == net.ndens[sympy.Idx(idx)]
 

@@ -177,7 +177,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -192,7 +192,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -207,7 +207,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -222,7 +222,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -237,7 +237,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -252,7 +252,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -267,7 +267,7 @@
     ],
     null,
     null,
-    "2.50e+02 * crate * 2.0 * nh2 / nh",
+    "2.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -282,7 +282,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -297,7 +297,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -312,7 +312,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -327,7 +327,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -342,7 +342,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -357,7 +357,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -373,7 +373,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -389,7 +389,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -405,7 +405,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -421,7 +421,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -437,7 +437,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -452,7 +452,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -467,7 +467,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -482,7 +482,7 @@
     ],
     null,
     null,
-    "7.85e+01 * crate * 2.0 * nh2 / nh",
+    "7.85e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -497,7 +497,7 @@
     ],
     null,
     null,
-    "1.37e+02 * crate * 2.0 * nh2 / nh",
+    "1.37e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -512,7 +512,7 @@
     ],
     null,
     null,
-    "1.07e+03 * crate * 2.0 * nh2 / nh",
+    "1.07e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -527,7 +527,7 @@
     ],
     null,
     null,
-    "3.36e+01 * crate * 2.0 * nh2 / nh",
+    "3.36e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -542,7 +542,7 @@
     ],
     null,
     null,
-    "2.54e+02 * crate * 2.0 * nh2 / nh",
+    "2.54e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -557,7 +557,7 @@
     ],
     null,
     null,
-    "9.27e+02 * crate * 2.0 * nh2 / nh",
+    "9.27e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -572,7 +572,7 @@
     ],
     null,
     null,
-    "3.69e+02 * crate * 2.0 * nh2 / nh",
+    "3.69e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -587,7 +587,7 @@
     ],
     null,
     null,
-    "7.10e+00 * crate * 2.0 * nh2 / nh",
+    "7.10e+00 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -602,7 +602,7 @@
     ],
     null,
     null,
-    "2.99e+02 * crate * 2.0 * nh2 / nh",
+    "2.99e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -617,7 +617,7 @@
     ],
     null,
     null,
-    "2.37e+02 * crate * 2.0 * nh2 / nh",
+    "2.37e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -632,7 +632,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -647,7 +647,7 @@
     ],
     null,
     null,
-    "7.81e+02 * crate * 2.0 * nh2 / nh",
+    "7.81e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -662,7 +662,7 @@
     ],
     null,
     null,
-    "2.79e+01 * crate * 2.0 * nh2 / nh",
+    "2.79e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -677,7 +677,7 @@
     ],
     null,
     null,
-    "4.75e+02 * crate * 2.0 * nh2 / nh",
+    "4.75e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -692,7 +692,7 @@
     ],
     null,
     null,
-    "7.24e+02 * crate * 2.0 * nh2 / nh",
+    "7.24e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -707,7 +707,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -722,7 +722,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -737,7 +737,7 @@
     ],
     null,
     null,
-    "8.85e+01 * crate * 2.0 * nh2 / nh",
+    "8.85e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -752,7 +752,7 @@
     ],
     null,
     null,
-    "1.40e+02 * crate * 2.0 * nh2 / nh",
+    "1.40e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -767,7 +767,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -782,7 +782,7 @@
     ],
     null,
     null,
-    "6.18e+02 * crate * 2.0 * nh2 / nh",
+    "6.18e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -797,7 +797,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -812,7 +812,7 @@
     ],
     null,
     null,
-    "8.92e+02 * crate * 2.0 * nh2 / nh",
+    "8.92e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -827,7 +827,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -842,7 +842,7 @@
     ],
     null,
     null,
-    "5.54e+03 * crate * 2.0 * nh2 / nh",
+    "5.54e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -857,7 +857,7 @@
     ],
     null,
     null,
-    "4.54e+02 * crate * 2.0 * nh2 / nh",
+    "4.54e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -872,7 +872,7 @@
     ],
     null,
     null,
-    "1.11e+03 * crate * 2.0 * nh2 / nh",
+    "1.11e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -887,7 +887,7 @@
     ],
     null,
     null,
-    "1.00e+03 * crate * 2.0 * nh2 / nh",
+    "1.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -902,7 +902,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -917,7 +917,7 @@
     ],
     null,
     null,
-    "6.88e+03 * crate * 2.0 * nh2 / nh",
+    "6.88e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -932,7 +932,7 @@
     ],
     null,
     null,
-    "8.93e+01 * crate * 2.0 * nh2 / nh",
+    "8.93e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -947,7 +947,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -962,7 +962,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -977,7 +977,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -992,7 +992,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1007,7 +1007,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1022,7 +1022,7 @@
     ],
     null,
     null,
-    "2.90e+02 * crate * 2.0 * nh2 / nh",
+    "2.90e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1037,7 +1037,7 @@
     ],
     null,
     null,
-    "5.98e+02 * crate * 2.0 * nh2 / nh",
+    "5.98e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1052,7 +1052,7 @@
     ],
     null,
     null,
-    "8.16e+00 * crate * 2.0 * nh2 / nh",
+    "8.16e+00 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1067,7 +1067,7 @@
     ],
     null,
     null,
-    "7.60e+02 * crate * 2.0 * nh2 / nh",
+    "7.60e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1082,7 +1082,7 @@
     ],
     null,
     null,
-    "2.20e+02 * crate * 2.0 * nh2 / nh",
+    "2.20e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1097,7 +1097,7 @@
     ],
     null,
     null,
-    "3.35e+03 * crate * 2.0 * nh2 / nh",
+    "3.35e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1112,7 +1112,7 @@
     ],
     null,
     null,
-    "6.22e+02 * crate * 2.0 * nh2 / nh",
+    "6.22e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1127,7 +1127,7 @@
     ],
     null,
     null,
-    "1.98e+03 * crate * 2.0 * nh2 / nh",
+    "1.98e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1142,7 +1142,7 @@
     ],
     null,
     null,
-    "1.42e+01 * crate * 2.0 * nh2 / nh",
+    "1.42e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1157,7 +1157,7 @@
     ],
     null,
     null,
-    "5.29e+02 * crate * 2.0 * nh2 / nh",
+    "5.29e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1172,7 +1172,7 @@
     ],
     null,
     null,
-    "1.17e+03 * crate * 2.0 * nh2 / nh",
+    "1.17e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1187,7 +1187,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1202,7 +1202,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1217,7 +1217,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1232,7 +1232,7 @@
     ],
     null,
     null,
-    "3.00e+03 * crate * 2.0 * nh2 / nh",
+    "3.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1247,7 +1247,7 @@
     ],
     null,
     null,
-    "1.00e+03 * crate * 2.0 * nh2 / nh",
+    "1.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1262,7 +1262,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1277,7 +1277,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1292,7 +1292,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1307,7 +1307,7 @@
     ],
     null,
     null,
-    "1.39e+03 * crate * 2.0 * nh2 / nh",
+    "1.39e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1322,7 +1322,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1337,7 +1337,7 @@
     ],
     null,
     null,
-    "7.15e+02 * crate * 2.0 * nh2 / nh",
+    "7.15e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1352,7 +1352,7 @@
     ],
     null,
     null,
-    "1.35e+02 * crate * 2.0 * nh2 / nh",
+    "1.35e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1367,7 +1367,7 @@
     ],
     null,
     null,
-    "1.05e+03 * crate * 2.0 * nh2 / nh",
+    "1.05e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1382,7 +1382,7 @@
     ],
     null,
     null,
-    "1.09e+02 * crate * 2.0 * nh2 / nh",
+    "1.09e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1397,7 +1397,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1412,7 +1412,7 @@
     ],
     null,
     null,
-    "1.89e+02 * crate * 2.0 * nh2 / nh",
+    "1.89e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1427,7 +1427,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1442,7 +1442,7 @@
     ],
     null,
     null,
-    "5.23e+03 * crate * 2.0 * nh2 / nh",
+    "5.23e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1457,7 +1457,7 @@
     ],
     null,
     null,
-    "5.58e+02 * crate * 2.0 * nh2 / nh",
+    "5.58e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1472,7 +1472,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1487,7 +1487,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1502,7 +1502,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1517,7 +1517,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1532,7 +1532,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1547,7 +1547,7 @@
     ],
     null,
     null,
-    "2.69e+03 * crate * 2.0 * nh2 / nh",
+    "2.69e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1562,7 +1562,7 @@
     ],
     null,
     null,
-    "1.05e+02 * crate * 2.0 * nh2 / nh",
+    "1.05e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1577,7 +1577,7 @@
     ],
     null,
     null,
-    "3.54e+03 * crate * 2.0 * nh2 / nh",
+    "3.54e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1592,7 +1592,7 @@
     ],
     null,
     null,
-    "3.83e+02 * crate * 2.0 * nh2 / nh",
+    "3.83e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1607,7 +1607,7 @@
     ],
     null,
     null,
-    "4.85e+02 * crate * 2.0 * nh2 / nh",
+    "4.85e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1622,7 +1622,7 @@
     ],
     null,
     null,
-    "2.98e+03 * crate * 2.0 * nh2 / nh",
+    "2.98e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1637,7 +1637,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1652,7 +1652,7 @@
     ],
     null,
     null,
-    "6.60e+03 * crate * 2.0 * nh2 / nh",
+    "6.60e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1667,7 +1667,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1682,7 +1682,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1697,7 +1697,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1712,7 +1712,7 @@
     ],
     null,
     null,
-    "2.50e+02 * crate * 2.0 * nh2 / nh",
+    "2.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1727,7 +1727,7 @@
     ],
     null,
     null,
-    "2.83e+02 * crate * 2.0 * nh2 / nh",
+    "2.83e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1742,7 +1742,7 @@
     ],
     null,
     null,
-    "3.79e+02 * crate * 2.0 * nh2 / nh",
+    "3.79e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1757,7 +1757,7 @@
     ],
     null,
     null,
-    "1.32e+03 * crate * 2.0 * nh2 / nh",
+    "1.32e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1772,7 +1772,7 @@
     ],
     null,
     null,
-    "2.93e+02 * crate * 2.0 * nh2 / nh",
+    "2.93e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1787,7 +1787,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1802,7 +1802,7 @@
     ],
     null,
     null,
-    "8.28e+02 * crate * 2.0 * nh2 / nh",
+    "8.28e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1817,7 +1817,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1832,7 +1832,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1847,7 +1847,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1862,7 +1862,7 @@
     ],
     null,
     null,
-    "6.20e+02 * crate * 2.0 * nh2 / nh",
+    "6.20e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1877,7 +1877,7 @@
     ],
     null,
     null,
-    "3.90e+02 * crate * 2.0 * nh2 / nh",
+    "3.90e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1892,7 +1892,7 @@
     ],
     null,
     null,
-    "5.75e+02 * crate * 2.0 * nh2 / nh",
+    "5.75e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1907,7 +1907,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1922,7 +1922,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1937,7 +1937,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1952,7 +1952,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1967,7 +1967,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1982,7 +1982,7 @@
     ],
     null,
     null,
-    "9.15e+02 * crate * 2.0 * nh2 / nh",
+    "9.15e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -1997,7 +1997,7 @@
     ],
     null,
     null,
-    "1.22e+03 * crate * 2.0 * nh2 / nh",
+    "1.22e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2012,7 +2012,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2027,7 +2027,7 @@
     ],
     null,
     null,
-    "6.87e+02 * crate * 2.0 * nh2 / nh",
+    "6.87e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2042,7 +2042,7 @@
     ],
     null,
     null,
-    "3.35e+03 * crate * 2.0 * nh2 / nh",
+    "3.35e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2057,7 +2057,7 @@
     ],
     null,
     null,
-    "6.08e+03 * crate * 2.0 * nh2 / nh",
+    "6.08e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2072,7 +2072,7 @@
     ],
     null,
     null,
-    "1.00e+03 * crate * 2.0 * nh2 / nh",
+    "1.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2087,7 +2087,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2102,7 +2102,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2117,7 +2117,7 @@
     ],
     null,
     null,
-    "1.50e+02 * crate * 2.0 * nh2 / nh",
+    "1.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2132,7 +2132,7 @@
     ],
     null,
     null,
-    "8.50e+02 * crate * 2.0 * nh2 / nh",
+    "8.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2147,7 +2147,7 @@
     ],
     null,
     null,
-    "2.49e+02 * crate * 2.0 * nh2 / nh",
+    "2.49e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2162,7 +2162,7 @@
     ],
     null,
     null,
-    "6.50e+02 * crate * 2.0 * nh2 / nh",
+    "6.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2177,7 +2177,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2192,7 +2192,7 @@
     ],
     null,
     null,
-    "4.98e+03 * crate * 2.0 * nh2 / nh",
+    "4.98e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2207,7 +2207,7 @@
     ],
     null,
     null,
-    "1.53e+03 * crate * 2.0 * nh2 / nh",
+    "1.53e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2222,7 +2222,7 @@
     ],
     null,
     null,
-    "2.24e+01 * crate * 2.0 * nh2 / nh",
+    "2.24e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2237,7 +2237,7 @@
     ],
     null,
     null,
-    "5.95e+03 * crate * 2.0 * nh2 / nh",
+    "5.95e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2252,7 +2252,7 @@
     ],
     null,
     null,
-    "1.64e+02 * crate * 2.0 * nh2 / nh",
+    "1.64e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2267,7 +2267,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2282,7 +2282,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2297,7 +2297,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2312,7 +2312,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2327,7 +2327,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2343,7 +2343,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2358,7 +2358,7 @@
     ],
     null,
     null,
-    "2.57e+03 * crate * 2.0 * nh2 / nh",
+    "2.57e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2373,7 +2373,7 @@
     ],
     null,
     null,
-    "9.75e+01 * crate * 2.0 * nh2 / nh",
+    "9.75e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2388,7 +2388,7 @@
     ],
     null,
     null,
-    "3.46e+03 * crate * 2.0 * nh2 / nh",
+    "3.46e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2403,7 +2403,7 @@
     ],
     null,
     null,
-    "2.84e+02 * crate * 2.0 * nh2 / nh",
+    "2.84e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2418,7 +2418,7 @@
     ],
     null,
     null,
-    "2.50e+03 * crate * 2.0 * nh2 / nh",
+    "2.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2433,7 +2433,7 @@
     ],
     null,
     null,
-    "2.50e+03 * crate * 2.0 * nh2 / nh",
+    "2.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2448,7 +2448,7 @@
     ],
     null,
     null,
-    "1.73e+03 * crate * 2.0 * nh2 / nh",
+    "1.73e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2463,7 +2463,7 @@
     ],
     null,
     null,
-    "1.73e+03 * crate * 2.0 * nh2 / nh",
+    "1.73e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2478,7 +2478,7 @@
     ],
     null,
     null,
-    "1.12e+03 * crate * 2.0 * nh2 / nh",
+    "1.12e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2493,7 +2493,7 @@
     ],
     null,
     null,
-    "1.72e+02 * crate * 2.0 * nh2 / nh",
+    "1.72e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2508,7 +2508,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2523,7 +2523,7 @@
     ],
     null,
     null,
-    "1.00e+02 * crate * 2.0 * nh2 / nh",
+    "1.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2538,7 +2538,7 @@
     ],
     null,
     null,
-    "1.00e+02 * crate * 2.0 * nh2 / nh",
+    "1.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2553,7 +2553,7 @@
     ],
     null,
     null,
-    "8.00e+02 * crate * 2.0 * nh2 / nh",
+    "8.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2568,7 +2568,7 @@
     ],
     null,
     null,
-    "5.14e+02 * crate * 2.0 * nh2 / nh",
+    "5.14e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2583,7 +2583,7 @@
     ],
     null,
     null,
-    "1.09e+03 * crate * 2.0 * nh2 / nh",
+    "1.09e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2599,7 +2599,7 @@
     ],
     null,
     null,
-    "1.55e+01 * crate * 2.0 * nh2 / nh",
+    "1.55e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2614,7 +2614,7 @@
     ],
     null,
     null,
-    "2.25e+02 * crate * 2.0 * nh2 / nh",
+    "2.25e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2629,7 +2629,7 @@
     ],
     null,
     null,
-    "1.12e+03 * crate * 2.0 * nh2 / nh",
+    "1.12e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2644,7 +2644,7 @@
     ],
     null,
     null,
-    "1.12e+03 * crate * 2.0 * nh2 / nh",
+    "1.12e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2659,7 +2659,7 @@
     ],
     null,
     null,
-    "6.92e+02 * crate * 2.0 * nh2 / nh",
+    "6.92e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2674,7 +2674,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2689,7 +2689,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2704,7 +2704,7 @@
     ],
     null,
     null,
-    "3.28e+03 * crate * 2.0 * nh2 / nh",
+    "3.28e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2719,7 +2719,7 @@
     ],
     null,
     null,
-    "5.30e+03 * crate * 2.0 * nh2 / nh",
+    "5.30e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2734,7 +2734,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2749,7 +2749,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2764,7 +2764,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2779,7 +2779,7 @@
     ],
     null,
     null,
-    "2.00e+02 * crate * 2.0 * nh2 / nh",
+    "2.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2794,7 +2794,7 @@
     ],
     null,
     null,
-    "8.00e+02 * crate * 2.0 * nh2 / nh",
+    "8.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2811,7 +2811,7 @@
     ],
     null,
     null,
-    "4.49e+02 * crate * 2.0 * nh2 / nh",
+    "4.49e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2826,7 +2826,7 @@
     ],
     null,
     null,
-    "1.79e+03 * crate * 2.0 * nh2 / nh",
+    "1.79e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2841,7 +2841,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2856,7 +2856,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2871,7 +2871,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2886,7 +2886,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2901,7 +2901,7 @@
     ],
     null,
     null,
-    "4.00e+01 * crate * 2.0 * nh2 / nh",
+    "4.00e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2916,7 +2916,7 @@
     ],
     null,
     null,
-    "9.00e+02 * crate * 2.0 * nh2 / nh",
+    "9.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2931,7 +2931,7 @@
     ],
     null,
     null,
-    "6.00e+01 * crate * 2.0 * nh2 / nh",
+    "6.00e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2946,7 +2946,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2961,7 +2961,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2976,7 +2976,7 @@
     ],
     null,
     null,
-    "2.74e+03 * crate * 2.0 * nh2 / nh",
+    "2.74e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -2991,7 +2991,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3006,7 +3006,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3021,7 +3021,7 @@
     ],
     null,
     null,
-    "5.00e+01 * crate * 2.0 * nh2 / nh",
+    "5.00e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3036,7 +3036,7 @@
     ],
     null,
     null,
-    "6.50e+02 * crate * 2.0 * nh2 / nh",
+    "6.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3051,7 +3051,7 @@
     ],
     null,
     null,
-    "3.00e+02 * crate * 2.0 * nh2 / nh",
+    "3.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3066,7 +3066,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3081,7 +3081,7 @@
     ],
     null,
     null,
-    "1.72e+03 * crate * 2.0 * nh2 / nh",
+    "1.72e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3096,7 +3096,7 @@
     ],
     null,
     null,
-    "1.12e+03 * crate * 2.0 * nh2 / nh",
+    "1.12e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3111,7 +3111,7 @@
     ],
     null,
     null,
-    "2.60e+02 * crate * 2.0 * nh2 / nh",
+    "2.60e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3126,7 +3126,7 @@
     ],
     null,
     null,
-    "4.73e+01 * crate * 2.0 * nh2 / nh",
+    "4.73e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3141,7 +3141,7 @@
     ],
     null,
     null,
-    "4.81e+02 * crate * 2.0 * nh2 / nh",
+    "4.81e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3156,7 +3156,7 @@
     ],
     null,
     null,
-    "1.12e+02 * crate * 2.0 * nh2 / nh",
+    "1.12e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3171,7 +3171,7 @@
     ],
     null,
     null,
-    "1.29e+01 * crate * 2.0 * nh2 / nh",
+    "1.29e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3186,7 +3186,7 @@
     ],
     null,
     null,
-    "1.46e+03 * crate * 2.0 * nh2 / nh",
+    "1.46e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3201,7 +3201,7 @@
     ],
     null,
     null,
-    "7.98e+02 * crate * 2.0 * nh2 / nh",
+    "7.98e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3216,7 +3216,7 @@
     ],
     null,
     null,
-    "4.16e+03 * crate * 2.0 * nh2 / nh",
+    "4.16e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3231,7 +3231,7 @@
     ],
     null,
     null,
-    "1.83e+02 * crate * 2.0 * nh2 / nh",
+    "1.83e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3246,7 +3246,7 @@
     ],
     null,
     null,
-    "2.46e+02 * crate * 2.0 * nh2 / nh",
+    "2.46e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3261,7 +3261,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3276,7 +3276,7 @@
     ],
     null,
     null,
-    "1.08e+03 * crate * 2.0 * nh2 / nh",
+    "1.08e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3291,7 +3291,7 @@
     ],
     null,
     null,
-    "5.78e+02 * crate * 2.0 * nh2 / nh",
+    "5.78e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3306,7 +3306,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3321,7 +3321,7 @@
     ],
     null,
     null,
-    "4.51e+02 * crate * 2.0 * nh2 / nh",
+    "4.51e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3336,7 +3336,7 @@
     ],
     null,
     null,
-    "8.31e+00 * crate * 2.0 * nh2 / nh",
+    "8.31e+00 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3351,7 +3351,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3366,7 +3366,7 @@
     ],
     null,
     null,
-    "1.93e+03 * crate * 2.0 * nh2 / nh",
+    "1.93e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3381,7 +3381,7 @@
     ],
     null,
     null,
-    "2.04e+01 * crate * 2.0 * nh2 / nh",
+    "2.04e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3396,7 +3396,7 @@
     ],
     null,
     null,
-    "1.51e+03 * crate * 2.0 * nh2 / nh",
+    "1.51e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3411,7 +3411,7 @@
     ],
     null,
     null,
-    "4.64e+01 * crate * 2.0 * nh2 / nh",
+    "4.64e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3426,7 +3426,7 @@
     ],
     null,
     null,
-    "1.84e+02 * crate * 2.0 * nh2 / nh",
+    "1.84e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3441,7 +3441,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3456,7 +3456,7 @@
     ],
     null,
     null,
-    "1.00e+03 * crate * 2.0 * nh2 / nh",
+    "1.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3471,7 +3471,7 @@
     ],
     null,
     null,
-    "1.00e+03 * crate * 2.0 * nh2 / nh",
+    "1.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3486,7 +3486,7 @@
     ],
     null,
     null,
-    "3.00e+03 * crate * 2.0 * nh2 / nh",
+    "3.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3501,7 +3501,7 @@
     ],
     null,
     null,
-    "3.45e+03 * crate * 2.0 * nh2 / nh",
+    "3.45e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3516,7 +3516,7 @@
     ],
     null,
     null,
-    "3.45e+03 * crate * 2.0 * nh2 / nh",
+    "3.45e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3531,7 +3531,7 @@
     ],
     null,
     null,
-    "3.45e+03 * crate * 2.0 * nh2 / nh",
+    "3.45e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3546,7 +3546,7 @@
     ],
     null,
     null,
-    "9.50e+03 * crate * 2.0 * nh2 / nh",
+    "9.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3561,7 +3561,7 @@
     ],
     null,
     null,
-    "2.95e+03 * crate * 2.0 * nh2 / nh",
+    "2.95e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3576,7 +3576,7 @@
     ],
     null,
     null,
-    "1.00e+04 * crate * 2.0 * nh2 / nh",
+    "1.00e+04 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3592,7 +3592,7 @@
     ],
     null,
     null,
-    "3.00e+03 * crate * 2.0 * nh2 / nh",
+    "3.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3607,7 +3607,7 @@
     ],
     null,
     null,
-    "2.06e+03 * crate * 2.0 * nh2 / nh",
+    "2.06e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3622,7 +3622,7 @@
     ],
     null,
     null,
-    "1.78e+02 * crate * 2.0 * nh2 / nh",
+    "1.78e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3637,7 +3637,7 @@
     ],
     null,
     null,
-    "6.00e+03 * crate * 2.0 * nh2 / nh",
+    "6.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3652,7 +3652,7 @@
     ],
     null,
     null,
-    "6.00e+03 * crate * 2.0 * nh2 / nh",
+    "6.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3667,7 +3667,7 @@
     ],
     null,
     null,
-    "6.00e+03 * crate * 2.0 * nh2 / nh",
+    "6.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3682,7 +3682,7 @@
     ],
     null,
     null,
-    "6.00e+03 * crate * 2.0 * nh2 / nh",
+    "6.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3697,7 +3697,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3727,7 +3727,7 @@
     ],
     null,
     null,
-    "7.34e-01 * crate * 2.0 * nh2 / nh",
+    "7.34e-01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3742,7 +3742,7 @@
     ],
     null,
     null,
-    "2.70e+00 * crate * 2.0 * nh2 / nh",
+    "2.70e+00 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3757,7 +3757,7 @@
     ],
     null,
     null,
-    "1.28e+03 * crate * 2.0 * nh2 / nh",
+    "1.28e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3772,7 +3772,7 @@
     ],
     null,
     null,
-    "3.93e+01 * crate * 2.0 * nh2 / nh",
+    "3.93e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3787,7 +3787,7 @@
     ],
     null,
     null,
-    "1.49e+03 * crate * 2.0 * nh2 / nh",
+    "1.49e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3802,7 +3802,7 @@
     ],
     null,
     null,
-    "7.73e+01 * crate * 2.0 * nh2 / nh",
+    "7.73e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3817,7 +3817,7 @@
     ],
     null,
     null,
-    "6.08e+02 * crate * 2.0 * nh2 / nh",
+    "6.08e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3832,7 +3832,7 @@
     ],
     null,
     null,
-    "2.33e-01 * crate * 2.0 * nh2 / nh",
+    "2.33e-01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3847,7 +3847,7 @@
     ],
     null,
     null,
-    "2.25e+01 * crate * 2.0 * nh2 / nh",
+    "2.25e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3862,7 +3862,7 @@
     ],
     null,
     null,
-    "6.97e+01 * crate * 2.0 * nh2 / nh",
+    "6.97e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3877,7 +3877,7 @@
     ],
     null,
     null,
-    "8.57e+00 * crate * 2.0 * nh2 / nh",
+    "8.57e+00 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3892,7 +3892,7 @@
     ],
     null,
     null,
-    "8.98e+01 * crate * 2.0 * nh2 / nh",
+    "8.98e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3907,7 +3907,7 @@
     ],
     null,
     null,
-    "4.60e+02 * crate * 2.0 * nh2 / nh",
+    "4.60e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3922,7 +3922,7 @@
     ],
     null,
     null,
-    "8.88e+01 * crate * 2.0 * nh2 / nh",
+    "8.88e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3937,7 +3937,7 @@
     ],
     null,
     null,
-    "2.68e+02 * crate * 2.0 * nh2 / nh",
+    "2.68e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3952,7 +3952,7 @@
     ],
     null,
     null,
-    "1.05e+03 * crate * 2.0 * nh2 / nh",
+    "1.05e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3967,7 +3967,7 @@
     ],
     null,
     null,
-    "3.35e+00 * crate * 2.0 * nh2 / nh",
+    "3.35e+00 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3982,7 +3982,7 @@
     ],
     null,
     null,
-    "9.66e+01 * crate * 2.0 * nh2 / nh",
+    "9.66e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -3997,7 +3997,7 @@
     ],
     null,
     null,
-    "1.23e+03 * crate * 2.0 * nh2 / nh",
+    "1.23e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -4012,7 +4012,7 @@
     ],
     null,
     null,
-    "2.75e+03 * crate * 2.0 * nh2 / nh",
+    "2.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -4027,7 +4027,7 @@
     ],
     null,
     null,
-    "4.60e+01 * crate * 2.0 * nh2 / nh",
+    "4.60e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -121182,7 +121182,7 @@
     ],
     null,
     null,
-    "1.71e+03 * crate * 2.0 * nh2 / nh",
+    "1.71e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122042,7 +122042,7 @@
     ],
     null,
     null,
-    "1.00e+03 * crate * 2.0 * nh2 / nh",
+    "1.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122102,7 +122102,7 @@
     ],
     null,
     null,
-    "1.44e+03 * crate * 2.0 * nh2 / nh",
+    "1.44e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122462,7 +122462,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122492,7 +122492,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122507,7 +122507,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122522,7 +122522,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122537,7 +122537,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122552,7 +122552,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -122642,7 +122642,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123761,7 +123761,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123776,7 +123776,7 @@
     ],
     null,
     null,
-    "6.00e+03 * crate * 2.0 * nh2 / nh",
+    "6.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123791,7 +123791,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123806,7 +123806,7 @@
     ],
     null,
     null,
-    "7.50e+02 * crate * 2.0 * nh2 / nh",
+    "7.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123821,7 +123821,7 @@
     ],
     null,
     null,
-    "6.00e+03 * crate * 2.0 * nh2 / nh",
+    "6.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123836,7 +123836,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123851,7 +123851,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123866,7 +123866,7 @@
     ],
     null,
     null,
-    "2.50e+03 * crate * 2.0 * nh2 / nh",
+    "2.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123881,7 +123881,7 @@
     ],
     null,
     null,
-    "5.00e+02 * crate * 2.0 * nh2 / nh",
+    "5.00e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123896,7 +123896,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123911,7 +123911,7 @@
     ],
     null,
     null,
-    "6.00e+03 * crate * 2.0 * nh2 / nh",
+    "6.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123926,7 +123926,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123941,7 +123941,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123956,7 +123956,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123971,7 +123971,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -123986,7 +123986,7 @@
     ],
     null,
     null,
-    "9.15e+02 * crate * 2.0 * nh2 / nh",
+    "9.15e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124001,7 +124001,7 @@
     ],
     null,
     null,
-    "1.22e+03 * crate * 2.0 * nh2 / nh",
+    "1.22e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124016,7 +124016,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124031,7 +124031,7 @@
     ],
     null,
     null,
-    "4.98e+03 * crate * 2.0 * nh2 / nh",
+    "4.98e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124046,7 +124046,7 @@
     ],
     null,
     null,
-    "6.60e+03 * crate * 2.0 * nh2 / nh",
+    "6.60e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124061,7 +124061,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124076,7 +124076,7 @@
     ],
     null,
     null,
-    "3.00e+03 * crate * 2.0 * nh2 / nh",
+    "3.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124091,7 +124091,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124106,7 +124106,7 @@
     ],
     null,
     null,
-    "9.15e+02 * crate * 2.0 * nh2 / nh",
+    "9.15e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124121,7 +124121,7 @@
     ],
     null,
     null,
-    "4.50e+02 * crate * 2.0 * nh2 / nh",
+    "4.50e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124136,7 +124136,7 @@
     ],
     null,
     null,
-    "1.00e+03 * crate * 2.0 * nh2 / nh",
+    "1.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124151,7 +124151,7 @@
     ],
     null,
     null,
-    "3.17e+03 * crate * 2.0 * nh2 / nh",
+    "3.17e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124166,7 +124166,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124181,7 +124181,7 @@
     ],
     null,
     null,
-    "1.72e+03 * crate * 2.0 * nh2 / nh",
+    "1.72e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124196,7 +124196,7 @@
     ],
     null,
     null,
-    "1.12e+03 * crate * 2.0 * nh2 / nh",
+    "1.12e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124211,7 +124211,7 @@
     ],
     null,
     null,
-    "6.60e+03 * crate * 2.0 * nh2 / nh",
+    "6.60e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124226,7 +124226,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124241,7 +124241,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124256,7 +124256,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124271,7 +124271,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124286,7 +124286,7 @@
     ],
     null,
     null,
-    "1.24e+03 * crate * 2.0 * nh2 / nh",
+    "1.24e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124301,7 +124301,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124316,7 +124316,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124331,7 +124331,7 @@
     ],
     null,
     null,
-    "6.60e+03 * crate * 2.0 * nh2 / nh",
+    "6.60e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124346,7 +124346,7 @@
     ],
     null,
     null,
-    "1.75e+03 * crate * 2.0 * nh2 / nh",
+    "1.75e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124361,7 +124361,7 @@
     ],
     null,
     null,
-    "5.00e+03 * crate * 2.0 * nh2 / nh",
+    "5.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124376,7 +124376,7 @@
     ],
     null,
     null,
-    "2.00e+03 * crate * 2.0 * nh2 / nh",
+    "2.00e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124391,7 +124391,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124406,7 +124406,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124421,7 +124421,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124436,7 +124436,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124451,7 +124451,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124466,7 +124466,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124481,7 +124481,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124496,7 +124496,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124511,7 +124511,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124526,7 +124526,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124541,7 +124541,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -124556,7 +124556,7 @@
     ],
     null,
     null,
-    "1.50e+03 * crate * 2.0 * nh2 / nh",
+    "1.50e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [

@@ -86,7 +86,7 @@
     ],
     null,
     null,
-    "5.20e+02 * crate * 2.0 * nh2 / nh",
+    "5.20e+02 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -101,7 +101,7 @@
     ],
     null,
     null,
-    "9.20e+01 * crate * 2.0 * nh2 / nh",
+    "9.20e+01 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [
@@ -116,7 +116,7 @@
     ],
     null,
     null,
-    "8.40e+03 * crate * 2.0 * nh2 / nh",
+    "8.40e+03 * crate * 2.0 * n_h2 / n_h_nuc",
     "cosmic_ray"
   ],
   [

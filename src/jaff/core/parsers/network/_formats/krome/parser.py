@@ -31,10 +31,10 @@ class KromeParser(Parser):
         "sqrtgas": "sqrt(tgas)",
         "user_tdust": "tdust",
         "user_av": "av",
-        "get_hnuclei(n)": "nh",
-        "n(idx_h2)": "nh2",
-        "n(idx_h)": "nh0",
-        "n_global(idx_h2)": "nh2",
+        "get_hnuclei(n)": "n_H_nuc",
+        "n(idx_h2)": "n_H2",
+        "n(idx_h)": "n_H",
+        "n_global(idx_h2)": "n_H2",
     }
 
     def __init__(self):
