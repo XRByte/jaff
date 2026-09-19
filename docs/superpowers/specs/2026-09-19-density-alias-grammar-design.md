@@ -66,14 +66,35 @@ Charge convention (existing j/k encoding): neutral = no suffix, `j` = +,
 A missed migration therefore fails loudly instead of silently collapsing a sum
 to a species or leaving a dangling symbol.
 
-## Removed
+## NOT removed (KROME/PRIZMO compatibility — has live consumers)
 
-- `Network._simple_map` (`nh0`, `nh2`, `ne`, `nhj`).
-- The `nh` special case in `_standardize_symbols` (→ `n_H_nuc`).
-- Parser globals `get_hnuclei(n)→nh`, `n(idx_h)→nh0`, `n(idx_h2)→nh2`
-  (`NetworkParser.__seed_globals` / equivalent).
+The `nh`/`nh0`/`nh2`/`ne`/`nhj` aliases are a **separate namespace** from the
+`n_...` grammar and are the KROME/PRIZMO input-compat layer. They are kept:
 
-Everything routes through the single `n_...` resolver.
+- `Network._simple_map` (`nh0`, `nh2`, `ne`, `nhj`) — kept.
+- The `nh` special case in `_standardize_symbols` — kept (governed by
+  `expand_nuclei`).
+- Parser globals `get_hnuclei(n)→nh`, `n(idx_h)→nh0`, `n(idx_h2)→nh2`,
+  `n_global(idx_h2)→nh2` — kept.
+
+**Live consumers (network-format `.jet` files, which must stay backward
+compatible):** `COthin` (`get_Hnuclei(n(:))`, `n(idx_H)`, `n(idx_H2)`,
+`n_global(idx_H2)`) and `popsicle_semenov` (`n(:)` arrays, `n(idx_X)`).
+
+A general parser-level regex translation of KROME tokens (`n(:)`, `n(idx_X)`,
+`idx_X`) into the `n_X` grammar was considered and **rejected**: `n(:)` is a
+whole-array argument to KROME rate functions and `idx_X` appears as an index
+*argument* inside those calls, so a word-boundary regex cannot distinguish a
+scalar density from an array slice or an index arg and would corrupt
+`popsicle_semenov`/`COthin`. The compat layer is orthogonal to the `n_` grammar
+and needs no change.
+
+## Scope confinement (verified)
+
+No network-format file (`.jet`/`.dat`) uses the JAFF `n_X`/`n_X_nuc` convention
+in a rate expression. The `n_` grammar rework therefore affects only `.jfunc`
+consumers (GOW family) and user `.dat` inputs that opt into `n_X`. Network
+formats are not changed by this work.
 
 ## Flag rename
 
@@ -87,16 +108,21 @@ Everything routes through the single `n_...` resolver.
 (no deprecation warning — alpha software). Applies to the `Network` constructor,
 `NetworkSpec`/args, and the `jaffgen` / `jaffx` CLIs.
 
-## Migration
+## Migration (`.jfunc` only — never `.jet`/`.dat`)
 
-Rewrite `.jfunc` / `.jet` density aliases in: `GOW`, `GOW++`, `GOW_scpc`,
-`GOW.scpc` (`GOW/GOW.scpc.jfunc`), `cie_h`, `h2form`.
+Rewrite density aliases only in the JAFF-native `.jfunc` files that use the
+`n_X` convention: `GOW/GOW.jfunc`, `GOW++/GOW++.jfunc`,
+`GOW_scpc/GOW_scpc.jfunc`, `GOW/GOW.scpc.jfunc`. (`cie_h`/`h2form` `.jfunc` are
+empty; no `.jet` uses `n_X`.)
 
 Mapping: `nH → n_H_nuc`, `nH0 → n_H`, `nH2 → n_H2`, `nHj → n_Hj`, `ne → n_e`,
-`n_H0 → n_H`, `n_C0 → n_C`, `n_O0 → n_O` (drop `0` markers), `n_Cj`/`n_Hj`/
-`n_Hejj` unchanged. Function *parameter* names inside `@function` bodies are
-local bindings and only need changing where they are also the substituted global
-alias at the top-level rate/heating entry points — audit each entry function.
+`n_H → n_H_nuc` (where it meant "H nuclei"), `n_He → n_He_nuc`, `n_H0 → n_H`,
+`n_C0 → n_C`, `n_O0 → n_O` (drop `0` markers); `n_Cj`/`n_Hj`/`n_Hejj`/`n_CO`
+unchanged. GOW uses both bare (`nH`, `nH0`, …) and underscore (`n_H`, `n_H0`, …)
+forms for the same quantities; migrate both so GOW is internally consistent on
+the `n_X` grammar. Function *parameter* names inside `@function` bodies are
+local bindings — a param renamed at its `@function` signature must be renamed at
+every use inside that body and at the call sites that pass it.
 
 Regenerate affected golden files (`tests/golden/GOW_microphysics/…`, plus any
 GOW/cie_h/h2form goldens) once resolution is verified correct.
