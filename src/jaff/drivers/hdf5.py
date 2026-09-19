@@ -135,24 +135,35 @@ class HDF5:
         with h5py.File(h5file, mode) as f:
             self.__resolve_to_h5(f, h5dict)
 
+    _LINEAR_TABLE_STEM = "_group"
+
     def to_csv(self, h5file: str | Path, outdir: str | Path, sep: str = " ") -> None:
         """
-        Export all datasets from an HDF5 file to CSV files in *outdir*.
+        Export all datasets from an HDF5 file to CSV files under *outdir*.
 
-        ``"linear"`` datasets at the same HDF5 group level are combined into
-        a single CSV file named after the group.  ``"compound"`` datasets each
-        produce their own file named after the dataset's ``_name`` attribute
-        (or its HDF5 key).
+        The HDF5 group hierarchy is mirrored as a directory tree under
+        *outdir*, so datasets are never overwritten by same-named siblings in
+        other groups.  Within each group directory, all ``"linear"`` datasets
+        are combined into a single reserved table file
+        (``_group.csv``), and each ``"compound"`` dataset produces its own file
+        named after its HDF5 key.  The ``_name`` attribute is used only as a
+        column label, never as a filesystem path.
 
         Parameters
         ----------
         h5file : str or Path
             Path to the source HDF5 file.
         outdir : str or Path
-            Directory in which CSV files are written.  Created (including
+            Directory in which the CSV tree is written.  Created (including
             parents) if it does not exist.
         sep : str, optional
             Column separator character.  Defaults to a single space.
+
+        Raises
+        ------
+        ValueError
+            If two datasets would be written to the same output file (e.g. a
+            ``"compound"`` dataset keyed like the reserved linear-table stem).
 
         Returns
         -------
@@ -163,15 +174,13 @@ class HDF5:
             outdir.mkdir(parents=True)
 
         h5dict = HDF5Dict(h5file)
-        self.__generate_csv(h5dict, outdir, "", sep)
+        self.__generate_csv(h5dict, outdir, "", sep, set())
 
     # ------------------------------------------------------------------
     # HDF5 write helpers
     # ------------------------------------------------------------------
 
-    def __resolve_to_h5(
-        self, h5file: h5py.File, h5dict: dict, path: str = ""
-    ) -> None:
+    def __resolve_to_h5(self, h5file: h5py.File, h5dict: dict, path: str = "") -> None:
         """
         Recursively write *h5dict* into an open HDF5 file.
 
@@ -215,9 +224,7 @@ class HDF5:
                 h5file.require_group(sub_path)
                 self.__resolve_to_h5(h5file, val, sub_path)
 
-    def __create_dataset(
-        self, file: h5py.File, path: str, props: dict[str, Any]
-    ) -> None:
+    def __create_dataset(self, file: h5py.File, path: str, props: dict[str, Any]) -> None:
         """
         Create or replace a single HDF5 dataset at *path*.
 
@@ -294,31 +301,49 @@ class HDF5:
         outdir: Path,
         current_path: str,
         sep: str,
+        written: set[Path],
     ) -> None:
         """
         Recursively traverse *data_dict* and write CSV files.
 
-        ``"linear"`` datasets found at the same group level are collected and
-        written together as a single combined CSV file.  ``"compound"``
-        datasets each produce an individual file.  Sub-groups trigger
-        recursive descent.
+        The current group maps to the directory ``outdir / current_path``.
+        All ``"linear"`` datasets at this level are combined into a single
+        reserved table file inside that directory; each ``"compound"`` dataset
+        produces its own file keyed by its HDF5 name.  Sub-groups descend into
+        their own sub-directories, so same-named siblings never collide.
 
         Parameters
         ----------
         data_dict : dict
             Current level of the :class:`~jaff.types.HDF5Dict` tree.
         outdir : Path
-            Output directory.
+            Root output directory.
         current_path : str
-            Slash-separated path of the current group (used to derive the
-            output file stem).
+            Slash-separated path of the current group, relative to the root.
         sep : str
             Column separator character for the CSV files.
+        written : set[Path]
+            Output paths already written this run, used to detect collisions.
+
+        Raises
+        ------
+        ValueError
+            If a computed output path was already written this run.
 
         Returns
         -------
         None
         """
+        # This group's directory mirrors its HDF5 path.
+        group_dir = outdir.joinpath(*current_path.split("/")) if current_path else outdir
+
+        def _write(df: pd.DataFrame, path: Path) -> None:
+            if path in written:
+                raise ValueError(f"Output path collision: {path}")
+            written.add(path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(path, index=False, sep=sep)
+
         linear_dfs: list[pd.DataFrame] = []
         for key, val in data_dict.items():
             # Skip metadata keys.
@@ -328,22 +353,26 @@ class HDF5:
             if isinstance(val, dict):
                 if "_kind" in val:
                     if val["_kind"] == "linear":
-                        # Accumulate linear columns for a combined CSV later.
+                        # Accumulate linear columns for a combined CSV later;
+                        # _name is only a column label, never a path.
                         col_name = val.get("_name", key)
                         linear_dfs.append(pd.DataFrame({col_name: val["_data"]}))
                     elif val["_kind"] == "compound":
-                        # Each compound dataset becomes its own CSV file.
+                        # Each compound dataset becomes its own CSV file, keyed
+                        # by its HDF5 name inside this group's directory.
                         df = pd.DataFrame(val["_data"])
-                        filename = val.get("_name", key)
-                        df.to_csv(outdir / f"{filename}.csv", index=False, sep=sep)
+                        _write(df, group_dir / f"{key}.csv")
                 else:
-                    # Sub-group — recurse with an extended path.
+                    # Sub-group — recurse into a nested directory.
                     self.__generate_csv(
-                        val, outdir, f"{current_path}/{key}" if current_path else key, sep
+                        val,
+                        outdir,
+                        f"{current_path}/{key}" if current_path else key,
+                        sep,
+                        written,
                     )
 
-        # Write all accumulated linear columns as one combined file per group.
+        # Write all accumulated linear columns as one reserved table per group.
         if linear_dfs:
-            group_name = current_path.split("/")[-1] if current_path else "out"
             combined_df = pd.concat(linear_dfs, axis=1)
-            combined_df.to_csv(outdir / f"{group_name}.csv", index=False, sep=sep)
+            _write(combined_df, group_dir / f"{self._LINEAR_TABLE_STEM}.csv")
