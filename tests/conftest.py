@@ -1,7 +1,9 @@
 # ABOUTME: Shared pytest fixtures for the JAFF test suite
 # ABOUTME: Central output silencing + a make_network factory over tmp_path
 
+import json
 import logging
+import os
 from pathlib import Path
 
 import pytest
@@ -75,3 +77,35 @@ def make_network(tmp_path):
 def sample_network(fixtures_dir):
     """A :class:`~jaff.Network` loaded from the bundled ``sample_kida.dat``."""
     return Network(str(fixtures_dir / "sample_kida.dat"))
+
+
+_SNAP_DIR = Path(__file__).parent / "snapshots" / "parser_output"
+
+
+class _SnapshotStore:
+    def __init__(self, update):
+        self._update = update
+
+    def check(self, key, value):
+        safe = key.replace("/", "__")
+        path = _SNAP_DIR / f"{safe}.json"
+        serialized = json.dumps(value, indent=2, default=str)
+        if self._update:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(serialized)
+            return
+        # Missing baseline must FAIL loudly, not silently auto-create — otherwise
+        # a deleted/new snapshot would pass and the regression net would be blind.
+        if not path.exists():
+            raise FileNotFoundError(
+                f"No baseline snapshot for {key!r}; record it with "
+                f"JAFF_UPDATE_SNAPSHOTS=1"
+            )
+        expected = path.read_text()
+        assert serialized == expected, f"parser output changed for {key}"
+
+
+@pytest.fixture
+def snapshot_store(request):
+    # Run once with JAFF_UPDATE_SNAPSHOTS=1 to record the baseline.
+    return _SnapshotStore(update=bool(os.environ.get("JAFF_UPDATE_SNAPSHOTS")))
