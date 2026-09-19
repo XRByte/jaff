@@ -383,9 +383,10 @@ class Network:
             tmin: float | None = reaction["tmin"]
             tmax: float | None = reaction["tmax"]
             rate: str = reaction["rate"]
-            aux_chem_rate = f"chemrate{i}"
-            aux_delta_rad = f"deltarad{i}"
-            aux_delta_e = f"deltae{i}"
+            si = reaction["source_index"]
+            aux_chem_rate = f"chemrate{si}"
+            aux_delta_rad = f"deltarad{si}"
+            aux_delta_e = f"deltae{si}"
 
             for s in reactants + products:
                 if s in specie_names:
@@ -462,13 +463,13 @@ class Network:
                 rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
                 continue
 
-            # deltarad{i}: radiation energy emission per photon energy (eV)
+            # deltarad{si}: radiation energy emission per photon energy (eV)
             # per reaction added to the moment-0 equations at codegen time
             deltaRad: Basic = Float(0.0)
             if aux_delta_rad in aux_funcs:
                 deltaRad = aux_funcs[aux_delta_rad]["def"]
 
-            # deltae{i}: chemical energy change per reaction, accumulates into dEdt_chem
+            # deltae{si}: chemical energy change per reaction, accumulates into dEdt_chem
             deltaE: Basic = Float(0.0)
             if aux_delta_e in aux_funcs:
                 deltaE = aux_funcs[aux_delta_e]["def"]
@@ -486,7 +487,7 @@ class Network:
                 dE=deltaE,
                 dRad=deltaRad,
                 original_string=reaction["string"],
-                index=i,
+                index=si,
                 type=rtype,
                 t_cutoff=local_tcutoff,
                 errors=self.spec.errors,
@@ -513,7 +514,7 @@ class Network:
                         "If radiation is enabled and a custom rate is supplied\n"
                         "for a photo reaction, the auxilary deltaRad function is\n"
                         "necessary to weigh the first moment radiation equations\n"
-                        f"Please add a custom deltaRad function for reaction {i}"
+                        f"Please add a custom deltaRad function for reaction {si}"
                     )
 
         if "heatingcoolingrate" in aux_funcs:

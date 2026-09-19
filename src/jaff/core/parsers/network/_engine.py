@@ -42,13 +42,8 @@ from sympy import Basic, parse_expr
 
 from ....common import resolve_symbolic_dependencies
 from ....io import JaffLogger, jaff_progress
+from ._formats import NetworkFormat, ParseContext, all_formats, build_state
 from ._typing import parsedListProps
-from ._formats import (
-    NetworkFormat,
-    ParseContext,
-    all_formats,
-    build_state,
-)
 
 
 class NetworkParser:
@@ -111,6 +106,8 @@ class NetworkParser:
         )
 
         self.__parse_file()
+        for idx, entry in enumerate(self.__parsed_list):
+            entry["source_index"] = idx
         self.__normalize_rates()
         self.__globals = resolve_symbolic_dependencies(self.__globals, fname=self.__file)
 
@@ -170,6 +167,7 @@ class NetworkParser:
         """
         if not self.__ctx.line.strip():
             return
+
         for fmt in self.__formats:
             if match := fmt._global_re(self.__ctx).match(self.__ctx.line):
                 fmt.handle(match, self.__ctx)
