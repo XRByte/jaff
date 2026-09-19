@@ -48,7 +48,7 @@ options. These mirror the [`Network` constructor](network.md#constructor):
 | `--network`    | Path to the network file (**required** in practice)                              |
 | `--label`      | Override the network label (defaults to the file stem)                           |
 | `--funcfile`   | Path to a `.jfunc` auxiliary file; `true` scans the network dir (default); `false` skips loading |
-| `--replace-nh` | `--replace-nh` / `--no-replace-nh` — expand `nh`/`nhe` density shorthands        |
+| `--expand-nuclei` | `--expand-nuclei` / `--no-expand-nuclei` — expand `n_<element>_nuc` element-nucleus density sums |
 | `--duplicate-policy` | Resolve duplicate rate coefficients over the same temperature range: `preserve-first` (default), `preserve-last`, or `error`. Overrides the network `jaff.toml` `[network].duplicate_policy` |
 
 ---

@@ -12,7 +12,7 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 
 ## Constructor
 
-`#!python Network(fname, config=None, errors=False, label=None, funcfile=True, duplicate_policy=None, replace_nH=True, radiation_props=None, dust_props=None, use_proxy_photoreaction=False)`
+`#!python Network(fname, config=None, errors=False, label=None, funcfile=True, duplicate_policy=None, expand_nuclei=True, radiation_props=None, dust_props=None, use_proxy_photoreaction=False)`
 
 **Parameters**
 
@@ -34,8 +34,8 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 **duplicate_policy** : _str or None, optional_
 : Resolve duplicate rate coefficients (same reaction, mechanism, and temperature range): `preserve-first`, `preserve-last`, or `error`. When `None` (default), the network's `jaff.toml` value is used, falling back to `preserve-first`.
 
-**replace_nH** : _bool, optional_
-: Replace nH/nHe symbols with species density sums. Default `True`.
+**expand_nuclei** : _bool, optional_
+: When `True` (default), an `n_<element>_nuc` symbol in rate expressions (e.g. `n_H_nuc`, `n_He_nuc`) is expanded to the element-nucleus density sum (weighted by atom count over all species bearing that element). When `False`, it is left as a free symbol `n<element>_nuc` (e.g. `nh_nuc`) instead. Only affects `n_<element>_nuc`; plain `n_X` always resolves to species `X`.
 
 **radiation_props** : _RadiationProps or None, optional_
 : Radiation-field configuration (bands, spectral index, mode, speed of light, background field). `None` (default) disables radiation transport.
@@ -71,4 +71,4 @@ _FileNotFoundError_
 | `ndens`           | `sympy.MatrixSymbol`| Symbolic `nden` column vector of species number densities, shape (n_species, 1); `nden[i]` is species `i`           |
 | `ntot`            | `sympy.Expr`        | Total number density, `Σ_i nden[i]` over all species                                                                |
 | `rho`             | `sympy.Expr`        | Mass density, `Σ_i m_i · nden[i]`; species with unset mass contribute `0`                                           |
-| `n_hnuc`          | `sympy.Expr`        | Total hydrogen-nuclei density, `Σ_i H-count(i) · nden[i]` (cached); the symbolic expansion of the `nh` / `n_H` shorthand |
+| `n_hnuc`          | `sympy.Expr`        | Total hydrogen-nuclei density, `Σ_i H-count(i) · nden[i]` (cached); equivalent to the `n_H_nuc` grammar token |
