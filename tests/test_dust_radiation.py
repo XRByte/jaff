@@ -40,7 +40,7 @@ def _args(config, outdir):
         label=None,
         funcfile=None,
         duplicate_policy=None,
-        replace_nH=None,
+        expand_nuclei=None,
         errors=None,
         network_config=None,
         outdir=str(outdir),

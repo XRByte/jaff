@@ -81,7 +81,7 @@ class JaffGen:
     ----------
     args : types.SimpleNamespace
         Parsed command-line arguments, one attribute per CLI option
-        (``network``, ``config``, ``label``, ``funcfile``, ``replace_nH``,
+        (``network``, ``config``, ``label``, ``funcfile``, ``expand_nuclei``,
         ``errors``, ``network_config``, ``outdir``, ``indir``, ``files``,
         ``template``, ``lang``).
 
@@ -216,7 +216,7 @@ class JaffGen:
 
         Reads the ``[jaffgen]`` section (template, input/output paths, network
         file, lang) and the ``[network]`` section (label, errors, funcfile,
-        replace_nH, and the ``[network.radiation]`` block).  Paths are resolved
+        expand_nuclei, and the ``[network.radiation]`` block).  Paths are resolved
         relative to the config file's directory.  These values are later
         overridden by any explicit CLI argument.
 
@@ -246,8 +246,8 @@ class JaffGen:
         if (v := np.get("errors")) is not None:
             sn.errors = v
         sn.config = np.get("config") or sn.config
-        if (v := np.get("replace_nH")) is not None:
-            sn.replace_nH = v
+        if (v := np.get("expand_nuclei")) is not None:
+            sn.expand_nuclei = v
         if (v := np.get("funcfile")) is not None:
             sn.funcfile = v
         if (v := np.get("duplicate_policy")) is not None:
@@ -483,7 +483,7 @@ class JaffGen:
         """
         Apply scalar CLI network options over any config values.
 
-        Handles ``--label``, ``--funcfile``, ``--replace-nH``, ``--errors``,
+        Handles ``--label``, ``--funcfile``, ``--expand-nuclei``, ``--errors``,
         ``--network-config``, and ``--lang``.  Each is applied only when the
         corresponding CLI flag was supplied (i.e. not ``None``).
 
@@ -499,8 +499,8 @@ class JaffGen:
         sn.funcfile = a.funcfile or sn.funcfile
         self.state.lang = a.lang or self.state.lang
 
-        if a.replace_nH is not None:
-            sn.replace_nH = a.replace_nH
+        if a.expand_nuclei is not None:
+            sn.expand_nuclei = a.expand_nuclei
         if a.errors is not None:
             sn.errors = a.errors
         if a.duplicate_policy is not None:
@@ -646,7 +646,7 @@ class JaffGen:
             label=sn.label,
             funcfile=sn.funcfile,
             duplicate_policy=sn.duplicate_policy,
-            replace_nH=sn.replace_nH,
+            expand_nuclei=sn.expand_nuclei,
             radiation_props=(
                 RadiationProps(
                     bands=sn.rad_bands,
@@ -803,9 +803,9 @@ def generate(
         "temperature range: preserve-first, preserve-last, or error. "
         "Overrides jaffgen.toml and the network jaff.toml; defaults to preserve-first",
     ),
-    replace_nh: Optional[bool] = typer.Option(
+    expand_nuclei: Optional[bool] = typer.Option(
         None,
-        "--replace-nH/--no-replace-nH",
+        "--expand-nuclei/--no-expand-nuclei",
         help="Standardizes symbols when true",
     ),
     errors: Optional[bool] = typer.Option(
@@ -885,7 +885,7 @@ def generate(
         # Map "true"/"false" onto booleans, matching the old argparse type.
         funcfile=funcfile_arg(funcfile) if funcfile is not None else None,
         duplicate_policy=duplicate_policy.value if duplicate_policy is not None else None,
-        replace_nH=replace_nh,
+        expand_nuclei=expand_nuclei,
         errors=errors,
         network_config=network_config,
         outdir=outdir,

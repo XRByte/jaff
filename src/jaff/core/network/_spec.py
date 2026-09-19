@@ -51,7 +51,7 @@ class NetworkSpec:
         ones), ``"preserve-last"`` (keep the last), or ``"error"`` (raise).
         Resolved from the constructor argument, else the network ``jaff.toml``
         ``[network].duplicate_policy`` key, else ``"preserve-first"``.
-    replace_nH : bool
+    expand_nuclei : bool
         Whether density symbols are rewritten in terms of ``nH``.
     rad_bands : list
         Radiation-field band definitions.
@@ -77,7 +77,7 @@ class NetworkSpec:
         label: str | None,
         funcfile: bool | str | Path,
         duplicate_policy: str | None,
-        replace_nH: bool,
+        expand_nuclei: bool,
         _from_cli: bool,
         _metadata: dict[str, Any],
     ):
@@ -103,7 +103,7 @@ class NetworkSpec:
         self.duplicate_policy: str = resolved_policy
         # Resolves funcfile to the actual .jfunc path (when True) and parses it.
         self.aux_funcs: dict = self._load_aux_funcs()
-        self.replace_nH: bool = replace_nH
+        self.expand_nuclei: bool = expand_nuclei
         self._from_cli: bool = _from_cli
         self._metadata: dict[str, Any] = _metadata
 

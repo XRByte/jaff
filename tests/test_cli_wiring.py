@@ -22,7 +22,7 @@ def _bare_jaffgen(network_config=None, duplicate_policy=None):
     jg.args = SimpleNamespace(
         label=None,
         funcfile=None,
-        replace_nH=None,
+        expand_nuclei=None,
         errors=None,
         network_config=network_config,
         duplicate_policy=duplicate_policy,
@@ -152,7 +152,7 @@ class TestJaffxWiring:
             network=DUP,
             funcfile=False,
             label=None,
-            replace_nh=None,
+            expand_nuclei=None,
             duplicate_policy=duplicate_policy,
         )
 
