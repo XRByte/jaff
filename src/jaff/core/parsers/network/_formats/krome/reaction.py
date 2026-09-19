@@ -1,23 +1,24 @@
-"""KROME comma-delimited reaction line."""
+"""KROME comma-delimited reaction handler."""
 
 import re
-from functools import cache
 
 from ......common import f90_convert
-from .. import register
-from .._base import NetworkFormat
-from .._context import ParseContext
+from ......errors import ParserError
 
 
-@register
-class KromeReaction(NetworkFormat):
-    """KROME comma-delimited reaction line."""
+class KromeReaction:
+    """KROME comma-delimited reaction line handler."""
 
-    priority = 60
     name = "krome"
-    family = "krome"
-    emits_reactions = True
-    state_key = "krome"
+    priority = 60
+    is_reaction = True
+
+    global_re = re.compile(
+        r"^(?!\s*[!#@])"
+        r"(?!.*,\s*(?i:NAN)\s*(?:,|$))"
+        r"(?=.*,)"
+        r"(?P<segment>.*)$"
+    )
 
     SPECIAL_MAP = {
         "CR": "_CR",
@@ -46,32 +47,22 @@ class KromeReaction(NetworkFormat):
         "user_av": "av",
     }
 
-    @cache
-    def _global_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(
-            r"^(?!\s*[!#@])"
-            r"(?!.*,\s*(?i:NAN)\s*(?:,|$))"
-            r"(?=.*,)"
-            r"(?P<segment>.*)$"
-        )
-
-    def _local_re(self, ctx: ParseContext) -> re.Pattern:
-        props = self.state(ctx)
-
+    def local_re(self, state: dict) -> re.Pattern:
+        """Build the field-extraction regex for the active KROME column layout."""
         return re.compile(
             r"^\s*"
             r"(?!.*,\s*(?i:NAN)\s*(?:,|$))"
-            + (r"(?P<idx>[^,]*)\s*,\s*" if props["idx"] else "")
-            + rf"(?P<reactants>(?:[^,]*\s*,\s*){{{props['nreact']}}})"
-            + rf"(?P<products>(?:[^,]*\s*,\s*){{{props['nprod']}}})"
-            + (r"(?P<tmin>[^,]*)\s*,\s*" if props["tmin"] else "")
-            + (r"(?P<tmax>[^,]*)\s*,\s*" if props["tmax"] else "")
-            + (r"(?P<rate>.*)" if props["rate"] else "")
+            + (r"(?P<idx>[^,]*)\s*,\s*" if state["idx"] else "")
+            + rf"(?P<reactants>(?:[^,]*\s*,\s*){{{state['nreact']}}})"
+            + rf"(?P<products>(?:[^,]*\s*,\s*){{{state['nprod']}}})"
+            + (r"(?P<tmin>[^,]*)\s*,\s*" if state["tmin"] else "")
+            + (r"(?P<tmax>[^,]*)\s*,\s*" if state["tmax"] else "")
+            + (r"(?P<rate>.*)" if state["rate"] else "")
             + r"\s*$"
         )
 
-    def handle(self, match: re.Match, ctx: ParseContext) -> None:
-        """Parse a KROME-format reaction line and append it to the parsed list.
+    def parse(self, line: str, nline: int, state: dict, file) -> dict:
+        """Parse a KROME-format reaction line into its reaction fields.
 
         Extracts the index, reactants, products, temperature bounds, and rate
         expression from the comma-delimited KROME format.  Applies species
@@ -84,12 +75,11 @@ class KromeReaction(NetworkFormat):
         Raises
         ------
         ParserError
-            Via :meth:`_handle_errors` if the line structure is inconsistent
-            with the declared KROME format.
+            If the line structure is inconsistent with the declared KROME format.
         """
-        local = self._local_re(ctx).match(ctx.line)
+        local = self.local_re(state).match(line)
         if not local:
-            self._handle_errors(match, ctx)
+            self._handle_errors(line, nline, state, file)
 
         reactants: str = local.group("reactants")
         products: str = local.group("products")
@@ -100,20 +90,26 @@ class KromeReaction(NetworkFormat):
         rr: list[str] = [r.strip() for r in reactants.split(",")[:-1]]
         pp: list[str] = [p.strip() for p in products.split(",")[:-1]]
 
-        if len(rr) != self.state(ctx)["nreact"]:
-            ctx.raise_error(
+        if len(rr) != state["nreact"]:
+            raise ParserError(
                 "Invalid KROME line detected\n"
-                f"Expected {self.state(ctx)['nreact']} reactants\n"
-                f"from line {self.state(ctx)['format_nline']}.\n"
-                f"Instead got {len(rr)} reactants"
+                f"Expected {state['nreact']} reactants\n"
+                f"from line {state['format_nline']}.\n"
+                f"Instead got {len(rr)} reactants",
+                line,
+                nline,
+                file,
             )
 
-        if len(pp) != self.state(ctx)["nprod"]:
-            ctx.raise_error(
+        if len(pp) != state["nprod"]:
+            raise ParserError(
                 "Invalid KROME line detected\n"
-                f"Expected {self.state(ctx)['nprod']} products \n"
-                f"from line {self.state(ctx)['format_nline']}.\n"
-                f"Instead got {len(pp)} products"
+                f"Expected {state['nprod']} products \n"
+                f"from line {state['format_nline']}.\n"
+                f"Instead got {len(pp)} products",
+                line,
+                nline,
+                file,
             )
 
         t_min: None | float = None
@@ -149,17 +145,15 @@ class KromeReaction(NetworkFormat):
         if "photo" in rate.lower() and "_PHOTON" not in rr:
             rr.append("_PHOTON")
 
-        ctx.parsed_list.append(
-            {
-                "r": rr,
-                "p": pp,
-                "tmin": t_min,
-                "tmax": t_max,
-                "rate": rate,
-                "type": self._reaction_type(rate, rr),
-                "string": ctx.line.strip(),
-            }
-        )
+        return {
+            "r": rr,
+            "p": pp,
+            "tmin": t_min,
+            "tmax": t_max,
+            "rate": rate,
+            "type": self._reaction_type(rate, rr),
+            "string": line.strip(),
+        }
 
     @staticmethod
     def _reaction_type(rate: str, rr: list[str]) -> str:
@@ -191,14 +185,17 @@ class KromeReaction(NetworkFormat):
 
         return "unknown"
 
-    def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
+    def _handle_errors(self, line, nline, state, file) -> None:
         """Raise a descriptive error for a malformed KROME reaction line.
 
         Diagnoses the most likely cause (wrong field count, wrong reactant or
         product count) before falling back to a generic error message.
         """
+        match = self.global_re.match(line)
+        assert match is not None
+
         segment = match.group("segment").lower()
-        props = self.state(ctx)
+        props = state
         num_fields = (
             int(props["idx"])
             + props["nreact"]
@@ -210,7 +207,7 @@ class KromeReaction(NetworkFormat):
         num_fields_detected: int = segment.count(",") + 1
 
         if num_fields != num_fields_detected:
-            ctx.raise_error(
+            raise ParserError(
                 "Number of fields in KROME reaction doesn't match\n"
                 f"Number of fields detected: {num_fields_detected}\n"
                 f"Number of fields expected: {num_fields}\n"
@@ -218,11 +215,14 @@ class KromeReaction(NetworkFormat):
                     f"KROME format defined on line: {props['format_nline']}"
                     if props["format_nline"]
                     else ""
-                )
+                ),
+                line,
+                nline,
+                file,
             )
 
         if segment.count("r") != props["nreact"]:
-            ctx.raise_error(
+            raise ParserError(
                 "Expected number of reactants did not match krome format\n"
                 f"Number of reactants expected: {props['nreact']}\n"
                 f"Number of reactants detected: {segment.count('r')}\n"
@@ -230,11 +230,14 @@ class KromeReaction(NetworkFormat):
                     f"KROME format defined on line: {props['format_nline']}"
                     if props["format_nline"]
                     else ""
-                )
+                ),
+                line,
+                nline,
+                file,
             )
 
         if segment.count("p") != props["nprod"]:
-            ctx.raise_error(
+            raise ParserError(
                 "Expected number of products did not match krome format\n"
                 f"Number of products expected: {props['nprod']}\n"
                 f"Number of products detected: {props['nprod']}\n"
@@ -242,7 +245,10 @@ class KromeReaction(NetworkFormat):
                     f"KROME format defined on line: {props['format_nline']}"
                     if props["format_nline"]
                     else ""
-                )
+                ),
+                line,
+                nline,
+                file,
             )
 
-        ctx.raise_error("Invalid KROME reaction detected")
+        raise ParserError("Invalid KROME reaction detected", line, nline, file)

@@ -79,3 +79,20 @@ class ParsedRecord:
             "string": self.string,
             "source_index": self.source_index,
         }
+
+
+class ParseResult:
+    """The output of a :class:`~._parser.Parser`'s ``process``.
+
+    Attributes
+    ----------
+    reactions : list[ParsedRecord]
+        Fully parsed reactions produced from the parser's bucket.
+    globals : dict
+        Symbolic globals (e.g. ``@var`` / ``VARIABLES`` entries) the parser
+        discovered; merged into the engine's global symbol map.
+    """
+
+    def __init__(self, reactions: list["ParsedRecord"], globals: dict):
+        self.reactions: list["ParsedRecord"] = reactions
+        self.globals: dict = globals

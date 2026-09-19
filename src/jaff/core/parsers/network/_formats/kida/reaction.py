@@ -1,21 +1,33 @@
-"""KIDA format: fixed-width column reaction database."""
+"""KIDA format: fixed-width column reaction handler."""
 
 import re
-from functools import cache
+from pathlib import Path
 
-from .. import register
-from .._base import NetworkFormat
-from .._context import ParseContext
+from ......errors import ParserError
 
 
-@register
-class KidaReaction(NetworkFormat):
-    """KIDA fixed-width reaction line."""
+class KidaReaction:
+    """KIDA fixed-width reaction line handler."""
 
-    priority = 80
     name = "kida"
-    family = "kida"
-    emits_reactions = True
+    priority = 80
+    is_reaction = True
+
+    global_re = re.compile(r"^(?!\s*[!#@]).{34}.{57}")
+
+    local_re = re.compile(
+        r"^(?P<reactants>.{34})"
+        r"(?P<products>.{57})"
+        r"\s*(?P<ka>[^\s]+)"
+        r"\s*(?P<kb>[^\s]+)"
+        r"\s*(?P<kc>[^\s]+)"
+        r"\s*[^\s]+\s*[^\s]+\s*[^\s]+"
+        r"\s*(?P<itype>[^\s]+)"
+        r"\s*(?P<tmin>[^\s]+)"
+        r"\s*(?P<tmax>[^\s]+)"
+        r"\s*(?P<formula>[^\s]+)"
+        r".*$"
+    )
 
     SPECIAL_MAP = {
         "CR": "_CR",
@@ -42,43 +54,22 @@ class KidaReaction(NetworkFormat):
     #: KIDA ``itype`` -> agent/catalyst pseudo-species injected as a reactant.
     ITYPE_AGENT = {1: "_CR", 2: "_CRP", 3: "_PHOTON", 9: "_GRAIN"}
 
-    @cache
-    def _global_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(r"^(?!\s*[!#@]).{34}.{57}")
-
-    @cache
-    def _local_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(
-            r"^(?P<reactants>.{34})"
-            r"(?P<products>.{57})"
-            r"\s*(?P<ka>[^\s]+)"
-            r"\s*(?P<kb>[^\s]+)"
-            r"\s*(?P<kc>[^\s]+)"
-            r"\s*[^\s]+\s*[^\s]+\s*[^\s]+"
-            r"\s*(?P<itype>[^\s]+)"
-            r"\s*(?P<tmin>[^\s]+)"
-            r"\s*(?P<tmax>[^\s]+)"
-            r"\s*(?P<formula>[^\s]+)"
-            r".*$"
-        )
-
-    def handle(self, match: re.Match, ctx: ParseContext) -> None:
-        """Parse a KIDA-format reaction line and append it to the parsed list.
+    def parse(self, line: str, nline: int, file: Path) -> dict:
+        """Parse a KIDA-format reaction line into its reaction fields.
 
         Extracts reactants, products, rate parameters (``ka``, ``kb``, ``kc``),
         temperature bounds, and formula index from the fixed-width KIDA column
         format.  Rate expressions are selected from a formula dictionary keyed
-        by the integer formula index (1–5).
+        by the integer formula index (1-5).
 
         Raises
         ------
         ParserError
-            Via :meth:`_handle_errors` if the line does not match the expected
-            KIDA format.
+            If the line does not match the expected KIDA format.
         """
-        local = self._local_re(ctx).match(ctx.line)
+        local = self.local_re.match(line)
         if not local:
-            self._handle_errors(match, ctx)
+            raise ParserError("Invalid KIDA reaction detected", line, nline, file)
 
         reactants: str = local.group("reactants")
         products: str = local.group("products")
@@ -119,21 +110,15 @@ class KidaReaction(NetworkFormat):
         if agent is not None and not (set(rr) & {agent, "_CR", "_CRP", "_CRPHOT"}):
             rr.append(agent)
 
-        ctx.parsed_list.append(
-            {
-                "r": rr,
-                "p": pp,
-                "tmin": t_min,
-                "tmax": t_max,
-                "rate": rate,
-                "type": rtype,
-                "string": ctx.line.strip(),
-            }
-        )
-
-    def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
-        """Raise an error for a malformed KIDA reaction line."""
-        ctx.raise_error("Invalid KIDA reaction detected")
+        return {
+            "r": rr,
+            "p": pp,
+            "tmin": t_min,
+            "tmax": t_max,
+            "rate": rate,
+            "type": rtype,
+            "string": line.strip(),
+        }
 
     @staticmethod
     def _reaction_type(itype: int, rr: list[str]) -> str:

@@ -14,9 +14,10 @@ into a format-independent ``parsedListProps`` dict with keys:
 Supported file formats
 ----------------------
 The parser auto-detects the format from line patterns.  Each format is a
-self-contained plugin under ``parsers.network._formats``; the engine discovers
-them through :func:`~.parsers.network._formats.all_formats`, which orders them
-by their declared ``priority`` (lower is matched first):
+self-contained parser under ``parsers.network._formats``; the engine discovers
+them through :func:`~.parsers.network._formats.all_parsers`.  Detection is
+driven by each parser's handler descriptors, ordered by their declared
+``priority`` (lower is matched first):
 
 1. **PRIZMO** — arrow-notation (``->``) with optional temperature range in
    ``[tmin, tmax]`` brackets.  Variables in a ``VARIABLES { }`` block.
@@ -42,7 +43,7 @@ from sympy import Basic, parse_expr
 
 from ....common import resolve_symbolic_dependencies
 from ....io import JaffLogger, jaff_progress
-from ._formats import NetworkFormat, ParseContext, all_formats, build_state
+from ._formats import Record, all_parsers
 from ._typing import parsedListProps
 
 
@@ -96,25 +97,44 @@ class NetworkParser:
         self.__set_known_replacments()
 
         self.__parsed_list: list[parsedListProps] = []
-        self.__formats: list[NetworkFormat] = all_formats()
-        self.__ctx: ParseContext = ParseContext(
-            self.__file,
-            self.__logger,
-            self.__globals,
-            self.__parsed_list,
-            build_state(self.__formats),
+
+        self.__parsers = all_parsers()
+        for parser in self.__parsers:
+            parser.file = self.__file
+            parser.logger = self.__logger
+
+        self.__descriptors = sorted(
+            (
+                (
+                    handler.priority,
+                    handler.global_re,
+                    handler.is_reaction,
+                    handler.name,
+                    parser,
+                )
+                for parser in self.__parsers
+                for handler in parser.handlers
+            ),
+            key=lambda d: d[0],
         )
 
         self.__source_counter: int = 0
-        self.__buckets: dict[str, list] = {}
+        self.__buckets: dict[str, list[Record]] = {}
 
         self.__parse_file()
 
-        fmt_by_name = {f.name: f for f in self.__formats}
-        for name, recs in self.__buckets.items():
-            fmt_by_name[name].process(recs, self.__ctx)
+        reactions = []
+        for parser in self.__parsers:
+            bucket = self.__buckets.get(parser.name)
+            if not bucket:
+                continue
 
-        self.__parsed_list.sort(key=lambda e: (e["source_index"], e.get("sub_order", 0)))
+            result = parser.process(bucket)
+            reactions.extend(result.reactions)
+            self.__globals.update(result.globals)
+
+        reactions.sort(key=lambda pr: (pr.source_index, pr.sub_order))
+        self.__parsed_list[:] = [pr.as_parsed_props() for pr in reactions]
 
         self.__normalize_rates()
         self.__globals = resolve_symbolic_dependencies(self.__globals, fname=self.__file)
@@ -129,8 +149,8 @@ class NetworkParser:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Free the registered format plugins on context manager exit."""
-        self.__formats.clear()
+        """Free the registered parsers on context manager exit."""
+        self.__parsers.clear()
 
         return
 
@@ -152,7 +172,7 @@ class NetworkParser:
         )
 
     def __parse_file(self) -> None:
-        """Read the network file line-by-line and dispatch each line for parsing.
+        """Read the network file line-by-line and detect/bucket each line.
 
         Iterates over every line of :attr:`__file`, advancing the line counter
         and calling :meth:`__parse_line` for each.
@@ -162,31 +182,41 @@ class NetworkParser:
             for i, line in enumerate(
                 jaff_progress.track(lines, description=f"Parsing {self.__file.name}")
             ):
-                self.__ctx.nline = i + 1
-                self.__ctx.line = line
-                self.__parse_line()
+                self.__parse_line(line, i + 1)
 
-    def __parse_line(self) -> None:
-        """Match the current line against all known formats and invoke the handler.
+    def __parse_line(self, line: str, nline: int) -> None:
+        """Detect the owning parser for *line* and bucket a raw :class:`Record`.
 
-        Iterates through :attr:`__formats` in priority order.  The first format
-        whose global regex matches handles the line.  If no format matches the
-        line is silently skipped.
+        Iterates through the handler descriptors in priority order.  The first
+        handler whose global regex matches owns the line: a :class:`Record` is
+        appended to its parser's bucket, tagged with the matched handler name
+        and — for a reaction handler — the next ``source_index``.  Directives
+        get ``source_index = -1``.  If no handler matches the line is silently
+        skipped.
         """
-        if not self.__ctx.line.strip():
+        if not line.strip():
             return
 
-        for fmt in self.__formats:
-            if match := fmt._global_re(self.__ctx).match(self.__ctx.line):
-                if fmt.emits_reactions:
-                    rec = fmt.capture(match, self.__ctx)
-                    rec.source_index = self.__source_counter
-                    self.__source_counter += 1
-                    self.__buckets.setdefault(fmt.name, []).append(rec)
-                else:
-                    fmt.handle(match, self.__ctx)
+        for _priority, global_re, is_reaction, name, parser in self.__descriptors:
+            if not global_re.match(line):
+                continue
 
-                break
+            if is_reaction:
+                source_index = self.__source_counter
+                self.__source_counter += 1
+            else:
+                source_index = -1
+
+            self.__buckets.setdefault(parser.name, []).append(
+                Record(
+                    source_index=source_index,
+                    line=line,
+                    nline=nline,
+                    format=name,
+                )
+            )
+
+            break
 
     def __set_known_replacments(self) -> None:
         """Pre-populate ``__globals`` with canonical JAFF symbol aliases.

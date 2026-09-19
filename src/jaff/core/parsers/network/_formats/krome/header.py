@@ -1,24 +1,31 @@
 """KROME ``@format:`` header — declares the column layout for reaction lines."""
 
 import re
-from functools import cache
 
+from ......errors import ParserError
 from ..._typing import kromeFormatProps
-from .. import register
-from .._base import NetworkFormat
-from .._context import ParseContext
 
 
-@register
-class KromeFormatHeader(NetworkFormat):
-    """KROME ``@format:`` header — declares column layout for reaction lines."""
+class KromeFormatHeader:
+    """KROME ``@format:`` header directive — declares column layout."""
 
-    priority = 10
     name = "krome_format"
-    family = "krome"
-    state_key = "krome"
+    priority = 10
+    is_reaction = False
 
-    def default_state(self) -> kromeFormatProps:  # type: ignore
+    global_re = re.compile(r"^\s*@format\s*:(?P<format>.*?)$")
+
+    local_re = re.compile(
+        r"^\s*@format\s*:\s*"
+        r"(?P<idx>(?i:idx)\s*,\s*)?"
+        r"(?P<reactants>(?:(?i:R)\s*,\s*)+)"
+        r"(?P<products>(?:(?i:P)\s*,\s*)+)"
+        r"(?P<tmin>(?i:tmin)\s*,?\s*)?"
+        r"(?P<tmax>(?i:tmax)\s*,?\s*)?"
+        r"(?P<rate>(?i:rate)\s*)?\s*$"
+    )
+
+    def default_state(self) -> kromeFormatProps:
         return {
             "format_nline": 0,  # line where @format was declared (0 = not yet seen)
             "idx": True,
@@ -29,41 +36,26 @@ class KromeFormatHeader(NetworkFormat):
             "rate": True,
         }
 
-    @cache
-    def _global_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(r"^\s*@format\s*:(?P<format>.*?)$")
+    def apply(self, line, nline, state, globals, file, logger) -> None:
+        """Parse a KROME ``@format:`` header and update the shared column state.
 
-    @cache
-    def _local_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(
-            r"^\s*@format\s*:\s*"
-            r"(?P<idx>(?i:idx)\s*,\s*)?"
-            r"(?P<reactants>(?:(?i:R)\s*,\s*)+)"
-            r"(?P<products>(?:(?i:P)\s*,\s*)+)"
-            r"(?P<tmin>(?i:tmin)\s*,?\s*)?"
-            r"(?P<tmax>(?i:tmax)\s*,?\s*)?"
-            r"(?P<rate>(?i:rate)\s*)?\s*$"
-        )
-
-    def handle(self, match: re.Match, ctx: ParseContext) -> None:
-        """Parse a KROME ``@format:`` header line and update the format descriptor.
-
-        Updates the shared ``"krome"`` state with the field counts and flags
-        detected in the format declaration so subsequent reaction lines are
-        matched with the correct column counts.
+        Updates *state* with the field counts and flags detected in the format
+        declaration so subsequent reaction lines are matched with the correct
+        column counts.
 
         Raises
         ------
         ParserError
-            Via :meth:`_handle_errors` if the format line is malformed.
+            If the format line is malformed.
         """
-        local = self._local_re(ctx).match(ctx.line)
-        if not local:
-            self._handle_errors(match, ctx)
+        local = self.local_re.match(line)
+        if local is None:
+            self._handle_errors(line, nline, file)
 
-        self.state(ctx).update(
+        assert local is not None
+        state.update(
             {
-                "format_nline": ctx.nline,
+                "format_nline": nline,
                 "idx": bool(local.group("idx")),
                 "nreact": local.group("reactants").lower().count("r"),
                 "nprod": local.group("products").lower().count("p"),
@@ -73,29 +65,38 @@ class KromeFormatHeader(NetworkFormat):
             }
         )
 
-    def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
+    def _handle_errors(self, line, nline, file) -> None:
         """Raise a descriptive error for a malformed KROME ``@format:`` line."""
+        match = self.global_re.match(line)
+        assert match is not None
+
         format = match.group("format")
         if format is None:
-            ctx.raise_error("Empty @format KROME declerative")
+            raise ParserError("Empty @format KROME declerative", line, nline, file)
 
         format = format.strip()
         if not format:
-            ctx.raise_error("Empty @format KROME declerative")
+            raise ParserError("Empty @format KROME declerative", line, nline, file)
 
         if "," not in format:
-            ctx.raise_error(
+            raise ParserError(
                 "Invalid @format KROME declerative\n"
-                "@format decelerative must be separated by ','"
+                "@format decelerative must be separated by ','",
+                line,
+                nline,
+                file,
             )
 
         expected_tokens = {"idx", "R", "P", "tmin", "tmax", "rate"}
         tokens = [token.strip() for token in format.split(",")]
         for token in tokens:
             if token not in expected_tokens:
-                ctx.raise_error(
+                raise ParserError(
                     f"Invalid token in krome format: {token}\n"
-                    f"Supported tokens are {','.join(expected_tokens)}"
+                    f"Supported tokens are {','.join(expected_tokens)}",
+                    line,
+                    nline,
+                    file,
                 )
 
-        ctx.raise_error("Invalid @format KROME declerative")
+        raise ParserError("Invalid @format KROME declerative", line, nline, file)

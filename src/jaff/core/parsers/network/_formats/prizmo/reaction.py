@@ -1,21 +1,32 @@
-"""PRIZMO arrow-notation reaction line."""
+"""PRIZMO arrow-notation reaction handler."""
 
 import re
-from functools import cache
 
-from .. import register
-from .._base import NetworkFormat
-from .._context import ParseContext
+from ......errors import ParserError
 
 
-@register
-class PrizmoReaction(NetworkFormat):
-    """PRIZMO arrow-notation reaction line."""
+class PrizmoReaction:
+    """PRIZMO arrow-notation reaction line handler."""
 
-    priority = 40
     name = "prizmo"
-    family = "prizmo"
-    emits_reactions = True
+    priority = 40
+    is_reaction = True
+
+    global_re = re.compile(r"^(?!\s*[!#]).*->.*$")
+
+    local_re = re.compile(
+        r"^\s*"
+        r"(?P<reactants>[\w\+\-\s]+)"
+        r"\s*->\s*"
+        r"(?P<products>[\w\+\-\s]+)"
+        r"\s*\[\s*"
+        r"(?P<tmin>[^,\]]*)?"
+        r"\s*,?\s*"
+        r"(?P<tmax>[^,\]]*)?"
+        r"\s*\]\s*"
+        r"(?P<rate>.*)"
+        r"\s*$"
+    )
 
     SPECIAL_MAP = {
         "GRAIN0": "_GRAIN",
@@ -27,28 +38,8 @@ class PrizmoReaction(NetworkFormat):
         "dummy": "_DUMMY",
     }
 
-    @cache
-    def _global_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(r"^(?!\s*[!#]).*->.*$")
-
-    @cache
-    def _local_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(
-            r"^\s*"
-            r"(?P<reactants>[\w\+\-\s]+)"
-            r"\s*->\s*"
-            r"(?P<products>[\w\+\-\s]+)"
-            r"\s*\[\s*"
-            r"(?P<tmin>[^,\]]*)?"
-            r"\s*,?\s*"
-            r"(?P<tmax>[^,\]]*)?"
-            r"\s*\]\s*"
-            r"(?P<rate>.*)"
-            r"\s*$"
-        )
-
-    def handle(self, match: re.Match, ctx: ParseContext) -> None:
-        """Parse a PRIZMO-format reaction line and append it to the parsed list.
+    def parse(self, line: str, nline: int, state: dict, file) -> dict:
+        """Parse a PRIZMO-format reaction line into its reaction fields.
 
         Extracts reactants, products, optional temperature bounds, and rate
         expression from the ``R1 + R2 -> P1 + P2 [tmin, tmax] rate`` pattern.
@@ -61,12 +52,11 @@ class PrizmoReaction(NetworkFormat):
         Raises
         ------
         ParserError
-            Via :meth:`_handle_errors` if the line does not match the expected
-            PRIZMO format.
+            If the line does not match the expected PRIZMO format.
         """
-        local = self._local_re(ctx).match(ctx.line)
+        local = self.local_re.match(line)
         if not local:
-            self._handle_errors(match, ctx)
+            raise ParserError("Invalid PRIZMO reaction detected", line, nline, file)
 
         reactants: str = local.group("reactants")
         products: str = local.group("products")
@@ -101,17 +91,15 @@ class PrizmoReaction(NetworkFormat):
         if "photo" in rate.lower() and "_PHOTON" not in rr:
             rr.append("_PHOTON")
 
-        ctx.parsed_list.append(
-            {
-                "r": rr,
-                "p": pp,
-                "tmin": t_min,
-                "tmax": t_max,
-                "rate": rate,
-                "type": self._reaction_type(rate, rr),
-                "string": ctx.line.strip(),
-            }
-        )
+        return {
+            "r": rr,
+            "p": pp,
+            "tmin": t_min,
+            "tmax": t_max,
+            "rate": rate,
+            "type": self._reaction_type(rate, rr),
+            "string": line.strip(),
+        }
 
     @staticmethod
     def _reaction_type(rate: str, rr: list[str]) -> str:
@@ -142,7 +130,3 @@ class PrizmoReaction(NetworkFormat):
             return "3_body"
 
         return "unknown"
-
-    def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
-        """Raise an error for a malformed PRIZMO reaction line."""
-        ctx.raise_error("Invalid PRIZMO reaction detected")

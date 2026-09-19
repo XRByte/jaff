@@ -1,4 +1,5 @@
+from .parser import PrizmoParser
 from .reaction import PrizmoReaction
 from .vars import PrizmoVars
 
-__all__ = ["PrizmoVars", "PrizmoReaction"]
+__all__ = ["PrizmoParser", "PrizmoVars", "PrizmoReaction"]
