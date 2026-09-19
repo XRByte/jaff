@@ -54,7 +54,7 @@ class KidaReaction:
     #: KIDA ``itype`` -> agent/catalyst pseudo-species injected as a reactant.
     ITYPE_AGENT = {1: "_CR", 2: "_CRP", 3: "_PHOTON", 9: "_GRAIN"}
 
-    def parse(self, line: str, nline: int, file: Path) -> dict:
+    def parse(self, line: str, nline: int, state: dict, file: Path) -> dict:
         """Parse a KIDA-format reaction line into its reaction fields.
 
         Extracts reactants, products, rate parameters (``ka``, ``kb``, ``kc``),
