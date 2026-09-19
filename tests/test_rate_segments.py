@@ -67,9 +67,29 @@ def test_constant_then_tempdep_separated_extrapolate():
     segs = [RateSegment(Integer(1), 10, 100), RateSegment(TGAS, 150, 250)]
     assert _eval(segs, "extrapolate", 50) == 1
     assert _eval(segs, "extrapolate", 200) == 200
-    # gap [100,150]: interp between const 1 and tgas; at 125 ->
-    # (1*(150-125) + 125*(125-100)) / (150-100) = (25 + 3125)/50 = 63
-    assert _eval(segs, "extrapolate", 125) == Rational(25 + 125 * 25, 50)
+    # gap [100,150]: interp between the two BOUNDING rates -- const 1 at a=100
+    # and tgas evaluated at b=150 (=150); at 125 ->
+    # (1*(150-125) + 150*(125-100)) / (150-100) = (25 + 3750)/50 = 75.5
+    assert _eval(segs, "extrapolate", 125) == Rational(25 + 150 * 25, 50)
+
+
+# --------------------------------------------------------------------------- #
+# separated temperature-dependent ranges: gap interpolates BOUNDING rates      #
+# --------------------------------------------------------------------------- #
+def test_two_tempdep_separated_interp_uses_boundary_rates():
+    """Gap bridges the two boundary constants, not the extrapolated fits.
+
+    seg1 rate=tgas valid [10,100] -> boundary rate at a=100 is 100.
+    seg2 rate=2*tgas valid [200,300] -> boundary rate at b=200 is 400.
+    Gap [100,200] is a straight line 100->400; midpoint 150 -> 250.
+    (The old code blended both fits extrapolated into the gap -> 225.)
+    """
+    segs = [RateSegment(TGAS, 10, 100), RateSegment(2 * TGAS, 200, 300)]
+    assert _eval(segs, "clip", 100) == 100   # left boundary rate
+    assert _eval(segs, "clip", 200) == 400   # right boundary rate
+    assert _eval(segs, "clip", 150) == 250   # midpoint of straight gap
+    # interior fraction: 100 + (400-100)*(125-100)/(200-100) = 175
+    assert _eval(segs, "clip", 125) == 175
 
 
 # --------------------------------------------------------------------------- #

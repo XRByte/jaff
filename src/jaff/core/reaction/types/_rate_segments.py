@@ -134,8 +134,9 @@ class RateSegments(Catalogue[RateSegment]):
             a = prev.tmax  # left boundary
             b = seg.tmin  # right boundary
             if a != b:
-                # Separated ranges: bridge the gap [a, b] by linear interpolation.
-                interp = (prev.rate * (b - tgas) + seg.rate * (tgas - a)) / (b - a)
+                left = prev.rate.xreplace({tgas: a})
+                right = seg.rate.xreplace({tgas: b})
+                interp = (left * (b - tgas) + right * (tgas - a)) / (b - a)
                 segs.append((interp, tgas < seg.tmin))
 
             # Always emit this range's own body (touching ranges have no gap).
