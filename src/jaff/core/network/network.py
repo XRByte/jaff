@@ -489,6 +489,7 @@ class Network:
                 index=i,
                 type=rtype,
                 t_cutoff=local_tcutoff,
+                errors=self.spec.errors,
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
@@ -561,6 +562,7 @@ class Network:
                 original_string=reaction["original_string"],
                 index=i,
                 type=reaction.get("reaction_type", "unknown"),
+                errors=self.spec.errors,
             )
             rea.custom_rad_rate = reaction["custom_rad_rate"]
             segments = reaction.get("rate_segments")
