@@ -1,5 +1,7 @@
 """PRIZMO parser: arrow-notation reactions + ``VARIABLES { }`` directives."""
 
+from sympy import parse_expr
+
 from .._parser import Parser, register
 from .._record import ParsedRecord, ParseResult
 from .reaction import PrizmoReaction
@@ -13,6 +15,19 @@ class PrizmoParser(Parser):
     name = "prizmo"
     priority = 30
 
+    #: Temperature shorthands common to the KROME/PRIZMO conventions. The
+    #: density accessors and ``user_*`` aliases are KROME-specific and live
+    #: only on the KROME parser. A file's own ``VARIABLES`` block overrides
+    #: these (applied after seeding).
+    BASE_GLOBALS = {
+        "invt32": "1e0 / t32",
+        "invte": "1e0 / te",
+        "t32": "tgas/3e2",
+        "te": "tgas*8.617343e-5",
+        "invtgas": "1e0 / tgas",
+        "sqrtgas": "sqrt(tgas)",
+    }
+
     def __init__(self):
         self.handlers = [PrizmoVars(), PrizmoReaction()]
 
@@ -24,7 +39,7 @@ class PrizmoParser(Parser):
         :class:`ParsedRecord` objects.
         """
         state = self._initial_state()
-        globals_: dict = {}
+        globals_: dict = {k: parse_expr(v) for k, v in self.BASE_GLOBALS.items()}
         by_name = {h.name: h for h in self.handlers}
         reactions: list[ParsedRecord] = []
 

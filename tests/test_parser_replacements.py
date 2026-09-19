@@ -1,13 +1,19 @@
 # ABOUTME: Characterization tests pinning current parser shorthand-replacement behavior
-# ABOUTME: Regression guard before moving __set_known_replacments format-side
+# ABOUTME: Regression guard now that BASE_GLOBALS is owned by the KROME parser
 
 import sympy
 
 TGAS = sympy.symbols("tgas")
 
 
-def _rate(make_network, rate_str, reactants="H + C", product="CH", **kw):
-    net = make_network([f"{reactants} -> {product} [10,1000] {rate_str}"], **kw)
+def _rate(make_network, rate_str, reactants="H,C", product="CH", **kw):
+    net = make_network(
+        [
+            "@format:idx,R,R,P,tmin,tmax,rate",
+            f"1,{reactants},{product},10,1000,{rate_str}",
+        ],
+        **kw,
+    )
     return net, net.reactions[0].rate
 
 
@@ -17,7 +23,7 @@ def _at(rate, t=100):
 
 
 # --------------------------------------------------------------------------- #
-# temperature shorthands (KROME/PRIZMO), incl. order-dependent compounds       #
+# temperature shorthands (KROME), incl. order-dependent compounds              #
 # Rates are evaluated at T=100 (inside [10,1000]) to bypass the clip Piecewise. #
 # --------------------------------------------------------------------------- #
 def test_t32_expands_to_tgas_over_300(make_network):
@@ -77,19 +83,21 @@ def test_n_idx_h_is_atomic_H_density(make_network):
 
 
 def test_n_idx_h2_is_H2_density(make_network):
-    net, rate = _rate(make_network, "n(idx_H2)", reactants="H2 + C", product="CH2")
+    net, rate = _rate(make_network, "n(idx_H2)", reactants="H2,C", product="CH2")
     assert rate == net.ndens[sympy.Idx(net.species["H2"].index)]
 
 
 def test_n_global_idx_h2_is_H2_density(make_network):
-    net, rate = _rate(make_network, "n_global(idx_H2)", reactants="H2 + C", product="CH2")
+    net, rate = _rate(
+        make_network, "n_global(idx_H2)", reactants="H2,C", product="CH2"
+    )
     assert rate == net.ndens[sympy.Idx(net.species["H2"].index)]
 
 
 def test_get_hnuclei_is_H_nucleus_sum(make_network):
     # get_hnuclei(n) -> nh -> total H-nuclei sum (H once, H2 twice).
     net, rate = _rate(
-        make_network, "get_hnuclei(n)", reactants="H + H", product="H2"
+        make_network, "get_hnuclei(n)", reactants="H,H", product="H2"
     )
     nden = net.ndens
     expected = nden[sympy.Idx(net.species["H"].index)] + 2 * nden[

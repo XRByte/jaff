@@ -39,7 +39,7 @@ JAFF symbols before the strings are passed to SymPy for sympification.
 import logging
 from pathlib import Path
 
-from sympy import Basic, parse_expr
+from sympy import Basic
 
 from ....common import resolve_symbolic_dependencies
 from ....io import JaffLogger, jaff_progress
@@ -93,8 +93,6 @@ class NetworkParser:
         self.__file: Path = file
         self.__logger: logging.Logger = logger or JaffLogger().get_logger()
         self.__globals: dict[str, Basic] = {}
-        # Pre-populate well-known Fortran/KROME shorthand symbols as SymPy aliases.
-        self.__set_known_replacments()
 
         self.__parsed_list: list[parsedListProps] = []
 
@@ -217,35 +215,6 @@ class NetworkParser:
             )
 
             break
-
-    def __set_known_replacments(self) -> None:
-        """Pre-populate ``__globals`` with canonical JAFF symbol aliases.
-
-        Inserts SymPy expressions for common KROME/PRIZMO shorthand variables
-        such as ``t32``, ``te``, ``invtgas``, and ``sqrtgas`` so that they are
-        resolved automatically during rate normalization.
-        """
-        # Populate __globals with canonical SymPy aliases for common shorthand
-        # symbols found in KROME/PRIZMO files.  Order matters: compound aliases
-        # (invt32, invte) must be listed before the simpler ones they depend on
-        # so that resolve_symbolic_dependencies can substitute correctly.
-        replacements = {
-            "invt32": "1e0 / t32",
-            "invte": "1e0 / te",
-            "t32": "tgas/3e2",
-            "te": "tgas*8.617343e-5",
-            "invtgas": "1e0 / tgas",
-            "sqrtgas": "sqrt(tgas)",
-            "user_tdust": "tdust",
-            "user_av": "av",
-            "get_hnuclei(n)": "nh",
-            "n(idx_h2)": "nh2",
-            "n(idx_h)": "nh0",
-            "n_global(idx_h2)": "nh2",
-        }
-
-        for k, v in replacements.items():
-            self.__globals[k] = parse_expr(v)
 
     def __normalize_rates(self):
         """Lower-case all rate strings so SymPy ``parse_expr`` is case-insensitive."""
