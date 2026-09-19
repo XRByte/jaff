@@ -1103,8 +1103,11 @@ class Network:
         instead of being expanded over all species.
 
         Two further shorthands are resolved: ``rc_<int>`` is replaced by the
-        computed rate coefficient of reaction ``<int>`` (``self.reactions[N].rate``),
-        and ``chi_pe`` is replaced by the photoelectric field strength
+        computed rate coefficient of the reaction whose file-side number
+        (``source_index``) is ``<int>``, looked up via
+        ``self.reactions.by_source_index`` (not the catalogue position, so it
+        stays dedup-safe and consistent with ``chemRateN``); and ``chi_pe`` is
+        replaced by the photoelectric field strength
         ``self.dust.pe.chi`` (which requires both radiation and dust to be
         enabled, otherwise a :class:`ParserError` is raised).
         """
@@ -1196,8 +1199,14 @@ class Network:
                         f"The 'rc_' keyword in {self.spec.funcfile} must be followed by an integer\n"
                         f"denoting the reaction number. Found {name}"
                     )
+                else:
+                    rxn = self.reactions.by_source_index(num)
+                    if rxn is None:
+                        raise ParserError(
+                            f"'{name}' references reaction {num}, which is not in the network"
+                        )
 
-                repl = self.reactions[num].rate
+                    repl = rxn.rate
 
             if repl is not None:
                 reps[fs] = repl
