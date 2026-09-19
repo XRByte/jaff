@@ -2,7 +2,7 @@
 
 ``Elements`` is derived from a list of ``Specie`` objects, with helpers for
 building truth and density matrices used in stoichiometry calculations.  It is
-a flyweight: instances with the same sorted species set are reused.
+a flyweight: instances built from the same ordered species sequence are reused.
 """
 
 from __future__ import annotations
@@ -21,9 +21,10 @@ if TYPE_CHECKING:
 class Elements(Catalogue):
     """Sorted, deduplicated collection of elements derived from a species list.
 
-    ``Elements`` is also a flyweight: instances with the same sorted species
-    set are reused.  The internal order follows alphabetical sort on element
-    symbol, which fixes the row order of the composition matrices.
+    ``Elements`` is also a flyweight: instances built from the same ordered
+    species sequence are reused.  The internal element order follows
+    alphabetical sort on element symbol, which fixes the row order of the
+    composition matrices; the column order follows the caller's species order.
 
     Attributes
     ----------
@@ -92,12 +93,11 @@ class Elements(Catalogue):
         Returns
         -------
         Elements
-            Existing cached instance keyed by the sorted species serialization,
+            Existing cached instance keyed by the ordered species sequence,
             or a newly allocated one.
         """
-        # Serialise the species set to a canonical key for flyweight look-up.
         _species = cls.__get_species_list(species)
-        _serialized: str = "_".join(sorted(str(s) for s in _species))
+        _serialized: tuple[str, ...] = tuple(str(s) for s in _species)
         if _serialized in cls._register:
             return cls._register[_serialized]
 
