@@ -92,3 +92,55 @@ def test_flattened_to_normal_rejects_sparse_indices():
     )
     with pytest.raises(ValueError):
         sparse.normal()
+
+
+# --------------------------------------------------------------------------- #
+# construction: iterable materialization (tuples, generators, no mutation)    #
+# --------------------------------------------------------------------------- #
+def test_nested_tuple_child():
+    """Tuple children must not fail on item assignment."""
+    lst = IndexedList([(1, 2)], nested=True)
+    child = lst[0].value
+    assert isinstance(child, IndexedList)
+    assert pairs_of(child) == [([0], 1), ([1], 2)]
+
+
+def test_nested_generator_child_not_exhausted():
+    """Generator children must be materialized, not consumed to empty."""
+    lst = IndexedList([(i for i in [1, 2])], nested=True)
+    child = lst[0].value
+    assert isinstance(child, IndexedList)
+    assert pairs_of(child) == [([0], 1), ([1], 2)]
+
+
+def test_nested_list_child():
+    lst = IndexedList([[1, 2]], nested=True)
+    assert pairs_of(lst[0].value) == [([0], 1), ([1], 2)]
+
+
+def test_flatten_tuple_child():
+    flat = IndexedList([(1, 2)], flatten=True)
+    assert pairs_of(flat) == [([0, 0], 1), ([0, 1], 2)]
+
+
+def test_flatten_generator_child_not_exhausted():
+    flat = IndexedList([(i for i in [1, 2])], flatten=True)
+    assert pairs_of(flat) == [([0, 0], 1), ([0, 1], 2)]
+
+
+def test_nested_does_not_mutate_caller_list():
+    """A caller's nested list must be left untouched by construction."""
+    inner = [1, 2]
+    outer = [inner]
+    IndexedList(outer, nested=True)
+    assert inner == [1, 2]
+    assert outer == [[1, 2]]
+    assert outer[0] is inner
+
+
+def test_flatten_does_not_mutate_caller_list():
+    inner = [1, 2]
+    outer = [inner]
+    IndexedList(outer, flatten=True)
+    assert inner == [1, 2]
+    assert outer == [[1, 2]]

@@ -319,12 +319,18 @@ class IndexedList(list):
         if all_indexed:
             # Normalize IndexedValue objects to ensure nested iterables are IndexedList
             for i, item in enumerate(items):
-                if isinstance(item, IndexedValue) and self.__is_iterable(item.value):
-                    # Check if the iterable contains IndexedValue objects
-                    if any(isinstance(v, IndexedValue) for v in item.value):
-                        # Convert to IndexedList (handles list, tuple, etc.)
-                        if not isinstance(item.value, IndexedList):
-                            items[i] = IndexedValue(item.indices, IndexedList(item.value))
+                if (
+                    isinstance(item, IndexedValue)
+                    and self.__is_iterable(item.value)
+                    and not isinstance(item.value, IndexedList)
+                ):
+                    # Materialize once: probing a generator would exhaust it.
+                    payload = list(item.value)
+                    if any(isinstance(v, IndexedValue) for v in payload):
+                        items[i] = IndexedValue(item.indices, IndexedList(payload))
+                    else:
+                        # Retain the materialized payload, not the consumed original.
+                        items[i] = IndexedValue(item.indices, payload)
             if flatten and out is not None:
                 out.extend(items)
             return
@@ -332,27 +338,20 @@ class IndexedList(list):
         for i, item in enumerate(items):
             idx = index_prefix + [i] if flatten else [i]
 
-            if self.__is_iterable(item) and not isinstance(item, (str, bytes)):
+            if self.__is_iterable(item):
+                materialized = list(item)
                 if flatten:
                     self.__convert_to_indexed_list(
-                        item,
+                        materialized,
                         nested=nested,
                         flatten=True,
                         index_prefix=idx,
                         out=out,
                     )
                 elif nested:
-                    self.__convert_to_indexed_list(
-                        item,
-                        nested=nested,
-                        flatten=False,
-                        index_prefix=[],
-                        out=None,
-                    )
-                    # Wrap the nested list in an IndexedList
-                    items[i] = IndexedValue(idx, IndexedList(item))
+                    items[i] = IndexedValue(idx, IndexedList(materialized, nested=True))
                 else:
-                    items[i] = IndexedValue(idx, item)
+                    items[i] = IndexedValue(idx, materialized)
             else:
                 iv = IndexedValue(idx, item)
                 if flatten and out is not None:
