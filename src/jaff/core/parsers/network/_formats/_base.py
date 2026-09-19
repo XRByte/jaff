@@ -1,5 +1,12 @@
+from __future__ import annotations
+
 import re
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._context import ParseContext
+    from ._record import Record
 
 
 class NetworkFormat(ABC):
@@ -20,11 +27,18 @@ class NetworkFormat(ABC):
         Formats that must share live state (e.g. a ``@format`` header and the
         reaction lines it configures) declare the *same* ``state_key``.  The
         empty string means the format keeps no state.
+    emits_reactions : bool
+        ``True`` for a *reaction* format: on a match the engine ``capture``s the
+        line into a per-format bucket for deferred ``process``.  ``False``
+        (default) for a *directive* format (e.g. a ``@format`` header or
+        ``@var``): the engine calls ``handle`` inline so the state and globals
+        those directives set are live before reactions are processed.
     """
 
     priority: int
     name: str
     state_key: str = ""
+    emits_reactions: bool = False
 
     def default_state(self) -> dict:
         """Return this format's initial mutable props.
@@ -39,7 +53,7 @@ class NetworkFormat(ABC):
         """
         return {}
 
-    def state(self, ctx) -> dict:
+    def state(self, ctx: "ParseContext") -> dict:
         """Return this format's live state slice from *ctx*.
 
         Parameters
@@ -56,12 +70,12 @@ class NetworkFormat(ABC):
         return ctx.state[self.state_key]
 
     @abstractmethod
-    def _global_re(self, ctx) -> re.Pattern:
+    def _global_re(self, ctx: "ParseContext") -> re.Pattern:
         """Return the compiled regex used to classify a line as this format."""
         pass
 
     @abstractmethod
-    def _local_re(self, ctx) -> re.Pattern:
+    def _local_re(self, ctx: "ParseContext") -> re.Pattern:
         """Return the compiled regex used to extract fields from a line.
 
         Recomputed per call so it reflects the current ``ctx.state`` (e.g. the
@@ -70,6 +84,48 @@ class NetworkFormat(ABC):
         pass
 
     @abstractmethod
-    def handle(self, match: re.Match, ctx) -> None:
+    def handle(self, match: re.Match, ctx: "ParseContext") -> None:
         """Process a matched line, mutating *ctx* (append a reaction, update state)."""
         pass
+
+    def capture(self, match: re.Match, ctx: "ParseContext") -> "Record":
+        """Return a Record snapshotting the state this format needs.
+
+        Default snapshots this format's whole state slice. Formats override to
+        capture a narrower snapshot.
+        """
+        from ._record import Record
+
+        meta = dict(self.state(ctx)) if self.state_key else {}
+        return Record(
+            source_index=-1,  # engine assigns
+            line=ctx.line,
+            nline=ctx.nline,
+            format=self.name,
+            metadata=meta,
+        )
+
+    def process(self, records: list["Record"], ctx: "ParseContext") -> None:
+        """Process this format's captured records into parsed reactions.
+
+        Default: replay each record's snapshot into ctx and call ``handle`` so
+        unmigrated formats behave exactly as before.
+        """
+        for rec in records:
+            if self.state_key:
+                ctx.state[self.state_key].clear()
+                ctx.state[self.state_key].update(rec.metadata)
+
+            ctx.line = rec.line
+            ctx.nline = rec.nline
+            before = len(ctx.parsed_list)
+            m = self._global_re(ctx).match(rec.line)
+
+            if m is None:
+                ctx.raise_error(
+                    f"{self.name} failed to re-match a captured reaction line"
+                )
+
+            self.handle(m, ctx)
+            for entry in ctx.parsed_list[before:]:
+                entry.setdefault("source_index", rec.source_index)

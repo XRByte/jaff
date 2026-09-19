@@ -13,6 +13,7 @@ class; no engine or :class:`~._context.ParseContext` edits.
 
 from ._base import NetworkFormat
 from ._context import ParseContext
+from ._record import Record
 
 _REGISTRY: list[type[NetworkFormat]] = []
 
@@ -79,4 +80,11 @@ def build_state(formats: list[NetworkFormat]) -> dict[str, dict]:
     return state
 
 
-__all__ = ["NetworkFormat", "ParseContext", "register", "all_formats", "build_state"]
+__all__ = [
+    "NetworkFormat",
+    "ParseContext",
+    "Record",
+    "register",
+    "all_formats",
+    "build_state",
+]
