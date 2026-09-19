@@ -406,16 +406,16 @@ class Reaction:
             if errors:
                 self.logger.error(message)
                 sys.exit(1)
-            if errors:
-                self.logger.warning(message)
+
+            self.logger.warning(message)
 
         if not self.check_charge():
             message = f"Charge not conserved in reaction {self.index}: {self.verbatim}"
             if errors:
                 self.logger.error(message)
                 sys.exit(1)
-            if errors:
-                self.logger.warning(message)
+
+            self.logger.warning(message)
 
     def check_mass(self) -> bool:
         """Return ``True`` if mass is conserved within one electron mass.
