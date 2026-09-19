@@ -14,6 +14,8 @@ class KidaReaction(NetworkFormat):
 
     priority = 80
     name = "kida"
+    family = "kida"
+    emits_reactions = True
 
     SPECIAL_MAP = {
         "CR": "_CR",

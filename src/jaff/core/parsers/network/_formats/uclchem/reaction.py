@@ -15,6 +15,8 @@ class UclchemReaction(NetworkFormat):
 
     priority = 70
     name = "uclchem"
+    family = "uclchem"
+    emits_reactions = True
 
     SPECIAL_MAP = {
         "CR": "_CR",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ._context import ParseContext
@@ -33,14 +33,18 @@ class NetworkFormat(ABC):
         (default) for a *directive* format (e.g. a ``@format`` header or
         ``@var``): the engine calls ``handle`` inline so the state and globals
         those directives set are live before reactions are processed.
+    family : str
+        Subpackage name grouping this format with its siblings for
+        ``FormatFamily``-level processing (e.g. ``"krome"``).
     """
 
     priority: int
     name: str
     state_key: str = ""
     emits_reactions: bool = False
+    family: str = ""
 
-    def default_state(self) -> dict:
+    def default_state(self) -> dict[Any, Any]:
         """Return this format's initial mutable props.
 
         Merged into ``ParseContext.state[self.state_key]`` once at parser

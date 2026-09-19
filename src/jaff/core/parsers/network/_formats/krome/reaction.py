@@ -15,6 +15,8 @@ class KromeReaction(NetworkFormat):
 
     priority = 60
     name = "krome"
+    family = "krome"
+    emits_reactions = True
     state_key = "krome"
 
     SPECIAL_MAP = {

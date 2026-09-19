@@ -13,7 +13,8 @@ class; no engine or :class:`~._context.ParseContext` edits.
 
 from ._base import NetworkFormat
 from ._context import ParseContext
-from ._record import Record
+from ._family import FormatFamily, register_family
+from ._record import ParsedRecord, Record
 
 _REGISTRY: list[type[NetworkFormat]] = []
 
@@ -80,11 +81,47 @@ def build_state(formats: list[NetworkFormat]) -> dict[str, dict]:
     return state
 
 
+def all_families() -> list[FormatFamily]:
+    """Group all registered formats into their :class:`FormatFamily` instances.
+
+    Every :class:`NetworkFormat` member is bucketed by its ``family``
+    attribute; each bucket is handed to its registered ``FormatFamily``
+    subclass (looked up via :data:`_FAMILY_REGISTRY`), or the plain
+    ``FormatFamily`` base class if none is registered for that name.
+
+    Returns
+    -------
+    list[FormatFamily]
+        One instance per distinct ``family``, sorted by priority.
+    """
+    from ._family import _FAMILY_REGISTRY
+
+    members = all_formats()
+    by_family: dict[str, list] = {}
+    for m in members:
+        by_family.setdefault(m.family, []).append(m)
+
+    fams = []
+    for fam_name, mem in by_family.items():
+        cls = _FAMILY_REGISTRY.get(fam_name, FormatFamily)
+        inst = cls(mem)
+        if not inst.name:
+            inst.name = fam_name
+
+        fams.append(inst)
+
+    return sorted(fams, key=lambda f: f.priority or min(m.priority for m in f.members))
+
+
 __all__ = [
     "NetworkFormat",
     "ParseContext",
+    "ParsedRecord",
     "Record",
+    "FormatFamily",
+    "register_family",
     "register",
     "all_formats",
+    "all_families",
     "build_state",
 ]

@@ -15,6 +15,7 @@ class KromeFormatHeader(NetworkFormat):
 
     priority = 10
     name = "krome_format"
+    family = "krome"
     state_key = "krome"
 
     def default_state(self) -> kromeFormatProps:  # type: ignore

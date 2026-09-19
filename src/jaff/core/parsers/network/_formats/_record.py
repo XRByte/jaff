@@ -36,3 +36,46 @@ class Record:
         self.format: str = format
         self.metadata: dict = metadata if metadata is not None else {}
         self.sub_order: int = sub_order
+
+
+class ParsedRecord:
+    """A fully parsed reaction produced by a format family's ``process``.
+
+    The engine sorts these by ``(source_index, sub_order)`` and converts each to
+    the ``parsedListProps`` dict consumed by ``Network``.
+    """
+
+    def __init__(
+        self,
+        r: list[str],
+        p: list[str],
+        tmin: float | None,
+        tmax: float | None,
+        rate: str,
+        type: str,
+        string: str,
+        source_index: int,
+        sub_order: int = 0,
+    ):
+        self.r = r
+        self.p = p
+        self.tmin = tmin
+        self.tmax = tmax
+        self.rate = rate
+        self.type = type
+        self.string = string
+        self.source_index = source_index
+        self.sub_order = sub_order
+
+    def as_parsed_props(self) -> dict:
+        """Convert to the engine's ``parsedListProps`` dict (+ source_index)."""
+        return {
+            "r": self.r,
+            "p": self.p,
+            "tmin": self.tmin,
+            "tmax": self.tmax,
+            "rate": self.rate,
+            "type": self.type,
+            "string": self.string,
+            "source_index": self.source_index,
+        }

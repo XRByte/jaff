@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 parsedListProps = TypedDict(
     "parsedListProps",
@@ -10,5 +10,6 @@ parsedListProps = TypedDict(
         "rate": str,
         "type": str,
         "string": str,
+        "source_index": NotRequired[int],
     },
 )

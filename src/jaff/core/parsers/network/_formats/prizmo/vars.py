@@ -18,6 +18,7 @@ class PrizmoVars(NetworkFormat):
 
     priority = 30
     name = "prizmo_vars"
+    family = "prizmo"
     state_key = "prizmo"
 
     def default_state(self) -> prizmoFormatProps:

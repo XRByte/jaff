@@ -14,6 +14,8 @@ class UdfaReaction(NetworkFormat):
 
     priority = 50
     name = "udfa"
+    family = "udfa"
+    emits_reactions = True
 
     SPECIAL_MAP = {
         "CR": "_CR",

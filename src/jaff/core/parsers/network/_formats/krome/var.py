@@ -17,6 +17,7 @@ class KromeVar(NetworkFormat):
 
     priority = 20
     name = "krome_var"
+    family = "krome"
 
     @cache
     def _global_re(self, ctx: ParseContext) -> re.Pattern:

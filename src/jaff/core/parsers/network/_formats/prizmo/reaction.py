@@ -14,6 +14,8 @@ class PrizmoReaction(NetworkFormat):
 
     priority = 40
     name = "prizmo"
+    family = "prizmo"
+    emits_reactions = True
 
     SPECIAL_MAP = {
         "GRAIN0": "_GRAIN",

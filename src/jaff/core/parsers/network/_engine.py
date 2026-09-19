@@ -105,9 +105,17 @@ class NetworkParser:
             build_state(self.__formats),
         )
 
+        self.__source_counter: int = 0
+        self.__buckets: dict[str, list] = {}
+
         self.__parse_file()
-        for idx, entry in enumerate(self.__parsed_list):
-            entry["source_index"] = idx
+
+        fmt_by_name = {f.name: f for f in self.__formats}
+        for name, recs in self.__buckets.items():
+            fmt_by_name[name].process(recs, self.__ctx)
+
+        self.__parsed_list.sort(key=lambda e: (e["source_index"], e.get("sub_order", 0)))
+
         self.__normalize_rates()
         self.__globals = resolve_symbolic_dependencies(self.__globals, fname=self.__file)
 
@@ -170,7 +178,14 @@ class NetworkParser:
 
         for fmt in self.__formats:
             if match := fmt._global_re(self.__ctx).match(self.__ctx.line):
-                fmt.handle(match, self.__ctx)
+                if fmt.emits_reactions:
+                    rec = fmt.capture(match, self.__ctx)
+                    rec.source_index = self.__source_counter
+                    self.__source_counter += 1
+                    self.__buckets.setdefault(fmt.name, []).append(rec)
+                else:
+                    fmt.handle(match, self.__ctx)
+
                 break
 
     def __set_known_replacments(self) -> None:
