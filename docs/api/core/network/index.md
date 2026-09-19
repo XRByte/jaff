@@ -53,22 +53,22 @@ _FileNotFoundError_
 
 ## Attributes
 
-| Attribute         | Type                | Description                                                                                                         |
-| ----------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `label`           | `str`               | Human-readable network identifier; defaults to the source file stem                                                 |
-| `filename`        | `Path`              | Resolved absolute path to the source network file                                                                   |
-| `spec`            | `NetworkSpec`       | Normalized construction parameters (resolved `fname`, parsed `config` dict, `funcfile`, `aux_funcs`, ...)           |
-| `species`         | `Species`           | Ordered catalogue of the network's core (real) species; special pseudo-species (`_PHOTON`, `_CR`, ...) are excluded |
-| `reactions`       | `Reactions`         | Ordered catalogue of all reactions in the network                                                                   |
-| `elements`        | `Elements`          | Element catalogue derived from all species; used for composition matrices                                           |
-| `reactant_matrix` | `ndarray`           | Shape (n_reactions, n_species) stoichiometry matrix for reactants                                                   |
-| `product_matrix`  | `ndarray`           | Shape (n_reactions, n_species) stoichiometry matrix for products                                                    |
-| `mass_dict`       | `dict`              | Mapping from element symbol to mass properties, used for conservation checks                                        |
-| `dEdt_chem`       | `sympy.Basic`       | Total chemical heating/cooling rate (erg cm⁻³ s⁻¹), accumulated over all reactions                                  |
-| `dEdt_other`      | `sympy.Basic`       | Additional heating/cooling rate from the `heatingcoolingrate` auxiliary function, if present                        |
-| `dRad_dt_extra`   | `sympy.Basic`       | Extra radiation moment source terms from `@function` definitions                                                    |
-| `radiation`       | `Radiation or None` | Radiation field object; `None` when no radiation bands are specified                                                |
-| `ndens`           | `sympy.MatrixSymbol`| Symbolic `nden` column vector of species number densities, shape (n_species, 1); `nden[i]` is species `i`           |
-| `ntot`            | `sympy.Expr`        | Total number density, `Σ_i nden[i]` over all species                                                                |
-| `rho`             | `sympy.Expr`        | Mass density, `Σ_i m_i · nden[i]`; species with unset mass contribute `0`                                           |
-| `n_hnuc`          | `sympy.Expr`        | Total hydrogen-nuclei density, `Σ_i H-count(i) · nden[i]` (cached); equivalent to the `n_H_nuc` grammar token |
+| Attribute         | Type                 | Description                                                                                                         |
+| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `label`           | `str`                | Human-readable network identifier; defaults to the source file stem                                                 |
+| `filename`        | `Path`               | Resolved absolute path to the source network file                                                                   |
+| `spec`            | `NetworkSpec`        | Normalized construction parameters (resolved `fname`, parsed `config` dict, `funcfile`, `aux_funcs`, ...)           |
+| `species`         | `Species`            | Ordered catalogue of the network's core (real) species; special pseudo-species (`_PHOTON`, `_CR`, ...) are excluded |
+| `reactions`       | `Reactions`          | Ordered catalogue of all reactions in the network                                                                   |
+| `elements`        | `Elements`           | Element catalogue derived from all species; used for composition matrices                                           |
+| `reactant_matrix` | `ndarray`            | Shape (n_reactions, n_species) stoichiometry matrix for reactants                                                   |
+| `product_matrix`  | `ndarray`            | Shape (n_reactions, n_species) stoichiometry matrix for products                                                    |
+| `mass_dict`       | `dict`               | Mapping from element symbol to mass properties, used for conservation checks                                        |
+| `dEdt_chem`       | `sympy.Basic`        | Total chemical heating/cooling rate (erg cm⁻³ s⁻¹), accumulated over all reactions                                  |
+| `dEdt_other`      | `sympy.Basic`        | Additional heating/cooling rate from the `heatingcoolingrate` auxiliary function, if present                        |
+| `dRad_dt_extra`   | `sympy.Basic`        | Extra radiation moment source terms from `@function` definitions                                                    |
+| `radiation`       | `Radiation or None`  | Radiation field object; `None` when no radiation bands are specified                                                |
+| `ndens`           | `sympy.MatrixSymbol` | Symbolic `nden` column vector of species number densities, shape (n_species, 1); `nden[i]` is species `i`           |
+| `ntot`            | `sympy.Expr`         | Total number density, `Σ_i nden[i]` over all species                                                                |
+| `rho`             | `sympy.Expr`         | Mass density, `Σ_i m_i · nden[i]`; species with unset mass contribute `0`                                           |
+| `n_hnuc`          | `sympy.Expr`         | Total hydrogen-nuclei density, `Σ_i H-count(i) · nden[i]` (cached); equivalent to the `n_H_nuc` grammar token       |

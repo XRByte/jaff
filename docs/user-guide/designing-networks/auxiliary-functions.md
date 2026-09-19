@@ -80,12 +80,12 @@ names (typically as the function's arguments), and JAFF substitutes the matching
 species density when the network is built. The substitution understands the
 following conventions:
 
-| Symbol               | Resolves to                                                              |
-| -------------------- | ------------------------------------------------------------------------- |
-| `ntot`               | Total number density (sum over **all** species)                         |
-| `n_e`                | Density of the electron (`e-`)                                          |
-| `n_<element>_nuc`    | Element-nucleus sum, e.g. `n_H_nuc`, `n_He_nuc`, `n_C_nuc` (see below)   |
-| `n_<species>`        | Density of the named species (see suffix rules below)                   |
+| Symbol            | Resolves to                                                            |
+| ----------------- | ---------------------------------------------------------------------- |
+| `ntot`            | Total number density (sum over **all** species)                        |
+| `n_e`             | Density of the electron (`e-`)                                         |
+| `n_<element>_nuc` | Element-nucleus sum, e.g. `n_H_nuc`, `n_He_nuc`, `n_C_nuc` (see below) |
+| `n_<species>`     | Density of the named species (see suffix rules below)                  |
 
 For the general `n_<species>` form, the part after `n_` is matched against the
 network's species by its j/k-normalized identifier:
@@ -120,6 +120,24 @@ runtime-supplied symbol.)
     tokens into explicit sums over the element-bearing species. Constructing
     the network with `Network(..., expand_nuclei=False)` instead keeps
     `n_<element>_nuc` as a standalone free symbol (e.g. `nh_nuc`).
+
+### Referencing other rate coefficients — `rc_<N>`
+
+Inside a custom `@function` body you can reference the auto-generated rate
+coefficient of another reaction by index with the reserved symbol `rc_<N>`,
+where `N` is the 0-based reaction index. JAFF resolves `rc_<N>` to the computed
+rate coefficient (the `rate` of `network.reactions[N]`), so you can build one
+reaction's rate or energy term out of another's without restating its Arrhenius
+expression.
+
+```text
+@function chemRate7(tgas)
+    # Reuse the coefficient of reaction 3 (e.g. a shared temperature fit)
+    return 0.5 * rc_3
+```
+
+A malformed index (`rc_` not followed by an integer) raises an error naming the
+offending symbol and the `.jfunc` file it came from.
 
 ### Referencing other rate coefficients — `rc_<N>`
 
