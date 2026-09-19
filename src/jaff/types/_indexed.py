@@ -267,6 +267,7 @@ class IndexedList(list):
             >>> len(lst)
             2
         """
+        items = list(items)
         if any(not isinstance(item, IndexedValue) for item in items):
             raise TypeError(f"All items are not of type IndexedValue in: {items}")
 
