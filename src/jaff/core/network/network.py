@@ -230,10 +230,12 @@ class Network:
             JAFF reads the network ``jaff.toml`` ``[network].duplicate_policy``
             key, falling back to ``"preserve-first"``.
         expand_nuclei : bool, optional
-            When ``True`` (default), the shorthand symbol ``nh`` (and ``n_H``,
-            ``n_He``) in rate expressions is expanded to a sum of
-            ``nden[i]`` terms over all H-bearing (He-bearing) species.  Set
-            to ``False`` to keep ``nh`` / ``nhe`` as free symbols.
+            When ``True`` (default), an ``n_<element>_nuc`` symbol (e.g.
+            ``n_H_nuc``, ``n_He_nuc``) in rate expressions is expanded to the
+            element-nucleus sum — ``Σ atom-count · nden[i]`` over all species
+            bearing that element.  Set to ``False`` to keep it as a free symbol
+            ``n<element>_nuc`` (e.g. ``nh_nuc``).  (Plain ``n_X`` always resolves
+            to species ``X``; only ``n_X_nuc`` is affected by this flag.)
         radiation_props : RadiationProps | None, optional
             Radiation configuration used to construct the network's
             :class:`Radiation` object and enable photochemistry.  When
@@ -586,7 +588,7 @@ class Network:
     ):
         """Standardize convenience symbols in all rate and auxiliary expressions.
 
-        Replaces shorthand symbols (``nh``, ``ne``, ``ntot``, ``n_X``, …) with
+        Replaces shorthand symbols (``n_X``, ``n_X_nuc``, ``n_e``, ``ntot``, …) with
         ``nden[i]`` references in every reaction rate, the chemical heating/cooling
         sum :attr:`dEdt_chem`, and the extra radiation source term
         :attr:`dRad_dt_extra`.
@@ -1033,10 +1035,10 @@ class Network:
 
         Each species contributes its hydrogen-atom count (``H2`` counts twice,
         ``H+`` once, ...) times its number density, so the sum is the total H
-        nuclei density rather than a molecular count.  This is the symbolic
-        expansion of the ``nh`` / ``n_H`` shorthand used in rate expressions
-        (see :meth:`_standardize_symbols`), cached so every consumer shares
-        one expression.
+        nuclei density rather than a molecular count.  Equivalent to the
+        ``n_H_nuc`` grammar token; used directly by the dust radiation-moment
+        source terms (see :mod:`jaff.physics._equations`), cached so every
+        consumer shares one expression.
 
         Returns
         -------
@@ -1097,10 +1099,13 @@ class Network:
         return self._element_lookup.get(low)
 
     def _standardize_symbols(self, expr: Basic, expand_nuclei: bool) -> Expr:
-        """Replace convenience symbols (nh, ne, ntot, n_X, …) with nden[i] references.
+        """Replace convenience symbols (``n_X``, ``n_X_nuc``, ``n_e``, ``ntot``, …)
+        with ``nden[i]`` references.
 
-        When expand_nuclei is False, H/He element sums become ``nh``/``nhe`` symbols
-        instead of being expanded over all species.
+        ``n_<species>`` resolves to that species' density; ``n_<element>_nuc``
+        resolves to the element-nucleus sum.  When ``expand_nuclei`` is False,
+        ``n_<element>_nuc`` stays a free symbol ``n<element>_nuc`` instead of
+        being expanded over all species.
 
         Two further shorthands are resolved: ``rc_<int>`` is replaced by the
         computed rate coefficient of the reaction whose file-side number
