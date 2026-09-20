@@ -545,6 +545,11 @@ class Network:
             :func:`~jaff.io._io.from_jaff_file`.
         """
         self.species = jaff_props["species"]
+
+        stored_dEdt_other = jaff_props.get("dEdt_other")
+        if stored_dEdt_other is not None:
+            self.dEdt_other = stored_dEdt_other
+
         for i, reaction in enumerate(jaff_props["reactions"]):
             rea = Reaction(
                 reactants=reaction["reactants"],

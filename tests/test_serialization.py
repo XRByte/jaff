@@ -182,6 +182,35 @@ def test_network_json_roundtrip_preserves_nden_rates(tmp_path):
         assert abs(v2 - v1) <= 1e-9 * max(1.0, abs(v1))
 
 
+def test_network_json_roundtrip_preserves_dEdt_other(tmp_path):
+    """The ``heatingcoolingrate`` term (``net.dEdt_other``) survives a round-trip.
+
+    Regression: ``to_jaff`` serialized only per-reaction energy terms, and the
+    ``.jaff`` load path left ``dEdt_other`` at its ``Float(0.0)`` default, so the
+    total thermal RHS silently lost the extra heating/cooling contribution.
+    """
+    net_dir = tmp_path / "heatnet"
+    net_dir.mkdir()
+    jet = net_dir / "heat.jet"
+    jet.write_text("H + H -> H2                    []         1.0e-17\n")
+    (net_dir / "heat.jet.jfunc").write_text(
+        "@function heatingCoolingRate(tgas)\n    return 2*tgas\n"
+    )
+
+    net = Network(str(jet))
+    assert net.dEdt_other != sympy.Float(0.0)
+
+    json_path = str(tmp_path / "heat.jaff")
+    net.to_jaff(json_path)
+    net2 = Network(json_path)
+
+    # Total extra thermal RHS must match, not just per-reaction dE terms.
+    diff = sympy.simplify(net2.dEdt_other - net.dEdt_other)
+    assert diff == 0, (
+        f"dEdt_other lost on round-trip: {net.dEdt_other} -> {net2.dEdt_other}"
+    )
+
+
 # --------------------------------------------------------------------------- #
 # SymPy JSON codec                                                             #
 # --------------------------------------------------------------------------- #

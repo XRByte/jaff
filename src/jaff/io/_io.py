@@ -185,7 +185,12 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                     for r in net.reactions
                     if isinstance(r.rate, Basic)
                     for s in r.rate.free_symbols
-                },
+                }
+                | (
+                    set(net.dEdt_other.free_symbols)
+                    if isinstance(net.dEdt_other, Basic)
+                    else set()
+                ),
                 key=lambda s: s.name,
             )
         ],
@@ -213,6 +218,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
             }
             for r in net.reactions
         ],
+        "dEdt_other": encode_maybe_sympy(net.dEdt_other),
     }
 
     with gzip.open(filename, "wt", encoding="utf-8") as f:
@@ -464,6 +470,10 @@ def from_jaff_file(filename: str | Path, errors=False):
         )
 
     net_data["reactions"] = reactions_out
+
+    if "dEdt_other" in payload:
+        net_data["dEdt_other"] = decode_maybe_sympy(payload.get("dEdt_other"))
+
     return net_data
 
 
