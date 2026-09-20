@@ -47,7 +47,8 @@ class Reactions(Catalogue[Reaction]):
 
         if reactions is not None:
             _by_name = {}
-            for r in reactions:
+            for pos, r in enumerate(reactions):
+                r.catalogue_index = pos
                 _by_name.setdefault(r.verbatim, []).append(r)
                 _by_serialized.setdefault(r.serialized, []).append(r)
                 _by_source_index[r.index] = r
@@ -147,6 +148,7 @@ class Reactions(Catalogue[Reaction]):
         if not isinstance(reaction, Reaction):
             raise ValueError(f"'{reaction}' must be an instance of 'Reaction'")
 
+        reaction.catalogue_index = len(self._list)
         self._by_prop.setdefault(reaction.verbatim, []).append(reaction)
         self._by_serialized.setdefault(reaction.serialized, []).append(reaction)
         self._by_source_index[reaction.index] = reaction
