@@ -52,8 +52,8 @@ the network or how it couples to other reactions; that context belongs to the
 catalogue.
 
 The `Reactions` catalogue knows about _the set_ — ordering (each reaction's
-`index`), two ways to look a reaction up, and how to project any per-reaction
-attribute into a flat array for the solver and code generator.
+`catalogue_index`), two ways to look a reaction up, and how to project any
+per-reaction attribute into a flat array for the solver and code generator.
 
 ```text
 net.reactions                       ← the Reactions catalogue (the set)
@@ -115,7 +115,8 @@ net.reactions[0].rate       # photorates(1, 13.6, 1.0e+99)
 | `dE`                  | `sympy.Basic`   | Energy released per reaction event (erg), from a `.jfunc` aux function    |
 | `dRad`                | `sympy.Basic`   | Radiation energy emission per photon energy (eV) per event                |
 | `verbatim`            | `str`           | Human-readable equation `"R1 + R2 -> P1 + P2"`                            |
-| `index`               | `int`           | Zero-based position of this reaction inside `net.reactions`               |
+| `index`               | `int`           | File-side source number (`source_index`): file-order row number, **gapped** when rows merge. Not an array subscript |
+| `catalogue_index`     | `int`           | Dense `0..count-1` position inside `net.reactions`; the array subscript used by generated code |
 | `serialized`          | `str`           | Canonical **name-level** identity (isomer-sensitive)                      |
 | `serialized_exploded` | `str`           | Canonical **atom-level** identity (isomer-insensitive)                    |
 | `type`                | `str`           | Reaction type concluded by the parser (verbatim): gas-phase `"photo"`/`"cosmic_ray"`/`"3_body"`/`"unknown"`, or a grain surface-mechanism type — see [Reaction types](#reaction-types) |
@@ -335,8 +336,11 @@ photo.get_code(lang="cxx")   # 'photorates($IDX$, 13.6000000000000, 1.0e+99)'
 
 ## The `Reactions` catalogue
 
-`net.reactions` is ordered (the order matches every `Reaction.index` and the
-stoichiometry matrices) and can be looked up two ways.
+`net.reactions` is ordered — the catalogue position (`Reaction.catalogue_index`)
+matches the stoichiometry-matrix rows and the generated reaction arrays. Note
+this is **not** `Reaction.index`: `index` is the file-side source number, which
+is gapped when rows merge (`duplicate_policy` or a temperature-range merge). The
+catalogue can be looked up two ways.
 
 ### Ways to find a reaction
 
