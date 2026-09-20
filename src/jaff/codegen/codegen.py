@@ -1275,25 +1275,37 @@ class Codegen:
                 for sode in ode_symbols
             ]
 
-        with jaff_progress.indeterminate("Generating jacobian"):
-            # Compute the full dense Jacobian matrix symbolically
-            jacobian_matrix = sp.Matrix(ode_symbols).jacobian(y_syms)
+        # Compute the full dense Jacobian matrix symbolically
+        y_index = {sym: col for col, sym in enumerate(y_syms)}
+        jacobian_matrix = sp.zeros(len(ode_symbols), len(y_syms))
+        for row, sode in enumerate(
+            jaff_progress.track(
+                ode_symbols, description="Generating jacobian number desnities terms"
+            )
+        ):
+            for sym in sode.free_symbols:
+                col = y_index.get(sym)
+                if col is not None:
+                    jacobian_matrix[row, col] = sode.diff(sym)
 
-            if use_dedt:
-                # Insert the dẋ_i/dT_gas column: convert temperature dependence
-                # into the state-vector framework via the ideal-gas EOS relation
-                # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
-                dde = sp.zeros(n_ode_eqns, 1)
-                dedot_dtgas = sp.diff(self.net.eos(), sp.symbols("tgas"))
+        if use_dedt:
+            # Insert the dẋ_i/dT_gas column: convert temperature dependence
+            # into the state-vector framework via the ideal-gas EOS relation
+            # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
+            dde = sp.zeros(n_ode_eqns, 1)
+            dedot_dtgas = sp.diff(self.net.eos(), sp.symbols("tgas"))
 
-                for i in range(n_ode_eqns):
-                    dxdot_dtgas = sp.diff(ode_symbols[i], sp.symbols("tgas"))
-                    dde[i, 0] = dxdot_dtgas / dedot_dtgas
-                left = jacobian_matrix[:, :n_species]
-                right = jacobian_matrix[:, n_species:]
+            for i in jaff_progress.track(
+                range(n_ode_eqns),
+                description="Generating jacobian internal energy terms",
+            ):
+                dxdot_dtgas = sp.diff(ode_symbols[i], sp.symbols("tgas"))
+                dde[i, 0] = dxdot_dtgas / dedot_dtgas
+            left = jacobian_matrix[:, :n_species]
+            right = jacobian_matrix[:, n_species:]
 
-                # Insert the energy-coupling column between species and radiation cols
-                jacobian_matrix = left.row_join(dde).row_join(right)
+            # Insert the energy-coupling column between species and radiation cols
+            jacobian_matrix = left.row_join(dde).row_join(right)
 
         # Regex patterns to back-substitute scalar symbols -> array notation in
         # the serialised code strings.
