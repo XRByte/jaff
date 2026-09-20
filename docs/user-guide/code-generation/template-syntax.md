@@ -339,7 +339,7 @@ content with $property$ token
 | `specie_charge`     | species name      | `int` — charge                      |
 | `specie_latex`      | species name      | `str` — LaTeX name                  |
 | `element_idx`       | element symbol    | `int` — index in the element array  |
-| `reaction_idx`      | verbatim reaction | `int` — index in the reaction array |
+| `reaction_idx`      | verbatim reaction | `int` — dense catalogue position in the reaction array (`Reaction.catalogue_index`, not the gapped source `index`) |
 | `reaction_tmin`     | verbatim reaction | `float` — minimum temperature       |
 | `reaction_tmax`     | verbatim reaction | `float` — maximum temperature       |
 | `reaction_verbatim` | verbatim reaction | `str` — verbatim string             |

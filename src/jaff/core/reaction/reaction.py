@@ -103,7 +103,15 @@ class Reaction:
     verbatim : str
         Human-readable string ``"R1 + R2 -> P1 + P2"``.
     index : int
-        Position of this reaction in the parent ``Reactions`` catalogue.
+        File-side source number (``source_index``) of the reaction, i.e. its
+        file-order row number.  Stable per parsed row and gapped when rows
+        merge (``duplicate_policy`` or a temperature-range merge), so it is
+        NOT a valid array subscript.  Used for aux lookups (``chemRateN``) and
+        :meth:`Reactions.by_source_index`.
+    catalogue_index : int
+        Dense 0..count-1 position of this reaction in the parent ``Reactions``
+        catalogue, assigned by :meth:`Reactions.add`.  Safe to use as an array
+        subscript in generated code.  ``-1`` until catalogued.
     type : str
         Reaction type concluded by the parser and stored verbatim.  Generic
         gas-phase values are ``"photo"``, ``"cosmic_ray"``, ``"3_body"``,
@@ -165,7 +173,9 @@ class Reaction:
         original_string : str
             The raw network-file line that produced this reaction.
         index : int
-            Zero-based position in the parent ``Reactions`` catalogue.
+            File-side source number (``source_index``): the file-order row
+            number of this reaction, gapped when rows merge.  Not an array
+            subscript; see the ``index`` / ``catalogue_index`` attributes.
         t_cutoff : str, optional
             Out-of-range behaviour for the initial rate segment (``"clip"`` by
             default); see the :attr:`t_cutoff` attribute.
@@ -204,6 +214,7 @@ class Reaction:
         # verbatim is kept for backward compatibility alongside original_string
         self.verbatim: str = self.get_verbatim()
         self.index: int = index
+        self.catalogue_index: int = -1
 
         self.check(errors)
         self.serialized_exploded: str = self.serialize_exploded()
@@ -402,14 +413,20 @@ class Reaction:
             when ``False``, only emit a warning.
         """
         if not self.check_mass():
-            self.logger.warning(f"Mass not conserved in: {self.verbatim}")
+            message = f"Mass not conserved in reaction {self.index}: {self.verbatim}"
             if errors:
+                self.logger.error(message)
                 sys.exit(1)
 
+            self.logger.warning(message)
+
         if not self.check_charge():
-            self.logger.warning(f"Charge not conserved in: {self.verbatim}")
+            message = f"Charge not conserved in reaction {self.index}: {self.verbatim}"
             if errors:
+                self.logger.error(message)
                 sys.exit(1)
+
+            self.logger.warning(message)
 
     def check_mass(self) -> bool:
         """Return ``True`` if mass is conserved within one electron mass.

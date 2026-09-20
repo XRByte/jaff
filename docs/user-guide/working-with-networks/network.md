@@ -36,7 +36,7 @@ where every attribute comes from:
    and radiation terms are wired in.
 3. **Standardize symbols** — every rate and energy expression is rewritten so
    that number densities use the common [`nden[i]`](#number-densities-the-nden-representation)
-   representation (shorthands like `nh`, `ntot`, `n_X` are expanded).
+   representation (shorthands like `n_X`, `n_X_nuc`, `ntot` are expanded).
 4. **Validate** — mass/charge conservation, sinks/sources, recombinations,
    isomers, and duplicate reactions are [checked](#validation).
 5. **Finalize** — integer [stoichiometry matrices](#key-attributes) are built
@@ -56,25 +56,25 @@ Network(
     label=None,
     funcfile=True,
     duplicate_policy=None,
-    replace_nH=True,
+    expand_nuclei=True,
     radiation_props=None,
     dust_props=None,
     use_proxy_photoreaction=False,
 )
 ```
 
-| Parameter                 | Type                       | Default | Description                                                                                                                         |
-| ------------------------- | -------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `fname`                   | `str or Path`              | —       | Path to the network file (required); `.jaff` files are loaded as binary                                                            |
-| `config`                  | `str or Path or None`      | `None`  | Path to a `jaff.toml` config file; `None` auto-detects one in the network file's dir                                              |
-| `errors`                  | `bool`                     | `False` | Treat conservation violations / duplicates as fatal (exit) instead of warning                                                     |
-| `label`                   | `str or None`              | `None`  | Human-readable network name (defaults to the file stem)                                                                           |
-| `funcfile`                | `bool or str or Path`      | `True`  | Path to a `.jfunc` auxiliary file; `True` scans the network dir; `False` skips loading                                            |
-| `duplicate_policy`        | `str or None`              | `None`  | Resolve duplicate rate coefficients: `preserve-first`, `preserve-last`, or `error`; `None` reads `jaff.toml` (default first-wins) |
-| `replace_nH`              | `bool`                     | `True`  | Expand `nh` / `nhe` shorthand into sums of `nden[i]` over H/He-bearing species                                                    |
-| `radiation_props`         | `RadiationProps or None`   | `None`  | Radiation-field configuration (bands, spectral index, mode, speed of light, background field); `None` disables radiation transport |
-| `dust_props`              | `DustProps or None`        | `None`  | Dust-module configuration (Rv, radiation reductions, photoelectric band edges); `None` disables the dust module                    |
-| `use_proxy_photoreaction` | `bool`                     | `False` | Use proxy photo-reactions when computing cross-sections instead of bypassing them                                                 |
+| Parameter                 | Type                     | Default | Description                                                                                                                        |
+| ------------------------- | ------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `fname`                   | `str or Path`            | —       | Path to the network file (required); `.jaff` files are loaded as binary                                                            |
+| `config`                  | `str or Path or None`    | `None`  | Path to a `jaff.toml` config file; `None` auto-detects one in the network file's dir                                               |
+| `errors`                  | `bool`                   | `False` | Treat conservation violations / duplicates as fatal (exit) instead of warning                                                      |
+| `label`                   | `str or None`            | `None`  | Human-readable network name (defaults to the file stem)                                                                            |
+| `funcfile`                | `bool or str or Path`    | `True`  | Path to a `.jfunc` auxiliary file; `True` scans the network dir; `False` skips loading                                             |
+| `duplicate_policy`        | `str or None`            | `None`  | Resolve duplicate rate coefficients: `preserve-first`, `preserve-last`, or `error`; `None` reads `jaff.toml` (default first-wins)  |
+| `expand_nuclei`           | `bool`                   | `True`  | Expand `n_<element>_nuc` element-nucleus tokens into sums of `nden[i]` over the element-bearing species                            |
+| `radiation_props`         | `RadiationProps or None` | `None`  | Radiation-field configuration (bands, spectral index, mode, speed of light, background field); `None` disables radiation transport |
+| `dust_props`              | `DustProps or None`      | `None`  | Dust-module configuration (Rv, radiation reductions, photoelectric band edges); `None` disables the dust module                    |
+| `use_proxy_photoreaction` | `bool`                   | `False` | Use proxy photo-reactions when computing cross-sections instead of bypassing them                                                  |
 
 ### Examples
 
@@ -106,22 +106,22 @@ net = Network(
 
 ## Key attributes
 
-| Attribute         | Type              | Description                                                                     |
-| ----------------- | ----------------- | ------------------------------------------------------------------------------- |
-| `filename`        | `Path`            | Absolute path to the source file                                                |
-| `label`           | `str`             | Network name                                                                    |
-| `spec`            | `NetworkSpec`     | Normalized construction params (resolved `fname`, parsed `config`, `aux_funcs`) |
-| `species`         | `Species`         | Ordered [`Species`](species.md) catalogue                                       |
-| `reactions`       | `Reactions`       | Ordered [`Reactions`](reactions.md) catalogue                                   |
-| `elements`        | `Elements`        | [`Elements`](elements.md) catalogue derived from the species                    |
-| `reactant_matrix` | `np.ndarray`      | Integer stoichiometry, shape `(n_reactions, n_species)` — reactant counts       |
-| `product_matrix`  | `np.ndarray`      | Integer stoichiometry, same shape — product counts                              |
-| `dEdt_chem`       | `sympy.Basic`     | Symbolic total chemical heating/cooling rate (erg cm⁻³ s⁻¹)                     |
-| `dEdt_other`      | `sympy.Basic`     | Extra heating/cooling from a `heatingcoolingrate` aux function (else `0`)       |
-| `dRad_dt_extra`   | `sympy.Basic`     | Extra radiation-moment source terms from `@function` aux definitions (else `0`) |
-| `radiation`       | `Radiation\|None` | Radiation field object; `None` when no `radiation_props` are configured         |
-| `mass_dict`       | `dict`            | Element mass dictionary used to build the species                               |
-| `n_hnuc`          | `sympy.Expr`      | Symbolic total hydrogen-nuclei density `Σ_i H-count(i)·nden[i]` (cached); the expansion of the `nh` / `n_H` shorthand |
+| Attribute         | Type              | Description                                                                                                         |
+| ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `filename`        | `Path`            | Absolute path to the source file                                                                                    |
+| `label`           | `str`             | Network name                                                                                                        |
+| `spec`            | `NetworkSpec`     | Normalized construction params (resolved `fname`, parsed `config`, `aux_funcs`)                                     |
+| `species`         | `Species`         | Ordered [`Species`](species.md) catalogue                                                                           |
+| `reactions`       | `Reactions`       | Ordered [`Reactions`](reactions.md) catalogue                                                                       |
+| `elements`        | `Elements`        | [`Elements`](elements.md) catalogue derived from the species                                                        |
+| `reactant_matrix` | `np.ndarray`      | Integer stoichiometry, shape `(n_reactions, n_species)` — reactant counts                                           |
+| `product_matrix`  | `np.ndarray`      | Integer stoichiometry, same shape — product counts                                                                  |
+| `dEdt_chem`       | `sympy.Basic`     | Symbolic total chemical heating/cooling rate (erg cm⁻³ s⁻¹)                                                         |
+| `dEdt_other`      | `sympy.Basic`     | Extra heating/cooling from a `heatingcoolingrate` aux function (else `0`)                                           |
+| `dRad_dt_extra`   | `sympy.Basic`     | Extra radiation-moment source terms from `@function` aux definitions (else `0`)                                     |
+| `radiation`       | `Radiation\|None` | Radiation field object; `None` when no `radiation_props` are configured                                             |
+| `mass_dict`       | `dict`            | Element mass dictionary used to build the species                                                                   |
+| `n_hnuc`          | `sympy.Expr`      | Symbolic total hydrogen-nuclei density `Σ_i H-count(i)·nden[i]` (cached); equivalent to the `n_H_nuc` grammar token |
 
 ```python
 net = Network("networks/h_photoionization/h_photo.jet")
@@ -177,16 +177,16 @@ array.
 During loading (phase 3), convenience shorthands in rate expressions are
 expanded into this form:
 
-| Shorthand           | Expands to                                                             |
-| ------------------- | ---------------------------------------------------------------------- |
-| `ntot`              | sum of `nden[i, 0]` over **all core** species                          |
-| `nh` / `n_H`        | sum over H-bearing species, **weighted** by atom count                 |
-| `nhe` / `n_He`      | sum over He-bearing species, weighted                                  |
-| `n_X` (e.g. `n_CO`) | `nden[idx_X, 0]` for that one species (`Xp`→`X+`, `Xm`→`X-`, `X0`→`X`) |
-| `ne`, `nh2`, …      | the matching single-species density                                    |
+| Shorthand                                      | Expands to                                                   |
+| ---------------------------------------------- | ------------------------------------------------------------ |
+| `ntot`                                         | sum of `nden[i, 0]` over **all core** species                |
+| `n_<element>_nuc` (e.g. `n_H_nuc`, `n_He_nuc`) | sum over element-bearing species, **weighted** by atom count |
+| `n_e`                                          | electron density                                             |
+| `n_<species>` (e.g. `n_CO`, `n_Hj`, `n_Hk`)    | `nden[idx_X, 0]` for that one species (`j`→`+`, `k`→`-`)     |
 
-For example, a cosmic-ray ionization rate written with `nh` shorthand comes out
-as a weighted `nden` sum (note `2*nden[3, 0]` — H₂ contributes two H atoms):
+For example, a cosmic-ray ionization rate written with the `n_H_nuc` shorthand
+comes out as a weighted `nden` sum (note `2*nden[3, 0]` — H₂ contributes two H
+atoms):
 
 ```python
 g = Network("networks/GOW/GOW.jet")
@@ -194,9 +194,9 @@ g.reactions.with_type("cosmic_ray")[0].rate
 # crate*(1.5*nden[0, 0]/(nden[0, 0] + nden[1, 0] + 2*nden[3, 0] + ...) + ...)
 ```
 
-Pass `replace_nH=False` to keep `nh` / `nhe` as opaque free symbols instead of
-expanding them — useful when an external driver supplies those densities
-directly.
+Pass `expand_nuclei=False` to keep `n_<element>_nuc` tokens as opaque free
+symbols (e.g. `nh_nuc`) instead of expanding them — useful when an external
+driver supplies those densities directly.
 
 ---
 

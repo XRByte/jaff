@@ -23,15 +23,15 @@ src/jaff/
 │   │   ├── network/            # Multi-format network file parser
 │   │   │   ├── _engine.py      # NetworkParser — drives format plugins
 │   │   │   ├── _typing/        # parsedListProps, krome/prizmoFormatProps
-│   │   │   └── _formats/       # One subpackage per format (plugins)
-│   │   │       ├── _base.py    # NetworkFormat ABC (plugin contract)
-│   │   │       ├── _context.py # ParseContext — shared per-parse state
-│   │   │       ├── __init__.py # register / all_formats / build_state
-│   │   │       ├── krome/      # header.py · var.py · reaction.py
-│   │   │       ├── prizmo/     # vars.py · reaction.py
-│   │   │       ├── udfa/       # reaction.py
-│   │   │       ├── uclchem/    # reaction.py
-│   │   │       └── kida/       # reaction.py
+│   │   │   └── _formats/       # One subpackage per format
+│   │   │       ├── _parser.py  # Parser ABC (the only ABC) + register / all_parsers
+│   │   │       ├── _record.py  # Record / ParsedRecord / ParseResult
+│   │   │       ├── __init__.py # re-exports Parser, register, all_parsers, ...
+│   │   │       ├── krome/      # parser.py + header.py · var.py · reaction.py handlers
+│   │   │       ├── prizmo/     # parser.py + vars.py · reaction.py handlers
+│   │   │       ├── udfa/       # parser.py + reaction.py handler
+│   │   │       ├── uclchem/    # parser.py + reaction.py handler
+│   │   │       └── kida/       # parser.py + reaction.py handler
 │   │   └── auxiliary_func/     # .jfunc auxiliary function parser
 │   │       ├── _engine.py      # AuxiliaryFunctionParser
 │   │       └── _typing/        # AuxiliaryFunctionsDict
@@ -195,8 +195,8 @@ The table below traces a single `jaffgen` invocation from command line to output
 
 ## Key Design Decisions
 
-**Plugin-based, format-agnostic parser.**
-Each network format is a `NetworkFormat` subclass living in its own subpackage under `core/parsers/network/_formats/`. A class registers itself with the `@register` decorator; `NetworkParser` discovers all formats via `all_formats()`, ordered by each format's `priority` (not file or import order). Every format exposes a fast `_global_re` filter and a detailed `_local_re` extractor, and writes results through a shared `ParseContext`. Adding a new format means adding one subpackage — no edits to the engine or shared code. See [Adding a Parser](adding-parsers.md).
+**One `Parser` subclass per format, plain handler objects.**
+Each network format is a single `Parser` subclass (the only ABC, in `_formats/_parser.py`) living in its own subpackage's `parser.py` under `core/parsers/network/_formats/`. A class registers itself with the `@register` decorator; `NetworkParser` discovers all parsers via `all_parsers()`, ordered by each parser's `priority` (not file or import order). A `Parser` owns a list of plain (no base class) **handlers** — one per line-type — each exposing a static `global_re`/`local_re` pair for detection/extraction and a `parse` (reaction) or `apply` (directive) method; the engine buckets raw `Record`s by owning parser and calls each parser's `process(records)`, which returns a `ParseResult` of `ParsedRecord`s + globals. Adding a new format means adding one subpackage — no edits to the engine or shared code. See [Adding a Parser](adding-parsers.md).
 
 **SymPy as the intermediate representation.**
 All rate expressions, fluxes, and ODEs live as SymPy objects inside `Network`. Code generation (`Codegen`) calls SymPy's language-specific printers (`ccode`, `cxxcode`, `fcode`, etc.), so adding a new target language is a single `Language` subclass in `jaff/codegen/_languages.py`.

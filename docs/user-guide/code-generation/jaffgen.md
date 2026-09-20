@@ -64,7 +64,7 @@ appended — so the generator always wins on a path collision.
 | `--network-config` | Path to a network [`jaff.toml`](../working-with-networks/jaff-toml.md) (temperature cutoffs); defaults to `<network_dir>/jaff.toml` |
 | `--label`      | Override the network label (defaults to the file stem)                             |
 | `--funcfile`   | Path to a `.jfunc` auxiliary file; `true` scans the network dir; `false` skips     |
-| `--replace-nH` | `--replace-nH` / `--no-replace-nH` — expand `nh`/`nhe` shorthands (default: on)    |
+| `--expand-nuclei` | `--expand-nuclei` / `--no-expand-nuclei` — expand `n_<element>_nuc` element-nucleus sums (default: on) |
 | `--errors`     | `--errors` / `--no-errors` — exit on conservation violations instead of warning    |
 | `--duplicate-policy` | Resolve duplicate rate coefficients over the same temperature range: `preserve-first` (default), `preserve-last`, or `error`. Overrides `jaffgen.toml` and the network `jaff.toml` |
 

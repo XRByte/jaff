@@ -80,41 +80,32 @@ names (typically as the function's arguments), and JAFF substitutes the matching
 species density when the network is built. The substitution understands the
 following conventions:
 
-| Symbol            | Resolves to                                                                 |
-| ----------------- | --------------------------------------------------------------------------- |
-| `ntot`            | Total number density (sum over **all** species)                             |
-| `nh`              | Sum over all H-bearing species (H nucleus density)                          |
-| `nh0`             | Density of `H`                                                              |
-| `nh2`             | Density of `H2`                                                             |
-| `nhj`             | Density of `H+`                                                             |
-| `ne`              | Density of the electron (`e-`)                                              |
-| `n_<species>`     | Density of the named species (see suffix rules below)                       |
-
-There is no standalone `nhe` shorthand — to get the He-nucleus sum, write `n_He`.
+| Symbol            | Resolves to                                                            |
+| ----------------- | ---------------------------------------------------------------------- |
+| `ntot`            | Total number density (sum over **all** species)                        |
+| `n_e`             | Density of the electron (`e-`)                                         |
+| `n_<element>_nuc` | Element-nucleus sum, e.g. `n_H_nuc`, `n_He_nuc`, `n_C_nuc` (see below) |
+| `n_<species>`     | Density of the named species (see suffix rules below)                  |
 
 For the general `n_<species>` form, the part after `n_` is matched against the
 network's species by its j/k-normalized identifier:
 
-- `"+"` is written `j`, `"-"` is written `k`, and a trailing `0` marks an
-  explicit neutral (the `0` is dropped on a miss). So `n_Cj` → `C+`,
-  `n_Hejj` → `He++`, `n_O0` → `O`, `n_Hej` → `He+`.
+- `"+"` is written `j` and `"-"` is written `k` — there is no `0` neutral
+  marker. So `n_Cj` → `C+`, `n_Hejj` → `He++`, `n_Hk` → `H-`, and plain `n_H` →
+  `H` (the single species, not a sum).
 - `n_e` → the electron (`e-`).
-- `n_H` and `n_He` are treated as the H- and He-nucleus **element sums** (`n_H`
-  is equivalent to `nh`), not a single species.
 - any other `n_<species>` resolves to that exact species' density, e.g. `n_CO` → `CO`.
+
+For the element-nucleus form, `n_<element>_nuc` gives the atom-count-weighted
+sum of that element's density over every species bearing it (including ions),
+e.g. `n_H_nuc`, `n_He_nuc`. A charge suffix on a nucleus sum (`n_Hj_nuc`) is
+meaningless and raises `ParserError`, as does an unknown element (`n_Xx_nuc`)
+or a species that does not exist in the network (e.g. `n_Ne` in a network
+without neon).
 
 Resolution is an exact reverse lookup, not a trailing-character guess, so
 multiply-ionized species and element symbols that end in a charge letter (e.g.
 Potassium `K`, tin `Sn`) are unambiguous.
-
-<!-- prettier-ignore -->
-!!! warning "Density symbol casing"
-    The fixed shorthands (`ntot`, `nh`, `ne`, `nh0`, `nh2`, `nhj`) are matched
-    case-insensitively. The species part of the general `n_<species>` form is
-    **case-sensitive** and must match the species name exactly as it appears in
-    the network (`n_CO`, not `n_co`). A symbol that does not resolve to a species
-    in the network is left untouched as a free symbol — no error is raised, so a
-    mistyped name silently fails to substitute.
 
 The non-density physical symbols are passed through unchanged and supplied by
 the solver at runtime. These are the same canonical symbols available in rate
@@ -124,11 +115,29 @@ in [Rate Expression Variables](network-formats.md#rate-expression-variables).
 runtime-supplied symbol.)
 
 <!-- prettier-ignore -->
-!!! note "`nh` / `nhe` expansion and `replace_nH`"
-    By default JAFF expands `nh`, `nhe`, `n_H`, and `n_He` into explicit sums
-    over the H-/He-bearing species. Constructing the network with
-    `Network(..., replace_nH=False)` instead keeps `nh` / `nhe` as standalone
-    free symbols.
+!!! note "`n_<element>_nuc` expansion and `expand_nuclei`"
+    By default JAFF expands `n_H_nuc`, `n_He_nuc`, and other `n_<element>_nuc`
+    tokens into explicit sums over the element-bearing species. Constructing
+    the network with `Network(..., expand_nuclei=False)` instead keeps
+    `n_<element>_nuc` as a standalone free symbol (e.g. `nh_nuc`).
+
+### Referencing other rate coefficients — `rc_<N>`
+
+Inside a custom `@function` body you can reference the auto-generated rate
+coefficient of another reaction by index with the reserved symbol `rc_<N>`,
+where `N` is the 0-based reaction index. JAFF resolves `rc_<N>` to the computed
+rate coefficient (the `rate` of `network.reactions[N]`), so you can build one
+reaction's rate or energy term out of another's without restating its Arrhenius
+expression.
+
+```text
+@function chemRate7(tgas)
+    # Reuse the coefficient of reaction 3 (e.g. a shared temperature fit)
+    return 0.5 * rc_3
+```
+
+A malformed index (`rc_` not followed by an integer) raises an error naming the
+offending symbol and the `.jfunc` file it came from.
 
 ### Referencing other rate coefficients — `rc_<N>`
 
@@ -192,19 +201,19 @@ The GOW (Gong, Ostriker & Wolfire 2017) network ships with a detailed `.jfunc` f
 ### Helper functions
 
 ```text
-@function kcr_H_fac(nH, nH0, nH2)
-    # nH   Total H nucleus density (cm^-3)
-    # nH0  Neutral H atom density (cm^-3)
-    # nH2  H2 molecule density (cm^-3)
-    return 2.3 * (nH2/nH) + 1.5 * (nH0/nH)
+@function kcr_H_fac(n_H_nuc, n_H, n_H2)
+    # n_H_nuc  Total H nucleus density (cm^-3)
+    # n_H      Neutral H atom density (cm^-3)
+    # n_H2     H2 molecule density (cm^-3)
+    return 2.3 * (n_H2/n_H_nuc) + 1.5 * (n_H/n_H_nuc)
 
-@function kgr_gong(tgas, chi, av, ne, c0, c1, c2, c3, c4, c5, c6)
+@function kgr_gong(tgas, chi, av, n_e, c0, c1, c2, c3, c4, c5, c6)
     # tgas Gas temperature (K)
     # chi  Radiation field (Draine 1978 units)
     # av   V-band extinction (magnitudes)
-    # ne   Free electron density (cm^-3)
+    # n_e  Free electron density (cm^-3)
     # c0 c1 c2 c3 c4 c5 c6  Fitting coefficients
-    psi  = 1.7 * chi * exp(-1.87 * av) * sqrt(tgas) / ne
+    psi  = 1.7 * chi * exp(-1.87 * av) * sqrt(tgas) / n_e
     logT = log(tgas)
     k_gr = 1e-14 * c0 / (1 + c1 * psi**c2 * \
         (1 + c3 * tgas**c4 * psi**(-c5 - c6 * logT)))
@@ -216,19 +225,19 @@ The GOW (Gong, Ostriker & Wolfire 2017) network ships with a detailed `.jfunc` f
 Reactions whose rate cannot be written as a simple Arrhenius expression get a `chemRate<N>` function where `N` represents the 0-indexed reaction number. The arguments must match the symbolic free variables used in the expression.
 
 ```text
-@function chemRate0(crate, nH, nH0, nH2)
+@function chemRate0(crate, n_H_nuc, n_H, n_H2)
     # Reaction 0: H + CR -> H+ + e-
     # crate  Primary ionisation rate per H nucleon (s^-1)
-    return kcr_H_fac(nH, nH0, nH2) * crate
+    return kcr_H_fac(n_H_nuc, n_H, n_H2) * crate
 
-@function chemRate14(d2g, nH, nH0)
+@function chemRate14(d2g, n_H_nuc, n_H)
     # Reaction 14: H + H -> H2  (grain-assisted)
-    # True rate = 3e-17 * nH0 * nH * (d2g / d2g_solar)
+    # True rate = 3e-17 * n_H * n_H_nuc * (d2g / d2g_solar)
     # JAFF multiplies by the reactant densities automatically,
-    # so we derive k by dividing out the extra nH0 factor.
-    return 3.0e-17 * (d2g / d2g_solar) * (nH / nH0)
+    # so we derive k by dividing out the extra n_H factor.
+    return 3.0e-17 * (d2g / d2g_solar) * (n_H_nuc / n_H)
 
-@function chemRate15(d2g, tgas, chi, av, nH, ne)
+@function chemRate15(d2g, tgas, chi, av, n_H_nuc, n_e)
     # Reaction 15: H+ + e- -> H  (grain-assisted)
     c0 = 12.25
     c1 = 8.074e-6
@@ -237,8 +246,8 @@ Reactions whose rate cannot be written as a simple Arrhenius expression get a `c
     c4 = 1.586e-2
     c5 = 0.4723
     c6 = 1.102e-5
-    return kgr_gong(tgas, chi, av, ne, c0, c1, c2, c3, c4, c5, c6) * \
-        (d2g / d2g_solar) * nH / ne
+    return kgr_gong(tgas, chi, av, n_e, c0, c1, c2, c3, c4, c5, c6) * \
+        (d2g / d2g_solar) * n_H_nuc / n_e
 ```
 
 ### Thermal energy change — `deltaE<N>`
@@ -256,11 +265,11 @@ where $R_i$ represents the rate of the $i^{th}$ reaction and $\Delta E_i$ repres
     # Reaction 40: H2 + H -> H + H + H  (collisional dissociation)
     return -4.48 * eV
 
-@function deltaE13(tgas, nH, nH0, nH2, chi, av)
+@function deltaE13(tgas, n_H_nuc, n_H, n_H2, chi, av)
     # Reaction 13: H2 + photon -> H + H
     # Combined FUV-pumping + kinetic-energy heating (Visser+ 2018)
     k_photo = 5.7e-11 * chi * exp(-4.18 * av)
-    f = 1 / (1 + ncrH2(tgas, nH, nH0, nH2, k_photo) / nH)
+    f = 1 / (1 + ncrH2(tgas, n_H_nuc, n_H, n_H2, k_photo) / n_H_nuc)
     return (0.4 + 8 * 2 * f) * eV
 ```
 
@@ -269,16 +278,16 @@ where $R_i$ represents the rate of the $i^{th}$ reaction and $\Delta E_i$ repres
 The heating cooling function is used to add any non-chemical heating and cooling rates to the reaction network. The returned `expression` must be in terms of rate of internal energy change in units of $erg\ s^{-1}\ cm^{-3}$
 
 ```text
-@function heatingCoolingRate(chi, av, d2g, tgas, n_H, n_H0, n_H2,
-                              n_Cj, n_C0, n_O0, n_CO, n_e, gradv)
-    return heating_grainPE(chi, av, d2g, tgas, n_H, n_e) \
-        - cooling_LyA(n_H0, n_e, tgas) \
-        - cooling_H2(n_H2, n_H0, n_Hj, n_He, n_e, tgas) \
-        - cooling_Cplus(n_Cj, n_H0, n_H2, n_e, tgas) \
-        - cooling_C0(n_C0, n_H0, n_H2, n_e, tgas) \
-        - cooling_O0(n_O0, n_H0, n_H2, n_e, tgas) \
-        - cooling_CO(n_CO, n_H0, n_H2, n_e, tgas, gradv) \
-        - cooling_dust_coll(chi, av, d2g, tgas, n_H) \
+@function heatingCoolingRate(chi, av, d2g, tgas, n_H_nuc, n_H, n_H2,
+                              n_Cj, n_C, n_O, n_CO, n_e, gradv)
+    return heating_grainPE(chi, av, d2g, tgas, n_H_nuc, n_e) \
+        - cooling_LyA(n_H, n_e, tgas) \
+        - cooling_H2(n_H2, n_H, n_Hj, n_He_nuc, n_e, tgas) \
+        - cooling_Cplus(n_Cj, n_H, n_H2, n_e, tgas) \
+        - cooling_C0(n_C, n_H, n_H2, n_e, tgas) \
+        - cooling_O0(n_O, n_H, n_H2, n_e, tgas) \
+        - cooling_CO(n_CO, n_H, n_H2, n_e, tgas, gradv) \
+        - cooling_dust_coll(chi, av, d2g, tgas, n_H_nuc) \
         - cooling_dust_rec(chi, av, d2g, tgas, n_e)
 ```
 

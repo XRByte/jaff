@@ -5,6 +5,7 @@ import gzip
 import json
 from pathlib import Path
 
+import pytest
 import sympy
 
 from jaff import Network
@@ -180,6 +181,120 @@ def test_network_json_roundtrip_preserves_nden_rates(tmp_path):
     for e1, e2 in zip(odes1, odes2):
         v1, v2 = evaluate(e1), evaluate(e2)
         assert abs(v2 - v1) <= 1e-9 * max(1.0, abs(v1))
+
+
+def test_network_json_roundtrip_preserves_dEdt_other(tmp_path):
+    """The ``heatingcoolingrate`` term (``net.dEdt_other``) survives a round-trip.
+
+    Regression: ``to_jaff`` serialized only per-reaction energy terms, and the
+    ``.jaff`` load path left ``dEdt_other`` at its ``Float(0.0)`` default, so the
+    total thermal RHS silently lost the extra heating/cooling contribution.
+    """
+    net_dir = tmp_path / "heatnet"
+    net_dir.mkdir()
+    jet = net_dir / "heat.jet"
+    jet.write_text("H + H -> H2                    []         1.0e-17\n")
+    (net_dir / "heat.jet.jfunc").write_text(
+        "@function heatingCoolingRate(tgas)\n    return 2*tgas\n"
+    )
+
+    net = Network(str(jet))
+    assert net.dEdt_other != sympy.Float(0.0)
+
+    json_path = str(tmp_path / "heat.jaff")
+    net.to_jaff(json_path)
+    net2 = Network(json_path)
+
+    # Total extra thermal RHS must match, not just per-reaction dE terms.
+    diff = sympy.simplify(net2.dEdt_other - net.dEdt_other)
+    assert diff == 0, (
+        f"dEdt_other lost on round-trip: {net.dEdt_other} -> {net2.dEdt_other}"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Corrupted / malformed .jaff payloads must be rejected, not silently aliased  #
+# --------------------------------------------------------------------------- #
+
+
+def _make_valid_jaff(tmp_path, name="corrupt.jaff"):
+    """Serialize the minimal valid ``H + H -> H2`` network to a ``.jaff`` file."""
+    dat = tmp_path / "src.dat"
+    dat.write_text("@format:idx,R,R,P,rate\n1,H,H,H2,1\n")
+    net = Network(str(dat), funcfile=False)
+    path = tmp_path / name
+    net.to_jaff(str(path))
+    return path
+
+
+def _read_payload(path):
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _write_payload(path, payload):
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        json.dump(payload, f)
+
+
+def test_jaff_rejects_missing_real_participant(tmp_path):
+    """A reaction referencing a real species absent from the table is rejected.
+
+    Regression: the missing name was silently turned into an out-of-catalogue
+    pseudo-species at index -1, aliasing its stoichiometry onto the last real
+    species via Python negative indexing and corrupting the generated ODE.
+    """
+    path = _make_valid_jaff(tmp_path)
+    payload = _read_payload(path)
+    payload["species"] = [s for s in payload["species"] if s["name"] != "H2"]
+    _write_payload(path, payload)
+
+    with pytest.raises(ValueError, match="H2"):
+        Network(str(path), funcfile=False)
+
+
+def test_jaff_retains_valid_pseudo_species(tmp_path):
+    """An underscore-prefixed pseudo-species absent from the table still loads."""
+    path = _make_valid_jaff(tmp_path)
+    payload = _read_payload(path)
+    # Add a real _PHOTON-style pseudo participant to the reaction's reactants.
+    payload["reactions"][0]["reactants"].append("_PHOTON")
+    _write_payload(path, payload)
+
+    net = Network(str(path), funcfile=False)
+    # Pseudo-species stay out of the integrated catalogue.
+    assert "_PHOTON" not in {s.name for s in net.species}
+
+
+def test_jaff_rejects_duplicate_species_names(tmp_path):
+    path = _make_valid_jaff(tmp_path)
+    payload = _read_payload(path)
+    payload["species"].append({"name": "H", "index": 2, "mass": 1.0, "charge": 0})
+    _write_payload(path, payload)
+
+    with pytest.raises(ValueError, match="[Dd]uplicate"):
+        Network(str(path), funcfile=False)
+
+
+def test_jaff_rejects_negative_species_index(tmp_path):
+    path = _make_valid_jaff(tmp_path)
+    payload = _read_payload(path)
+    payload["species"][0]["index"] = -1
+    _write_payload(path, payload)
+
+    with pytest.raises(ValueError):
+        Network(str(path), funcfile=False)
+
+
+def test_jaff_rejects_species_index_gap(tmp_path):
+    path = _make_valid_jaff(tmp_path)
+    payload = _read_payload(path)
+    # Two species indexed 0 and 2 (gap at 1) — not contiguous 0..N-1.
+    payload["species"][-1]["index"] = payload["species"][-1]["index"] + 1
+    _write_payload(path, payload)
+
+    with pytest.raises(ValueError):
+        Network(str(path), funcfile=False)
 
 
 # --------------------------------------------------------------------------- #

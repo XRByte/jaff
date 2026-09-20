@@ -1623,8 +1623,10 @@ class TemplateParser:
                     "element_idx": {"func": lambda e: self.net.elements[e].index},
                     # Returns: int - index of species
                     "specie_idx": {"func": lambda s: self.net.species[s].index},
-                    # Returns: int - index of reaction
-                    "reaction_idx": {"func": lambda r: self.net.reactions[r].index},
+                    # Returns: int - catalogue position of reaction
+                    "reaction_idx": {
+                        "func": lambda r: self.net.reactions[r].catalogue_index
+                    },
                     # Returns: float - mass of specified species
                     "specie_mass": {"func": lambda s: self.net.species[s].mass},
                     # Returns: int - charge of specified species

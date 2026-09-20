@@ -23,8 +23,7 @@ def test_template_uses_jk_identifiers(tmp_path, template, lang, outfile):
 
     net = tmp_path / "net.dat"
     net.write_text(
-        "He+ + He+ -> He++ + He [10,1000] 1e-10\n"
-        "He++ + e- -> He+ [10,1000] 1e-10\n",
+        "He+ + He+ -> He++ + He [10,1000] 1e-10\nHe++ + e- -> He+ [10,1000] 1e-10\n",
         encoding="utf-8",
     )
     outdir = tmp_path / "out"
@@ -37,7 +36,7 @@ def test_template_uses_jk_identifiers(tmp_path, template, lang, outfile):
         label=None,
         funcfile=None,
         duplicate_policy=None,
-        replace_nH=None,
+        expand_nuclei=None,
         errors=None,
         network_config=None,
         outdir=str(outdir),
@@ -48,29 +47,29 @@ def test_template_uses_jk_identifiers(tmp_path, template, lang, outfile):
     )
     JaffGen(args)
     text = (outdir / outfile).read_text()
-    assert "idx_hejj" in text      # He++ -> j/k
+    assert "idx_hejj" in text  # He++ -> j/k
     assert "idx_hepp" not in text  # old p/n gone
 
 
 def test_normalized_names_defaults_are_jk(make_network):
     net = make_network(
         [
-            "He + He+ -> He+ + He+ [10,1000] 1e-10",   # forces He, He+ into species
+            "He + He+ -> He+ + He+ [10,1000] 1e-10",  # forces He, He+ into species
             "He+ + He+ -> He++ + He [10,1000] 1e-10",  # forces He++
         ]
     )
     names = set(net.species.normalized_names())
-    assert "hejj" in names          # He++  -> multi-charge replaces ALL
-    assert "hej" in names           # He+
-    assert "he" in names            # He (neutral, unchanged)
+    assert "hejj" in names  # He++  -> multi-charge replaces ALL
+    assert "hej" in names  # He+
+    assert "he" in names  # He (neutral, unchanged)
 
 
 def test_normalized_names_no_collision_metal_vs_anion(make_network):
     # Sn (tin, neutral) vs S- (sulfur anion) must stay distinct under j/k.
     net = make_network(["Sn + S- -> Sn + S- [10,1000] 1e-10"])
     names = list(net.species.normalized_names())
-    assert names.count("sn") == 1   # only tin
-    assert "sk" in names            # S- -> sk, NOT sn
+    assert names.count("sn") == 1  # only tin
+    assert "sk" in names  # S- -> sk, NOT sn
 
 
 def test_charge_reverse_map_round_trips(make_network):
@@ -89,6 +88,7 @@ def test_charge_reverse_map_raises_on_case_collision(make_network):
 
 def test_decode_multi_charge_density(make_network):
     import sympy
+
     net = make_network(
         [
             "He+ + He+ -> He++ + He [10,1000] 1e-10",
@@ -102,6 +102,7 @@ def test_decode_multi_charge_density(make_network):
 
 def test_decode_single_cation(make_network):
     import sympy
+
     net = make_network(["C + C+ -> C+ + C [10,1000] 1e-10"])
     expr = net._standardize_symbols(sympy.Symbol("n_Cj"), True)
     idx = net.species["C+"].index
@@ -110,22 +111,25 @@ def test_decode_single_cation(make_network):
 
 def test_decode_neutral_zero_suffix(make_network):
     import sympy
+
     net = make_network(["O + O -> O + O [10,1000] 1e-10"])
-    expr = net._standardize_symbols(sympy.Symbol("n_O0"), True)
+    expr = net._standardize_symbols(sympy.Symbol("n_O"), True)
     idx = net.species["O"].index
     assert expr == net.ndens[sympy.Idx(idx)]
 
 
 def test_decode_neutral_h_vs_sum(make_network):
     import sympy
+
     net = make_network(["H + H+ -> H+ + H [10,1000] 1e-10"])
-    expr = net._standardize_symbols(sympy.Symbol("n_H0"), True)
+    expr = net._standardize_symbols(sympy.Symbol("n_H"), True)
     idx = net.species["H"].index
     assert expr == net.ndens[sympy.Idx(idx)]
 
 
 def test_decode_electron(make_network):
     import sympy
+
     net = make_network(["H -> H+ + e- [10,1000] 1e-10"])
     expr = net._standardize_symbols(sympy.Symbol("n_e"), True)
     idx = net.species["e-"].index
@@ -145,8 +149,9 @@ def test_cie_h_chemrate_resolves_hepp_density(fixtures_dir):
     it among the rates' MatrixElement atoms (free_symbols would only yield the
     bare ``nden`` MatrixSymbol, not the indexed element).
     """
-    from sympy.matrices.expressions.matexpr import MatrixElement
     import sympy
+    from sympy.matrices.expressions.matexpr import MatrixElement
+
     from jaff import Network
 
     net = Network(str(fixtures_dir / "react_cie_hepp.jet"))

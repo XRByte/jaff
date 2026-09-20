@@ -185,7 +185,12 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                     for r in net.reactions
                     if isinstance(r.rate, Basic)
                     for s in r.rate.free_symbols
-                },
+                }
+                | (
+                    set(net.dEdt_other.free_symbols)
+                    if isinstance(net.dEdt_other, Basic)
+                    else set()
+                ),
                 key=lambda s: s.name,
             )
         ],
@@ -213,6 +218,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
             }
             for r in net.reactions
         ],
+        "dEdt_other": encode_maybe_sympy(net.dEdt_other),
     }
 
     with gzip.open(filename, "wt", encoding="utf-8") as f:
@@ -292,7 +298,8 @@ def from_jaff_file(filename: str | Path, errors=False):
     if not isinstance(species_payload, list):
         raise ValueError("Invalid species list in JSON")
 
-    by_index = {}
+    by_index: dict[int, str] = {}
+    seen_names: set[str] = set()
     for spj in species_payload:
         if not isinstance(spj, dict):
             raise ValueError("Invalid species entry in JSON")
@@ -300,9 +307,21 @@ def from_jaff_file(filename: str | Path, errors=False):
         idx = spj.get("index")
         if not isinstance(name, str) or not isinstance(idx, int):
             raise ValueError("Invalid species name/index in JSON")
+        if idx < 0:
+            raise ValueError(f"Invalid negative species index {idx} for {name!r}")
         if idx in by_index:
             raise ValueError(f"Duplicate species index {idx}")
+        if name in seen_names:
+            raise ValueError(f"Duplicate species name {name!r}")
         by_index[idx] = name
+        seen_names.add(name)
+
+    expected = set(range(len(by_index)))
+    if set(by_index) != expected:
+        raise ValueError(
+            "Species indices must be contiguous 0.."
+            f"{len(by_index) - 1}; got {sorted(by_index)}"
+        )
 
     species_list = Species()
 
@@ -318,6 +337,11 @@ def from_jaff_file(filename: str | Path, errors=False):
     def resolve_specie(name: str) -> "Specie":
         if name in species_by_name:
             return species_by_name[name]
+        if not name.startswith("_"):
+            raise ValueError(
+                f"Reaction references undeclared species {name!r} that is absent "
+                "from the .jaff species table"
+            )
         if name not in special_by_name:
             special_by_name[name] = Specie(name, -1)
         return special_by_name[name]
@@ -464,6 +488,10 @@ def from_jaff_file(filename: str | Path, errors=False):
         )
 
     net_data["reactions"] = reactions_out
+
+    if "dEdt_other" in payload:
+        net_data["dEdt_other"] = decode_maybe_sympy(payload.get("dEdt_other"))
+
     return net_data
 
 

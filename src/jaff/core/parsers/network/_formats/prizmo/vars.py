@@ -1,49 +1,41 @@
-"""PRIZMO ``VARIABLES { }`` block lines and variable assignments."""
+"""PRIZMO ``VARIABLES { }`` block lines and variable assignments (directive)."""
 
 import re
-from functools import cache
 
 from sympy import parse_expr
 
 from ......common import f90_convert
+from ......errors import ParserError
 from ..._typing import prizmoFormatProps
-from .. import register
-from .._base import NetworkFormat
-from .._context import ParseContext
 
 
-@register
-class PrizmoVars(NetworkFormat):
-    """PRIZMO ``VARIABLES { }`` block lines and variable assignments."""
+class PrizmoVars:
+    """PRIZMO ``VARIABLES { }`` block / variable-assignment directive handler."""
 
-    priority = 30
     name = "prizmo_vars"
-    state_key = "prizmo"
+    priority = 30
+    is_reaction = False
+
+    global_re = re.compile(
+        r"^\s*(?:"
+        r"(?:(?i:variables)\s*\{|\})(?P<segment>.*?)"
+        r"|"
+        r"(?P<assignment>\w+\s*=.*?)"
+        r")\s*$"
+    )
+
+    local_re = re.compile(
+        r"^\s*(?P<begin>(?i:variables)\s*\{)\s*$"
+        r"|"
+        r"^\s*(?P<end>\}\s*)$"
+        r"|"
+        r"^\s*(?P<var>\w+)\s*=\s*\s*(?P<expr>.*?)\s*$"
+    )
 
     def default_state(self) -> prizmoFormatProps:
         return {"parse_vars": False}
 
-    @cache
-    def _global_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(
-            r"^\s*(?:"
-            r"(?:(?i:variables)\s*\{|\})(?P<segment>.*?)"
-            r"|"
-            r"(?P<assignment>\w+\s*=.*?)"
-            r")\s*$"
-        )
-
-    @cache
-    def _local_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(
-            r"^\s*(?P<begin>(?i:variables)\s*\{)\s*$"
-            r"|"
-            r"^\s*(?P<end>\}\s*)$"
-            r"|"
-            r"^\s*(?P<var>\w+)\s*=\s*\s*(?P<expr>.*?)\s*$"
-        )
-
-    def handle(self, match: re.Match, ctx: ParseContext) -> None:
+    def apply(self, line, nline, state, globals, file, logger) -> None:
         """Handle a PRIZMO ``VARIABLES { }`` block line or variable assignment.
 
         Toggles ``parse_vars`` on ``VARIABLES {`` and ``}`` tokens, and stores a
@@ -53,46 +45,52 @@ class PrizmoVars(NetworkFormat):
         Raises
         ------
         ParserError
-            Via :meth:`_handle_errors` if the line is malformed.
+            If the line is malformed.
         """
-        local = self._local_re(ctx).match(ctx.line)
+        local = self.local_re.match(line)
         if not local:
-            self._handle_errors(match, ctx)
+            self._handle_errors(line, nline, state, file)
 
         assert local is not None
 
         if local.group("begin"):
-            self.state(ctx)["parse_vars"] = True
+            state["parse_vars"] = True
             return
 
         if local.group("end"):
-            self.state(ctx)["parse_vars"] = False
+            state["parse_vars"] = False
             return
 
-        if local.group("var") and local.group("expr") and self.state(ctx)["parse_vars"]:
+        if local.group("var") and local.group("expr") and state["parse_vars"]:
             try:
-                ctx.globals[local.group("var").lower()] = parse_expr(
+                globals[local.group("var").lower()] = parse_expr(
                     f90_convert(local.group("expr").lower())
                 )
 
             except (SyntaxError, NameError, TypeError):
-                ctx.logger.warning(
+                logger.warning(
                     f"Skipping variable: {local.group('var')}\n"
-                    f"at line: {ctx.nline} since the expression is invalid sympy syntax"
+                    f"at line: {nline} since the expression is invalid sympy syntax"
                 )
 
-    def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
+    def _handle_errors(self, line, nline, state, file) -> None:
         """Raise a descriptive error for a malformed PRIZMO variables section line."""
+        match = self.global_re.match(line)
+        assert match is not None
+
         segment = match.group("segment")
         assignment = match.group("assignment")
 
         if segment is None and assignment is None:
-            ctx.raise_error("Invalid PRIZMO variable section")
+            raise ParserError("Invalid PRIZMO variable section", line, nline, file)
 
         if assignment is not None:
-            if not self.state(ctx)["parse_vars"]:
-                ctx.raise_error(
-                    "PRIZMO variable assignment found outside VARIABLES block"
+            if not state["parse_vars"]:
+                raise ParserError(
+                    "PRIZMO variable assignment found outside VARIABLES block",
+                    line,
+                    nline,
+                    file,
                 )
 
             var_name, expr = assignment.split("=", 1)
@@ -100,11 +98,18 @@ class PrizmoVars(NetworkFormat):
             expr = expr.strip()
 
             if not var_name.isidentifier():
-                ctx.raise_error(f"Invalid variable name '{var_name}'")
+                raise ParserError(
+                    f"Invalid variable name '{var_name}'", line, nline, file
+                )
 
             if not expr:
-                ctx.raise_error("Expression cannot be empty")
+                raise ParserError("Expression cannot be empty", line, nline, file)
 
         segment = segment.strip()
         if segment:
-            ctx.raise_error("Extra characters found after PRIZMO block declarative")
+            raise ParserError(
+                "Extra characters found after PRIZMO block declarative",
+                line,
+                nline,
+                file,
+            )

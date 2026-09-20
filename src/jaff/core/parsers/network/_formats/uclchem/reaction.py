@@ -2,19 +2,32 @@
 
 import math
 import re
-from functools import cache
 
-from .. import register
-from .._base import NetworkFormat
-from .._context import ParseContext
+from ......errors import ParserError
 
 
-@register
-class UclchemReaction(NetworkFormat):
-    """UCLCHEM comma-delimited reaction line (``NAN``-sentinel format)."""
+class UclchemReaction:
+    """UCLCHEM comma-delimited reaction line handler (``NAN``-sentinel format)."""
 
-    priority = 70
     name = "uclchem"
+    priority = 70
+    is_reaction = True
+
+    global_re = re.compile(r"^(?!\s*[!]|(?:\s*#\s)).*,\s*(?i:NAN)\s*(?:,|$)")
+
+    local_re = re.compile(
+        r"^\s*"
+        r"(?=.*,\s*(?i:NAN)\s*(?:,|$))"
+        r"(?P<reactants>(?:[#@\w\d\+-]*\s*,\s*){3})"
+        r"(?P<products>(?:[#@\w\d\+-]*\s*,\s*){4})"
+        r"(?P<ka>[^,]*)\s*,\s*"
+        r"(?P<kb>[^,]*)\s*,\s*"
+        r"(?P<kc>[^,]*)\s*,\s*"
+        r"(?P<tmin>[^,]*)\s*,\s*"
+        r"(?P<tmax>[^,]*)\s*,\s*"
+        r"(?P<extrapolate>.*?)"
+        r"\s*$"
+    )
 
     SPECIAL_MAP = {
         "CR": "_CR",
@@ -73,28 +86,8 @@ class UclchemReaction(NetworkFormat):
         "SURFSWAP",
     }
 
-    @cache
-    def _global_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(r"^(?!\s*[!]|(?:\s*#\s)).*,\s*(?i:NAN)\s*(?:,|$)")
-
-    @cache
-    def _local_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(
-            r"^\s*"
-            r"(?=.*,\s*(?i:NAN)\s*(?:,|$))"
-            r"(?P<reactants>(?:[#@\w\d\+-]*\s*,\s*){3})"
-            r"(?P<products>(?:[#@\w\d\+-]*\s*,\s*){4})"
-            r"(?P<ka>[^,]*)\s*,\s*"
-            r"(?P<kb>[^,]*)\s*,\s*"
-            r"(?P<kc>[^,]*)\s*,\s*"
-            r"(?P<tmin>[^,]*)\s*,\s*"
-            r"(?P<tmax>[^,]*)\s*,\s*"
-            r"(?P<extrapolate>.*?)"
-            r"\s*$"
-        )
-
-    def handle(self, match: re.Match, ctx: ParseContext) -> None:
-        """Parse a UCLCHEM-format reaction line and append it to the parsed list.
+    def parse(self, line: str, nline: int, state: dict, file) -> dict:
+        """Parse a UCLCHEM-format reaction line into its reaction fields.
 
         Extracts reactants, products, rate parameters, temperature bounds, and
         an extrapolation flag from the comma-delimited UCLCHEM format (identified
@@ -104,12 +97,11 @@ class UclchemReaction(NetworkFormat):
         Raises
         ------
         ParserError
-            Via :meth:`_handle_errors` if the line does not match the expected
-            UCLCHEM format.
+            If the line does not match the expected UCLCHEM format.
         """
-        local = self._local_re(ctx).match(ctx.line)
+        local = self.local_re.match(line)
         if not local:
-            self._handle_errors(match, ctx)
+            raise ParserError("Invalid UCLCHEM reaction detected", line, nline, file)
 
         reactants: str = local.group("reactants")
         products: str = local.group("products")
@@ -186,19 +178,17 @@ class UclchemReaction(NetworkFormat):
         rr = [self.SPECIAL_MAP.get(r, r) for r in rr]
         pp = [self.SPECIAL_MAP.get(p, p) for p in pp]
 
-        ctx.parsed_list.append(
-            {
-                "r": rr,
-                "p": pp,
-                "tmin": t_min,
-                "tmax": t_max,
-                "rate": rate,
-                "type": mechanism_type
-                if mechanism_type is not None
-                else self._reaction_type(rate, rr),
-                "string": ctx.line.strip(),
-            }
-        )
+        return {
+            "r": rr,
+            "p": pp,
+            "tmin": t_min,
+            "tmax": t_max,
+            "rate": rate,
+            "type": mechanism_type
+            if mechanism_type is not None
+            else self._reaction_type(rate, rr),
+            "string": line.strip(),
+        }
 
     @staticmethod
     def _reaction_type(rate: str, rr: list[str]) -> str:
@@ -231,10 +221,6 @@ class UclchemReaction(NetworkFormat):
             return "3_body"
 
         return "unknown"
-
-    def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
-        """Raise an error for a malformed UCLCHEM reaction line."""
-        ctx.raise_error("Invalid UCLCHEM reaction detected")
 
     @staticmethod
     def _normalize_species(s: str) -> str:

@@ -43,12 +43,15 @@ class Reactions(Catalogue[Reaction]):
         """
         _by_name: dict[str, list[Reaction]] | None = None
         _by_serialized: dict[str, list[Reaction]] = {}
+        _by_source_index: dict[int, Reaction] = {}
 
         if reactions is not None:
             _by_name = {}
-            for r in reactions:
+            for pos, r in enumerate(reactions):
+                r.catalogue_index = pos
                 _by_name.setdefault(r.verbatim, []).append(r)
                 _by_serialized.setdefault(r.serialized, []).append(r)
+                _by_source_index[r.index] = r
 
         super().__init__(
             reactions,
@@ -56,6 +59,7 @@ class Reactions(Catalogue[Reaction]):
             check_length=False,
         )
         self._by_serialized = _by_serialized
+        self._by_source_index = _by_source_index
 
     @overload
     def __getitem__(self, key: str) -> Reaction | list[Reaction]: ...
@@ -144,10 +148,31 @@ class Reactions(Catalogue[Reaction]):
         if not isinstance(reaction, Reaction):
             raise ValueError(f"'{reaction}' must be an instance of 'Reaction'")
 
+        reaction.catalogue_index = len(self._list)
         self._by_prop.setdefault(reaction.verbatim, []).append(reaction)
         self._by_serialized.setdefault(reaction.serialized, []).append(reaction)
+        self._by_source_index[reaction.index] = reaction
         self._list.append(reaction)
         self.count = len(self._list)
+
+    def by_source_index(self, n: int) -> Reaction | None:
+        """Return the reaction whose file-side number (``source_index``) is *n*.
+
+        This is the file-order reaction number (``Reaction.index``), the same
+        one ``.jfunc`` ``chemRateN`` binds to — NOT the positional catalogue
+        slot returned by ``self[n]``. Returns ``None`` if no reaction carries
+        that number (e.g. a reaction merged away by ``duplicate_policy``).
+
+        Parameters
+        ----------
+        n : int
+            File-side reaction number.
+
+        Returns
+        -------
+        Reaction | None
+        """
+        return self._by_source_index.get(n)
 
     def __contains__(self, item) -> bool:
         """Test membership by ``Reaction``, name/serialized string, or

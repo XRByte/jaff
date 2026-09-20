@@ -267,6 +267,7 @@ class IndexedList(list):
             >>> len(lst)
             2
         """
+        items = list(items)
         if any(not isinstance(item, IndexedValue) for item in items):
             raise TypeError(f"All items are not of type IndexedValue in: {items}")
 
@@ -318,12 +319,18 @@ class IndexedList(list):
         if all_indexed:
             # Normalize IndexedValue objects to ensure nested iterables are IndexedList
             for i, item in enumerate(items):
-                if isinstance(item, IndexedValue) and self.__is_iterable(item.value):
-                    # Check if the iterable contains IndexedValue objects
-                    if any(isinstance(v, IndexedValue) for v in item.value):
-                        # Convert to IndexedList (handles list, tuple, etc.)
-                        if not isinstance(item.value, IndexedList):
-                            items[i] = IndexedValue(item.indices, IndexedList(item.value))
+                if (
+                    isinstance(item, IndexedValue)
+                    and self.__is_iterable(item.value)
+                    and not isinstance(item.value, IndexedList)
+                ):
+                    # Materialize once: probing a generator would exhaust it.
+                    payload = list(item.value)
+                    if any(isinstance(v, IndexedValue) for v in payload):
+                        items[i] = IndexedValue(item.indices, IndexedList(payload))
+                    else:
+                        # Retain the materialized payload, not the consumed original.
+                        items[i] = IndexedValue(item.indices, payload)
             if flatten and out is not None:
                 out.extend(items)
             return
@@ -331,27 +338,20 @@ class IndexedList(list):
         for i, item in enumerate(items):
             idx = index_prefix + [i] if flatten else [i]
 
-            if self.__is_iterable(item) and not isinstance(item, (str, bytes)):
+            if self.__is_iterable(item):
+                materialized = list(item)
                 if flatten:
                     self.__convert_to_indexed_list(
-                        item,
+                        materialized,
                         nested=nested,
                         flatten=True,
                         index_prefix=idx,
                         out=out,
                     )
                 elif nested:
-                    self.__convert_to_indexed_list(
-                        item,
-                        nested=nested,
-                        flatten=False,
-                        index_prefix=[],
-                        out=None,
-                    )
-                    # Wrap the nested list in an IndexedList
-                    items[i] = IndexedValue(idx, IndexedList(item))
+                    items[i] = IndexedValue(idx, IndexedList(materialized, nested=True))
                 else:
-                    items[i] = IndexedValue(idx, item)
+                    items[i] = IndexedValue(idx, materialized)
             else:
                 iv = IndexedValue(idx, item)
                 if flatten and out is not None:
@@ -420,27 +420,29 @@ class IndexedList(list):
                 result.append(item)
         return IndexedList(result)
 
-    def __normal_to_flattened(self) -> "IndexedList":
-        """Convert normal list to flattened format."""
-        result = []
+    def __to_flattened(self) -> "IndexedList":
+        """Convert a normal or nested list to flattened format.
+
+        Preserves every explicit :class:`IndexedValue` child index and appends
+        every raw nesting dimension, so the flattened indices are the full
+        multi-dimensional coordinate of each leaf value.
+        """
+        result: list[IndexedValue] = []
 
         def flatten_recursive(item: IndexedValue, prefix_indices: list[int]) -> None:
-            """Recursively flatten an IndexedValue."""
-            if self.__is_iterable(item.value):
-                for i, sub_item in enumerate(item.value):
-                    new_indices = prefix_indices + [i]
-                    if isinstance(sub_item, IndexedValue):
-                        # Nested IndexedValue: combine indices
-                        flatten_recursive(sub_item, new_indices)
-                    elif self.__is_iterable(sub_item):
-                        # Nested iterable: recurse
-                        flatten_recursive(IndexedValue([i], sub_item), prefix_indices)
-                    else:
-                        # Leaf value
-                        result.append(IndexedValue(new_indices, sub_item))
-            else:
-                # Non-iterable value
+            """Recursively flatten an IndexedValue into ``result``."""
+            if not self.__is_iterable(item.value):
+                # Leaf value: emit at the accumulated coordinate.
                 result.append(IndexedValue(prefix_indices, item.value))
+                return
+
+            for i, child in enumerate(item.value):
+                if isinstance(child, IndexedValue):
+                    # Explicit child index: keep it, do not renumber.
+                    flatten_recursive(child, prefix_indices + child.indices)
+                else:
+                    # Raw child: its position is the next dimension.
+                    flatten_recursive(IndexedValue([i], child), prefix_indices + [i])
 
         for item in self:
             flatten_recursive(item, item.indices)
@@ -449,62 +451,75 @@ class IndexedList(list):
 
     def __nested_to_normal(self) -> "IndexedList":
         """Convert nested list to normal format by reconstructing list values from IndexedValues."""
-        result = []
 
-        for i, item in enumerate(self):
-            if self.__is_iterable(item.value):
-                # Check if it contains IndexedValue objects
-                has_indexed_values = any(isinstance(v, IndexedValue) for v in item.value)
-                if has_indexed_values:
-                    # Reconstruct as a regular list from IndexedValues
-                    reconstructed = []
-                    for indexed_val in item.value:
-                        if isinstance(indexed_val, IndexedValue):
-                            reconstructed.append(indexed_val.value)
-                        else:
-                            reconstructed.append(indexed_val)
-                    result.append(IndexedValue([i], reconstructed))
-                else:
-                    # Regular iterable value (not nested IndexedValues), keep as is
-                    result.append(IndexedValue([i], item.value))
-            else:
-                result.append(IndexedValue([i], item.value))
+        def rebuild(value: Any) -> Any:
+            """Collapse nested IndexedValues back into plain (possibly nested) lists."""
+            if self.__is_iterable(value) and any(
+                isinstance(v, IndexedValue) for v in value
+            ):
+                return [
+                    rebuild(v.value) if isinstance(v, IndexedValue) else rebuild(v)
+                    for v in value
+                ]
+            return value
 
-        return IndexedList(result)
+        # Preserve each item's own outer index; only reshape the value.
+        return IndexedList(
+            [IndexedValue(item.indices, rebuild(item.value)) for item in self]
+        )
 
-    def __nested_to_flattened(self) -> "IndexedList":
-        """Convert nested list to flattened format."""
-        result = []
+    @staticmethod
+    def __reconstruct_dense(entries: list[tuple[list[int], Any]]) -> Any:
+        """Rebuild a dense nested list from ``(remaining_indices, value)`` entries.
 
-        def flatten_recursive(item: IndexedValue, prefix_indices: list[int]) -> None:
-            """Recursively flatten an IndexedValue."""
-            if self.__is_iterable(item.value):
-                for i, sub_item in enumerate(item.value):
-                    new_indices = prefix_indices + [i]
-                    if isinstance(sub_item, IndexedValue):
-                        # Nested IndexedValue: combine indices
-                        flatten_recursive(sub_item, new_indices)
-                    elif self.__is_iterable(sub_item):
-                        # Nested iterable: recurse
-                        flatten_recursive(IndexedValue([i], sub_item), prefix_indices)
-                    else:
-                        # Leaf value
-                        result.append(IndexedValue(new_indices, sub_item))
-            else:
-                # Non-iterable value
-                result.append(IndexedValue(prefix_indices, item.value))
+        Args:
+            entries: Pairs of trailing index coordinates and their leaf values,
+                all sharing the same coordinate length.
 
-        for item in self:
-            flatten_recursive(item, item.indices)
+        Returns:
+            The scalar value when coordinates are exhausted, otherwise a nested
+            list indexed contiguously from 0.
 
-        return IndexedList(result)
-
-    def __flattened_to_normal(self) -> "IndexedList":
-        """Convert flattened list to normal format by reconstructing nested structures as list values."""
+        Raises:
+            ValueError: If coordinates are ragged, collide, or are sparse
+                (non-contiguous), i.e. cannot be represented as a dense list.
+        """
         from collections import defaultdict
 
-        # Group by first index
-        grouped = defaultdict(list)
+        if all(len(remaining) == 0 for remaining, _ in entries):
+            if len(entries) != 1:
+                raise ValueError(
+                    f"Colliding flattened indices map to the same coordinate: {entries}"
+                )
+            return entries[0][1]
+
+        groups: dict[int, list[tuple[list[int], Any]]] = defaultdict(list)
+        for remaining, value in entries:
+            if not remaining:
+                raise ValueError(
+                    "Ragged flattened indices: mixed coordinate depths under the "
+                    f"same parent: {entries}"
+                )
+            groups[remaining[0]].append((remaining[1:], value))
+
+        keys = sorted(groups.keys())
+        if keys != list(range(len(keys))):
+            raise ValueError(
+                f"Sparse flattened indices cannot be reconstructed to a dense "
+                f"nested list; got dimension keys {keys}"
+            )
+        return [IndexedList.__reconstruct_dense(groups[k]) for k in keys]
+
+    def __flattened_to_normal(self) -> "IndexedList":
+        """Convert flattened list to normal format by reconstructing nested list values.
+
+        The leading index becomes the outer (normal) index and may be sparse;
+        the trailing dimensions are reconstructed into dense nested lists.
+        """
+        from collections import defaultdict
+
+        # Group by leading (outer) index; trailing dims rebuild the value.
+        grouped: dict[int, list[tuple[list[int], Any]]] = defaultdict(list)
         for item in self:
             first_idx = item.indices[0]
             remaining_indices = item.indices[1:]
@@ -512,17 +527,8 @@ class IndexedList(list):
 
         result = []
         for idx in sorted(grouped.keys()):
-            items_at_idx = grouped[idx]
-
-            if len(items_at_idx) == 1 and not items_at_idx[0][0]:
-                # Single item with no remaining indices - keep as simple value
-                result.append(IndexedValue([idx], items_at_idx[0][1]))
-            else:
-                # Multiple items or items with remaining indices - reconstruct as list
-                reconstructed = []
-                for remaining_idx, value in sorted(items_at_idx, key=lambda x: x[0]):
-                    reconstructed.append(value)
-                result.append(IndexedValue([idx], reconstructed))
+            value = self.__reconstruct_dense(grouped[idx])
+            result.append(IndexedValue([idx], value))
 
         return IndexedList(result)
 
@@ -626,11 +632,11 @@ class IndexedList(list):
                         "Cannot convert to flattened format: no iterable values. Returning copy."
                     )
                 return IndexedList(list(self))
-            return self.__normal_to_flattened()
+            return self.__to_flattened()
 
         # Convert from nested
         if list_type == "nested":
-            return self.__nested_to_flattened()
+            return self.__to_flattened()
 
         # Should never reach here
         raise ValueError(f"Unknown list type: {list_type}")

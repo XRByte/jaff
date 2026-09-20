@@ -100,9 +100,10 @@ class RateSegments(Catalogue[RateSegment]):
         first = ls[0]
         last = ls[-1]
 
-        # No piecewise needed when the rate has no temperature dependence, or a
-        # lone segment is fully unbounded (valid at every temperature).
-        if not first.rate.has(tgas):
+        # No piecewise needed only for a lone segment: a single, temperature-
+        # independent rate, or one fully unbounded (valid at every temperature).
+        # With multiple segments the later pieces may differ, so never shortcut.
+        if len(ls) == 1 and not first.rate.has(tgas):
             return first.rate
         if len(ls) == 1 and first.tmin is None and first.tmax is None:
             return first.rate
@@ -133,11 +134,13 @@ class RateSegments(Catalogue[RateSegment]):
             a = prev.tmax  # left boundary
             b = seg.tmin  # right boundary
             if a != b:
-                # Linear interpolation of the two rates across the gap [a, b].
-                interp = (prev.rate * (b - tgas) + seg.rate * (tgas - a)) / (b - a)
-
+                left = prev.rate.xreplace({tgas: a})
+                right = seg.rate.xreplace({tgas: b})
+                interp = (left * (b - tgas) + right * (tgas - a)) / (b - a)
                 segs.append((interp, tgas < seg.tmin))
-                segs.append(_body(seg))
+
+            # Always emit this range's own body (touching ranges have no gap).
+            segs.append(_body(seg))
 
         # Upper edge: hold the boundary rate above tmax (clip, when an upper
         # bound exists); otherwise the last segment extends unbounded.

@@ -1,19 +1,31 @@
-"""UDFA (UMIST) format: colon-delimited fixed-column reaction database."""
+"""UDFA (UMIST) format: colon-delimited fixed-column reaction handler."""
 
 import re
-from functools import cache
 
-from .. import register
-from .._base import NetworkFormat
-from .._context import ParseContext
+from ......errors import ParserError
 
 
-@register
-class UdfaReaction(NetworkFormat):
-    """UDFA colon-delimited reaction line."""
+class UdfaReaction:
+    """UDFA colon-delimited reaction line handler."""
 
-    priority = 50
     name = "udfa"
+    priority = 50
+    is_reaction = True
+
+    global_re = re.compile(r"^(?!\s*[!#@]).*:.*$")
+
+    local_re = re.compile(
+        r"^\s*\d+\s*:"
+        r"\s*(?P<rtype>[^:]*?)\s*:"
+        r"\s*(?P<reactants>(?:[^:]*:){2})"
+        r"\s*(?P<products>(?:[^:]*:){4})"
+        r"\s*(?P<flag>[^:]*)\s*:"
+        r"\s*(?P<ka>[^:]*)\s*:"
+        r"\s*(?P<kb>[^:]*)\s*:"
+        r"\s*(?P<kc>[^:]*)\s*:"
+        r"\s*(?P<tmin>[^:]*)\s*:"
+        r"\s*(?P<tmax>[^:]*?)(?:\s*:.*)?$"
+    )
 
     SPECIAL_MAP = {
         "CR": "_CR",
@@ -22,27 +34,8 @@ class UdfaReaction(NetworkFormat):
         "PHOTON": "_PHOTON",
     }
 
-    @cache
-    def _global_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(r"^(?!\s*[!#@]).*:.*$")
-
-    @cache
-    def _local_re(self, ctx: ParseContext) -> re.Pattern:
-        return re.compile(
-            r"^\s*\d+\s*:"
-            r"\s*(?P<rtype>[^:]*?)\s*:"
-            r"\s*(?P<reactants>(?:[^:]*:){2})"
-            r"\s*(?P<products>(?:[^:]*:){4})"
-            r"\s*(?P<flag>[^:]*)\s*:"
-            r"\s*(?P<ka>[^:]*)\s*:"
-            r"\s*(?P<kb>[^:]*)\s*:"
-            r"\s*(?P<kc>[^:]*)\s*:"
-            r"\s*(?P<tmin>[^:]*)\s*:"
-            r"\s*(?P<tmax>[^:]*?)(?:\s*:.*)?$"
-        )
-
-    def handle(self, match: re.Match, ctx: ParseContext) -> None:
-        """Parse a UDFA (UMIST)-format reaction line and append it to the parsed list.
+    def parse(self, line: str, nline: int, state: dict, file) -> dict:
+        """Parse a UDFA (UMIST)-format reaction line into its reaction fields.
 
         Extracts the reaction type, reactants, products, rate parameters
         (``ka``, ``kb``, ``kc``), and temperature bounds from the
@@ -53,12 +46,11 @@ class UdfaReaction(NetworkFormat):
         Raises
         ------
         ParserError
-            Via :meth:`_handle_errors` if the line does not match the expected
-            UDFA format.
+            If the line does not match the expected UDFA format.
         """
-        local = self._local_re(ctx).match(ctx.line)
+        local = self.local_re.match(line)
         if not local:
-            self._handle_errors(match, ctx)
+            raise ParserError("Invalid UDFA reaction detected", line, nline, file)
 
         rtype: str = local.group("rtype")
         reactants: str = local.group("reactants")
@@ -101,21 +93,15 @@ class UdfaReaction(NetworkFormat):
         elif rtype == "CR" and not any(cr in rr for cr in ("_CR", "_CRP", "_CRPHOT")):
             rr.append("_CR")
 
-        ctx.parsed_list.append(
-            {
-                "r": rr,
-                "p": pp,
-                "tmin": t_min,
-                "tmax": t_max,
-                "rate": rate,
-                "type": self._reaction_type(rtype, rr),
-                "string": ctx.line.strip(),
-            }
-        )
-
-    def _handle_errors(self, match: re.Match, ctx: ParseContext) -> None:
-        """Raise an error for a malformed UDFA reaction line."""
-        ctx.raise_error("Invalid UDFA reaction detected")
+        return {
+            "r": rr,
+            "p": pp,
+            "tmin": t_min,
+            "tmax": t_max,
+            "rate": rate,
+            "type": self._reaction_type(rtype, rr),
+            "string": line.strip(),
+        }
 
     @staticmethod
     def _reaction_type(rtype: str, rr: list[str]) -> str:

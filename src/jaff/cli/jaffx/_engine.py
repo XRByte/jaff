@@ -69,8 +69,8 @@ class JaffX:
             net_args.funcfile = args.funcfile
         if args.label is not None:
             net_args.label = args.label
-        if args.replace_nh is not None:
-            net_args.replace_nH = args.replace_nh
+        if args.expand_nuclei is not None:
+            net_args.expand_nuclei = args.expand_nuclei
         if args.duplicate_policy is not None:
             net_args.duplicate_policy = args.duplicate_policy
 
@@ -81,7 +81,7 @@ class JaffX:
             label=net_args.label,
             funcfile=net_args.funcfile,
             duplicate_policy=net_args.duplicate_policy,
-            replace_nH=net_args.replace_nH,
+            expand_nuclei=net_args.expand_nuclei,
             _from_cli=net_args._from_cli,
         )
 
@@ -139,7 +139,7 @@ def _make_args(
     file: Optional[str] = None,
     label: Optional[str] = None,
     funcfile: Optional[str] = None,
-    replace_nh: Optional[bool] = None,
+    expand_nuclei: Optional[bool] = None,
     duplicate_policy: Optional[str] = None,
     tmin: Optional[float] = None,
     tmax: Optional[float] = None,
@@ -158,7 +158,7 @@ def _make_args(
         label=label,
         # Map "true"/"false" onto booleans, matching the old argparse type.
         funcfile=funcfile_arg(funcfile) if funcfile is not None else None,
-        replace_nh=replace_nh,
+        expand_nuclei=expand_nuclei,
         duplicate_policy=duplicate_policy,
         tmin=tmin,
         tmax=tmax,
@@ -200,9 +200,9 @@ _FUNCFILE = typer.Option(
     metavar="FILE",
     help="Path to auxiliary function file. Scans network directory by default ('true'). Pass 'false' to skip",
 )
-_REPLACE_NH = typer.Option(
+_EXPAND_NUCLEI = typer.Option(
     None,
-    "--replace-nh/--no-replace-nh",
+    "--expand-nuclei/--no-expand-nuclei",
     help="Standardize hydrogen density symbols if true",
 )
 _DUP_POLICY = typer.Option(
@@ -222,7 +222,7 @@ def _export_table_command(
     file: str,
     label: Optional[str],
     funcfile: Optional[str],
-    replace_nh: Optional[bool],
+    expand_nuclei: Optional[bool],
     duplicate_policy: Optional[str],
     tmin: Optional[float],
     tmax: Optional[float],
@@ -240,7 +240,7 @@ def _export_table_command(
             file=file,
             label=label,
             funcfile=funcfile,
-            replace_nh=replace_nh,
+            expand_nuclei=expand_nuclei,
             duplicate_policy=duplicate_policy,
             tmin=tmin,
             tmax=tmax,
@@ -262,7 +262,7 @@ def export_txt(
     file: str = _FILE,
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
-    replace_nh: Optional[bool] = _REPLACE_NH,
+    expand_nuclei: Optional[bool] = _EXPAND_NUCLEI,
     duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
     tmin: Optional[float] = typer.Option(
         None,
@@ -324,7 +324,7 @@ def export_txt(
         file,
         label,
         funcfile,
-        replace_nh,
+        expand_nuclei,
         duplicate_policy.value if duplicate_policy is not None else None,
         tmin,
         tmax,
@@ -344,7 +344,7 @@ def export_hdf5(
     file: str = _FILE,
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
-    replace_nh: Optional[bool] = _REPLACE_NH,
+    expand_nuclei: Optional[bool] = _EXPAND_NUCLEI,
     duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
     tmin: Optional[float] = typer.Option(
         None,
@@ -406,7 +406,7 @@ def export_hdf5(
         file,
         label,
         funcfile,
-        replace_nh,
+        expand_nuclei,
         duplicate_policy.value if duplicate_policy is not None else None,
         tmin,
         tmax,
@@ -426,7 +426,7 @@ def export_jaff(
     file: str = _FILE,
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
-    replace_nh: Optional[bool] = _REPLACE_NH,
+    expand_nuclei: Optional[bool] = _EXPAND_NUCLEI,
     duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
 ):
     """Export the network to a .jaff file (gzip-compressed JSON payload)."""
@@ -436,7 +436,7 @@ def export_jaff(
             file=file,
             label=label,
             funcfile=funcfile,
-            replace_nh=replace_nh,
+            expand_nuclei=expand_nuclei,
             duplicate_policy=duplicate_policy.value
             if duplicate_policy is not None
             else None,
@@ -449,7 +449,7 @@ def get_num_species(
     network: str = _NETWORK,
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
-    replace_nh: Optional[bool] = _REPLACE_NH,
+    expand_nuclei: Optional[bool] = _EXPAND_NUCLEI,
     duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
 ):
     """Print the number of species."""
@@ -458,7 +458,7 @@ def get_num_species(
             network,
             label=label,
             funcfile=funcfile,
-            replace_nh=replace_nh,
+            expand_nuclei=expand_nuclei,
             duplicate_policy=duplicate_policy.value
             if duplicate_policy is not None
             else None,
@@ -471,7 +471,7 @@ def get_num_reactions(
     network: str = _NETWORK,
     label: Optional[str] = _LABEL,
     funcfile: Optional[str] = _FUNCFILE,
-    replace_nh: Optional[bool] = _REPLACE_NH,
+    expand_nuclei: Optional[bool] = _EXPAND_NUCLEI,
     duplicate_policy: Optional[DuplicatePolicy] = _DUP_POLICY,
 ):
     """Print the number of reactions."""
@@ -480,7 +480,7 @@ def get_num_reactions(
             network,
             label=label,
             funcfile=funcfile,
-            replace_nh=replace_nh,
+            expand_nuclei=expand_nuclei,
             duplicate_policy=duplicate_policy.value
             if duplicate_policy is not None
             else None,

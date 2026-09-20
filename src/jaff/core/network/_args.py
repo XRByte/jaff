@@ -26,7 +26,7 @@ class NetworkArgs:
     label: str | None = None
     funcfile: bool | str | Path = True
     duplicate_policy: str | None = None
-    replace_nH: bool = True
+    expand_nuclei: bool = True
     rad_bands: list = field(default_factory=list)
     rad_profile_index: int | float = 0
     rad_mode: str = "nph"
