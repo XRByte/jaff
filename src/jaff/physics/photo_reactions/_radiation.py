@@ -449,7 +449,11 @@ class Radiation:
             # by dividing by the band-average energy <E>_i.
             k_tot += (
                 k
-                * (1.0 if not xsec["_equations"]["pa"] else (pr_xsec_avg / rad_xsec_avg))
+                * (
+                    1.0
+                    if not xsec["_equations"]["pa"]
+                    else (pr_xsec_avg / rad_xsec_avg if rad_xsec_avg != 0.0 else 0.0)
+                )
                 / (grp.eavg if self.mode == "u" else 1)
             )
 
