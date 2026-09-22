@@ -164,6 +164,27 @@ class AuxiliaryFunctionParser:
                 self.cline = ""
                 self.__parse_line()
 
+        # A trailing backslash with no following line leaves an unterminated
+        # continuation buffer; the pending directive would be silently dropped.
+        if self.cline.strip():
+            raise ParserError(
+                "Unterminated line continuation at end of file",
+                self.og_line,
+                self.nline,
+                self.file,
+            )
+
+        # A function block that never saw a ``return`` leaves the scope open;
+        # its ``def`` would stay 0.0 with unresolved locals.
+        if self.scope == "function":
+            raise ParserError(
+                f"Unterminated function block '{self.current_func}': "
+                f"missing return statement",
+                self.og_line,
+                self.nline,
+                self.file,
+            )
+
     def __parse_line(self) -> None:
         """Dispatch the current line to the appropriate handler.
 
