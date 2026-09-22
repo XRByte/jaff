@@ -454,7 +454,8 @@ class AuxiliaryFunctionParser:
                     nested_f_def = dfs_resolve_func(func_name)
                     nested_f_args = self.func_dict[func_name]["args"]
                     arg_map = dict(zip(nested_f_args, func.args))
-                    repl[func] = nested_f_def.subs(arg_map)
+                    repl[func] = nested_f_def.subs(arg_map, simultaneous=True)
+
                 expr = expr.xreplace(repl)
 
             visiting.remove(name)
