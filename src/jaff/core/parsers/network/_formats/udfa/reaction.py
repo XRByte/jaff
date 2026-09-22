@@ -25,6 +25,9 @@ class UdfaReaction:
 
     _MIN_FIELDS_PER_RANGE = 5
 
+    _ZETA0 = 1.36e-17
+    _ALBEDO = 0.5
+
     SPECIAL_MAP = {
         "CR": "_CR",
         "CRP": "_CRP",
@@ -106,7 +109,9 @@ class UdfaReaction:
 
         if rtype == "PH" and "_PHOTON" not in rr:
             rr.append("_PHOTON")
-        elif rtype == "CR" and not any(cr in rr for cr in ("_CR", "_CRP", "_CRPHOT")):
+        elif rtype in ("CR", "CP") and not any(
+            cr in rr for cr in ("_CR", "_CRP", "_CRPHOT")
+        ):
             rr.append("_CR")
 
         rtype_str = self._reaction_type(rtype, rr)
@@ -143,11 +148,26 @@ class UdfaReaction:
 
         return segments
 
-    @staticmethod
-    def _build_rate(rtype: str, ka: float, kb: float, kc: float) -> str:
-        """Build the rate expression string for one parameter block."""
+    @classmethod
+    def _build_rate(cls, rtype: str, ka: float, kb: float, kc: float) -> str:
+        """Build the rate expression string for one parameter block.
+
+        RATE22 cosmic-ray reactions (see the format specification, eqs. 2 and 4)
+        are scaled by ``crate / zeta0`` so that they vanish when the ionisation
+        rate ``crate`` is zero:
+
+        - ``CP`` (direct cosmic-ray ionisation): ``k = alpha * zeta/zeta0``.
+        - ``CR`` (cosmic-ray-induced photoreaction):
+          ``k = alpha * (T/300)**beta * gamma/(1-omega) * zeta/zeta0``.
+
+        ``PH`` is a UV photoreaction; anything else is Kooij/Arrhenius.
+        """
         rate_dict = {
-            "CR": f"{kc:.2e} * crate",
+            "CP": f"{ka / cls._ZETA0:.2e} * crate",
+            "CR": (
+                f"{ka * kc / (1.0 - cls._ALBEDO) / cls._ZETA0:.2e}"
+                f" * (tgas / 3e2)**({kb:.2f}) * crate"
+            ),
             "PH": f"{ka:.2e} * exp(-{kc:.2f} * av)",
         }
         if rtype in rate_dict:
@@ -193,12 +213,12 @@ class UdfaReaction:
     def _reaction_type(rtype: str, rr: list[str]) -> str:
         """Conclude the reaction type from the UDFA code and reactants.
 
-        ``"CR"`` = cosmic-ray, ``"PH"`` = photoprocess. Otherwise a reaction
-        with three or more real (non-pseudo) reactants is three-body; else
-        ``"unknown"``. Reactant-count classification is rate-independent, so it
-        survives custom auxiliary-function rates.
+        ``"CR"``/``"CP"`` = cosmic-ray, ``"PH"`` = photoprocess. Otherwise a
+        reaction with three or more real (non-pseudo) reactants is three-body;
+        else ``"unknown"``. Reactant-count classification is rate-independent,
+        so it survives custom auxiliary-function rates.
         """
-        agent = {"CR": "cosmic_ray", "PH": "photo"}.get(rtype)
+        agent = {"CR": "cosmic_ray", "CP": "cosmic_ray", "PH": "photo"}.get(rtype)
         if agent:
             return agent
         if sum(1 for r in rr if not r.startswith("_")) >= 3:
