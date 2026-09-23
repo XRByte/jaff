@@ -1,6 +1,7 @@
 # ABOUTME: Tests for multi-language code generation, CSE, and ODE/Jacobian output
 # ABOUTME: Language dialect table is data-driven; numeric ODE/Jac checks use fixed fixtures
 
+import re
 from pathlib import Path
 from typing import List
 
@@ -244,6 +245,47 @@ class TestCSE:
             stripped = line.strip()
             if stripped and not stripped.startswith("//"):
                 assert stripped.endswith(";"), f"unterminated: {line}"
+
+
+def _cse_names(code: str, prefix: str):
+    """Return (declared, used) CSE temporaries named ``<prefix><digits>``."""
+    pattern = re.compile(rf"\b{re.escape(prefix)}\d+\b")
+    declared: List[str] = []
+    used = set()
+    for line in code.splitlines():
+        if "=" not in line:
+            continue
+        lhs, rhs = line.split("=", 1)
+        target = lhs.strip().split()[-1] if lhs.strip() else ""
+        if pattern.fullmatch(target):
+            declared.append(target)
+        used.update(pattern.findall(rhs))
+    return declared, used
+
+
+_CSE_STR_APIS = {
+    "rates": lambda cg, p: cg.get_rates_str(use_cse=True, cse_var=p),
+    "odes": lambda cg, p: cg.get_ode_str(use_cse=True, cse_var=p),
+    "rhs": lambda cg, p: cg.get_rhs_str(use_cse=True, cse_var=p),
+    "jacobian": lambda cg, p: cg.get_jacobian_str(use_cse=True, cse_var=p),
+}
+
+
+class TestCSEPrefixWithDigits:
+    """CSE temporaries must be declared under the same name they are used by,
+    even when the user-supplied prefix itself contains digits."""
+
+    @pytest.mark.parametrize("prefix", ["tmp2", "stage2_cse", "x"])
+    @pytest.mark.parametrize("api", sorted(_CSE_STR_APIS))
+    def test_declared_temporaries_match_used(self, cse_network, api, prefix):
+        code = _CSE_STR_APIS[api](Codegen(cse_network, lang="python"), prefix)
+        declared, used = _cse_names(code, prefix)
+
+        assert declared, f"no CSE temporaries emitted:\n{code}"
+        assert len(declared) == len(set(declared)), f"duplicate temps:\n{code}"
+        assert used <= set(declared), (
+            f"undeclared temps {sorted(used - set(declared))}:\n{code}"
+        )
 
 
 # --------------------------------------------------------------------------- #
