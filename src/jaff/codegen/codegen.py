@@ -1553,15 +1553,16 @@ class Codegen:
                     continue
 
                 deriv_name = dexpr.func.__name__
-                # Apply the substitution to both the differentiation variables
-                # and the function arguments so the new call is fully evaluated
-                vars = [var.xreplace(sub_dict) for var in deriv.variables]
-                args = [arg.xreplace(sub_dict) for arg in dexpr.args]
-
+                orig_args = list(dexpr.args)
                 try:
-                    func_sig_suffix = "_".join([str(args.index(var)) for var in vars])
+                    func_sig_suffix = "_".join(
+                        [str(orig_args.index(var)) for var in deriv.variables]
+                    )
                 except ValueError:
                     continue
+
+                # Evaluate only the call's argument values at the point
+                args = [arg.xreplace(sub_dict) for arg in orig_args]
 
                 new_func_sig = f"{deriv_name}_partial_{func_sig_suffix}"
 

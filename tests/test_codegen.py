@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List
 
 import pytest
+import sympy as sp
 
 from jaff import Network
 from jaff.codegen import Codegen
@@ -286,6 +287,43 @@ class TestCSEPrefixWithDigits:
         assert used <= set(declared), (
             f"undeclared temps {sorted(used - set(declared))}:\n{code}"
         )
+
+
+# --------------------------------------------------------------------------- #
+# Unknown-function derivative conversion                                       #
+# --------------------------------------------------------------------------- #
+
+_convert_derivs = Codegen._Codegen__convert_unknown_derivatives
+_x, _y, _z = sp.symbols("x y z")
+_fun = sp.Function("fun")
+
+
+def _eval_partials(expr: sp.Expr) -> sp.Expr:
+    """Evaluate ``fun_partial_k`` calls for the asymmetric ``fun(a, b) = a + 2*b``."""
+    return expr.replace(sp.Function("fun_partial_0"), sp.Lambda((_x, _y), 1)).replace(
+        sp.Function("fun_partial_1"), sp.Lambda((_x, _y), 2)
+    )
+
+
+class TestUnknownDerivatives:
+    """Partial positions must come from the original derivative, not from the
+    arguments after a ``Subs`` evaluation point made them coincide."""
+
+    def test_subs_onto_repeated_argument_keeps_position(self):
+        expr = sp.Subs(sp.Derivative(_fun(_x, _z), _z), _z, _x)
+        assert _convert_derivs(expr) == sp.Function("fun_partial_1")(_x, _x)
+
+    def test_diff_of_repeated_argument_sums_both_partials(self):
+        converted = _convert_derivs(sp.diff(_fun(_y, _y), _y))
+        assert _eval_partials(converted) == 3
+
+    def test_repeated_argument_after_cse(self):
+        jac = [sp.diff(_fun(_x * _y, _x * _y), _y)]
+        replacements, reduced = sp.cse(jac, symbols=sp.numbered_symbols("cse"))
+        defs = {str(k): v for k, v in replacements}
+        converted = _convert_derivs(reduced[0], defs)
+        subs_back = {k: v for k, v in replacements}
+        assert _eval_partials(converted).xreplace(subs_back) == 3 * _x
 
 
 # --------------------------------------------------------------------------- #
