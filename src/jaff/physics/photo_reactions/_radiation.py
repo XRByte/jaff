@@ -236,8 +236,8 @@ class Radiation:
         Background radiation field built from ``props.background_field``.
     nbands : int
         Number of bands (``len(bands) - 1``).
-    den : sympy.MatrixSymbol
-        Symbolic radiation-density variable, shape ``(nbands, 1)``, named
+    den : sympy.IndexedBase
+        Symbolic radiation-density variable, shape ``(nbands,)``, named
         ``"radeden"`` in energy-density mode or ``"photden"`` otherwise.
     groups : list of RadiationGroup
         One :class:`RadiationGroup` per band, in ascending energy order.
@@ -286,11 +286,11 @@ class Radiation:
         self.nbands: int = len(self.bands) - 1
         # Symbolic radiation density variable: energy density (erg/cm³) or
         # photon number density (cm⁻³), depending on the mode.
-        self.den = sp.MatrixSymbol(
-            "radeden" if self.mode == "u" else "photden", self.nbands, 1
+        self.den = sp.IndexedBase(
+            "radeden" if self.mode == "u" else "photden", shape=(self.nbands,)
         )
         self.groups: list[RadiationGroup] = [
-            RadiationGroup(lower, self.bands[i + 1], i, self.den[sp.Idx(i)])  # type: ignore
+            RadiationGroup(lower, self.bands[i + 1], i, self.den[i])
             for i, lower in enumerate(self.bands[:-1])
         ]
         self.E_sym: sp.Symbol = sp.Symbol("E")
@@ -428,7 +428,7 @@ class Radiation:
 
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
             # (units: s⁻¹ for photon-density mode, cm³ s⁻¹ for two-body)
-            k = self.c * self.den[sp.Idx(grp.index)] * rad_xsec_avg
+            k = self.c * self.den[grp.index] * rad_xsec_avg
             if "shielding" in reaction._metadata:
                 if "value" in reaction._metadata["shielding"]:
                     k *= reaction._metadata["shielding"]["value"]
