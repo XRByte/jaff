@@ -598,7 +598,7 @@ class Codegen:
                 den_tot = reduce(
                     lambda x, y: x + y,
                     [
-                        specie.mass * nden_matrix[i]
+                        specie.mass * nden_matrix[i, 0]
                         for i, specie in enumerate(self.net.species)
                     ],
                     0,
@@ -607,7 +607,7 @@ class Codegen:
                 # Total number density: Σ nden[i]
                 den_tot = reduce(
                     lambda x, y: x + y,
-                    [nden_matrix[i] for i, _ in enumerate(self.net.species)],
+                    [nden_matrix[i, 0] for i, _ in enumerate(self.net.species)],
                     0,
                 )
         assert isinstance(self.net.dEdt_chem, sp.Expr)
@@ -1199,30 +1199,32 @@ class Codegen:
 
             nden_matrix = self.net.ndens
 
-            # Substitution dicts: scalar indexed form -> scalar y_i symbols
+            # Substitution dicts: MatrixSymbol entries -> scalar y_i symbols
             nden_to_y = {}
             radden_to_y = {}
             radflux_to_y = {}
 
             for i in range(n_species):
-                # Map scalar indexed form directly to y_i
-                nden_to_y[nden_matrix[i]] = y_syms[i]
+                # Support both nden[i] and nden[Idx(i)] forms
+                nden_to_y[nden_matrix[i, 0]] = y_syms[i]
+                nden_to_y[nden_matrix[sp.Idx(i), 0]] = y_syms[i]
 
             if radiation and self.net.radiation:
-                radden_matrix = sp.IndexedBase(
+                radden_matrix = sp.MatrixSymbol(
                     "radeden" if self.net.radiation.mode == "u" else "photden",
-                    shape=(self.net.radiation.nbands,),
+                    self.net.radiation.nbands,
+                    1,
                 )
-                radflux_matrix = sp.IndexedBase(
-                    "rflux", shape=(self.net.radiation.nbands,)
-                )
+                radflux_matrix = sp.MatrixSymbol("rflux", self.net.radiation.nbands, 1)
 
                 for i in range(self.net.radiation.nbands):
                     ei, fi = self.net.radiation.ordered_index(i, rad_order)
-                    # Map scalar indexed form directly to y_i
-                    radden_to_y[radden_matrix[i]] = y_syms[n_species + ei]
-                    # Map scalar indexed form directly to y_i
-                    radflux_to_y[radflux_matrix[i]] = y_syms[n_species + fi]
+                    # Support both radden[i] and radden[Idx(i)] forms
+                    radden_to_y[radden_matrix[i, 0]] = y_syms[n_species + ei]
+                    radden_to_y[radden_matrix[sp.Idx(i), 0]] = y_syms[n_species + ei]
+                    # Support both radflux[i] and radflux[Idx(i)] forms
+                    radflux_to_y[radflux_matrix[i, 0]] = y_syms[n_species + fi]
+                    radflux_to_y[radflux_matrix[sp.Idx(i), 0]] = y_syms[n_species + fi]
 
             # Substitute nden/radiation symbols inside rate expressions first,
             # then build the subs_k dict that replaces k[i] placeholders in
@@ -1274,8 +1276,8 @@ class Codegen:
             dedot_dtgas = sp.diff(eos_expr, sp.symbols("tgas"))
 
             # Compute dq/dn_j: derivatives of energy equation w.r.t. each species
-            # nden_matrix is scalar indexed (IndexedBase), use scalar form for differentiation
-            dede_dny = [sp.diff(eos_expr, nden_matrix[j]) for j in range(n_species)]
+            # Use the nden matrix notation (already available as nden_matrix)
+            dede_dny = [sp.diff(eos_expr, nden_matrix[j, 0]) for j in range(n_species)]
 
             # Store dxdot_dtgas for chain rule correction to species columns
             dxdot_dtgas_list = []

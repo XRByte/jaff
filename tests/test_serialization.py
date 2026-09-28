@@ -7,8 +7,6 @@ from pathlib import Path
 
 import pytest
 import sympy
-from sympy.tensor.indexed import Indexed
-from sympy.matrices.expressions.matexpr import MatrixElement
 
 from jaff import Network
 from jaff.common._sympy_json import dumps, from_jsonable, loads, to_jsonable
@@ -171,11 +169,11 @@ def test_network_json_roundtrip_preserves_nden_rates(tmp_path):
 
     names = set()
     for e in odes1 + odes2:
-        names |= {str(t) for t in (e.atoms(sympy.Symbol) | e.atoms(MatrixElement) | e.atoms(Indexed))}
+        names |= {str(t) for t in (e.atoms(sympy.Symbol) | e.atoms(MatrixElement))}
     sample = {n: 2.0 + i for i, n in enumerate(sorted(names))}
 
     def evaluate(expr):
-        targets = expr.atoms(sympy.Symbol) | expr.atoms(MatrixElement) | expr.atoms(Indexed)
+        targets = expr.atoms(sympy.Symbol) | expr.atoms(MatrixElement)
         return float(
             expr.xreplace({t: sympy.Float(sample[str(t)]) for t in targets}).evalf()
         )

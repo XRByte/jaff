@@ -377,18 +377,6 @@ class _Encoder:
             args = [self.encode(a) for a in expr.args]
             return {"type": "Mul", "args": args}
 
-        if isinstance(expr, sympy.IndexedBase):
-            shape = expr.shape if expr.shape else None
-            return {
-                "type": "IndexedBase",
-                "data": {"name": expr.name, "shape": shape},
-            }
-
-        if isinstance(expr, sympy.Indexed):
-            base = expr.base
-            indices = [self.encode(i) for i in expr.indices]
-            return {"type": "Indexed", "base": self.encode(base), "indices": indices}
-
         func = expr.func
         if func is sympy.exp:
             return {"type": "exp", "args": [self.encode(expr.args[0])]}
@@ -517,19 +505,6 @@ class _EncoderCompact:
         if isinstance(expr, sympy.Mul):
             args = [self.encode(a) for a in expr.args]
             return ["Mul", args]
-
-        if isinstance(expr, sympy.IndexedBase):
-            name = expr.name
-            # Convert shape to list of ints (may contain sympy Integers)
-            shape = None
-            if expr.shape:
-                shape = [int(s) if isinstance(s, sympy.Integer) else s for s in expr.shape]
-            return ["IB", name, shape]
-
-        if isinstance(expr, sympy.Indexed):
-            base = expr.base
-            indices = [self.encode(i) for i in expr.indices]
-            return ["Idx", self.encode(base), indices]
 
         func = expr.func
         if func is sympy.exp:
@@ -718,27 +693,6 @@ class _Decoder:
         if t == "Min":
             args = _decode_args_list(obj.get("args"))
             return sympy.Min(*[self.decode(a) for a in args], evaluate=False)
-
-        if t == "IndexedBase":
-            data = obj.get("data")
-            if not isinstance(data, dict):
-                raise SympyJsonError("IndexedBase data must be a dict")
-            name = data.get("name")
-            if not isinstance(name, str):
-                raise SympyJsonError("IndexedBase.name must be a string")
-            shape = data.get("shape")
-            # shape can be None or a tuple/list
-            if shape is not None and isinstance(shape, list):
-                shape = tuple(shape)
-            return sympy.IndexedBase(name, shape=shape)
-
-        if t == "Indexed":
-            base = self.decode(obj.get("base"))
-            indices_obj = obj.get("indices")
-            if not isinstance(indices_obj, list):
-                raise SympyJsonError("Indexed.indices must be a list")
-            indices = [self.decode(i) for i in indices_obj]
-            return sympy.Indexed(base, *indices)
 
         raise SympyJsonError(f"Unsupported node type: {t!r}")
 
@@ -932,36 +886,6 @@ class _DecoderCompact:
             if len(obj) != 2 or not isinstance(obj[1], list):
                 raise SympyJsonError("Min args missing/invalid")
             return sympy.Min(*[self.decode(a) for a in obj[1]], evaluate=False)
-
-        if t == "IB":
-            # IndexedBase: ["IB", name, shape_or_none]
-            if len(obj) < 2 or not isinstance(obj[1], str):
-                raise SympyJsonError("IndexedBase name missing/invalid")
-            name = obj[1]
-            shape = None
-            if len(obj) >= 3:
-                shape_obj = obj[2]
-                if shape_obj is not None:
-                    if isinstance(shape_obj, list):
-                        shape = tuple(shape_obj)
-                    elif isinstance(shape_obj, tuple):
-                        shape = shape_obj
-                    else:
-                        shape = self.decode(shape_obj)
-                        if isinstance(shape, (list, tuple)):
-                            shape = tuple(shape) if isinstance(shape, list) else shape
-            return sympy.IndexedBase(name, shape=shape)
-
-        if t == "Idx":
-            # Indexed: ["Idx", base, [indices...]]
-            if len(obj) < 3:
-                raise SympyJsonError("Indexed payload missing")
-            base = self.decode(obj[1])
-            indices_list = obj[2]
-            if not isinstance(indices_list, list):
-                raise SympyJsonError("Indexed indices must be a list")
-            indices = [self.decode(i) for i in indices_list]
-            return sympy.Indexed(base, *indices)
 
         raise SympyJsonError(f"Unsupported node type: {t!r}")
 
