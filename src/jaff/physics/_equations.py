@@ -241,10 +241,10 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
     rad_groups = net.radiation.groups
     nden = net.ndens
 
-    rflux = MatrixSymbol("rflux", net.radiation.nbands, 1)
+    rflux = IndexedBase("rflux", shape=(net.radiation.nbands,))
     # Mapping used to obtain the flux-moment equation from the density-moment
     # equation: replace each density symbol den[i] with the flux rflux[i].
-    flux_map = {g.sym: rflux[Idx(i)] for i, g in enumerate(net.radiation.groups)}
+    flux_map = {g.sym: rflux[i] for i, g in enumerate(net.radiation.groups)}
     grate: list[Expr | float] = [Float(0.0) for _ in range(net.radiation.nbands)]
     gflux: list[Expr | float] = [Float(0.0) for _ in range(net.radiation.nbands)]
 
@@ -292,7 +292,7 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
 
 
 def handle_dust_reduction(
-    net: Network, group: RadiationGroup, grate: Expr, gflux: Expr, rflux: MatrixSymbol
+    net: Network, group: RadiationGroup, grate: Expr, gflux: Expr, rflux: IndexedBase
 ) -> tuple[Expr, Expr]:
     """Subtract dust absorption/transport reductions from a band's ODE terms.
 
@@ -317,7 +317,7 @@ def handle_dust_reduction(
         The band's energy-density source term to reduce.
     gflux : Expr
         The band's flux source term to reduce.
-    rflux : MatrixSymbol
+    rflux : IndexedBase
         Flux moment symbol, indexed by band to form the flux reduction term.
 
     Returns
@@ -344,7 +344,7 @@ def handle_dust_reduction(
         gflux -= (
             symbols("Zd")
             * net.radiation.c
-            * rflux[Idx(group.index)]
+            * rflux[group.index]
             * net.n_hnuc
             * net.dust.tabular.avg_cross_section_per_hnuc(
                 f_reduction, (group.lower, group.upper)

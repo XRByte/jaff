@@ -1209,21 +1209,20 @@ class Codegen:
                 nden_to_y[nden_matrix[i]] = y_syms[i]
 
             if radiation and self.net.radiation:
-                radden_matrix = sp.MatrixSymbol(
+                radden_matrix = sp.IndexedBase(
                     "radeden" if self.net.radiation.mode == "u" else "photden",
-                    self.net.radiation.nbands,
-                    1,
+                    shape=(self.net.radiation.nbands,),
                 )
-                radflux_matrix = sp.MatrixSymbol("rflux", self.net.radiation.nbands, 1)
+                radflux_matrix = sp.IndexedBase(
+                    "rflux", shape=(self.net.radiation.nbands,)
+                )
 
                 for i in range(self.net.radiation.nbands):
                     ei, fi = self.net.radiation.ordered_index(i, rad_order)
-                    # Support both radden[i] and radden[Idx(i)] forms
-                    radden_to_y[radden_matrix[i, 0]] = y_syms[n_species + ei]
-                    radden_to_y[radden_matrix[sp.Idx(i), 0]] = y_syms[n_species + ei]
-                    # Support both radflux[i] and radflux[Idx(i)] forms
-                    radflux_to_y[radflux_matrix[i, 0]] = y_syms[n_species + fi]
-                    radflux_to_y[radflux_matrix[sp.Idx(i), 0]] = y_syms[n_species + fi]
+                    # Map scalar indexed form directly to y_i
+                    radden_to_y[radden_matrix[i]] = y_syms[n_species + ei]
+                    # Map scalar indexed form directly to y_i
+                    radflux_to_y[radflux_matrix[i]] = y_syms[n_species + fi]
 
             # Substitute nden/radiation symbols inside rate expressions first,
             # then build the subs_k dict that replaces k[i] placeholders in
