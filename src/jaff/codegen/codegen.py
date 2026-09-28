@@ -1083,7 +1083,9 @@ class Codegen:
             for idx, expression in radode_expressions["extras"]["cse"]:
                 _idx = idx[0]
                 var_name = f"{cse_var}{_idx}"
-                radode_code += self.lang.format_cse_declaration(var_name, expression) + "\n"
+                radode_code += (
+                    self.lang.format_cse_declaration(var_name, expression) + "\n"
+                )
 
         for idx, expression in radode_expressions["expressions"]:
             _idx = idx[0]
@@ -1270,7 +1272,9 @@ class Codegen:
             # into the state-vector framework via the ideal-gas EOS relation
             # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
             dde = sp.zeros(n_ode_eqns, 1)
-            dedot_dtgas = sp.diff(self.net.eos(), sp.symbols("tgas"))
+            dedot_dtgas = sp.diff(
+                self.net.eos(specific=specific_eint), sp.symbols("tgas")
+            )
 
             for i in jaff_progress.track(
                 range(n_ode_eqns),

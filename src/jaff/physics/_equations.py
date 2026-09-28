@@ -339,12 +339,18 @@ def handle_dust_reduction(
 
 
 @cache
-def get_eos(net: "Network", gamma: float = 1.6666666666667) -> Expr:
-    """Return the symbolic ideal-gas specific internal energy.
+def get_eos(
+    net: "Network", gamma: float = 1.6666666666667, specific: bool = True
+) -> Expr:
+    """Return the symbolic ideal-gas internal energy.
 
-    Uses the ideal-gas equation of state::
+    Uses the ideal-gas equation of state. When specific=True (default)::
 
-        e = n_tot · k_B · T_gas / (ρ · (γ − 1))   [erg / g]
+        e_specific = n_tot · k_B · T_gas / (ρ · (γ − 1))   [erg / g]
+
+    When specific=False, returns volumetric energy::
+
+        e_volumetric = n_tot · k_B · T_gas / (γ − 1)   [erg / cm³]
 
     where ``n_tot`` is the total number density (:attr:`Network.ntot`), ``ρ``
     is the mass density (:attr:`Network.rho`), ``k_B`` is the Boltzmann
@@ -353,7 +359,7 @@ def get_eos(net: "Network", gamma: float = 1.6666666666667) -> Expr:
 
     This expression drives the temperature column of the Jacobian via the
     chain rule ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.  The result is cached (via
-    :func:`functools.cache`) since it depends only on *net* and *gamma*.
+    :func:`functools.cache`) since it depends only on *net*, *gamma*, and *specific*.
 
     Parameters
     ----------
@@ -361,12 +367,16 @@ def get_eos(net: "Network", gamma: float = 1.6666666666667) -> Expr:
         Network supplying the symbolic ``n_tot`` and ``ρ`` sums.
     gamma : float, optional
         Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
+    specific : bool, optional
+        When True (default), return specific internal energy (erg/g).
+        When False, return volumetric internal energy (erg/cm³).
 
     Returns
     -------
     sympy.Expr
-        Symbolic specific internal energy in CGS units (erg/g).
+        Symbolic internal energy in CGS units.
     """
     tgas = symbols("tgas")
+    e = net.ntot * k_B.cgs.value * tgas / (gamma - 1.0)
 
-    return net.ntot * k_B.cgs.value * tgas / net.rho * 1.0 / (gamma - 1.0)
+    return e / net.rho if specific else e

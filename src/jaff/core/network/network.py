@@ -1060,8 +1060,8 @@ class Network:
 
         return sum(terms) if terms else Float(0.0)
 
-    def eos(self, gamma: float = 1.6666666666667) -> Expr:
-        """Symbolic ideal-gas specific internal energy of the network.
+    def eos(self, gamma: float = 1.6666666666667, specific: bool = True) -> Expr:
+        """Symbolic ideal-gas internal energy of the network.
 
         Thin wrapper around :func:`jaff.physics.get_eos`, which builds the
         expression from this network's :attr:`ntot` and :attr:`rho`.  Used by
@@ -1072,13 +1072,16 @@ class Network:
         ----------
         gamma : float, optional
             Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
+        specific : bool, optional
+            When True (default), return specific internal energy (erg/g).
+            When False, return volumetric internal energy (erg/cm³).
 
         Returns
         -------
         sympy.Expr
-            Symbolic specific internal energy in CGS units (erg/g).
+            Symbolic internal energy in CGS units.
         """
-        return get_eos(self, gamma)
+        return get_eos(self, gamma, specific)
 
     def __generate_reaction_matrices(self) -> None:
         """Build integer stoichiometry matrices: shape (n_reactions × n_species)."""
