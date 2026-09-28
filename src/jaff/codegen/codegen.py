@@ -299,11 +299,6 @@ class Codegen:
             CSE temporary definitions.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        # Construct the type prefix for CSE temporary declarations
-        prefix = (
-            var_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
         rates = ""
 
         rate_expressions = self.get_indexed_rates(use_cse=use_cse, cse_var=cse_var)
@@ -313,7 +308,8 @@ class Codegen:
         if use_cse:
             for idx, expression in rate_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                rates += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                rates += self.lang.format_cse_declaration(var_name, expression) + "\n"
 
         for idx, expression in rate_expressions["expressions"]:
             _idx = idx[0]
@@ -771,10 +767,6 @@ class Codegen:
             Multi-line string of ODE assignments, including any CSE temporaries.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        prefix = (
-            def_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
 
         ode_code: str = ""
         ode_expressions = self.get_indexed_odes(use_cse=use_cse, cse_var=cse_var)
@@ -783,7 +775,8 @@ class Codegen:
         if use_cse:
             for idx, expression in ode_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                ode_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                ode_code += self.lang.format_cse_declaration(var_name, expression) + "\n"
 
         for idx, expression in ode_expressions["expressions"]:
             _idx = idx[0]
@@ -947,10 +940,6 @@ class Codegen:
             Multi-line string of all RHS assignments including CSE temporaries.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        prefix = (
-            def_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
 
         rhs_code = ""
         rhs_expressions = self.get_indexed_rhs(
@@ -966,7 +955,8 @@ class Codegen:
         if use_cse:
             for idx, expression in rhs_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                rhs_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                rhs_code += self.lang.format_cse_declaration(var_name, expression) + "\n"
 
         for idx, expression in rhs_expressions["expressions"]:
             _idx = idx[0]
@@ -1085,10 +1075,6 @@ class Codegen:
             temporaries.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        prefix = (
-            def_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
 
         radode_code: str = ""
         radode_expressions = self.get_indexed_radodes(order, use_cse, cse_var)
@@ -1096,7 +1082,8 @@ class Codegen:
         if use_cse:
             for idx, expression in radode_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                radode_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                radode_code += self.lang.format_cse_declaration(var_name, expression) + "\n"
 
         for idx, expression in radode_expressions["expressions"]:
             _idx = idx[0]
@@ -1441,10 +1428,6 @@ class Codegen:
             If *matrix_format* is not a supported format string.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        prefix = (
-            var_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
 
         jac_expressions = self.get_indexed_jacobian(
             cse_var=cse_var, use_cse=use_cse, use_dedt=use_dedt
@@ -1455,7 +1438,8 @@ class Codegen:
         if use_cse:
             for idx, expr in jac_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                jac_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expr}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                jac_code += self.lang.format_cse_declaration(var_name, expr) + "\n"
 
         # Generate Jacobian code without CSE
         for [i, j], expr in jac_expressions["expressions"]:

@@ -289,6 +289,62 @@ class TestCSEPrefixWithDigits:
         )
 
 
+class TestCSELanguageSyntax:
+    """CSE temporary declarations must use valid syntax for each language.
+
+    Rust: use `let` for runtime-dependent expressions (not `const`).
+    Julia: use plain assignment (not `const`).
+    """
+
+    def test_rust_cse_uses_let_not_const(self, cse_network):
+        """Rust CSE temporaries should use `let` syntax, not `const`."""
+        cg = Codegen(cse_network, lang="rust")
+        rates = cg.get_rates_str(use_cse=True)
+
+        # Extract CSE lines (they come first)
+        cse_lines = []
+        for line in rates.splitlines():
+            line = line.strip()
+            if line and not line.startswith("//"):
+                # CSE lines come before k[ assignments
+                if "k[" not in line:
+                    cse_lines.append(line)
+                else:
+                    break
+
+        assert cse_lines, "No CSE temporaries found in Rust output"
+        # Rust runtime-dependent CSE should use `let`, not `const`
+        for line in cse_lines:
+            assert not line.startswith("const "), (
+                f"Rust CSE should use `let`, not `const`: {line}"
+            )
+            assert line.startswith("let "), (
+                f"Rust CSE should start with `let`: {line}"
+            )
+
+    def test_julia_cse_no_const(self, cse_network):
+        """Julia CSE temporaries should not use `const` keyword."""
+        cg = Codegen(cse_network, lang="julia")
+        rates = cg.get_rates_str(use_cse=True)
+
+        # Extract CSE lines
+        cse_lines = []
+        for line in rates.splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                # CSE lines come before k[ assignments
+                if "k[" not in line:
+                    cse_lines.append(line)
+                else:
+                    break
+
+        assert cse_lines, "No CSE temporaries found in Julia output"
+        for line in cse_lines:
+            assert not line.startswith("const "), (
+                f"Julia CSE should not use `const` keyword: {line}"
+            )
+
+
 # --------------------------------------------------------------------------- #
 # Unknown-function derivative conversion                                       #
 # --------------------------------------------------------------------------- #
