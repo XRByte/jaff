@@ -1,0 +1,110 @@
+# ABOUTME: REPEAT $[...]$ modifier parsing: booleans are case-insensitive TRUE/FALSE,
+# ABOUTME: ints stay ints, strings stay strings, and anything else is a ParserError
+
+from pathlib import Path
+from typing import List
+
+import pytest
+
+from jaff import Network
+from jaff.codegen._template_engine import TemplateParser
+from jaff.errors import ParserError
+
+FIXTURES = Path(__file__).parent / "fixtures"
+TRUE_SPELLINGS = ["True", "TRUE", "true"]
+FALSE_SPELLINGS = ["False", "FALSE", "false"]
+
+# Boolean modifier -> REPEAT line and body exercising it.  All default to False.
+BOOL_CASES = {
+    "USE_DEDT": ("idx, expr IN jacobian", "f[$idx$, $idx$] = $expr$"),
+    "SPECIFIC_EINT": ("idx, rhs IN rhses", "f[$idx$] = $rhs$"),
+    "RADIATION": ("idx, rhs IN rhses", "f[$idx$] = $rhs$"),
+}
+
+
+@pytest.fixture(scope="module")
+def dedt_net() -> Network:
+    """Energy-carrying network with no radiation configured."""
+    return Network(str(FIXTURES / "test_jac_dedt.dat"))
+
+
+@pytest.fixture(scope="module")
+def charged_net() -> Network:
+    return Network(str(FIXTURES / "react_cie_hepp.jet"))
+
+
+def _render(net: Network, tmp_path: Path, repeat: str, body: str, mods: str) -> List[str]:
+    extras = f" $[{mods}]$" if mods else ""
+    template = tmp_path / "t.py"
+    template.write_text(f"# $JAFF REPEAT {repeat}{extras}\n{body}\n# $JAFF END\n")
+    lines = TemplateParser(net, template).parse_file().splitlines()
+    return [line for line in lines if line.startswith("f")]
+
+
+@pytest.mark.parametrize("spelling", FALSE_SPELLINGS)
+@pytest.mark.parametrize("modifier", list(BOOL_CASES))
+def test_false_spellings_match_default(
+    dedt_net: Network, tmp_path: Path, modifier: str, spelling: str
+) -> None:
+    repeat, body = BOOL_CASES[modifier]
+    default = _render(dedt_net, tmp_path, repeat, body, "")
+    assert _render(dedt_net, tmp_path, repeat, body, f"{modifier} {spelling}") == default
+
+
+@pytest.mark.parametrize("spelling", TRUE_SPELLINGS)
+@pytest.mark.parametrize("modifier", ["USE_DEDT", "SPECIFIC_EINT"])
+def test_true_spellings_match_python_true(
+    dedt_net: Network, tmp_path: Path, modifier: str, spelling: str
+) -> None:
+    repeat, body = BOOL_CASES[modifier]
+    enabled = _render(dedt_net, tmp_path, repeat, body, f"{modifier} True")
+    assert enabled != _render(dedt_net, tmp_path, repeat, body, "")
+    assert _render(dedt_net, tmp_path, repeat, body, f"{modifier} {spelling}") == enabled
+
+
+@pytest.mark.parametrize("spelling", TRUE_SPELLINGS)
+def test_radiation_true_still_requires_radiation(
+    dedt_net: Network, tmp_path: Path, spelling: str
+) -> None:
+    repeat, body = BOOL_CASES["RADIATION"]
+    with pytest.raises(RuntimeError, match="No radiation bands"):
+        _render(dedt_net, tmp_path, repeat, body, f"RADIATION {spelling}")
+
+
+@pytest.mark.parametrize("value", ["1", "0", "yes", "None", "'True'"])
+@pytest.mark.parametrize("modifier", list(BOOL_CASES))
+def test_non_boolean_values_rejected(
+    dedt_net: Network, tmp_path: Path, modifier: str, value: str
+) -> None:
+    repeat, body = BOOL_CASES[modifier]
+    with pytest.raises(ParserError, match=f"{modifier} expects TRUE or FALSE"):
+        _render(dedt_net, tmp_path, repeat, body, f"{modifier} {value}")
+
+
+def test_norm_is_parsed_as_int(dedt_net: Network, tmp_path: Path) -> None:
+    repeat, body = BOOL_CASES["SPECIFIC_EINT"]
+    per_mass = _render(dedt_net, tmp_path, repeat, body, "SPECIFIC_EINT TRUE NORM 0")
+    per_particle = _render(dedt_net, tmp_path, repeat, body, "SPECIFIC_EINT TRUE NORM 1")
+    assert per_mass == _render(dedt_net, tmp_path, repeat, body, "SPECIFIC_EINT TRUE")
+    assert per_particle != per_mass
+
+
+@pytest.mark.parametrize("value", ["TRUE", "1.0", "one"])
+def test_non_integer_norm_rejected(dedt_net: Network, tmp_path: Path, value: str) -> None:
+    repeat, body = BOOL_CASES["SPECIFIC_EINT"]
+    with pytest.raises(ParserError, match="NORM expects an integer"):
+        _render(dedt_net, tmp_path, repeat, body, f"SPECIFIC_EINT TRUE NORM {value}")
+
+
+@pytest.mark.parametrize("pos, expected", [("p", "idx_hep"), ("1", "idx_he1")])
+def test_pos_neg_stay_strings(
+    charged_net: Network, tmp_path: Path, pos: str, expected: str
+) -> None:
+    lines = _render(
+        charged_net,
+        tmp_path,
+        "idx, specie_with_normalized_sign IN species_with_normalized_sign",
+        "f_idx_$specie_with_normalized_sign$ = $idx$",
+        f"POS {pos} NEG m",
+    )
+    assert any(line.startswith(f"f_{expected} =") for line in lines), lines

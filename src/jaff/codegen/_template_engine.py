@@ -29,7 +29,6 @@ as regular expressions.
 
 from __future__ import annotations
 
-import ast
 import re
 from functools import cached_property
 from pathlib import Path
@@ -829,18 +828,10 @@ class TemplateParser:
 
             # Process extra modifiers passed as key-value pairs
             # extras format: [KEY1, VALUE1, KEY2, VALUE2, ...]
-            # Step through by 2s to get keys, then check if next value is "TRUE"
+            # Each handler parses its own raw token into the type it needs
             for i, extra in enumerate(extras[::2]):
-                raw_value = extras[2 * i + 1]
-                # Interpret literals (True/False/ints) via literal_eval, but fall
-                # back to the raw string for bare identifiers
-                try:
-                    value = ast.literal_eval(raw_value)
-                except (ValueError, SyntaxError):
-                    value = raw_value
-                # Call the kwargs generator for this extra modifier
                 additional_kwargs = self.__get_special_var_dict[extra]["kwargs"](
-                    extra, value
+                    extra, extras[2 * i + 1]
                 )
                 kwargs = {**kwargs, **additional_kwargs}
 
@@ -1668,6 +1659,29 @@ class TemplateParser:
 
         return commands
 
+    def __bool(self, var: str, value: str) -> bool:
+        """Parse a ``TRUE``/``FALSE`` modifier value, case-insensitively."""
+        if value.upper() in ("TRUE", "FALSE"):
+            return value.upper() == "TRUE"
+        raise ParserError(
+            f"{var} expects TRUE or FALSE, got {value!r}",
+            self.line,
+            self.nline,
+            self.file,
+        )
+
+    def __int(self, var: str, value: str) -> int:
+        """Parse an integer modifier value."""
+        try:
+            return int(value)
+        except ValueError:
+            raise ParserError(
+                f"{var} expects an integer, got {value!r}",
+                self.line,
+                self.nline,
+                self.file,
+            ) from None
+
     @cached_property
     def __get_special_var_dict(self) -> dict[str, dict[str, Any]]:
         """
@@ -1700,11 +1714,19 @@ class TemplateParser:
                 ),
             },
             # USE_DEDT (specific internal energy derivative) handler
-            "USE_DEDT": {"kwargs": lambda var, value: {"use_dedt": value}},
-            "RADIATION": {"kwargs": lambda var, value: {"radiation": value}},
-            "RAD_ORDER": {"kwargs": lambda var, value: {"rad_order": value}},
-            "SPECIFIC_EINT": {"kwargs": lambda var, value: {"specific_eint": value}},
-            "NORM": {"kwargs": lambda var, value: {"norm": value}},
+            "USE_DEDT": {
+                "kwargs": lambda var, value: {"use_dedt": self.__bool(var, value)}
+            },
+            "RADIATION": {
+                "kwargs": lambda var, value: {"radiation": self.__bool(var, value)}
+            },
+            "RAD_ORDER": {
+                "kwargs": lambda var, value: {"rad_order": self.__int(var, value)}
+            },
+            "SPECIFIC_EINT": {
+                "kwargs": lambda var, value: {"specific_eint": self.__bool(var, value)}
+            },
+            "NORM": {"kwargs": lambda var, value: {"norm": self.__int(var, value)}},
             "POS": {"kwargs": lambda var, value: {"pos": value}},
             "NEG": {"kwargs": lambda var, value: {"neg": value}},
         }
