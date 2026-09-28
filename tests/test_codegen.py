@@ -486,3 +486,71 @@ class TestOdeJacobianWithInternalEnergy:
         )
         # With dedt=True, should have temperature column (column index = n_species)
         assert max_row >= 3, f"Should have energy row, got max_row={max_row}"
+
+    def test_jacobian_species_columns_energy_chain_rule(self, cse_codegen):
+        """Species Jacobian columns must apply EOS chain rule when using energy state.
+
+        Bug: When use_dedt=True, get_indexed_jacobian() computes species columns
+        as dF/dn|_T but doesn't convert to dF/dn|_e. The correct formula is:
+        dF/dn_j|_e = dF/dn_j|_T - (dF/dT)*(dq/dn_j|_T)/(dq/dT|_n)
+        where q = volumetric energy density.
+
+        This test verifies species columns include energy-equation terms
+        (from the chain rule correction). If the bug exists, species columns
+        will have no division by the energy equation denominator.
+        """
+        # Get Jacobian code with energy
+        jac_str = cse_codegen.get_jacobian_str(use_dedt=True, use_cse=False)
+
+        n_species = cse_codegen.net.species.count
+
+        # Extract energy column Jacobian lines and find denominator
+        # The energy column should have: (...)/(de/dT)
+        import re
+
+        energy_col_pattern = rf'\]\[{n_species}\]'
+        energy_col_lines = [
+            line for line in jac_str.splitlines()
+            if re.search(energy_col_pattern, line)
+        ]
+
+        assert energy_col_lines, "Should have energy column entries"
+
+        # Extract the denominator from one energy column entry
+        # Format: J[i][n_species] = (numerator)/(denominator)
+        sample_line = energy_col_lines[0]
+        match = re.search(r'\)/\(([^)]+)\)', sample_line)
+        assert match, f"Energy column should have division term: {sample_line}"
+
+        denominator = match.group(1)
+        print(f"Energy column denominator: {denominator}")
+
+        # Now check that species columns DON'T have this denominator
+        # If chain rule is applied, some species column entries would need
+        # to involve the energy equation term (the denominator)
+        species_col_lines = []
+        for j in range(n_species):
+            species_col_pattern = rf'\]\[{j}\]'
+            lines = [
+                line for line in jac_str.splitlines()
+                if re.search(species_col_pattern, line) and "=" in line
+            ]
+            species_col_lines.extend(lines)
+
+        # Check if any species column entry has the energy denominator
+        # If the bug is fixed, some entries should have it (chain rule correction)
+        # If the bug exists, NONE should have it
+        entries_with_denominator = sum(
+            1 for line in species_col_lines
+            if "/" in line and denominator in line
+        )
+
+        # For the test fixture network (test_cse), we expect NO species column
+        # entries to have the energy denominator if the bug is present.
+        # With the fix, some entries should have it.
+
+        # This test will FAIL if the bug exists (denominator count = 0)
+        assert entries_with_denominator > 0, (
+            "Species columns don't use energy equation denominator. "
+            "Chain rule not applied - bug is present!"
+        )

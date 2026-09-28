@@ -1272,16 +1272,34 @@ class Codegen:
             # into the state-vector framework via the ideal-gas EOS relation
             # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
             dde = sp.zeros(n_ode_eqns, 1)
-            dedot_dtgas = sp.diff(
-                self.net.eos(specific=specific_eint), sp.symbols("tgas")
-            )
+            eos_expr = self.net.eos(specific=specific_eint)
+            dedot_dtgas = sp.diff(eos_expr, sp.symbols("tgas"))
+
+            # Compute dq/dn_j: derivatives of energy equation w.r.t. each species
+            # Use the nden matrix notation (already available as nden_matrix)
+            dede_dny = [sp.diff(eos_expr, nden_matrix[j, 0]) for j in range(n_species)]
+
+            # Store dxdot_dtgas for chain rule correction to species columns
+            dxdot_dtgas_list = []
 
             for i in jaff_progress.track(
                 range(n_ode_eqns),
                 description="Generating jacobian internal energy terms",
             ):
                 dxdot_dtgas = sp.diff(ode_symbols[i], sp.symbols("tgas"))
+                dxdot_dtgas_list.append(dxdot_dtgas)
                 dde[i, 0] = dxdot_dtgas / dedot_dtgas
+
+            # Apply chain rule to species columns: when state changes from T to e,
+            # dF/dn_j|_e = dF/dn_j|_T - (dF/dT) * (dq/dn_j) / (dq/dT)
+            for j in jaff_progress.track(
+                range(n_species),
+                description="Applying EOS chain rule to species columns",
+            ):
+                for i in range(n_ode_eqns):
+                    correction = (dxdot_dtgas_list[i] * dede_dny[j]) / dedot_dtgas
+                    jacobian_matrix[i, j] = jacobian_matrix[i, j] - correction
+
             left = jacobian_matrix[:, :n_species]
             right = jacobian_matrix[:, n_species:]
 
