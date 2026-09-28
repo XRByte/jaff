@@ -37,7 +37,7 @@ def evaluate_rates(network, test_values: Dict[str, Any]) -> Dict[str, List[float
     for reaction in network.reactions:
         # Evaluate rate coefficient symbolically, substitute test values
         subs_dict = {
-            network.ndens[i, 0]: float(nden[i]) for i in range(len(nden))
+            network.ndens[i]: float(nden[i]) for i in range(len(nden))
         }
         subs_dict[symbols("tgas")] = float(tgas)
 

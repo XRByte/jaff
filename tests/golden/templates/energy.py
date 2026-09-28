@@ -30,7 +30,7 @@ def evaluate_energy_rates(network, test_values: Dict[str, Any]) -> Dict[str, flo
 
     # Build substitution dictionary
     subs_dict = {
-        network.ndens[i, 0]: float(nden[i]) for i in range(len(nden))
+        network.ndens[i]: float(nden[i]) for i in range(len(nden))
     }
     subs_dict[symbols("tgas")] = float(tgas)
 

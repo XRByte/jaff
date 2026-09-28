@@ -42,7 +42,7 @@ def evaluate_jacobian(
     tgas_sym = symbols("tgas")
 
     # Build substitution dictionary
-    subs_dict = {nden_sym[i, 0]: float(nden[i]) for i in range(n_species)}
+    subs_dict = {nden_sym[i]: float(nden[i]) for i in range(n_species)}
     subs_dict[tgas_sym] = float(tgas)
 
     # Get symbolic ODE right-hand sides
@@ -52,7 +52,7 @@ def evaluate_jacobian(
     jac_no_energy = np.zeros((n_species, n_species), dtype=np.float64)
     for i in range(n_species):
         for j in range(n_species):
-            djac = sodes[i].diff(nden_sym[j, 0]).subs(subs_dict)
+            djac = sodes[i].diff(nden_sym[j]).subs(subs_dict)
             try:
                 jac_no_energy[i, j] = float(djac)
             except (TypeError, AttributeError):
@@ -96,7 +96,7 @@ def evaluate_jacobian(
         dEdt = dEdt + network.dEdt_other
 
     for j in range(n_species):
-        djac = dEdt.diff(nden_sym[j, 0]).subs(subs_dict)
+        djac = dEdt.diff(nden_sym[j]).subs(subs_dict)
         try:
             jac_full[n_species, j] = float(djac)
         except (TypeError, AttributeError):

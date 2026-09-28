@@ -32,8 +32,7 @@ from sympy import (
     Expr,
     Float,
     Function,
-    Idx,
-    MatrixSymbol,
+    IndexedBase,
     parse_expr,
     symbols,
 )
@@ -992,19 +991,19 @@ class Network:
         return report
 
     @cached_property
-    def ndens(self) -> MatrixSymbol:
-        """Symbolic ``nden`` column vector of species number densities.
+    def ndens(self) -> IndexedBase:
+        """Symbolic ``nden`` indexed base for species number densities.
 
-        A SymPy :class:`~sympy.matrices.expressions.MatrixSymbol` of shape
-        ``(species.count, 1)``.  Entry ``nden[i]`` is the number density of the
+        A SymPy :class:`~sympy.tensor.indexed.IndexedBase` that provides
+        scalar-indexed access. Entry ``nden[i]`` is the number density of the
         species with index ``i``.  Cached so every consumer shares one symbol.
 
         Returns
         -------
-        sympy.MatrixSymbol
-            The ``nden`` matrix symbol.
+        sympy.IndexedBase
+            The ``nden`` indexed base symbol.
         """
-        return MatrixSymbol("nden", self.species.count, 1)
+        return IndexedBase("nden", shape=(self.species.count,))
 
     @cached_property
     def ntot(self) -> Expr:
@@ -1015,7 +1014,7 @@ class Network:
         sympy.Expr
             Symbolic sum of every entry of :attr:`ndens`.
         """
-        return sum(self.ndens[Idx(i)] for i in range(self.species.count))
+        return sum(self.ndens[i] for i in range(self.species.count))
 
     @cached_property
     def rho(self) -> Expr:
@@ -1031,7 +1030,7 @@ class Network:
         """
         return reduce(
             lambda x, y: x + y,
-            [(s.mass or 0.0) * self.ndens[Idx(s.index)] for s in self.species],
+            [(s.mass or 0.0) * self.ndens[s.index] for s in self.species],
         )
 
     @cached_property
@@ -1053,7 +1052,7 @@ class Network:
         """
         nden = self.ndens
         terms = [
-            count * nden[Idx(i)]
+            count * nden[i]
             for i, spec in enumerate(self.species)
             if (count := spec.exploded.count("H")) > 0
         ]
@@ -1136,7 +1135,7 @@ class Network:
                 for i, spec in enumerate(self.species):
                     count = spec.exploded.count(element)
                     if count > 0:
-                        terms.append(count * nden[Idx(i)])
+                        terms.append(count * nden[i])
                 self.__element_sums[element] = sum(terms) if terms else None
 
             return self.__element_sums[element]
@@ -1192,7 +1191,7 @@ class Network:
 
                 elif core == "e":
                     if "e-" in self.species:
-                        repl = nden[Idx(self.species["e-"].index)]
+                        repl = nden[self.species["e-"].index]
 
                 else:
                     if self.__charge_reverse is None:
@@ -1204,7 +1203,7 @@ class Network:
                     sp = self.__charge_reverse.get(key)
 
                     if sp is not None:
-                        repl = nden[Idx(sp.index)]
+                        repl = nden[sp.index]
                     else:
                         raise ParserError(
                             f"Density symbol '{name}' does not match any "
@@ -1244,7 +1243,7 @@ class Network:
         list[Expr]
             One SymPy expression per reaction, in reaction-index order.
         """
-        return get_sfluxes(self.reactions, self.species)
+        return get_sfluxes(self.reactions, self.species, self.ndens)
 
     def sodes(self) -> list[Basic]:
         """Return symbolic ODE right-hand sides for all species.
@@ -1258,7 +1257,7 @@ class Network:
         list[Basic]
             One SymPy expression per species, in species-index order.
         """
-        return get_sodes(self.reactions, self.species)
+        return get_sodes(self.reactions, self.species, self.ndens)
 
     def sradodes(self, order: int = 0) -> list[Expr]:
         """Return symbolic radiation moment ODE right-hand sides.

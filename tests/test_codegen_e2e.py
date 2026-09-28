@@ -16,6 +16,7 @@ import pytest
 import sympy as sp
 from sympy.core.function import AppliedUndef
 from sympy.matrices.expressions.matexpr import MatrixElement
+from sympy.tensor.indexed import Indexed
 
 from jaff import Network
 from jaff.cli import JaffGen
@@ -107,6 +108,10 @@ def _substitutions(exprs):
             continue
         for me in e.atoms(MatrixElement):
             subs[me] = sp.Float(_nden_value(int(me.args[1])))
+        for idx in e.atoms(Indexed):
+            # For Indexed atoms like nden[i], extract the index (second arg)
+            if len(idx.args) >= 2:
+                subs[idx] = sp.Float(_nden_value(int(idx.args[1])))
         for s in e.atoms(sp.Symbol):
             subs[s] = sp.Float(CONST.get(s.name, _DEFAULT_CONST))
         for f in e.atoms(AppliedUndef):
@@ -133,7 +138,7 @@ def _numeric_signature(net: Network) -> dict:
     n = net.species.count
     nden = net.ndens
     ys = [sp.Symbol(f"y_{j}") for j in range(n)]
-    ymap = {nden[j, 0]: ys[j] for j in range(n)}
+    ymap = {nden[j]: ys[j] for j in range(n)}
 
     rhs = net.sodes()
     rhs_y = [e.xreplace(ymap) for e in rhs]

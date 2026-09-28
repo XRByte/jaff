@@ -433,7 +433,7 @@ class TestOdeJacobianWithInternalEnergy:
         assert rates[-1].split("=")[-1].strip().rstrip(";") == "nden[0]"
 
     def test_dedt_expression(self, dedt_network):
-        assert str(dedt_network.dEdt_chem) == "nden[0, 0]**3*nden[1, 0]"
+        assert str(dedt_network.dEdt_chem) == "nden[0]**3*nden[1]"
 
     def test_rhs_and_jacobian(self, dedt_codegen):
         rhs = _rhs_terms(dedt_codegen.get_rhs_str(use_cse=False))

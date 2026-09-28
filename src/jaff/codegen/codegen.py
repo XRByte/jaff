@@ -598,7 +598,7 @@ class Codegen:
                 den_tot = reduce(
                     lambda x, y: x + y,
                     [
-                        specie.mass * nden_matrix[i, 0]
+                        specie.mass * nden_matrix[i]
                         for i, specie in enumerate(self.net.species)
                     ],
                     0,
@@ -607,7 +607,7 @@ class Codegen:
                 # Total number density: Σ nden[i]
                 den_tot = reduce(
                     lambda x, y: x + y,
-                    [nden_matrix[i, 0] for i, _ in enumerate(self.net.species)],
+                    [nden_matrix[i] for i, _ in enumerate(self.net.species)],
                     0,
                 )
         assert isinstance(self.net.dEdt_chem, sp.Expr)
@@ -1199,15 +1199,14 @@ class Codegen:
 
             nden_matrix = self.net.ndens
 
-            # Substitution dicts: MatrixSymbol entries -> scalar y_i symbols
+            # Substitution dicts: scalar indexed form -> scalar y_i symbols
             nden_to_y = {}
             radden_to_y = {}
             radflux_to_y = {}
 
             for i in range(n_species):
-                # Support both nden[i] and nden[Idx(i)] forms
-                nden_to_y[nden_matrix[i, 0]] = y_syms[i]
-                nden_to_y[nden_matrix[sp.Idx(i), 0]] = y_syms[i]
+                # Map scalar indexed form directly to y_i
+                nden_to_y[nden_matrix[i]] = y_syms[i]
 
             if radiation and self.net.radiation:
                 radden_matrix = sp.MatrixSymbol(
@@ -1276,8 +1275,8 @@ class Codegen:
             dedot_dtgas = sp.diff(eos_expr, sp.symbols("tgas"))
 
             # Compute dq/dn_j: derivatives of energy equation w.r.t. each species
-            # Use the nden matrix notation (already available as nden_matrix)
-            dede_dny = [sp.diff(eos_expr, nden_matrix[j, 0]) for j in range(n_species)]
+            # nden_matrix is scalar indexed (IndexedBase), use scalar form for differentiation
+            dede_dny = [sp.diff(eos_expr, nden_matrix[j]) for j in range(n_species)]
 
             # Store dxdot_dtgas for chain rule correction to species columns
             dxdot_dtgas_list = []

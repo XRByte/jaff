@@ -26,7 +26,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   const amrex::Real cse4 = 0.00011320754716981131*cse3*state.xn[3];
   const amrex::Real cse5 = std::min(10000000000.0, cse4);
   const amrex::Real cse6 = 1.0/(cse5 + 1);
-  const amrex::Real cse7 = cse6*state.xn[3]*state.xn[17];
+  const amrex::Real cse7 = cse6*state.xn[17]*state.xn[3];
   const amrex::Real cse8 = 1.6000000000000001e-9*cse7;
   const amrex::Real cse9 = cse5*cse8;
   const amrex::Real cse10 = 1.99e-9*std::pow(state.T, -0.19)*state.xn[11]*state.xn[16];
@@ -34,11 +34,11 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   const amrex::Real cse12 = 3.5000000000000002e-11*state.xn[11]*state.xn[15];
   const amrex::Real cse13 = 3.7999999999999998e-10*chi*std::exp(-2.6600000000000001*av)*state.xn[15];
   const amrex::Real cse14 = 1.0/state.T;
-  const amrex::Real cse15 = 7.9513696852843427e-10*std::pow(state.T, -0.33900000000000002)*std::exp(0.11*cse14)*state.xn[7]*state.xn[15];
+  const amrex::Real cse15 = 7.9513696852843427e-10*std::pow(state.T, -0.33900000000000002)*std::exp(0.11*cse14)*state.xn[15]*state.xn[7];
   const amrex::Real cse16 = M_LN10;
   const amrex::Real cse17 = 1.0/cse16;
   const amrex::Real cse18 = 2*state.xn[3];
-  const amrex::Real cse19 = cse18 + state.xn[0] + state.xn[1] + 2*state.xn[4] + state.xn[10] + state.xn[14] + state.xn[15] + 3*state.xn[16];
+  const amrex::Real cse19 = cse18 + state.xn[0] + state.xn[10] + state.xn[14] + state.xn[15] + 3*state.xn[16] + state.xn[1] + 2*state.xn[4];
   const amrex::Real cse20 = std::log((1.0/10000.0)*state.T);
   const amrex::Real cse21 = std::pow(cse16, -2);
   const amrex::Real cse22 = std::pow(cse20, 2)*cse21;
@@ -69,9 +69,9 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
    0.0
 ))*state.xn[0];
   const amrex::Real cse34 = std::pow(state.T, -0.52000000000000002);
-  const amrex::Real cse35 = cse34*state.xn[2]*state.xn[16];
+  const amrex::Real cse35 = cse34*state.xn[16]*state.xn[2];
   const amrex::Real cse36 = cse19*d2g;
-  const amrex::Real cse37 = (4.0000000000000001e-10*std::pow(state.T, 0.0066899999999999998) + 1.1000000000000001e-11*std::pow(state.T, 0.51700000000000002))*std::exp(-227*cse14)*state.xn[1]*state.xn[11];
+  const amrex::Real cse37 = (4.0000000000000001e-10*std::pow(state.T, 0.0066899999999999998) + 1.1000000000000001e-11*std::pow(state.T, 0.51700000000000002))*std::exp(-227*cse14)*state.xn[11]*state.xn[1];
   const amrex::Real cse38 = std::sqrt(2.0000000000000002e-15*ncol_H2 + 1);
   const amrex::Real cse39 = 0.96499999999999997/std::pow(1.4142135623730951e-10*ncol_H2/vdisp + 1, 2) + 0.035000000000000003*std::exp(-0.00084999999999999995*cse38)/cse38;
   const amrex::Real cse40 = std::exp(-4.1799999999999997*av);
@@ -103,7 +103,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
 : (
    0.0
 ));
-  const amrex::Real cse64 = 1.05849862170431e-5*std::pow(state.T, -0.64000000000000001)*state.xn[2]*state.xn[10];
+  const amrex::Real cse64 = 1.05849862170431e-5*std::pow(state.T, -0.64000000000000001)*state.xn[10]*state.xn[2];
   const amrex::Real cse65 = 4.8813573300130879e-6*std::pow(cse14, 1.5)*std::pow(114.81344434488582*std::pow(cse14, 0.40699999999999997) + 1, -2.242)*state.xn[1]*state.xn[2];
   const amrex::Real cse66 = std::exp(-1.8700000000000001*av);
   const amrex::Real cse67 = chi*cse66;
@@ -114,13 +114,13 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   const amrex::Real cse72 = -cse57 - cse60 - cse63 + cse64 + cse65 + cse71;
   const amrex::Real cse73 = cse32 - cse37;
   const amrex::Real cse74 = cse18*cse59;
-  const amrex::Real cse75 = 1.4595000290776864e-10*std::pow(state.T, -0.62)*state.xn[2]*state.xn[13];
+  const amrex::Real cse75 = 1.4595000290776864e-10*std::pow(state.T, -0.62)*state.xn[13]*state.xn[2];
   const amrex::Real cse76 = 2.0740886949963892e-18*state.c_hat*state.xn[12];
   const amrex::Real cse77 = cse76*state.rn[2*0];
   const amrex::Real cse78 = -cse77;
   const amrex::Real cse79 = 2.1659999999999999e-12*cse36*state.xn[13]/(1.534817233071468e-7*std::pow(cse68, 1.8740000000000001)*(43750.0*std::pow(cse69, -7.538e-5*cse70 - 0.89639999999999997)*std::pow(state.T, 1.635e-6) + 1) + 1);
   const amrex::Real cse80 = 16800.0*crate*cse24*state.xn[12];
-  const amrex::Real cse81 = (1.0537934368240927e-9*std::pow(cse14, 0.00231) + std::pow(state.T, -1.5)*(0.00015100000000000001*std::exp(-8110.0*cse14) + 1.31e-7*std::exp(-26.600000000000001*cse14) + 3.4e-8*std::exp(-7.6200000000000001*cse14) + 6.9699999999999997e-9*std::exp(-1.3799999999999999*cse14)))*state.xn[7]*state.xn[16];
+  const amrex::Real cse81 = (1.0537934368240927e-9*std::pow(cse14, 0.00231) + std::pow(state.T, -1.5)*(0.00015100000000000001*std::exp(-8110.0*cse14) + 1.31e-7*std::exp(-26.600000000000001*cse14) + 3.4e-8*std::exp(-7.6200000000000001*cse14) + 6.9699999999999997e-9*std::exp(-1.3799999999999999*cse14)))*state.xn[16]*state.xn[7];
   const amrex::Real cse82 = cse23*state.xn[2];
   const amrex::Real cse83 = ((cse82 < 1.0e-50) ? (
    10000000000.0
@@ -146,7 +146,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   const amrex::Real cse99 = cse97 + cse98;
   const amrex::Real cse100 = -cse81;
   const amrex::Real cse101 = -cse84;
-  const amrex::Real cse102 = 1.6999999999999999e-9*state.xn[9]*state.xn[16];
+  const amrex::Real cse102 = 1.6999999999999999e-9*state.xn[16]*state.xn[9];
   const amrex::Real cse103 = cse33*state.xn[3];
   const amrex::Real cse104 = 5.6999999999999997e-11*cse41;
   const amrex::Real cse105 = 7.2000000000000002e-15*cse50;
@@ -168,28 +168,28 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   const amrex::Real cse121 = std::exp(-118400.0*cse14)/(4.4460389837719569e-9*cse120 + 626500000.0);
   const amrex::Real cse122 = cse69 + 50;
   const amrex::Real cse123 = std::log(1.7*cse2*cse67/(state.xn[2] + 1.0e-50) + 50);
-  const amrex::Real cse124 = std::sqrt(cse14)*state.xn[2];
-  const amrex::Real cse125 = (1.0/100.0)*state.T;
-  const amrex::Real cse126 = std::log(cse125);
-  const amrex::Real cse127 = state.T < 500;
-  const amrex::Real cse128 = std::pow(state.T, 0.070000000000000007);
-  const amrex::Real cse129 = 4.5299999999999998e-6*cse124 + 7.5799999999999997e-10*std::pow(cse125, 0.0086999999999999994*cse126 + 0.12809999999999999)*state.xn[0] + (0.75*((cse127) ? (
+  const amrex::Real cse124 = 0.001*state.T;
+  const amrex::Real cse125 = cse124 + 1;
+  const amrex::Real cse126 = std::pow(cse125, -2);
+  const amrex::Real cse127 = 1.0/cse125;
+  const amrex::Real cse128 = 1.0/(cse23*(cse104 + 1.9999999999999999e-7)/(std::pow(10, -2.3900000000000001*cse126 + 0.055500000000000001*cse127 - 11.06)*cse25 + std::pow(10, -2.0230000000000001*cse126 - 3.6709999999999998*cse127 - 11.08)*cse24) + 1);
+  const amrex::Real cse129 = std::sqrt(cse14)*state.xn[2];
+  const amrex::Real cse130 = (1.0/100.0)*state.T;
+  const amrex::Real cse131 = std::log(cse130);
+  const amrex::Real cse132 = state.T < 500;
+  const amrex::Real cse133 = std::pow(state.T, 0.070000000000000007);
+  const amrex::Real cse134 = 4.5299999999999998e-6*cse129 + 7.5799999999999997e-10*std::pow(cse130, 0.0086999999999999994*cse131 + 0.12809999999999999)*state.xn[0] + (0.75*((cse132) ? (
    1.1000000000000001e-13*state.T + 5.3300000000000002e-10
 )
 : (
-   3.74757785025e-10*cse128
-)) + 0.25*((cse127) ? (
+   3.74757785025e-10*cse133
+)) + 0.25*((cse132) ? (
    3.3000000000000001e-13*state.T + 4.4299999999999997e-10
 )
 : (
-   3.8899728635600003e-10*cse128
+   3.8899728635600003e-10*cse133
 )))*state.xn[3];
-  const amrex::Real cse130 = cse129*std::exp(-91.209999999999994*cse14)/(cse129 + 2.3e-6);
-  const amrex::Real cse131 = 0.001*state.T;
-  const amrex::Real cse132 = cse131 + 1;
-  const amrex::Real cse133 = std::pow(cse132, -2);
-  const amrex::Real cse134 = 1.0/cse132;
-  const amrex::Real cse135 = 1.0/(cse23*(cse104 + 1.9999999999999999e-7)/(std::pow(10, -2.3900000000000001*cse133 + 0.055500000000000001*cse134 - 11.06)*cse25 + std::pow(10, -2.0230000000000001*cse133 - 3.6709999999999998*cse134 - 11.08)*cse24) + 1);
+  const amrex::Real cse135 = cse134*std::exp(-91.209999999999994*cse14)/(cse134 + 2.3e-6);
   const amrex::Real cse136 = std::pow(state.T, 1.0/4.0);
   const amrex::Real cse137 = 1.75*cse136*state.xn[0] + state.xn[3] + 680.10000000000002*state.xn[2]/cse136;
   const amrex::Real cse138 = l0_co_interp1d(state.T);
@@ -218,11 +218,11 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
 : (
    18.0
 ))))) + cse25*(26.399999999999999*std::sqrt(cse82/(cse82 + 0.070000000000000007)) + 6.5);
-  const amrex::Real cse145 = 0.042999999999999997*cse126;
-  const amrex::Real cse146 = 4.34e-10*std::pow(cse125, 0.755 - 0.16*cse126)*state.xn[0] + 1.08e-14*std::pow(state.T, 0.92600000000000005)*state.xn[2] + (2.2500000000000003e-12*std::pow(cse125, 0.52500000000000002*cse126 + 1.198) + 5.2499999999999998e-13*std::pow(cse125, cse145 + 0.88900000000000001))*state.xn[3];
-  const amrex::Real cse147 = 3.5700000000000001e-10*std::pow(cse125, 0.41899999999999998 - 0.0030000000000000001*cse126)*state.xn[0] + 5.1199999999999999e-10*std::pow(state.T, -0.074999999999999997)*state.xn[2] + (3.7250000000000001e-11*std::pow(cse125, 0.025000000000000001*cse126 + 0.26400000000000001) + 1.0274999999999999e-10*std::pow(cse125, cse145 + 0.29599999999999999))*state.xn[3];
+  const amrex::Real cse145 = 0.042999999999999997*cse131;
+  const amrex::Real cse146 = 4.34e-10*std::pow(cse130, 0.755 - 0.16*cse131)*state.xn[0] + 1.08e-14*std::pow(state.T, 0.92600000000000005)*state.xn[2] + (2.2500000000000003e-12*std::pow(cse130, 0.52500000000000002*cse131 + 1.198) + 5.2499999999999998e-13*std::pow(cse130, cse145 + 0.88900000000000001))*state.xn[3];
+  const amrex::Real cse147 = 3.5700000000000001e-10*std::pow(cse130, 0.41899999999999998 - 0.0030000000000000001*cse131)*state.xn[0] + 5.1199999999999999e-10*std::pow(state.T, -0.074999999999999997)*state.xn[2] + (3.7250000000000001e-11*std::pow(cse130, 0.025000000000000001*cse131 + 0.26400000000000001) + 1.0274999999999999e-10*std::pow(cse130, cse145 + 0.29599999999999999))*state.xn[3];
   const amrex::Real cse148 = (1.0/5.0)*std::exp(-326.60000000000002*cse14);
-  const amrex::Real cse149 = 3.1899999999999998e-10*std::pow(cse125, 0.36899999999999999 - 0.0060000000000000001*cse126)*state.xn[0] + 4.8599999999999998e-10*std::pow(state.T, -0.025999999999999999)*state.xn[2] + (4.7499999999999998e-11*std::pow(cse125, 0.041000000000000002*cse126 + 0.20300000000000001) + 1.6725000000000002e-10*std::pow(cse125, 0.058000000000000003*cse126 + 0.23699999999999999))*state.xn[3];
+  const amrex::Real cse149 = 3.1899999999999998e-10*std::pow(cse130, 0.36899999999999999 - 0.0060000000000000001*cse131)*state.xn[0] + 4.8599999999999998e-10*std::pow(state.T, -0.025999999999999999)*state.xn[2] + (4.7499999999999998e-11*std::pow(cse130, 0.041000000000000002*cse131 + 0.20300000000000001) + 1.6725000000000002e-10*std::pow(cse130, 0.058000000000000003*cse131 + 0.23699999999999999))*state.xn[3];
   const amrex::Real cse150 = cse147 + 8.9099999999999997e-5;
   const amrex::Real cse151 = cse148*cse149;
   const amrex::Real cse152 = cse146*cse147*cse148 + (1.0/15.0)*cse146*cse149*std::exp(-425.40000000000003*cse14) + cse150*cse151;
@@ -234,7 +234,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   const amrex::Real cse158 = state.T < 100.0;
   const amrex::Real cse159 = state.T < 6000.0;
   const amrex::Real cse160 = state.T < 10;
-  const amrex::Real cse161 = std::log(cse131);
+  const amrex::Real cse161 = std::log(cse124);
   const amrex::Real cse162 = cse161*cse17;
   const amrex::Real cse163 = std::pow(cse16, -8);
   const amrex::Real cse164 = std::pow(cse161, 8)*cse163;
@@ -296,26 +296,26 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   const amrex::Real cse195 = cse163*std::pow(cse188, 8);
   const amrex::Real cse196 = cse165*std::pow(cse188, 7);
   const amrex::Real cse197 = cse167*std::pow(cse188, 6);
-  const amrex::Real cse198 = 0.045999999999999999*cse126;
-  const amrex::Real cse199 = 1.7258000000000001e-6*cse124;
-  const amrex::Real cse200 = 8.9000000000000003e-11*std::pow(cse125, cse198 + 0.22800000000000001)*state.xn[0] + cse199*std::exp(((cse182) ? (
+  const amrex::Real cse198 = 0.045999999999999999*cse131;
+  const amrex::Real cse199 = 1.7258000000000001e-6*cse129;
+  const amrex::Real cse200 = 8.9000000000000003e-11*std::pow(cse130, cse198 + 0.22800000000000001)*state.xn[0] + cse199*std::exp(((cse182) ? (
    cse70*(cse70*(cse70*(0.0070527699999999999*cse70 - 0.11133800000000001) + 0.69763799999999998) - 1.3074300000000001) - 7.6973500000000001
 )
 : (
    cse70*(cse70*(cse70*(0.093813800000000003*cse70 - 3.0328300000000001) + 36.180300000000003) - 187.47399999999999) + 350.60899999999998
-))) + (5.1749999999999996e-11*std::pow(cse125, 0.037999999999999999*cse126 + 0.16900000000000001) + 2.15e-11*std::pow(cse125, 0.048000000000000001*cse126 - 0.01))*state.xn[3];
-  const amrex::Real cse201 = 2.6400000000000002e-10*std::pow(cse125, cse198 + 0.23100000000000001)*state.xn[0] + cse199*std::exp(((cse182) ? (
+))) + (5.1749999999999996e-11*std::pow(cse130, 0.037999999999999999*cse131 + 0.16900000000000001) + 2.15e-11*std::pow(cse130, 0.048000000000000001*cse131 - 0.01))*state.xn[3];
+  const amrex::Real cse201 = 2.6400000000000002e-10*std::pow(cse130, cse198 + 0.23100000000000001)*state.xn[0] + cse199*std::exp(((cse182) ? (
    cse70*(cse70*(cse70*(0.00235272*cse70 - 0.041816600000000002) + 0.35826400000000003) - 0.57443) - 7.4386999999999999
 )
 : (
    cse70*(cse70*(cse70*(0.097857299999999994*cse70 - 3.1926800000000002) + 38.504899999999999) - 202.19300000000001) + 386.18599999999998
-))) + (1.11e-10*std::pow(cse125, 0.031*cse126 + 0.26300000000000001) + 4.3749999999999998e-11*std::pow(cse125, 0.064000000000000001*cse126 + 0.071999999999999995))*state.xn[3];
-  const amrex::Real cse202 = 2.8763333333333333e-6*cse124*std::exp(((cse182) ? (
+))) + (1.11e-10*std::pow(cse130, 0.031*cse131 + 0.26300000000000001) + 4.3749999999999998e-11*std::pow(cse130, 0.064000000000000001*cse131 + 0.071999999999999995))*state.xn[3];
+  const amrex::Real cse202 = 2.8763333333333333e-6*cse129*std::exp(((cse182) ? (
    cse70*(cse70*(cse70*(-0.00065632500000000003*cse70 - 0.015089200000000001) + 0.36118400000000001) - 0.77378199999999997) - 9.2514099999999999
 )
 : (
    cse70*(cse70*(cse70*(0.10508000000000001*cse70 - 3.4762) + 42.594999999999999) - 227.91300000000001) + 444.60000000000002
-))) + 1.26e-10*std::pow(cse125, 0.057000000000000002*cse126 + 0.115)*state.xn[0] + (5.3249999999999997e-11*std::pow(cse125, 0.049000000000000002*cse126 - 0.0040000000000000001) + 1.675e-11*std::pow(cse125, 0.10199999999999999*cse126 - 0.085000000000000006))*state.xn[3];
+))) + 1.26e-10*std::pow(cse130, 0.057000000000000002*cse131 + 0.115)*state.xn[0] + (5.3249999999999997e-11*std::pow(cse130, 0.049000000000000002*cse131 - 0.0040000000000000001) + 1.675e-11*std::pow(cse130, 0.10199999999999999*cse131 - 0.085000000000000006))*state.xn[3];
   const amrex::Real cse203 = 5*std::exp(-62.460000000000001*cse14);
   const amrex::Real cse204 = cse202 + 7.8800000000000004e-8;
   const amrex::Real cse205 = cse200*cse203;
@@ -329,7 +329,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   ydot(1) = cse1 + cse11 + cse12 + cse13 + cse15 + cse18*cse33 + 2*cse31 - cse32 + 2.9935562710997168e-6*cse35 - 6.0000000000000005e-15*cse36*state.xn[0] + cse37 + 1.1399999999999999e-10*cse41*state.xn[3] + 4.2899999999999994e-13*cse44 + cse47 + cse52 + cse55 + 3.2000000000000001e-9*cse7 + cse72 + cse9;
   ydot(2) = cse0 + cse51 + cse60 + cse63 - cse65 - cse71 + cse73;
   ydot(3) = -cse72 + cse74 - cse75 - cse78 - cse79 + cse80 - cse85 - cse87 - cse96 - cse99;
-  ydot(4) = -cse100 - cse101 + cse102 - cse103 - cse104*state.xn[3] - cse106 + cse11 + 3.0000000000000002e-15*cse19*d2g*state.xn[0] - cse31 + 4.5427507615910105e-7*cse34*state.xn[2]*state.xn[16] - cse51 - cse55 - cse99;
+  ydot(4) = -cse100 - cse101 + cse102 - cse103 - cse104*state.xn[3] - cse106 + cse11 + 3.0000000000000002e-15*cse19*d2g*state.xn[0] - cse31 + 4.5427507615910105e-7*cse34*state.xn[16]*state.xn[2] - cse51 - cse55 - cse99;
   ydot(5) = cse106 + cse107;
   ydot(6) = cse109;
   ydot(7) = -cse109;
@@ -344,7 +344,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
   ydot(16) = -cse114 - cse117 - cse15 - cse49 + cse9;
   ydot(17) = -cse102 - cse107 - cse85;
   ydot(18) = cse49 - cse73 - cse98;
-  ydot(19) = 1.7e-24*chi*cse19*cse66*d2g*(2.25*std::pow(state.T, 0.14699999999999999) + 5.2199999999999998)/(0.049959999999999997*std::pow(cse122, 0.43099999999999999)*(0.0043*std::pow(cse122, 0.69199999999999995) + 1) + 1) + 5.6999999999999997e-11*chi*cse39*cse40*(2.5634832e-11*cse135 + 6.4087080000000003e-13)*state.xn[3] + 1.602177e-12*crate*cse144*state.xn[0] + 3.2043540000000001e-12*crate*cse144*state.xn[3] + 1.7623947000000002e-12*crate*cse144*state.xn[5]/cse58 - 7.1777529600000012e-12*cse103 - 1.3659996292638161e-10*cse119*cse121*cse62/(1.3338116951315871e-8*cse120*cse121 + 1) - 5.7927337833400002e-20*cse130*state.xn[8]/(2*cse130 + 1) - cse137*std::pow(1 - std::exp(-state.T), 1000)*state.xn[9]/(cse137*cse141 + cse139*std::pow(cse137/cse142, alpha_co_interp2d(state.T, cse140))*(-cse138*cse141*cse142 + 1) + cse139) + 3.0000000000000002e-15*cse19*d2g*(6.7291434000000005e-12*cse135 + 3.2043540000000002e-13)*state.xn[0] - 7.1777529600000012e-12*cse31 - 1.8998126555754159e-29*cse36*std::pow(state.T, 0.45350000000000001 + 2.234/cse123)*std::exp(cse123*(1.4419999999999999 - 0.050889999999999998*cse123))*state.xn[2] - 2.1789607199999999e-11*cse63 - (2.3872025442750958e-19*cse152*cse157 + 2.8023005140019997e-18*cse156*cse157)*state.xn[11] - ((((cse127 && cse158 && cse159) ? (
+  ydot(19) = 1.7e-24*chi*cse19*cse66*d2g*(2.25*std::pow(state.T, 0.14699999999999999) + 5.2199999999999998)/(0.049959999999999997*std::pow(cse122, 0.43099999999999999)*(0.0043*std::pow(cse122, 0.69199999999999995) + 1) + 1) + 5.6999999999999997e-11*chi*cse39*cse40*(2.5634832e-11*cse128 + 6.4087080000000003e-13)*state.xn[3] + 1.602177e-12*crate*cse144*state.xn[0] + 3.2043540000000001e-12*crate*cse144*state.xn[3] + 1.7623947000000002e-12*crate*cse144*state.xn[5]/cse58 - 7.1777529600000012e-12*cse103 - 1.3659996292638161e-10*cse119*cse121*cse62/(1.3338116951315871e-8*cse120*cse121 + 1) - 5.7927337833400002e-20*cse135*state.xn[8]/(2*cse135 + 1) - cse137*std::pow(1 - std::exp(-state.T), 1000)*state.xn[9]/(cse137*cse141 + cse139*std::pow(cse137/cse142, alpha_co_interp2d(state.T, cse140))*(-cse138*cse141*cse142 + 1) + cse139) + 3.0000000000000002e-15*cse19*d2g*(6.7291434000000005e-12*cse128 + 3.2043540000000002e-13)*state.xn[0] - 7.1777529600000012e-12*cse31 - 1.8998126555754159e-29*cse36*std::pow(state.T, 0.45350000000000001 + 2.234/cse123)*std::exp(cse123*(1.4419999999999999 - 0.050889999999999998*cse123))*state.xn[2] - 2.1789607199999999e-11*cse63 - (2.3872025442750958e-19*cse152*cse157 + 2.8023005140019997e-18*cse156*cse157)*state.xn[11] - ((((cse132 && cse158 && cse159) ? (
    cse160 || cse177 + cse180 < 1.0e-100
 )
 : (
@@ -352,7 +352,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
       cse160 || cse180 + cse181 < 1.0e-100
    )
    : (
-      ((cse127 && cse159 && cse182) ? (
+      ((cse132 && cse159 && cse182) ? (
          cse160 || cse177 + cse183 < 1.0e-100
       )
       : (
@@ -360,7 +360,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
             cse160 || cse181 + cse183 < 1.0e-100
          )
          : (
-            ((cse127 && cse159) ? (
+            ((cse132 && cse159) ? (
                cse160 || cse177 + cse184 < 1.0e-100
             )
             : (
@@ -368,7 +368,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
                   cse160 || cse181 + cse184 < 1.0e-100
                )
                : (
-                  ((cse127) ? (
+                  ((cse132) ? (
                      cse160 || std::pow(10.0, 7500.646099484944*cse163 + 21588.957206746247*cse165 + 26530.843406310876*cse167 + 18165.631967965237*cse169 + 30.129743459482278*cse17 + 7572.4886742758581*cse171 + 1974.131269262874*cse173 + 310.58441786958315*cse21 - 21.928795999999998)*state.xn[2] + cse185 < 1.0e-100
                   )
                   : (
@@ -383,7 +383,7 @@ actual_rhs(const burn_t &state, amrex::Array1D<amrex::Real, 1, neqs> &ydot) {
    0.0
 )
 : (
-   cse187/(cse187/(std::pow(10.0, 0.19191374999999999*cse189 - 0.16596184*cse190 - 0.81520437999999995*cse192 + 2.1892372*cse193 + 0.29036281000000003*cse194 - 23.689236999999999)*cse178 + std::pow(10.0, 0.32168730000000001*cse189 - 0.51002221000000003*cse190 + 0.015391166*cse192 + 1.5714710999999999*cse193 - 0.23619984999999999*cse194 - 22.089523)*state.xn[1] + std::pow(10.0, 2.0943374000000001*cse17*cse188 + 0.43693353000000001*cse173*cse191 - 0.033638326000000003*cse189 - 0.14913216000000001*cse190 - 0.77151435999999995*cse192 - 23.962112000000001)*state.xn[3] + ((cse127) ? (
+   cse187/(cse187/(std::pow(10.0, 0.19191374999999999*cse189 - 0.16596184*cse190 - 0.81520437999999995*cse192 + 2.1892372*cse193 + 0.29036281000000003*cse194 - 23.689236999999999)*cse178 + std::pow(10.0, 0.32168730000000001*cse189 - 0.51002221000000003*cse190 + 0.015391166*cse192 + 1.5714710999999999*cse193 - 0.23619984999999999*cse194 - 22.089523)*state.xn[1] + std::pow(10.0, 2.0943374000000001*cse17*cse188 + 0.43693353000000001*cse173*cse191 - 0.033638326000000003*cse189 - 0.14913216000000001*cse190 - 0.77151435999999995*cse192 - 23.962112000000001)*state.xn[3] + ((cse132) ? (
       std::pow(10.0, 983.67575999999997*cse189 + 734.71650999999997*cse190 + 96.743155000000002*cse192 + 16.815729999999999*cse193 + 343.1918*cse194 + 70.609154000000004*cse195 + 364.14445999999998*cse196 + 801.81246999999996*cse197 - 21.928795999999998)
    )
    : (
@@ -512,9 +512,9 @@ AMREX_GPU_HOST_DEVICE AMREX_INLINE void actual_jac(const burn_t &state,
 : (
    0
 ));
-  const amrex::Real cse61 = 1.6737729999999998e-24*state.xn[0] + 1.6728620616289998e-24*state.xn[1] + 9.1093837099999994e-28*state.xn[2] + 3.3475459999999996e-24*state.xn[3] + 3.3466350616289996e-24*state.xn[4] + 6.6464729999999996e-24*state.xn[5] + 6.6455620616289996e-24*state.xn[6] + 1.9944730000000003e-23*state.xn[7] + 1.9943819061629003e-23*state.xn[8] + 4.6512360000000008e-23*state.xn[9] + 4.8185222061629005e-23*state.xn[10] + 2.6567630000000005e-23*state.xn[11] + 4.6637070000000001e-23*state.xn[12] + 4.6636159061629004e-23*state.xn[13] + 2.1618503000000003e-23*state.xn[14] + 2.8241403000000005e-23*state.xn[15] + 5.0204080616289998e-24*state.xn[16] + 2.6566719061629008e-23*state.xn[17];
+  const amrex::Real cse61 = 1.6737729999999998e-24*state.xn[0] + 4.8185222061629005e-23*state.xn[10] + 2.6567630000000005e-23*state.xn[11] + 4.6637070000000001e-23*state.xn[12] + 4.6636159061629004e-23*state.xn[13] + 2.1618503000000003e-23*state.xn[14] + 2.8241403000000005e-23*state.xn[15] + 5.0204080616289998e-24*state.xn[16] + 2.6566719061629008e-23*state.xn[17] + 1.6728620616289998e-24*state.xn[1] + 9.1093837099999994e-28*state.xn[2] + 3.3475459999999996e-24*state.xn[3] + 3.3466350616289996e-24*state.xn[4] + 6.6464729999999996e-24*state.xn[5] + 6.6455620616289996e-24*state.xn[6] + 1.9944730000000003e-23*state.xn[7] + 1.9943819061629003e-23*state.xn[8] + 4.6512360000000008e-23*state.xn[9];
   const amrex::Real cse62 = 2.0709734999998963e-16*state.T/cse61;
-  const amrex::Real cse63 = 1.380649e-16*state.xn[0] + 1.380649e-16*state.xn[1] + 1.380649e-16*state.xn[2] + 1.380649e-16*state.xn[3] + 1.380649e-16*state.xn[4] + 1.380649e-16*state.xn[5] + 1.380649e-16*state.xn[6] + 1.380649e-16*state.xn[7] + 1.380649e-16*state.xn[8] + 1.380649e-16*state.xn[9] + 1.380649e-16*state.xn[10] + 1.380649e-16*state.xn[11] + 1.380649e-16*state.xn[12] + 1.380649e-16*state.xn[13] + 1.380649e-16*state.xn[14] + 1.380649e-16*state.xn[15] + 1.380649e-16*state.xn[16] + 1.380649e-16*state.xn[17];
+  const amrex::Real cse63 = 1.380649e-16*state.xn[0] + 1.380649e-16*state.xn[10] + 1.380649e-16*state.xn[11] + 1.380649e-16*state.xn[12] + 1.380649e-16*state.xn[13] + 1.380649e-16*state.xn[14] + 1.380649e-16*state.xn[15] + 1.380649e-16*state.xn[16] + 1.380649e-16*state.xn[17] + 1.380649e-16*state.xn[1] + 1.380649e-16*state.xn[2] + 1.380649e-16*state.xn[3] + 1.380649e-16*state.xn[4] + 1.380649e-16*state.xn[5] + 1.380649e-16*state.xn[6] + 1.380649e-16*state.xn[7] + 1.380649e-16*state.xn[8] + 1.380649e-16*state.xn[9];
   const amrex::Real cse64 = cse63*state.T/std::pow(cse61, 2);
   const amrex::Real cse65 = cse62 - 2.5106594999998743e-24*cse64;
   const amrex::Real cse66 = std::pow(state.T, -2);
