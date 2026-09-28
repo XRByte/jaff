@@ -34,18 +34,7 @@ ENERGY: Dict[str, Callable[[np.ndarray, float, np.ndarray], float]] = {
     "specific_number": lambda n, T, m: _volumetric(n, T, m) / n.sum(),
 }
 
-VARIANTS = [
-    "volumetric",
-    "specific_mass",
-    pytest.param(
-        "specific_number",
-        marks=pytest.mark.xfail(
-            strict=True,
-            reason="get_indexed_jacobian passes only specific_eint to net.eos(), "
-            "so NORM 1 divides by the per-mass de/dT instead of the per-particle one",
-        ),
-    ),
-]
+VARIANTS = list(ENERGY)
 
 
 @pytest.mark.parametrize("variant", VARIANTS)

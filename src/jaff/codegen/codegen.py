@@ -1270,7 +1270,7 @@ class Codegen:
             # into the state-vector framework via the ideal-gas EOS relation
             # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
             dde = sp.zeros(n_ode_eqns, 1)
-            eos_expr = self.net.eos(specific=specific_eint)
+            eos_expr = self.net.eos(specific=specific_eint, norm=norm)
             dedot_dtgas = sp.diff(eos_expr, sp.symbols("tgas"))
 
             # Compute dq/dn_j: derivatives of energy equation w.r.t. each species

@@ -24,7 +24,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
-from sympy import Basic, Expr, Float, Idx, IndexedBase, MatrixSymbol, symbols
+from sympy import Basic, Expr, Float, Idx, IndexedBase, symbols
 
 from ..io._logger import jaff_progress
 from .constants import k_B
@@ -356,17 +356,20 @@ def handle_dust_reduction(
 
 @cache
 def get_eos(
-    net: "Network", gamma: float = 1.6666666666667, specific: bool = True
+    net: "Network",
+    gamma: float = 1.6666666666667,
+    specific: bool = True,
+    norm: int = 0,
 ) -> Expr:
     """Return the symbolic ideal-gas internal energy.
 
-    Uses the ideal-gas equation of state. When specific=True (default)::
+    Uses the ideal-gas equation of state.  The volumetric energy is::
 
-        e_specific = n_tot · k_B · T_gas / (ρ · (γ − 1))   [erg / g]
+        E = n_tot · k_B · T_gas / (γ − 1)   [erg / cm³]
 
-    When specific=False, returns volumetric energy::
-
-        e_volumetric = n_tot · k_B · T_gas / (γ − 1)   [erg / cm³]
+    When *specific* is ``True`` it is normalised to match the evolved
+    energy of :meth:`Codegen.get_indexed_rhs`: by ``ρ`` for ``norm=0``
+    (erg / g) or by ``n_tot`` for ``norm=1`` (erg per particle).
 
     where ``n_tot`` is the total number density (:attr:`Network.ntot`), ``ρ``
     is the mass density (:attr:`Network.rho`), ``k_B`` is the Boltzmann
@@ -375,7 +378,7 @@ def get_eos(
 
     This expression drives the temperature column of the Jacobian via the
     chain rule ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.  The result is cached (via
-    :func:`functools.cache`) since it depends only on *net*, *gamma*, and *specific*.
+    :func:`functools.cache`) since it depends only on its arguments.
 
     Parameters
     ----------
@@ -384,15 +387,30 @@ def get_eos(
     gamma : float, optional
         Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
     specific : bool, optional
-        When True (default), return specific internal energy (erg/g).
-        When False, return volumetric internal energy (erg/cm³).
+        When True (default), return a specific internal energy normalised
+        by *norm*.  When False, return the volumetric energy (erg/cm³).
+    norm : int, optional
+        Normalisation when *specific* is True: ``0`` (default) per unit mass,
+        ``1`` per particle.  Ignored when *specific* is False.
 
     Returns
     -------
     sympy.Expr
         Symbolic internal energy in CGS units.
+
+    Raises
+    ------
+    ValueError
+        If *specific* is True and *norm* is not ``0`` or ``1``.
     """
     tgas = symbols("tgas")
     e = net.ntot * k_B.cgs.value * tgas / (gamma - 1.0)
 
-    return e / net.rho if specific else e
+    if not specific:
+        return e
+    if norm == 0:
+        return e / net.rho
+    if norm == 1:
+        return e / net.ntot
+
+    raise ValueError(f"Invalid EOS normalization {norm}; supported values are 0 and 1")
