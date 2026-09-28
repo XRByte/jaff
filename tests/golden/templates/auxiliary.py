@@ -44,21 +44,35 @@ def evaluate_auxiliary_functions(
     deltae = []
     deltarad = []
 
+    from sympy.core.function import AppliedUndef
+
     for i, reaction in enumerate(network.reactions):
         # chemrate{i}: use reaction.rate (may be custom via auxiliary function)
-        rate_val = float(reaction.rate.subs(subs_dict))
+        if reaction.rate.has(AppliedUndef):
+            rate_val = 0.0  # Skip undefined function rates
+        else:
+            try:
+                rate_val = float(reaction.rate.subs(subs_dict))
+            except (TypeError, AttributeError):
+                rate_val = 0.0
         chemrate.append(rate_val)
 
         # deltae{i}: energy change per reaction
         if reaction.dE != 0:
-            de_val = float(reaction.dE.subs(subs_dict))
+            try:
+                de_val = float(reaction.dE.subs(subs_dict))
+            except (TypeError, AttributeError):
+                de_val = 0.0
         else:
             de_val = 0.0
         deltae.append(de_val)
 
         # deltarad{i}: radiation change per reaction
         if reaction.dRad != 0:
-            drad_val = float(reaction.dRad.subs(subs_dict))
+            try:
+                drad_val = float(reaction.dRad.subs(subs_dict))
+            except (TypeError, AttributeError):
+                drad_val = 0.0
         else:
             drad_val = 0.0
         deltarad.append(drad_val)

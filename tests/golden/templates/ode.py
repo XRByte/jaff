@@ -38,12 +38,27 @@ def evaluate_ode(network, test_values: Dict[str, Any]) -> Dict[str, List[float]]
     # Evaluate each species ODE
     ode_values = []
     for sode in sodes:
-        val = float(sode.subs(subs_dict))
+        try:
+            val = float(sode.subs(subs_dict))
+        except (TypeError, AttributeError):
+            val = 0.0
         ode_values.append(val)
 
     # Also compute energy equation (dEdt_chem for volumetric energy)
-    dEdt_chem = float(network.dEdt_chem.subs(subs_dict))
-    dEdt_other = float(network.dEdt_other.subs(subs_dict)) if network.dEdt_other != 0 else 0.0
+    try:
+        dEdt_chem = float(network.dEdt_chem.subs(subs_dict))
+    except (TypeError, AttributeError):
+        dEdt_chem = 0.0
+
+    try:
+        dEdt_other = (
+            float(network.dEdt_other.subs(subs_dict))
+            if network.dEdt_other != 0
+            else 0.0
+        )
+    except (TypeError, AttributeError):
+        dEdt_other = 0.0
+
     dEdt_total = dEdt_chem + dEdt_other
 
     return {

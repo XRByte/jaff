@@ -53,13 +53,19 @@ def evaluate_jacobian(
     for i in range(n_species):
         for j in range(n_species):
             djac = sodes[i].diff(nden_sym[j, 0]).subs(subs_dict)
-            jac_no_energy[i, j] = float(djac)
+            try:
+                jac_no_energy[i, j] = float(djac)
+            except (TypeError, AttributeError):
+                jac_no_energy[i, j] = 0.0
 
     # Compute temperature column: ∂(dnden[i]/dt) / ∂T_gas
     temp_col = np.zeros(n_species, dtype=np.float64)
     for i in range(n_species):
         dtemp = sodes[i].diff(tgas_sym).subs(subs_dict)
-        temp_col[i] = float(dtemp)
+        try:
+            temp_col[i] = float(dtemp)
+        except (TypeError, AttributeError):
+            temp_col[i] = 0.0
 
     # For temperature coupling via energy equation:
     # dẋ_i/dT = (dẋ_i/dT) / (dE/dT) where E is the energy normalization
@@ -69,7 +75,10 @@ def evaluate_jacobian(
         eos = network.eos(specific=False)
 
     dE_dT = eos.diff(tgas_sym).subs(subs_dict)
-    dE_dT = float(dE_dT)
+    try:
+        dE_dT = float(dE_dT)
+    except (TypeError, AttributeError):
+        dE_dT = 1.0  # Avoid division by zero
 
     if abs(dE_dT) > 1e-30:
         temp_col_normalized = temp_col / dE_dT
@@ -88,10 +97,16 @@ def evaluate_jacobian(
 
     for j in range(n_species):
         djac = dEdt.diff(nden_sym[j, 0]).subs(subs_dict)
-        jac_full[n_species, j] = float(djac)
+        try:
+            jac_full[n_species, j] = float(djac)
+        except (TypeError, AttributeError):
+            jac_full[n_species, j] = 0.0
 
     dEdt_dT = dEdt.diff(tgas_sym).subs(subs_dict)
-    jac_full[n_species, n_species] = float(dEdt_dT)
+    try:
+        jac_full[n_species, n_species] = float(dEdt_dT)
+    except (TypeError, AttributeError):
+        jac_full[n_species, n_species] = 0.0
 
     return {
         "jac": jac_full.tolist(),

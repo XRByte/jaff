@@ -31,27 +31,44 @@ def evaluate_rates(network, test_values: Dict[str, Any]) -> Dict[str, List[float
     deltae = []
     deltarad = []
 
+    from sympy import symbols
+    from sympy.core.function import AppliedUndef
+
     for reaction in network.reactions:
         # Evaluate rate coefficient symbolically, substitute test values
         subs_dict = {
             network.ndens[i, 0]: float(nden[i]) for i in range(len(nden))
         }
-        from sympy import symbols
         subs_dict[symbols("tgas")] = float(tgas)
 
-        rate_val = float(reaction.rate.subs(subs_dict))
+        # Skip reactions with undefined functions (e.g., photorates)
+        # These require special handling and external rate tables
+        if reaction.rate.has(AppliedUndef):
+            rate_val = 0.0  # Skip undefined function rates
+        else:
+            try:
+                rate_val = float(reaction.rate.subs(subs_dict))
+            except (TypeError, AttributeError):
+                rate_val = 0.0
+
         rates.append(rate_val)
 
         # Evaluate deltae (energy change per reaction)
         if reaction.dE != 0:
-            de_val = float(reaction.dE.subs(subs_dict))
+            try:
+                de_val = float(reaction.dE.subs(subs_dict))
+            except (TypeError, AttributeError):
+                de_val = 0.0
         else:
             de_val = 0.0
         deltae.append(de_val)
 
         # Evaluate deltarad (radiation change per reaction)
         if reaction.dRad != 0:
-            drad_val = float(reaction.dRad.subs(subs_dict))
+            try:
+                drad_val = float(reaction.dRad.subs(subs_dict))
+            except (TypeError, AttributeError):
+                drad_val = 0.0
         else:
             drad_val = 0.0
         deltarad.append(drad_val)

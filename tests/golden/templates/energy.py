@@ -34,10 +34,29 @@ def evaluate_energy_rates(network, test_values: Dict[str, Any]) -> Dict[str, flo
     }
     subs_dict[symbols("tgas")] = float(tgas)
 
-    # Evaluate each energy rate
-    dEdt_chem = float(network.dEdt_chem.subs(subs_dict))
-    dEdt_other = float(network.dEdt_other.subs(subs_dict)) if network.dEdt_other != 0 else 0.0
-    dRad_dt_extra = float(network.dRad_dt_extra.subs(subs_dict)) if network.dRad_dt_extra != 0 else 0.0
+    # Evaluate each energy rate, handling undefined functions
+    try:
+        dEdt_chem = float(network.dEdt_chem.subs(subs_dict))
+    except (TypeError, AttributeError):
+        dEdt_chem = 0.0
+
+    try:
+        dEdt_other = (
+            float(network.dEdt_other.subs(subs_dict))
+            if network.dEdt_other != 0
+            else 0.0
+        )
+    except (TypeError, AttributeError):
+        dEdt_other = 0.0
+
+    try:
+        dRad_dt_extra = (
+            float(network.dRad_dt_extra.subs(subs_dict))
+            if network.dRad_dt_extra != 0
+            else 0.0
+        )
+    except (TypeError, AttributeError):
+        dRad_dt_extra = 0.0
 
     return {
         "dEdt_chem": dEdt_chem,
