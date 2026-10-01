@@ -31,16 +31,10 @@ template <class MatrixType>
 AMREX_GPU_HOST_DEVICE AMREX_INLINE void actual_jac(const burn_t &state,
                                                    MatrixType &jac) {
 
-  // $JAFF REPEAT idx, expr, cse IN jacobian $[REPLACE radeden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE photden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE rflux\[\s*(\d+)\s*\] state.rn[2*\1+1] REPLACE nden\[\s*(\d+)\s*\] state.xn[\1] REPLACE tgas state.T REPLACE c_hat state.c_hat RADIATION True USE_DEDT True]$
+  // $JAFF REPEAT idx, expr, cse IN jacobian $[REPLACE radeden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE photden\[\s*(\d+)\s*\] state.rn[2*\1] REPLACE rflux\[\s*(\d+)\s*\] state.rn[2*\1+1] REPLACE nden\[\s*(\d+)\s*\] state.xn[\1] REPLACE tgas state.T REPLACE c_hat state.c_hat RADIATION True USE_DEDT True SPECIFIC_EINT True]$
   const amrex::Real cse$idx$ = $cse$;
   jac($idx+1$, $idx+1$) = $expr$;
   // $JAFF END
-  // $JAFF SUB nspec, nbands
-  for (int i = 1; i <= INT_NEQS; i++) {
-    jac($nspec+1$, i) /= state.rho;
-  }
-  // $JAFF END
-
 }
 
 AMREX_INLINE

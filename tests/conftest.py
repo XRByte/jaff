@@ -1,14 +1,23 @@
 # ABOUTME: Shared pytest fixtures for the JAFF test suite
-# ABOUTME: Central output silencing + a make_network factory over tmp_path
+# ABOUTME: Output silencing, make_network factory, and session-cached template renders
 
 import json
 import logging
 import os
+import secrets
 from pathlib import Path
+from typing import Callable, Dict
 
 import pytest
 
 from jaff import Network
+from tests.codegen_render import (
+    NETWORKS,
+    UPDATE,
+    refresh_golden,
+    render,
+    template_files,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -109,3 +118,27 @@ class _SnapshotStore:
 def snapshot_store(request):
     # Run once with JAFF_UPDATE_SNAPSHOTS=1 to record the baseline.
     return _SnapshotStore(update=bool(os.environ.get("JAFF_UPDATE_SNAPSHOTS")))
+
+
+@pytest.fixture(scope="session")
+def rendered(tmp_path_factory: pytest.TempPathFactory) -> Callable[[str], Path]:
+    """Render tests/fixtures/templates once per network and session."""
+    cache: Dict[str, Path] = {}
+
+    def get(name: str) -> Path:
+        if name not in cache:
+            out = tmp_path_factory.mktemp(f"render_{name}")
+            render(NETWORKS[name], template_files(name), out)
+            if UPDATE:
+                refresh_golden(name, out)
+            cache[name] = out
+        return cache[name]
+
+    return get
+
+
+@pytest.fixture(scope="session")
+def render_seed() -> int:
+    """Input seed for rendered-code tests; set JAFF_GOLDEN_SEED to reproduce."""
+    env = os.environ.get("JAFF_GOLDEN_SEED")
+    return int(env) if env else secrets.randbits(32)

@@ -24,7 +24,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
-from sympy import Basic, Expr, Float, Idx, MatrixSymbol, symbols
+from sympy import Basic, Expr, Float, Idx, IndexedBase, symbols
 
 from ..io._logger import jaff_progress
 from .constants import k_B
@@ -34,7 +34,11 @@ if TYPE_CHECKING:
     from ..physics import RadiationGroup
 
 
-def get_sfluxes(reactions: "Reactions", species: Species) -> list[Expr]:
+def get_sfluxes(
+    reactions: "Reactions",
+    species: Species,
+    nden: IndexedBase | None = None,
+) -> list[Expr]:
     """
     Build the symbolic reaction flux for every reaction in the network.
 
@@ -42,11 +46,9 @@ def get_sfluxes(reactions: "Reactions", species: Species) -> list[Expr]:
 
         flux_i = k_i * nden[idx_A] * nden[idx_B]
 
-    The number densities are represented as entries of the SymPy
-    ``MatrixSymbol`` ``nden`` (shape ``(species.core.count, 1)`` — only core
-    species enter the integrated state), so the returned
-    expressions reference ``nden[j]`` symbolically and can be differentiated or
-    printed by any SymPy backend.
+    The number densities are represented as indexed-base symbols ``nden`` that
+    support scalar indexing (``nden[i]`` for species *i*). When *nden* is None,
+    a default ``IndexedBase("nden")`` symbol is created.
 
     Parameters
     ----------
@@ -58,6 +60,9 @@ def get_sfluxes(reactions: "Reactions", species: Species) -> list[Expr]:
     species : Species
         Collection of all species.  Used to look up the numeric index of each
         reactant via ``species[str(reactant)].index``.
+    nden : Expr, optional
+        Density symbol (typically ``IndexedBase("nden")`` or similar).
+        When None, a default ``IndexedBase("nden")`` is created.
 
     Returns
     -------
@@ -71,20 +76,28 @@ def get_sfluxes(reactions: "Reactions", species: Species) -> list[Expr]:
     The flux is purely a *loss* term from the reactants' perspective; signs
     are applied in :func:`get_sodes`.
     """
+    from sympy import IndexedBase
+
+    if nden is None:
+        nden = IndexedBase("nden", shape=(species.count,))
+
     fluxes: list[Expr] = [Float(0.0) for _ in range(reactions.count)]
-    nden_matrix = MatrixSymbol("nden", species.core.count, 1)
 
     for i, reaction in enumerate(reactions):
         flux = reaction.rate
         for reactant in reaction.reactants.core:
-            flux *= nden_matrix[species[str(reactant)].index]
+            flux *= nden[species[str(reactant)].index]
 
         fluxes[i] = flux
 
     return fluxes
 
 
-def get_sodes(reactions: "Reactions", species: Species) -> list[Basic]:
+def get_sodes(
+    reactions: "Reactions",
+    species: Species,
+    nden: IndexedBase | None = None,
+) -> list[Basic]:
     """
     Assemble the symbolic ODE right-hand sides for all species.
 
@@ -99,6 +112,9 @@ def get_sodes(reactions: "Reactions", species: Species) -> list[Basic]:
         Collection of all reactions in the network.
     species : Species
         Collection of all species, used to resolve array indices.
+    nden : Expr, optional
+        Density symbol (typically ``IndexedBase("nden")`` or similar).
+        When None, a default ``IndexedBase("nden")`` is created.
 
     Returns
     -------
@@ -120,7 +136,7 @@ def get_sodes(reactions: "Reactions", species: Species) -> list[Basic]:
     This dual-path allows the same code to handle both named-species networks
     and fixed-layout networks produced by certain code-generation backends.
     """
-    fluxes = get_sfluxes(reactions, species)
+    fluxes = get_sfluxes(reactions, species, nden)
     sodes: list[Basic] = [Float(0.0) for _ in range(species.core.count)]
 
     for i, reaction in enumerate(reactions):
@@ -223,12 +239,12 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
         raise ValueError("Invalid order: Supported orders are 0, 1, 2, 3")
 
     rad_groups = net.radiation.groups
-    nden = MatrixSymbol("nden", net.species.core.count, 1)
+    nden = net.ndens
 
-    rflux = MatrixSymbol("rflux", net.radiation.nbands, 1)
+    rflux = IndexedBase("rflux", shape=(net.radiation.nbands,))
     # Mapping used to obtain the flux-moment equation from the density-moment
     # equation: replace each density symbol den[i] with the flux rflux[i].
-    flux_map = {g.sym: rflux[Idx(i)] for i, g in enumerate(net.radiation.groups)}
+    flux_map = {g.sym: rflux[i] for i, g in enumerate(net.radiation.groups)}
     grate: list[Expr | float] = [Float(0.0) for _ in range(net.radiation.nbands)]
     gflux: list[Expr | float] = [Float(0.0) for _ in range(net.radiation.nbands)]
 
@@ -276,7 +292,7 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
 
 
 def handle_dust_reduction(
-    net: Network, group: RadiationGroup, grate: Expr, gflux: Expr, rflux: MatrixSymbol
+    net: Network, group: RadiationGroup, grate: Expr, gflux: Expr, rflux: IndexedBase
 ) -> tuple[Expr, Expr]:
     """Subtract dust absorption/transport reductions from a band's ODE terms.
 
@@ -301,7 +317,7 @@ def handle_dust_reduction(
         The band's energy-density source term to reduce.
     gflux : Expr
         The band's flux source term to reduce.
-    rflux : MatrixSymbol
+    rflux : IndexedBase
         Flux moment symbol, indexed by band to form the flux reduction term.
 
     Returns
@@ -328,7 +344,7 @@ def handle_dust_reduction(
         gflux -= (
             symbols("Zd")
             * net.radiation.c
-            * rflux[Idx(group.index)]
+            * rflux[group.index]
             * net.n_hnuc
             * net.dust.tabular.avg_cross_section_per_hnuc(
                 f_reduction, (group.lower, group.upper)
@@ -339,12 +355,21 @@ def handle_dust_reduction(
 
 
 @cache
-def get_eos(net: "Network", gamma: float = 1.6666666666667) -> Expr:
-    """Return the symbolic ideal-gas specific internal energy.
+def get_eos(
+    net: "Network",
+    gamma: float = 1.6666666666667,
+    specific: bool = True,
+    norm: int = 0,
+) -> Expr:
+    """Return the symbolic ideal-gas internal energy.
 
-    Uses the ideal-gas equation of state::
+    Uses the ideal-gas equation of state.  The volumetric energy is::
 
-        e = n_tot · k_B · T_gas / (ρ · (γ − 1))   [erg / g]
+        E = n_tot · k_B · T_gas / (γ − 1)   [erg / cm³]
+
+    When *specific* is ``True`` it is normalised to match the evolved
+    energy of :meth:`Codegen.get_indexed_rhs`: by ``ρ`` for ``norm=0``
+    (erg / g) or by ``n_tot`` for ``norm=1`` (erg per particle).
 
     where ``n_tot`` is the total number density (:attr:`Network.ntot`), ``ρ``
     is the mass density (:attr:`Network.rho`), ``k_B`` is the Boltzmann
@@ -353,7 +378,7 @@ def get_eos(net: "Network", gamma: float = 1.6666666666667) -> Expr:
 
     This expression drives the temperature column of the Jacobian via the
     chain rule ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.  The result is cached (via
-    :func:`functools.cache`) since it depends only on *net* and *gamma*.
+    :func:`functools.cache`) since it depends only on its arguments.
 
     Parameters
     ----------
@@ -361,12 +386,31 @@ def get_eos(net: "Network", gamma: float = 1.6666666666667) -> Expr:
         Network supplying the symbolic ``n_tot`` and ``ρ`` sums.
     gamma : float, optional
         Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
+    specific : bool, optional
+        When True (default), return a specific internal energy normalised
+        by *norm*.  When False, return the volumetric energy (erg/cm³).
+    norm : int, optional
+        Normalisation when *specific* is True: ``0`` (default) per unit mass,
+        ``1`` per particle.  Ignored when *specific* is False.
 
     Returns
     -------
     sympy.Expr
-        Symbolic specific internal energy in CGS units (erg/g).
+        Symbolic internal energy in CGS units.
+
+    Raises
+    ------
+    ValueError
+        If *specific* is True and *norm* is not ``0`` or ``1``.
     """
     tgas = symbols("tgas")
+    e = net.ntot * k_B.cgs.value * tgas / (gamma - 1.0)
 
-    return net.ntot * k_B.cgs.value * tgas / net.rho * 1.0 / (gamma - 1.0)
+    if not specific:
+        return e
+    if norm == 0:
+        return e / net.rho
+    if norm == 1:
+        return e / net.ntot
+
+    raise ValueError(f"Invalid EOS normalization {norm}; supported values are 0 and 1")

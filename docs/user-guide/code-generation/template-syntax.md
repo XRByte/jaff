@@ -216,6 +216,14 @@ k[0] = x1;
 k[1] = ...;
 ```
 
+The temporaries are named after the identifier that contains `$idx$` on the
+`$cse$` line: `x$idx$` gives `x0, x1, …` and `tmp$idx$_value` gives
+`tmp0_value, tmp1_value, …`, with or without spaces around `=`. That line must
+be the first line of the block, since the temporaries have to be declared before
+the other lines use them. The identifier must start with a letter or underscore
+before `$idx$`, and the index takes no offset, so `$idx$x`, `cse[$idx$]` and
+`cse$idx+1$` are rejected with a `ParserError`.
+
 ### Modifiers
 
 Modifiers go inside `$[...]$` at the end of the command line.

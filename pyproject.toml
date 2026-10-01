@@ -91,6 +91,7 @@ exclude = [
   "site-packages",
   "venv",
   "templates",
+  "tests/golden",
 ]
 extend-include = ["*.ipynb"]
 line-length = 90

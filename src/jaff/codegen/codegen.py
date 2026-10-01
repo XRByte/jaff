@@ -26,8 +26,8 @@ from __future__ import annotations
 
 import re
 from functools import reduce
-from itertools import product
-from typing import TYPE_CHECKING, List, Set, Tuple, cast
+from itertools import count, product
+from typing import TYPE_CHECKING, Iterator, List, Set, Tuple, cast
 
 import sympy as sp
 
@@ -152,6 +152,7 @@ class Codegen:
         self,
         use_cse: bool = True,
         cse_var: str = "x",
+        cse_suffix: str = "",
     ) -> IndexedReturn:
         """Return rate-coefficient expressions as an :class:`~jaff.types.IndexedReturn`.
 
@@ -174,6 +175,9 @@ class Codegen:
         cse_var : str, optional
             Prefix for auto-generated CSE temporary variable names.
             Default ``"x"``, yielding ``x0``, ``x1``, …
+        cse_suffix : str, optional
+            Text appended after the index of each CSE temporary name, e.g.
+            ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
 
         Returns
         -------
@@ -211,7 +215,7 @@ class Codegen:
                 exprs = cse_dict.values()
 
                 # Create a numbered symbol generator for CSE temp names
-                cse_symbols = sp.numbered_symbols(prefix=cse_var)
+                cse_symbols = self._cse_symbols(cse_var, cse_suffix)
                 replacements, reduced_exprs = sp.cse(
                     exprs, optimizations="basic", symbols=cse_symbols
                 )
@@ -221,7 +225,7 @@ class Codegen:
 
                 if replacements:
                     for var, expr in replacements:
-                        idx: int = self._cse_index(var, cse_var)
+                        idx: int = self._cse_index(var, cse_var, cse_suffix)
                         expr = self.lang.code_gen(
                             expr, strict=False, allow_unknown_functions=True
                         )
@@ -299,11 +303,6 @@ class Codegen:
             CSE temporary definitions.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        # Construct the type prefix for CSE temporary declarations
-        prefix = (
-            var_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
         rates = ""
 
         rate_expressions = self.get_indexed_rates(use_cse=use_cse, cse_var=cse_var)
@@ -313,7 +312,8 @@ class Codegen:
         if use_cse:
             for idx, expression in rate_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                rates += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                rates += self.lang.format_cse_declaration(var_name, expression) + "\n"
 
         for idx, expression in rate_expressions["expressions"]:
             _idx = idx[0]
@@ -602,7 +602,7 @@ class Codegen:
                 den_tot = reduce(
                     lambda x, y: x + y,
                     [
-                        specie.mass * nden_matrix[i, 0]
+                        specie.mass * nden_matrix[i]
                         for i, specie in enumerate(self.net.species)
                     ],
                     0,
@@ -611,7 +611,7 @@ class Codegen:
                 # Total number density: Σ nden[i]
                 den_tot = reduce(
                     lambda x, y: x + y,
-                    [nden_matrix[i, 0] for i, _ in enumerate(self.net.species)],
+                    [nden_matrix[i] for i, _ in enumerate(self.net.species)],
                     0,
                 )
         assert isinstance(self.net.dEdt_chem, sp.Expr)
@@ -651,6 +651,7 @@ class Codegen:
         self,
         use_cse: bool = True,
         cse_var: str = "cse",
+        cse_suffix: str = "",
     ) -> IndexedReturn:
         """Return symbolic ODE RHS expressions as an :class:`~jaff.types.IndexedReturn`.
 
@@ -671,6 +672,9 @@ class Codegen:
         cse_var : str, optional
             Prefix for CSE temporary variable names.  Default ``"cse"``,
             yielding ``cse0``, ``cse1``, …
+        cse_suffix : str, optional
+            Text appended after the index of each CSE temporary name, e.g.
+            ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
 
         Returns
         -------
@@ -700,14 +704,14 @@ class Codegen:
 
         if use_cse:
             with jaff_progress.indeterminate("Generating cse expressions"):
-                cse_symbols = sp.numbered_symbols(prefix=cse_var)
+                cse_symbols = self._cse_symbols(cse_var, cse_suffix)
                 replacements, reduced_exprs = sp.cse(ode_symbols, symbols=cse_symbols)
 
                 # Remove unused CSE temporaries to keep generated code lean
                 replacements = self.__prune_cse(replacements, reduced_exprs)
 
                 for var, expr in replacements:
-                    idx: int = self._cse_index(var, cse_var)
+                    idx: int = self._cse_index(var, cse_var, cse_suffix)
                     expr = self.lang.code_gen(
                         expr, strict=False, allow_unknown_functions=True
                     )
@@ -771,10 +775,6 @@ class Codegen:
             Multi-line string of ODE assignments, including any CSE temporaries.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        prefix = (
-            def_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
 
         ode_code: str = ""
         ode_expressions = self.get_indexed_odes(use_cse=use_cse, cse_var=cse_var)
@@ -783,7 +783,8 @@ class Codegen:
         if use_cse:
             for idx, expression in ode_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                ode_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                ode_code += self.lang.format_cse_declaration(var_name, expression) + "\n"
 
         for idx, expression in ode_expressions["expressions"]:
             _idx = idx[0]
@@ -799,6 +800,7 @@ class Codegen:
         norm: int = 0,
         radiation: bool = False,
         rad_order: int = 0,
+        cse_suffix: str = "",
     ) -> IndexedReturn:
         """Return the combined ODE + energy (+ radiation) RHS as an :class:`~jaff.types.IndexedReturn`.
 
@@ -818,6 +820,9 @@ class Codegen:
             Enable joint CSE across all RHS equations.  Default ``True``.
         cse_var : str, optional
             Prefix for CSE temporary variable names.  Default ``"cse"``.
+        cse_suffix : str, optional
+            Text appended after the index of each CSE temporary name, e.g.
+            ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
         specific_eint : bool, optional
             Normalise the energy derivative by total density.  Default ``False``.
         norm : int, optional
@@ -863,14 +868,14 @@ class Codegen:
 
         if use_cse:
             with jaff_progress.indeterminate("Generating cse expressions"):
-                cse_symbols = sp.numbered_symbols(prefix=cse_var)
+                cse_symbols = self._cse_symbols(cse_var, cse_suffix)
                 replacements, reduced_exprs = sp.cse(rhs_symbols, symbols=cse_symbols)
 
                 # Prune CSE temporaries unreachable from any expression
                 replacements = self.__prune_cse(replacements, reduced_exprs)
 
                 for var, expr in replacements:
-                    idx: int = self._cse_index(var, cse_var)
+                    idx: int = self._cse_index(var, cse_var, cse_suffix)
                     expr = self.lang.code_gen(
                         expr, strict=False, allow_unknown_functions=True
                     )
@@ -947,10 +952,6 @@ class Codegen:
             Multi-line string of all RHS assignments including CSE temporaries.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        prefix = (
-            def_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
 
         rhs_code = ""
         rhs_expressions = self.get_indexed_rhs(
@@ -966,7 +967,8 @@ class Codegen:
         if use_cse:
             for idx, expression in rhs_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                rhs_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                rhs_code += self.lang.format_cse_declaration(var_name, expression) + "\n"
 
         for idx, expression in rhs_expressions["expressions"]:
             _idx = idx[0]
@@ -975,7 +977,11 @@ class Codegen:
         return rhs_code
 
     def get_indexed_radodes(
-        self, order: int = 0, use_cse: bool = True, cse_var: str = "rcse"
+        self,
+        order: int = 0,
+        use_cse: bool = True,
+        cse_var: str = "rcse",
+        cse_suffix: str = "",
     ) -> IndexedReturn:
         """Return radiation moment ODE expressions as an :class:`~jaff.types.IndexedReturn`.
 
@@ -993,6 +999,9 @@ class Codegen:
         cse_var : str, optional
             Prefix for CSE temporary variable names.  Default ``"rcse"``,
             yielding ``rcse0``, ``rcse1``, …
+        cse_suffix : str, optional
+            Text appended after the index of each CSE temporary name, e.g.
+            ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
 
         Returns
         -------
@@ -1011,7 +1020,7 @@ class Codegen:
 
         if use_cse:
             with jaff_progress.indeterminate("Generating cse expressions"):
-                cse_symbols = sp.numbered_symbols(prefix=cse_var)
+                cse_symbols = self._cse_symbols(cse_var, cse_suffix)
                 replacements, reduced_exprs = sp.cse(radode_symbols, symbols=cse_symbols)
 
                 # Prune unreferenced CSE temporaries to avoid dead code
@@ -1019,7 +1028,7 @@ class Codegen:
 
                 # Emit only the CSE temporaries actually used by the radiation ODEs
                 for var, expr in replacements:
-                    idx: int = self._cse_index(var, cse_var)
+                    idx: int = self._cse_index(var, cse_var, cse_suffix)
                     expr = self.lang.code_gen(
                         expr, strict=False, allow_unknown_functions=True
                     )
@@ -1085,10 +1094,6 @@ class Codegen:
             temporaries.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        prefix = (
-            def_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
 
         radode_code: str = ""
         radode_expressions = self.get_indexed_radodes(order, use_cse, cse_var)
@@ -1096,7 +1101,10 @@ class Codegen:
         if use_cse:
             for idx, expression in radode_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                radode_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                radode_code += (
+                    self.lang.format_cse_declaration(var_name, expression) + "\n"
+                )
 
         for idx, expression in radode_expressions["expressions"]:
             _idx = idx[0]
@@ -1113,6 +1121,7 @@ class Codegen:
         norm: int = 0,
         radiation: bool = False,
         rad_order: int = 0,
+        cse_suffix: str = "",
     ) -> IndexedReturn:
         """Return the analytical Jacobian ∂f_i/∂y_j as an :class:`~jaff.types.IndexedReturn`.
 
@@ -1150,6 +1159,9 @@ class Codegen:
             Apply joint CSE across all Jacobian elements.  Default ``True``.
         cse_var : str, optional
             Prefix for CSE temporary variable names.  Default ``"cse"``.
+        cse_suffix : str, optional
+            Text appended after the index of each CSE temporary name, e.g.
+            ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
         specific_eint : bool, optional
             Normalise the energy equation by density (see :meth:`__gen_sdedt`).
             Default ``False``.
@@ -1210,32 +1222,30 @@ class Codegen:
 
             nden_matrix = self.net.ndens
 
-            # Substitution dicts: MatrixSymbol entries -> scalar y_i symbols
+            # Substitution dicts: scalar indexed form -> scalar y_i symbols
             nden_to_y = {}
             radden_to_y = {}
             radflux_to_y = {}
 
             for i in range(n_species):
-                # Support both nden[i] and nden[Idx(i)] forms
-                nden_to_y[nden_matrix[i, 0]] = y_syms[i]
-                nden_to_y[nden_matrix[sp.Idx(i), 0]] = y_syms[i]
+                # Map scalar indexed form directly to y_i
+                nden_to_y[nden_matrix[i]] = y_syms[i]
 
             if radiation and self.net.radiation:
-                radden_matrix = sp.MatrixSymbol(
+                radden_matrix = sp.IndexedBase(
                     "radeden" if self.net.radiation.mode == "u" else "photden",
-                    self.net.radiation.nbands,
-                    1,
+                    shape=(self.net.radiation.nbands,),
                 )
-                radflux_matrix = sp.MatrixSymbol("rflux", self.net.radiation.nbands, 1)
+                radflux_matrix = sp.IndexedBase(
+                    "rflux", shape=(self.net.radiation.nbands,)
+                )
 
                 for i in range(self.net.radiation.nbands):
                     ei, fi = self.net.radiation.ordered_index(i, rad_order)
-                    # Support both radden[i] and radden[Idx(i)] forms
-                    radden_to_y[radden_matrix[i, 0]] = y_syms[n_species + ei]
-                    radden_to_y[radden_matrix[sp.Idx(i), 0]] = y_syms[n_species + ei]
-                    # Support both radflux[i] and radflux[Idx(i)] forms
-                    radflux_to_y[radflux_matrix[i, 0]] = y_syms[n_species + fi]
-                    radflux_to_y[radflux_matrix[sp.Idx(i), 0]] = y_syms[n_species + fi]
+                    # Map scalar indexed form directly to y_i
+                    radden_to_y[radden_matrix[i]] = y_syms[n_species + ei]
+                    # Map scalar indexed form directly to y_i
+                    radflux_to_y[radflux_matrix[i]] = y_syms[n_species + fi]
 
             # Substitute nden/radiation symbols inside rate expressions first,
             # then build the subs_k dict that replaces k[i] placeholders in
@@ -1283,14 +1293,34 @@ class Codegen:
             # into the state-vector framework via the ideal-gas EOS relation
             # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
             dde = sp.zeros(n_ode_eqns, 1)
-            dedot_dtgas = sp.diff(self.net.eos(), sp.symbols("tgas"))
+            eos_expr = self.net.eos(specific=specific_eint, norm=norm)
+            dedot_dtgas = sp.diff(eos_expr, sp.symbols("tgas"))
+
+            # Compute dq/dn_j: derivatives of energy equation w.r.t. each species
+            # nden_matrix is scalar indexed (IndexedBase), use scalar form for differentiation
+            dede_dny = [sp.diff(eos_expr, nden_matrix[j]) for j in range(n_species)]
+
+            # Store dxdot_dtgas for chain rule correction to species columns
+            dxdot_dtgas_list = []
 
             for i in jaff_progress.track(
                 range(n_ode_eqns),
                 description="Generating jacobian internal energy terms",
             ):
                 dxdot_dtgas = sp.diff(ode_symbols[i], sp.symbols("tgas"))
+                dxdot_dtgas_list.append(dxdot_dtgas)
                 dde[i, 0] = dxdot_dtgas / dedot_dtgas
+
+            # Apply chain rule to species columns: when state changes from T to e,
+            # dF/dn_j|_e = dF/dn_j|_T - (dF/dT) * (dq/dn_j) / (dq/dT)
+            for j in jaff_progress.track(
+                range(n_species),
+                description="Applying EOS chain rule to species columns",
+            ):
+                for i in range(n_ode_eqns):
+                    correction = (dxdot_dtgas_list[i] * dede_dny[j]) / dedot_dtgas
+                    jacobian_matrix[i, j] = jacobian_matrix[i, j] - correction
+
             left = jacobian_matrix[:, :n_species]
             right = jacobian_matrix[:, n_species:]
 
@@ -1311,7 +1341,7 @@ class Codegen:
 
         if use_cse:
             with jaff_progress.indeterminate("Generating cse expressions"):
-                cse_symbols = sp.numbered_symbols(prefix=cse_var)
+                cse_symbols = self._cse_symbols(cse_var, cse_suffix)
                 replacements, reduced_exprs = sp.cse(
                     list(jacobian_matrix), symbols=cse_symbols
                 )
@@ -1325,7 +1355,7 @@ class Codegen:
                     # Handle Derivative() nodes arising from user-defined rate
                     # functions before serialisation
                     expr = self.__convert_unknown_derivatives(expr, replacements_dict)
-                    idx: int = self._cse_index(var, cse_var)
+                    idx: int = self._cse_index(var, cse_var, cse_suffix)
                     expr_str = self.lang.code_gen(
                         expr, strict=False, allow_unknown_functions=True
                     )
@@ -1441,10 +1471,6 @@ class Codegen:
             If *matrix_format* is not a supported format string.
         """
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
-        prefix = (
-            var_prefix
-            or f"{self.lang.extras.get('type_qualifier', '')}{self.lang.types.get('double', '')}"
-        )
 
         jac_expressions = self.get_indexed_jacobian(
             cse_var=cse_var, use_cse=use_cse, use_dedt=use_dedt
@@ -1455,7 +1481,8 @@ class Codegen:
         if use_cse:
             for idx, expr in jac_expressions["extras"]["cse"]:
                 _idx = idx[0]
-                jac_code += f"{prefix}{cse_var}{_idx} {self.lang.assignment_op} {expr}{self.lang.line_end}\n"
+                var_name = f"{cse_var}{_idx}"
+                jac_code += self.lang.format_cse_declaration(var_name, expr) + "\n"
 
         # Generate Jacobian code without CSE
         for [i, j], expr in jac_expressions["expressions"]:
@@ -1574,19 +1601,45 @@ class Codegen:
         return expr
 
     @staticmethod
-    def _cse_index(var: sp.Symbol, prefix: str) -> int:
-        """Recover the numeric suffix of a CSE temporary named ``<prefix><n>``.
+    def _cse_symbols(prefix: str, suffix: str = "") -> Iterator[sp.Symbol]:
+        """Yield CSE temporaries named ``<prefix><n><suffix>`` for ``n = 0, 1, …``.
 
-        Only the text after *prefix* is parsed, so digits inside the prefix
-        itself (e.g. ``"tmp2"`` or ``"stage2_cse"``) are never mistaken for
-        part of the index.
+        Like ``sp.numbered_symbols(prefix=prefix)``, but also appends *suffix*
+        so templates such as ``tmp$idx$_value`` name declarations and
+        references identically.
+
+        Parameters
+        ----------
+        prefix : str
+            Text placed before the counter.
+        suffix : str, optional
+            Text placed after the counter.  Default ``""``.
+
+        Yields
+        ------
+        sympy.Symbol
+            The next temporary symbol.
+        """
+        for n in count():
+            yield sp.Symbol(f"{prefix}{n}{suffix}")
+
+    @staticmethod
+    def _cse_index(var: sp.Symbol, prefix: str, suffix: str = "") -> int:
+        """Recover the counter of a CSE temporary named ``<prefix><n><suffix>``.
+
+        Only the text between *prefix* and *suffix* is parsed, so digits inside
+        either (e.g. ``"tmp2"`` or ``"_v2"``) are never mistaken for part of
+        the index.
 
         Parameters
         ----------
         var : sympy.Symbol
-            Temporary produced by ``sp.numbered_symbols(prefix=prefix)``.
+            Temporary produced by :meth:`_cse_symbols` with the same
+            *prefix* and *suffix*.
         prefix : str
             The prefix the symbol generator was created with.
+        suffix : str, optional
+            The suffix the symbol generator was created with.  Default ``""``.
 
         Returns
         -------
@@ -1596,16 +1649,19 @@ class Codegen:
         Raises
         ------
         ValueError
-            If *var* is not of the form ``<prefix><digits>``.
+            If *var* is not of the form ``<prefix><digits><suffix>``.
         """
         name = str(var)
-        suffix = name[len(prefix) :] if name.startswith(prefix) else ""
-        if not suffix.isdigit():
+        index = ""
+        if name.startswith(prefix) and name.endswith(suffix):
+            index = name[len(prefix) : len(name) - len(suffix)]
+
+        if not index.isdigit():
             raise ValueError(
-                f"CSE temporary '{name}' does not match '{prefix}<index>' naming"
+                f"CSE temporary '{name}' does not match '{prefix}<index>{suffix}' naming"
             )
 
-        return int(suffix)
+        return int(index)
 
     @staticmethod
     def __prune_cse(

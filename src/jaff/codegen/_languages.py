@@ -420,6 +420,37 @@ class Language:
 
         return cls._register[cls.LOOKUP[lang]]
 
+    def format_cse_declaration(
+        self, var_name: str, expr: str, type_name: str = "double"
+    ) -> str:
+        """Format CSE temporary declaration in language-specific syntax.
+
+        Must be implemented by each Language subclass. Handles runtime-dependent
+        expressions using language-appropriate declaration syntax.
+
+        Parameters
+        ----------
+        var_name : str
+            Temporary variable name (e.g., 'x0', 'cse1').
+        expr : str
+            Expression to assign.
+        type_name : str, optional
+            Type key (default 'double').
+
+        Returns
+        -------
+        str
+            Properly formatted declaration statement including terminator.
+
+        Raises
+        ------
+        NotImplementedError
+            If not implemented by subclass.
+        """
+        raise NotImplementedError(
+            f"Language {self.name} must implement format_cse_declaration()"
+        )
+
     def __repr__(self) -> str:
         return f"<Language {self.name}>"
 
@@ -437,6 +468,13 @@ class Cxx(Language):
     types = {"int": "int ", "float": "float ", "double": "double ", "bool": "bool "}
     extras = {"type_qualifier": "const ", "class_specifier": "static "}
 
+    def format_cse_declaration(
+        self, var_name: str, expr: str, type_name: str = "double"
+    ) -> str:
+        """C++ CSE temps: const double x0 = expr;"""
+        type_str = self.types.get(type_name, "double ")
+        return f"const {type_str}{var_name} {self.assignment_op} {expr}{self.line_end}"
+
 
 class C(Language):
     name = "c"
@@ -449,6 +487,13 @@ class C(Language):
     comment = "//"
     types = {"int": "int ", "float": "float ", "double": "double ", "bool": "_Bool "}
     extras = {"type_qualifier": "const ", "class_specifier": "static "}
+
+    def format_cse_declaration(
+        self, var_name: str, expr: str, type_name: str = "double"
+    ) -> str:
+        """C CSE temps: double x0 = expr; (no const for runtime-dependent)"""
+        type_str = self.types.get(type_name, "double ")
+        return f"{type_str}{var_name} {self.assignment_op} {expr}{self.line_end}"
 
 
 class Fortran(Language):
@@ -464,6 +509,12 @@ class Fortran(Language):
     types: ClassVar[dict[str, str]] = {}
     extras = {"class_specifier": "save "}
 
+    def format_cse_declaration(
+        self, var_name: str, expr: str, type_name: str = "double"
+    ) -> str:
+        """Fortran CSE temps: x0 = expr (no type declaration)"""
+        return f"{var_name} {self.assignment_op} {expr}{self.line_end}"
+
 
 class Python(Language):
     name = "python"
@@ -478,6 +529,12 @@ class Python(Language):
     types: ClassVar[dict[str, str]] = {}
     extras: ClassVar[dict[str, Any]] = {}
 
+    def format_cse_declaration(
+        self, var_name: str, expr: str, type_name: str = "double"
+    ) -> str:
+        """Python CSE temps: x0 = expr (no type)"""
+        return f"{var_name} {self.assignment_op} {expr}{self.line_end}"
+
 
 class Rust(Language):
     name = "rust"
@@ -491,6 +548,13 @@ class Rust(Language):
     comment = "//"
     types = {"int": "i32 ", "float": "f32 ", "double": "f64 ", "bool": "bool "}
     extras = {"type_qualifier": "const ", "class_specifier": ""}
+
+    def format_cse_declaration(
+        self, var_name: str, expr: str, type_name: str = "double"
+    ) -> str:
+        """Rust CSE temps use `let` syntax (runtime-safe, not const)."""
+        type_str = self.types.get(type_name, "f64 ").rstrip()
+        return f"let {var_name}: {type_str} {self.assignment_op} {expr}{self.line_end}"
 
 
 class Julia(Language):
@@ -511,6 +575,12 @@ class Julia(Language):
     }
     extras = {"type_qualifier": "const ", "class_specifier": ""}
 
+    def format_cse_declaration(
+        self, var_name: str, expr: str, type_name: str = "double"
+    ) -> str:
+        """Julia CSE temps use plain assignment (no const)."""
+        return f"{var_name} {self.assignment_op} {expr}{self.line_end}"
+
 
 class R(Language):
     name = "r"
@@ -523,6 +593,12 @@ class R(Language):
     comment = "#"
     types: ClassVar[dict[str, str]] = {}
     extras: ClassVar[dict[str, Any]] = {}
+
+    def format_cse_declaration(
+        self, var_name: str, expr: str, type_name: str = "double"
+    ) -> str:
+        """R CSE temps: x0 <- expr (R uses <- operator)"""
+        return f"{var_name} {self.assignment_op} {expr}{self.line_end}"
 
 
 def scoped_tokens(lang_attr: str = "lang") -> Callable[[Callable], Callable]:
