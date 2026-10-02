@@ -13,6 +13,9 @@ Physical constants and photochemical cross-section lookup for astrochemical calc
 | Class            | Description                                                       |
 | ---------------- | ----------------------------------------------------------------- |
 | `Photochemistry` | Photo cross-section lookup from the bundled databases (see below) |
+| [`RadiationProps`](radiation/index.md#radiationprops) | Radiation-field configuration (bands, per-band spectral index, mode, speed of light) |
+| [`Radiation`](radiation/index.md#radiation_1) | Band collection built by `Network` (`net.radiation`); piecewise spectral profiles |
+| [`RadiationGroup`](radiation/index.md#radiationgroup) | One band: edges, `profile_idx`, `photden`, `eavg`, per-reaction rate data |
 
 ## Submodules
 

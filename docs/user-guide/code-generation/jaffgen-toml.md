@@ -184,7 +184,7 @@ enabled; it names the reference field that `chi_pe` is scaled against.
 ## `[network.dust]` section
 
 Present this (possibly empty) table to enable the **dust module**. It maps to the
-`dust=True` constructor argument and activates dust-driven physics — currently
+`dust_props=DustProps(...)` constructor argument and activates dust-driven physics — currently
 photoelectric emission, which supplies the [`chi_pe`](../designing-networks/photochemistry.md#self-consistent-photoelectric-field-chi_pe)
 symbol (the local field scaled to the photoelectric band).
 

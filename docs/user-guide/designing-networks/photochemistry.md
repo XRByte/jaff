@@ -47,7 +47,7 @@ The radiation field is divided into contiguous energy bands. You specify the ban
 ```toml
 [network.radiation]
 bands             = [13.6, "inf"]   # band edges in eV; "inf" for open upper bound
-profile_index   = 0               # photon-number spectrum index α
+profile_index   = 0               # photon-number spectrum index α (or one per band, e.g. [0, 1])
 mode    = "nph"           # photon number density ("nph") or energy density ("u")
 rsl               = 2.99792458e10   # speed of light (cm/s)
 ```
@@ -63,6 +63,22 @@ $$
 where $\alpha$ is `profile_index`. Setting $\alpha = 0$ gives $n(E) \propto E^{-2}$, i.e. equal energy per logarithmic bin which is the default assumption.
 
 `profile_index` may also be a list with one $\alpha_i$ per band (e.g. `profile_index = [0, 1]` for two bands). Each band $i$ then uses $n(E) \propto E^{\alpha_i - 2}$ and is normalised on its own, so the spectrum is a histogram and is discontinuous at band edges by design.
+
+### Valid band / index combinations
+
+`RadiationProps` checks the configuration when it is constructed:
+
+| Condition | Result |
+| --- | --- |
+| `profile_index` is not an `int`/`float` or a non-empty list of them (`bool` is rejected) | `ParserError` |
+| `profile_index` is a list whose length is not `len(bands) - 1` | `ParserError` |
+| `bands` has fewer than two edges | `ParserError` |
+| `mode = "u"`, `bands[0] = 0` and the **first** band's $\alpha \le 0$ | `RuntimeError` (band-average energy diverges at $E \to 0$) |
+| `mode = "u"`, `bands[-1] = "inf"` and the **last** band's $\alpha \ge 0$ | `RuntimeError` (band-average energy diverges at $E \to \infty$) |
+| `bands[0] < 1` eV and the first band's $\alpha \le 1$ | warning: the photon-number normalisation $\int E^{\alpha-2}\,dE$ is ill-conditioned near $E \to 0$ |
+
+Only the first band can reach $E = 0$ and only the last can reach $E = \infty$, so the
+divergence checks use those bands' indices; interior bands always converge.
 
 ### Band-averaged cross section
 
@@ -318,7 +334,6 @@ Both are energy densities in `erg cm⁻³`, so `chi_pe` is dimensionless.
 `chi_pe` needs **radiation transport and the dust module** both on. From Python:
 
 ```python
-<<<<<<< HEAD
 from jaff.physics import RadiationProps, DustProps
 
 net = Network(
@@ -328,13 +343,6 @@ net = Network(
         background_field="draine",         # reference field for the scaling
     ),
     dust_props=DustProps(),                # enables the dust module
-=======
-net = Network(
-    "networks/GOW/GOW.jet",
-    rad_bands=[6.0, 11.2, 13.6, "inf"],  # band edges in eV
-    dust=True,                            # enables the dust module
-    background_field="draine",            # reference field for the scaling
->>>>>>> upstream
 )
 ```
 
@@ -367,6 +375,13 @@ net = Network(
         mode="nph",
     ),
 )
+
+# One spectral index per band (here two bands: 13.6–20 eV and 20–100 eV)
+net_pb = Network(
+    "networks/h_photoionization/h_photo.jet",
+    radiation_props=RadiationProps(bands=[13.6, 20.0, 100.0], profile_index=[0, 1]),
+)
+[grp.profile_idx for grp in net_pb.radiation.groups]   # [0, 1]
 
 # Inspect photochemical reactions
 photo = net.reactions.photo_reactions()
