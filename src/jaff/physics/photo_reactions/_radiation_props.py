@@ -56,7 +56,7 @@ class RadiationProps:
     def __init__(
         self,
         bands: list[str | float | Basic] = [],
-        profile_index: float = 0.0,
+        profile_index: float | list[float] = 0.0,
         mode: str = "nph",  # nph or u,
         c: float | str = constants.c.cgs.value,
         background_field: str = "draine",
@@ -89,7 +89,9 @@ class RadiationProps:
             If any argument fails validation (invalid type, mode, or field).
         """
         self.logger: logging.Logger = JaffLogger().get_logger()
-        self.profile_index: float = self._validate_profile_index(profile_index)
+        self.profile_index: float | list[float] = self._validate_profile_index(
+            profile_index
+        )
         self.mode: str = self._validate_mode(mode)
         self.bands: list[float | Basic] = self._validate_bands(bands)
         self.c: float | str = self._validate_c(c)
@@ -129,13 +131,17 @@ class RadiationProps:
 
         return mode.lower()
 
-    def _validate_profile_index(self, index: float) -> float:
+    def _validate_profile_index(self, index: float | list[float]) -> float | list[float]:
         if isinstance(index, (float, int)):
             return index
 
+        if isinstance(index, list):
+            if all(isinstance(i, (float, int)) for i in index):
+                return index
+
         raise ParserError(
             f"Invalid type for radiation profile index: {type(index)}\n"
-            "Radiation profile index must be an integer or a float"
+            "Radiation profile index must be an integer, float or list of type float or int"
         )
 
     def _validate_bands(self, bands: list[float | str | Basic]) -> list[float | Basic]:

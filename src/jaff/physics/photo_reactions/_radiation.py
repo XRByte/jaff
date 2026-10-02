@@ -56,6 +56,7 @@ field is therefore an energy density in erg/cm³.
 
 from __future__ import annotations
 
+from functools import reduce
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -134,8 +135,15 @@ class RadiationGroup:
         :class:`Radiation.__init__` and shared across all reactions in the band.
     """
 
+    E_sym: sp.Symbol = sp.Symbol("E")
+
     def __init__(
-        self, lower: float | int, upper: float | int | sp.Basic, index: int, sym: sp.Basic
+        self,
+        lower: float | int,
+        upper: float | int | sp.Basic,
+        index: int,
+        sym: sp.Basic,
+        profile_idx: float,
     ):
         """Initialise a single radiation band.
 
@@ -168,10 +176,22 @@ class RadiationGroup:
             if all(isinstance(val, (int, float)) for val in [self.upper, self.lower])
             else None
         )
-        self.photden: float = 0.0
         self.props: dict[Reaction, RadiationGroupReactionProps] = {}
         # Populated on the first call to set_reaction_rate_coefficient for this band.
         self.eavg: float | None = None
+        self.profile_idx: float = profile_idx
+        self.nph_profile: sp.Expr = self.E_sym ** (self.profile_idx - 2)
+        self.energy_profile: sp.Expr = self.E_sym * self.nph_profile
+        # ∫ n(E) dE over the band — used as normalisation for averages.
+        self.photden = smart_integrate(
+            self.nph_profile, self.E_sym, (self.lower, self.upper)
+        )
+        # Compute the band-average photon energy once per band (shared
+        # across all reactions): <E>_i = ∫ E n(E) dE / ∫ n(E) dE
+        self.eavg = (
+            smart_integrate(self.energy_profile, self.E_sym, (self.lower, self.upper))
+            / self.photden
+        ) * u.eV.to(u.erg)
 
     def __repr__(self):
         """Return detailed string representation of this radiation group.
@@ -275,7 +295,6 @@ class Radiation:
         """
         self.network: Network = network
         self.bands: list[int | float | sp.Basic] = props.bands
-        self.profile_idx: int | float = props.profile_index
         self.mode: str = props.mode
         # Speed of light (cm/s) for k = c * σ * n(E) expressions
         self.c: float | sp.Symbol = (
@@ -290,30 +309,28 @@ class Radiation:
             "radeden" if self.mode == "u" else "photden", shape=(self.nbands,)
         )
         self.groups: list[RadiationGroup] = [
-            RadiationGroup(lower, self.bands[i + 1], i, self.den[i])
+            RadiationGroup(
+                lower=lower,  # type: ignore
+                upper=self.bands[i + 1],
+                index=i,
+                sym=self.den[i],
+                profile_idx=props.profile_index
+                if not isinstance(props.profile_index, list)
+                else props.profile_index[i],
+            )
             for i, lower in enumerate(self.bands[:-1])
         ]
         self.E_sym: sp.Symbol = sp.Symbol("E")
-        self.ph_profile_sym: sp.Expr = self.E_sym ** (self.profile_idx - 2)
-        self.energy_profile_sym: sp.Expr = self.E_sym * self.ph_profile_sym
-
-        self.photden_tot = smart_integrate(
-            self.ph_profile_sym, self.E_sym, (self.bands[0], self.bands[-1])
+        self.nph_profile: sp.Expr = reduce(
+            lambda x, y: x + y, [grp.nph_profile for grp in self.groups]
+        )
+        self.energy_profile: sp.Expr = reduce(
+            lambda x, y: x + y, [grp.energy_profile for grp in self.groups]
         )
 
-        for grp in self.groups:
-            # ∫ n(E) dE over the band — used as normalisation for averages.
-            grp.photden = smart_integrate(
-                self.ph_profile_sym, self.E_sym, (grp.lower, grp.upper)
-            )
-            # Compute the band-average photon energy once per band (shared
-            # across all reactions): <E>_i = ∫ E n(E) dE / ∫ n(E) dE
-            grp.eavg = (
-                smart_integrate(
-                    self.energy_profile_sym, self.E_sym, (grp.lower, grp.upper)
-                )
-                / grp.photden
-            ) * u.eV.to(u.erg)
+        self.photden_tot = smart_integrate(
+            self.nph_profile, self.E_sym, (self.bands[0], self.bands[-1])
+        )
 
     def set_reaction_rate_coefficient(self, reaction: Reaction) -> None:
         """
@@ -386,7 +403,26 @@ class Radiation:
         # where α = profile_idx.  The factor E^(α-2) arises from
         # n(E) = u(E)/E and u(E) ∝ E^(α-1).
         E = xsec["photon_energy"]  # photon energy array in eV
-        ph_profile = self.get_photden_profile(E)
+        ph_profile = reduce(
+            lambda x, y: x + y,
+            [
+                self.get_photden_profile(
+                    E[
+                        (E >= grp.lower)
+                        & (
+                            E
+                            <= (
+                                grp.upper
+                                if not isinstance(grp.upper, (sp.Basic, sp.Expr))
+                                else np.inf
+                            )
+                        )
+                    ],
+                    grp.profile_idx,
+                )
+                for grp in self.groups
+            ],
+        )
         k_tot = sp.Float(0.0)  # Accumulates total rate coefficient over all bands
 
         # Total cross section integrated over the full spectrum (cm²),
@@ -580,7 +616,9 @@ class Radiation:
 
         return ei, fi
 
-    def get_photden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
+    def get_photden_profile(
+        self, ph_energy: np.ndarray, profile_idx: float
+    ) -> np.ndarray:
         """Evaluate the photon-number spectral profile on an energy grid.
 
         Parameters
@@ -594,7 +632,7 @@ class Radiation:
             The photon-number profile ``E^(profile_idx - 2)`` evaluated at
             each energy.
         """
-        return ph_energy ** (self.profile_idx - 2)
+        return ph_energy ** (profile_idx - 2)
 
     def get_eden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
         """Evaluate the energy-density spectral profile on an energy grid.
