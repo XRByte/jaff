@@ -62,6 +62,8 @@ $$
 
 where $\alpha$ is `profile_index`. Setting $\alpha = 0$ gives $n(E) \propto E^{-2}$, i.e. equal energy per logarithmic bin which is the default assumption.
 
+`profile_index` may also be a list with one $\alpha_i$ per band (e.g. `profile_index = [0, 1]` for two bands). Each band $i$ then uses $n(E) \propto E^{\alpha_i - 2}$ and is normalised on its own, so the spectrum is a histogram and is discontinuous at band edges by design.
+
 ### Band-averaged cross section
 
 For band $i$ spanning $[E_\text{lo}, E_\text{hi}]$:

@@ -169,3 +169,30 @@ class TestJaffxWiring:
         jx = JaffX.__new__(JaffX)
         net = jx.get_network(self._args(None))
         assert net.spec.duplicate_policy == "preserve-first"
+
+
+class TestRadiationProfileIndexWiring:
+    """[network.radiation] profile_index accepts a scalar or a per-band list."""
+
+    def _from_config(self, tmp_path, profile_index):
+        from jaff.cli.jaffgen._engine import JaffGen
+        from jaff.cli.jaffgen._structs import ResolvedPath, State
+        from jaff.drivers import Toml
+
+        cfg = tmp_path / "jaffgen.toml"
+        cfg.write_text(
+            f"[network.radiation]\nbands = [6, 11.2, 13.6]\n"
+            f"profile_index = {profile_index}\n"
+        )
+        jg = JaffGen.__new__(JaffGen)
+        jg.state = State()
+        jg.state.config_dir = ResolvedPath(tmp_path, tmp_path)
+        jg.state.config_raw = Toml(cfg)
+        jg.set_state_from_config()
+        return jg.state.network_args
+
+    def test_scalar_profile_index(self, tmp_path):
+        assert self._from_config(tmp_path, "1.5").rad_profile_index == 1.5
+
+    def test_list_profile_index(self, tmp_path):
+        assert self._from_config(tmp_path, "[2, 1.0]").rad_profile_index == [2, 1.0]

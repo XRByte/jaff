@@ -256,6 +256,8 @@ class JaffGen:
         nr = np.get("radiation") or {}
         if nr:
             sn.rad_bands = nr.get("bands") or sn.rad_bands
+            # Scalar (all bands) or a list with one index per band; the
+            # type and list length are validated by RadiationProps.
             if (v := nr.get("profile_index")) is not None:
                 sn.rad_profile_index = v
             if (v := nr.get("mode")) is not None:
