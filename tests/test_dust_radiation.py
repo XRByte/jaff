@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import sympy as sp
 
 from jaff.cli import JaffGen
 from jaff.physics import Dust, Radiation
@@ -72,3 +73,13 @@ def test_dust_enabled(gen):
 def test_dust_has_photoelectric_emission(gen):
     """The enabled dust model carries its photoelectric-emission sub-model."""
     assert gen.net.dust.pe is not None
+
+
+def test_photoelectric_chi_weights_bands_by_eavg(gen):
+    """Bands fully inside the PE window: each band's chi weight is its eavg (nph)."""
+    rad = gen.net.radiation
+    chi = sp.expand(gen.net.dust.pe.chi)
+    # Coefficients carry the c_hat symbol; it cancels in the ratio.
+    coeffs = [chi.coeff(grp.sym) for grp in rad.groups]
+    eavgs = [float(grp.eavg) for grp in rad.groups]
+    assert float(coeffs[0] / coeffs[1]) == pytest.approx(eavgs[0] / eavgs[1])

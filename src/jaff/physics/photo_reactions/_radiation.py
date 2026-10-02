@@ -653,7 +653,8 @@ class Radiation:
         Returns
         -------
         numpy.ndarray
-            The energy-density profile ``E^(profile_idx - 1)`` evaluated at
-            each energy.
+            The piecewise energy-density profile ``E^(profile_idx_i - 1)``
+            evaluated at each energy, using each band's own spectral index
+            (see :meth:`get_photden_profile`).
         """
-        return ph_energy ** (self.profile_idx - 1)
+        return ph_energy * self.get_photden_profile(ph_energy)

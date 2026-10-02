@@ -137,12 +137,13 @@ class PhotoelectricEmission:
             if upper < lower:
                 upper = lower
 
+            # Each band uses its own spectral profile (per-band profile index).
             energy_frac = smart_integrate(
-                rad.energy_profile_sym,
+                grp.energy_profile,
                 rad.E_sym,
                 (lower, upper),
             ) / smart_integrate(
-                rad.energy_profile_sym,
+                grp.energy_profile,
                 rad.E_sym,
                 (grp.lower, grp.upper),
             )
