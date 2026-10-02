@@ -403,26 +403,7 @@ class Radiation:
         # where α = profile_idx.  The factor E^(α-2) arises from
         # n(E) = u(E)/E and u(E) ∝ E^(α-1).
         E = xsec["photon_energy"]  # photon energy array in eV
-        ph_profile = reduce(
-            lambda x, y: x + y,
-            [
-                self.get_photden_profile(
-                    E[
-                        (E >= grp.lower)
-                        & (
-                            E
-                            <= (
-                                grp.upper
-                                if not isinstance(grp.upper, (sp.Basic, sp.Expr))
-                                else np.inf
-                            )
-                        )
-                    ],
-                    grp.profile_idx,
-                )
-                for grp in self.groups
-            ],
-        )
+        ph_profile = self.get_photden_profile(E)
         k_tot = sp.Float(0.0)  # Accumulates total rate coefficient over all bands
 
         # Total cross section integrated over the full spectrum (cm²),
@@ -616,10 +597,15 @@ class Radiation:
 
         return ei, fi
 
-    def get_photden_profile(
-        self, ph_energy: np.ndarray, profile_idx: float
-    ) -> np.ndarray:
-        """Evaluate the photon-number spectral profile on an energy grid.
+    def get_photden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
+        """Evaluate the piecewise photon-number spectral profile on an energy grid.
+
+        Each energy is assigned to the band containing it (``lower <= E < upper``)
+        and evaluated with that band's spectral index.  Energies below
+        ``bands[0]`` use the first band's index and energies above
+        ``bands[-1]`` use the last band's, so endpoint interpolation in
+        :func:`~jaff.common._integrators.arr_integrate` is not biased by zeros
+        outside the band range.
 
         Parameters
         ----------
@@ -629,10 +615,16 @@ class Radiation:
         Returns
         -------
         numpy.ndarray
-            The photon-number profile ``E^(profile_idx - 2)`` evaluated at
-            each energy.
+            The photon-number profile ``E^(profile_idx_i - 2)`` evaluated at
+            each energy, same shape as ``ph_energy``.
         """
-        return ph_energy ** (profile_idx - 2)
+        lowers = np.array([float(grp.lower) for grp in self.groups])
+        alphas = np.array([float(grp.profile_idx) for grp in self.groups])
+        band_idx = np.clip(
+            np.searchsorted(lowers, ph_energy, side="right") - 1, 0, self.nbands - 1
+        )
+
+        return ph_energy ** (alphas[band_idx] - 2)
 
     def get_eden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
         """Evaluate the energy-density spectral profile on an energy grid.
