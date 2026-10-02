@@ -116,3 +116,22 @@ def test_photon_and_energy_modes_equivalent():
     }
     converted = rxn_u.rate.xreplace(subs)
     assert sp.simplify(converted - rxn_n.rate) == 0
+
+
+def test_photden_tot_independent_of_band_count():
+    """Splitting the same range into more bands must not scale photden_tot."""
+    solo = _radiation([1.0, 4.0], profile_index=2)
+    multi = _radiation([1.0, 2.0, 3.0, 4.0], profile_index=2)
+    assert float(multi.photden_tot) == pytest.approx(float(solo.photden_tot))
+    assert float(multi.photden_tot) == pytest.approx(3.0)
+
+
+def test_photden_tot_is_sum_of_band_integrals_for_per_band_index():
+    """Per-band indices: photden_tot = sum of each band's own integral."""
+    with patch("jaff.physics.photo_reactions._radiation.BackgroundField"):
+        props = RadiationProps(bands=[1.0, 2.0, 4.0], profile_index=2, c=1.0)
+        # Bypass RadiationProps list validation; only Radiation is under test.
+        props.profile_index = [2.0, 1.0]
+        rad = Radiation(None, props)
+    # ∫_1^2 E^0 dE + ∫_2^4 E^-1 dE = 1 + ln 2
+    assert float(rad.photden_tot) == pytest.approx(1.0 + math.log(2.0))

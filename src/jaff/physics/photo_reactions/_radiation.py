@@ -56,7 +56,6 @@ field is therefore an energy density in erg/cm³.
 
 from __future__ import annotations
 
-from functools import reduce
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -321,16 +320,33 @@ class Radiation:
             for i, lower in enumerate(self.bands[:-1])
         ]
         self.E_sym: sp.Symbol = sp.Symbol("E")
-        self.nph_profile: sp.Expr = reduce(
-            lambda x, y: x + y, [grp.nph_profile for grp in self.groups]
-        )
-        self.energy_profile: sp.Expr = reduce(
-            lambda x, y: x + y, [grp.energy_profile for grp in self.groups]
-        )
+        self.nph_profile: sp.Expr = self._piecewise_profile("nph_profile")
+        self.energy_profile: sp.Expr = self._piecewise_profile("energy_profile")
 
-        self.photden_tot = smart_integrate(
-            self.nph_profile, self.E_sym, (self.bands[0], self.bands[-1])
-        )
+        # ∫ n(E) dE over the full range = sum of the per-band integrals.
+        self.photden_tot = sum(grp.photden for grp in self.groups)
+
+    def _piecewise_profile(self, attr: str) -> sp.Expr:
+        """Join the per-band profiles ``grp.<attr>`` into one ``sympy.Piecewise``.
+
+        Parameters
+        ----------
+        attr : str
+            Name of the :class:`RadiationGroup` profile attribute
+            (``"nph_profile"`` or ``"energy_profile"``).
+
+        Returns
+        -------
+        sympy.Expr
+            Piecewise expression in ``E`` selecting the band containing ``E``
+            (``lower <= E < upper``); the last band is the catch-all.
+        """
+        pieces = [
+            (getattr(grp, attr), self.E_sym < grp.upper) for grp in self.groups[:-1]
+        ]
+        pieces.append((getattr(self.groups[-1], attr), True))
+
+        return sp.Piecewise(*pieces)
 
     def set_reaction_rate_coefficient(self, reaction: Reaction) -> None:
         """
