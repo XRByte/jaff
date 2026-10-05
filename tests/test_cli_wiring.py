@@ -1,5 +1,5 @@
 # ABOUTME: Tests for jaffgen/jaffx CLI wiring of network options
-# ABOUTME: --network-config resolution, duplicate_policy plumbing, [network] block extraction
+# ABOUTME: --network-config resolution, duplicate_policy/funcfile plumbing, [network] block
 
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,7 +12,7 @@ DUP = str(FIXTURES / "duplicate_temp_range.dat")
 RXN = "H+.H2__H.H2+"
 
 
-def _bare_jaffgen(network_config=None, duplicate_policy=None):
+def _bare_jaffgen(network_config=None, duplicate_policy=None, funcfile=None):
     """A JaffGen instance with a minimal args namespace, no real CLI parse."""
     from jaff.cli.jaffgen._engine import JaffGen
     from jaff.cli.jaffgen._structs import State
@@ -21,7 +21,7 @@ def _bare_jaffgen(network_config=None, duplicate_policy=None):
     jg.state = State()
     jg.args = SimpleNamespace(
         label=None,
-        funcfile=None,
+        funcfile=funcfile,
         expand_nuclei=None,
         errors=None,
         network_config=network_config,
@@ -196,3 +196,62 @@ class TestRadiationProfileIndexWiring:
 
     def test_list_profile_index(self, tmp_path):
         assert self._from_config(tmp_path, "[2, 1.0]").rad_profile_index == [2, 1.0]
+
+
+class TestFuncfileWiring:
+    """--funcfile false must survive set_network_options and disable aux loading."""
+
+    # chemRate0 overrides reaction 0's rate of 1 with 9 when aux loading is on.
+    NETWORK = "H + H -> H2 [10,1000] 1\nH2 -> H + H [10,1000] 1\n"
+    JFUNC = "@function chemRate0(tgas)\n    return 9\n"
+    TEMPLATE = "# $JAFF REPEAT idx, rate IN rates\nk[$idx$] = $rate$\n# $JAFF END\n"
+
+    def _bare(self, cli_value=None, toml_value=None):
+        jg = _bare_jaffgen(funcfile=cli_value)
+        if toml_value is not None:
+            jg.state.network_args.funcfile = toml_value
+        return jg
+
+    def test_cli_false_overrides_default(self):
+        jg = self._bare(cli_value=False)
+        jg.set_network_options()
+        assert jg.state.network_args.funcfile is False
+
+    def test_cli_false_overrides_config_path(self):
+        jg = self._bare(cli_value=False, toml_value="aux.jfunc")
+        jg.set_network_options()
+        assert jg.state.network_args.funcfile is False
+
+    def test_no_cli_flag_keeps_config_path(self):
+        jg = self._bare(cli_value=None, toml_value="aux.jfunc")
+        jg.set_network_options()
+        assert jg.state.network_args.funcfile == "aux.jfunc"
+
+    def _generate(self, tmp_path, *extra):
+        from typer.testing import CliRunner
+
+        from jaff.cli.jaffgen._engine import app
+
+        (tmp_path / "net.dat").write_text(self.NETWORK)
+        (tmp_path / "rates.py").write_text(self.TEMPLATE)
+        args = ["--network", str(tmp_path / "net.dat")]
+        args += ["--files", str(tmp_path / "rates.py")]
+        args += ["--outdir", str(tmp_path / "out"), *extra]
+        result = CliRunner().invoke(app, args)
+        assert result.exit_code == 0, result.output
+        return (tmp_path / "out" / "rates.py").read_text()
+
+    def test_cli_false_skips_sibling_jfunc(self, tmp_path):
+        (tmp_path / "net.jfunc").write_text(self.JFUNC)
+        assert "k[0] = 9" in self._generate(tmp_path)
+        assert "k[0] = 1" in self._generate(tmp_path, "--funcfile", "false")
+
+    def test_cli_false_skips_config_funcfile(self, tmp_path):
+        aux = tmp_path / "aux.jfunc"
+        aux.write_text(self.JFUNC)
+        cfg = tmp_path / "jaffgen.toml"
+        cfg.write_text(f'[network]\nfuncfile = "{aux}"\n')
+        # The config is rendered alongside the templates; .toml needs --lang.
+        with_cfg = ("--config", str(cfg), "--lang", "python")
+        assert "k[0] = 9" in self._generate(tmp_path, *with_cfg)
+        assert "k[0] = 1" in self._generate(tmp_path, *with_cfg, "--funcfile", "false")

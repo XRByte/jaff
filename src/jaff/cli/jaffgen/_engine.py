@@ -498,9 +498,10 @@ class JaffGen:
         sn = self.state.network_args
 
         sn.label = a.label or sn.label
-        sn.funcfile = a.funcfile or sn.funcfile
         self.state.lang = a.lang or self.state.lang
 
+        if a.funcfile is not None:
+            sn.funcfile = a.funcfile
         if a.expand_nuclei is not None:
             sn.expand_nuclei = a.expand_nuclei
         if a.errors is not None:
