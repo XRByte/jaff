@@ -67,7 +67,8 @@ class ConfigTable:
         The parsed ``[[table]]`` dictionary from the TOML config.  Must
         contain at least a ``"source"`` key.
     file : Path
-        Path to the ``jaffgen.toml`` file; used for error messages.
+        Path to the ``jaffgen.toml`` file; relative source paths resolve
+        against its directory, and it is named in error messages.
     network_file : Path
         Path to the network file.  Its parent directory and stem are
         used to resolve the ``"default"`` source path.
@@ -92,7 +93,8 @@ class ConfigTable:
         table_dict : dict[str, Any]
             Parsed ``[[table]]`` entry from the TOML config.
         file : Path
-            Path to the ``jaffgen.toml`` file (used in error messages).
+            Path to the ``jaffgen.toml`` file (relative source paths resolve
+            against its directory; also used in error messages).
         network_file : Path
             Path to the network file; its parent and stem resolve
             the ``"default"`` source path alias.
@@ -107,6 +109,8 @@ class ConfigTable:
             If the source or target file extension is unsupported.
         """
         self.config: dict[str, Any] = table_dict
+        # Explicit relative source paths resolve against the config file's dir.
+        self.config_dir = file.parent
         self.network_dir = network_file.parent
         # Use the network file stem as the default data file name.
         self.network_name: Path = Path(network_file.stem)
@@ -524,8 +528,9 @@ class ConfigTable:
         Resolve and validate source file properties from the config.
 
         Expands the ``"default"`` path alias to the network's default HDF5
-        file and infers the format from the file extension.  For CSV sources,
-        also reads delimiter and comment-character settings.
+        file, resolves any other relative path against the config file's
+        directory, and infers the format from the file extension.  For CSV
+        sources, also reads delimiter and comment-character settings.
 
         Stores the result in ``self.source_props``.
 
@@ -539,7 +544,7 @@ class ConfigTable:
             # "default" expands to <network_dir>/<network_stem>.hdf5
             "path": self.network_dir / self.network_name.with_suffix(".hdf5")
             if self.source_config["path"] == "default"
-            else Path(self.source_config["path"])
+            else self.config_dir / self.source_config["path"]
         }
         if props["path"].suffix.lower() not in HDF_EXTENSIONS + CSV_EXTENSIONS:
             raise ValueError(f"Unsupported target format found: {props['path']}")

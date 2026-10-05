@@ -336,3 +336,27 @@ def test_unknown_type_raises(source_h5, tmp_path):
     )
     with pytest.raises(ValueError, match="Unknown composite type"):
         ct.parse()
+
+
+def test_relative_source_path_resolves_against_config_dir(
+    source_h5, tmp_path, monkeypatch
+):
+    """A relative source.path is config-relative, not CWD-relative."""
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    # Same-named decoy in the CWD with different data must not be picked up.
+    decoy = {"co": {"x0": _leaf(np.array([-1.0, -2.0, -3.0]))}}
+    HDF5().from_dict(elsewhere / source_h5.name, decoy, mode="w")
+    monkeypatch.chdir(elsewhere)
+
+    ct = _make(
+        {
+            "source": {"path": source_h5.name},
+            "target": {"path": "out.hdf5", "/temperature": {"h5path": "/co/x0"}},
+        },
+        source_h5,
+        tmp_path,
+    )
+    assert ct.source_props["path"] == source_h5
+    flat = ct.parse().flatten()
+    np.testing.assert_array_equal(flat["/temperature"]["_data"], [1.0, 2.0, 3.0])

@@ -245,11 +245,14 @@ class JaffGen:
         sn.label = np.get("label") or sn.label
         if (v := np.get("errors")) is not None:
             sn.errors = v
-        sn.config = np.get("config") or sn.config
+        # Path-valued [network] options are config-relative, like [jaffgen] paths.
+        if v := np.get("config"):
+            sn.config = self.resolve_path(v, cdir).abspath
         if (v := np.get("expand_nuclei")) is not None:
             sn.expand_nuclei = v
         if (v := np.get("funcfile")) is not None:
-            sn.funcfile = v
+            # Booleans toggle the sibling-file scan; anything else is a path.
+            sn.funcfile = v if isinstance(v, bool) else self.resolve_path(v, cdir).abspath
         if (v := np.get("duplicate_policy")) is not None:
             sn.duplicate_policy = v
 
