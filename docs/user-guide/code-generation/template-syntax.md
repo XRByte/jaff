@@ -416,7 +416,10 @@ const int HAS_CARBON = 0;
 ## REDUCE
 
 Build a single summed expression over a collection by expanding the `$( ... )$`
-region once per item and joining the pieces with `+`.
+region once per item and joining the pieces with `+`. Each piece and the whole
+sum are wrapped in parentheses, so the result is safe to use as an operand
+(`2 * $(...)$`, `1 / $(...)$`). A reduction over an empty collection expands
+to `0`.
 
 ```text
 // $JAFF REDUCE var IN collection
@@ -434,7 +437,7 @@ Output:
 
 ```cpp
 // $JAFF REDUCE specie_charge IN specie_charges
-double total_charge = 0 + 1 + -1;
+double total_charge = ((0) + (1) + (-1));
 // $JAFF END
 ```
 
@@ -452,7 +455,7 @@ For the hydrogen network the only charged non-electron species is `H+`
 (index 1, charge +1):
 
 ```cpp
-ne = (1 * xn[1]);
+ne = (((1 * xn[1])));
 ```
 
 ---
