@@ -360,3 +360,23 @@ def test_relative_source_path_resolves_against_config_dir(
     assert ct.source_props["path"] == source_h5
     flat = ct.parse().flatten()
     np.testing.assert_array_equal(flat["/temperature"]["_data"], [1.0, 2.0, 3.0])
+
+
+def test_default_source_with_dotted_network_name(source_h5, tmp_path):
+    """"default" keeps every dot of the network basename: net.v2.jet -> net.v2.hdf5."""
+    net_dir = tmp_path / "nets"
+    net_dir.mkdir()
+    default_h5 = net_dir / "net.v2.hdf5"
+    default_h5.write_bytes(source_h5.read_bytes())
+
+    ct = ConfigTable(
+        {
+            "source": {"path": "default"},
+            "target": {"path": "out.hdf5", "/temperature": {"h5path": "/co/x0"}},
+        },
+        tmp_path / "cfg.toml",
+        net_dir / "net.v2.jet",
+    )
+    assert ct.source_props["path"] == default_h5
+    flat = ct.parse().flatten()
+    np.testing.assert_array_equal(flat["/temperature"]["_data"], [1.0, 2.0, 3.0])

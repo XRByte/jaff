@@ -112,18 +112,14 @@ class ConfigTable:
         # Explicit relative source paths resolve against the config file's dir.
         self.config_dir = file.parent
         self.network_dir = network_file.parent
-        # Use the network file stem as the default data file name.
-        self.network_name: Path = Path(network_file.stem)
-        # The "default" source alias resolves to <network_dir>/<stem>.hdf5; only
-        # that alias requires the network's own data table to exist on disk.
-        default_data = network_file.with_suffix(".hdf5")
+        self.default_data: Path = network_file.with_suffix(".hdf5")
         if (
             table_dict.get("source", {}).get("path") == "default"
-            and not default_data.exists()
+            and not self.default_data.exists()
         ):
             raise RuntimeError(
                 f"{self.network_dir} doesn't contain a default data file "
-                f"({default_data.name})"
+                f"({self.default_data.name})"
             )
 
         if "source" not in table_dict:
@@ -336,13 +332,10 @@ class ConfigTable:
         """
         names = items.get("names") or [p.rsplit("/", 1)[-1] for p in paths]
         if len(names) != len(paths):
-            raise ValueError(
-                f"names length {len(names)} != h5path length {len(paths)}"
-            )
+            raise ValueError(f"names length {len(names)} != h5path length {len(paths)}")
 
         np_fields = [
-            (name, np.asarray(leaf["_data"]).dtype)
-            for name, leaf in zip(names, leaves)
+            (name, np.asarray(leaf["_data"]).dtype) for name, leaf in zip(names, leaves)
         ]
         data = np.empty(len(leaves[0]["_data"]), dtype=np_fields)
         for name, leaf in zip(names, leaves):
@@ -372,9 +365,7 @@ class ConfigTable:
         if isinstance(xpaths, str):
             xpaths = [xpaths]
 
-        xlens = [
-            len(self.source_tree[self.__norm_path(x)]["_data"]) for x in xpaths
-        ]
+        xlens = [len(self.source_tree[self.__norm_path(x)]["_data"]) for x in xpaths]
         expected = int(np.prod(xlens))
 
         cols = []
@@ -542,7 +533,7 @@ class ConfigTable:
         """
         props: dict[str, Any] = {
             # "default" expands to <network_dir>/<network_stem>.hdf5
-            "path": self.network_dir / self.network_name.with_suffix(".hdf5")
+            "path": self.default_data
             if self.source_config["path"] == "default"
             else self.config_dir / self.source_config["path"]
         }
