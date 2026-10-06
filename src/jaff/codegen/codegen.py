@@ -25,7 +25,6 @@ per-method bracket/token overrides are applied by the
 from __future__ import annotations
 
 import re
-from functools import reduce
 from itertools import count, product
 from typing import TYPE_CHECKING, Iterator, List, Set, Tuple, cast
 
@@ -551,31 +550,19 @@ class Codegen:
 
         return sode
 
-    def __gen_sdedt(self, specific_eint: bool = False, norm: int = 0) -> sp.Expr:
+    def __gen_sdedt(self, energy: str = "volumetric") -> sp.Expr:
         """Return the symbolic total energy time-derivative expression.
 
-        Computes ``(dE/dt_chem + dE/dt_other) / den_tot`` where ``den_tot``
-        depends on the *specific_eint* and *norm* flags:
-
-        * ``specific_eint=False`` → ``den_tot = 1`` (energy density rate, erg/cm³/s).
-        * ``specific_eint=True, norm=0`` → ``den_tot = Σ m_i · nden[i]`` (total mass
-          density in g/cm³; result is the specific internal-energy rate erg/g/s).
-        * ``specific_eint=True, norm=1`` → ``den_tot = Σ nden[i]`` (total number
-          density in cm⁻³; result is per-particle energy rate erg/particle/s).
-
-        ``nden`` is treated as a SymPy :class:`~sympy.MatrixSymbol` of shape
-        ``(nspec, 1)`` so that the Jacobian computation can differentiate
-        through it.
+        Computes ``(dE/dt_chem + dE/dt_other) / den`` where ``den`` is the
+        normaliser of the *energy* form of the network EOS (see
+        :meth:`~jaff.physics.Eos.normaliser`): ``1`` (``volumetric``,
+        erg/cm³/s), ``ρ`` (``specific``, erg/g/s), ``n_tot``
+        (``per_particle``, erg/s) or ``n_tot / N_A`` (``molar``, erg/mol/s).
 
         Parameters
         ----------
-        specific_eint : bool, optional
-            Whether to normalise by total density to obtain a *specific*
-            internal-energy rate.  Default ``False``.
-        norm : int, optional
-            Normalisation convention when *specific_eint* is ``True``.
-            ``0`` normalises by mass density; ``1`` by number density.
-            Ignored when *specific_eint* is ``False``.
+        energy : str, optional
+            Evolved internal-energy form.  Default ``"volumetric"``.
 
         Returns
         -------
@@ -585,41 +572,15 @@ class Codegen:
         Raises
         ------
         ValueError
-            If *specific_eint* is ``True`` and *norm* is not ``0`` or ``1``.
+            If *energy* is not a valid EOS form.
         """
-        # nden is a symbolic column vector representing species number densities
-        nden_matrix = self.net.ndens
-
-        den_tot = 1
-        if specific_eint:
-            if norm not in [0, 1]:
-                raise ValueError(
-                    f"Invalid value of normalization: {norm}\n"
-                    "Supported values of norm are 0 and 1"
-                )
-            if norm == 0:
-                # Total mass density: Σ m_i * nden[i]
-                den_tot = reduce(
-                    lambda x, y: x + y,
-                    [
-                        specie.mass * nden_matrix[i]
-                        for i, specie in enumerate(self.net.species)
-                    ],
-                    0,
-                )
-            elif norm == 1:
-                # Total number density: Σ nden[i]
-                den_tot = reduce(
-                    lambda x, y: x + y,
-                    [nden_matrix[i] for i, _ in enumerate(self.net.species)],
-                    0,
-                )
         assert isinstance(self.net.dEdt_chem, sp.Expr)
         assert isinstance(self.net.dEdt_other, sp.Expr)
 
-        return (self.net.dEdt_chem + self.net.dEdt_other) / den_tot
+        den = self.net.eos().normaliser(energy)
+        return (self.net.dEdt_chem + self.net.dEdt_other) / den
 
-    def get_dedt(self, specific_eint: bool = False, norm: int = 0) -> str:
+    def get_dedt(self, energy: str = "volumetric") -> str:
         """Return a target-language code string for the energy time-derivative.
 
         Calls :meth:`__gen_sdedt` to obtain the symbolic expression and then
@@ -627,12 +588,9 @@ class Codegen:
 
         Parameters
         ----------
-        specific_eint : bool, optional
-            Normalise by density to yield the *specific* internal-energy rate.
-            Default ``False``.
-        norm : int, optional
-            Normalisation convention (``0`` = mass density, ``1`` = number
-            density).  Used only when *specific_eint* is ``True``.
+        energy : str, optional
+            Evolved internal-energy form: ``"volumetric"`` (default),
+            ``"specific"``, ``"per_particle"`` or ``"molar"``.
 
         Returns
         -------
@@ -640,7 +598,7 @@ class Codegen:
             Single-expression code string (no assignment or line terminator).
         """
         expr = self.lang.code_gen(
-            self.__gen_sdedt(specific_eint, norm),
+            self.__gen_sdedt(energy),
             strict=False,
             allow_unknown_functions=True,
         )
@@ -796,8 +754,7 @@ class Codegen:
         self,
         use_cse: bool = True,
         cse_var: str = "cse",
-        specific_eint: bool = False,
-        norm: int = 0,
+        energy: str = "volumetric",
         radiation: bool = False,
         rad_order: int = 0,
         cse_suffix: str = "",
@@ -823,11 +780,9 @@ class Codegen:
         cse_suffix : str, optional
             Text appended after the index of each CSE temporary name, e.g.
             ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
-        specific_eint : bool, optional
-            Normalise the energy derivative by total density.  Default ``False``.
-        norm : int, optional
-            Density normalisation convention (``0`` = mass, ``1`` = number).
-            Used only when *specific_eint* is ``True``.
+        energy : str, optional
+            Evolved internal-energy form (see :meth:`get_dedt`).
+            Default ``"volumetric"``.
         radiation : bool, optional
             Include radiation moment ODEs in the RHS.  Default ``False``.
         rad_order : int, optional
@@ -861,7 +816,7 @@ class Codegen:
             # Append energy derivative and (optionally) radiation ODEs
             rhs_symbols.extend(
                 [
-                    self.__gen_sdedt(specific_eint, norm),
+                    self.__gen_sdedt(energy),
                     *(self.net.sradodes(rad_order) if radiation else []),
                 ]
             )
@@ -902,8 +857,7 @@ class Codegen:
         def_prefix: str = "",
         assignment_op: str = "",
         line_end: str = "",
-        specific_eint: bool = False,
-        norm: int = 0,
+        energy: str = "volumetric",
         radiation: bool = False,
         rad_order: int = 0,
     ) -> str:
@@ -937,10 +891,9 @@ class Codegen:
             Assignment operator override.  Empty string uses the language default.
         line_end : str, optional
             Line terminator override.  Empty string uses the language default.
-        specific_eint : bool, optional
-            Normalise the energy derivative by density.  Default ``False``.
-        norm : int, optional
-            Density normalisation convention for the energy derivative.
+        energy : str, optional
+            Evolved internal-energy form (see :meth:`get_dedt`).
+            Default ``"volumetric"``.
         radiation : bool, optional
             Include radiation moment ODEs.  Default ``False``.
         rad_order : int, optional
@@ -957,8 +910,7 @@ class Codegen:
         rhs_expressions = self.get_indexed_rhs(
             use_cse=use_cse,
             cse_var=cse_var,
-            specific_eint=specific_eint,
-            norm=norm,
+            energy=energy,
             radiation=radiation,
             rad_order=rad_order,
         )
@@ -1117,8 +1069,7 @@ class Codegen:
         use_dedt: bool = False,
         use_cse: bool = True,
         cse_var: str = "cse",
-        specific_eint: bool = False,
-        norm: int = 0,
+        energy: str = "volumetric",
         radiation: bool = False,
         rad_order: int = 0,
         cse_suffix: str = "",
@@ -1162,11 +1113,9 @@ class Codegen:
         cse_suffix : str, optional
             Text appended after the index of each CSE temporary name, e.g.
             ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
-        specific_eint : bool, optional
-            Normalise the energy equation by density (see :meth:`__gen_sdedt`).
-            Default ``False``.
-        norm : int, optional
-            Density normalisation for the energy equation (``0`` or ``1``).
+        energy : str, optional
+            Evolved internal-energy form (see :meth:`get_dedt`).
+            Default ``"volumetric"``.
         radiation : bool, optional
             Include radiation moment equations in the Jacobian.
             Default ``False``.
@@ -1262,9 +1211,7 @@ class Codegen:
 
             # Optionally append the energy equation and radiation ODEs
             if use_dedt:
-                ode_symbols.append(
-                    self.__gen_sdedt(specific_eint=specific_eint, norm=norm)
-                )
+                ode_symbols.append(self.__gen_sdedt(energy))
 
             if radiation:
                 ode_symbols.extend(self.net.sradodes(order=rad_order))
@@ -1293,7 +1240,8 @@ class Codegen:
             # into the state-vector framework via the ideal-gas EOS relation
             # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
             dde = sp.zeros(n_ode_eqns, 1)
-            eos_expr = self.net.eos(specific=specific_eint, norm=norm)
+            eos = self.net.eos()
+            eos_expr = eos.volumetric / eos.normaliser(energy)
             dedot_dtgas = sp.diff(eos_expr, sp.symbols("tgas"))
 
             # Compute dq/dn_j: derivatives of energy equation w.r.t. each species

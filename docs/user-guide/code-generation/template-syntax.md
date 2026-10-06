@@ -232,6 +232,7 @@ Modifiers go inside `$[...]$` at the end of the command line.
 | ----------- | ------------ | ----------------------------------------------- | ------------------- |
 | `SORT`      | `TRUE/FALSE` | Sort items before expansion                     | All                 |
 | `USE_DEDT`  | `TRUE/FALSE` | Include the internal-energy row in the Jacobian | `jacobian`          |
+| `DEDT_TYPE` | `volumetric/specific/per_particle/molar` | Evolved internal-energy form (default `volumetric`) | `rhses`, `jacobian` |
 | `RADIATION` | `TRUE/FALSE` | Include radiation ODE / Jacobian terms          | `rhses`, `jacobian` |
 | `REPLACE`   | `pat repl`   | Regex replacement on the output                 | All                 |
 | `POS`       | `str`        | `+` replacement string for normalized sign      | `species_with_normalized_sign` |

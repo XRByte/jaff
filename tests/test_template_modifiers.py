@@ -17,7 +17,6 @@ FALSE_SPELLINGS = ["False", "FALSE", "false"]
 # Boolean modifier -> REPEAT line and body exercising it.  All default to False.
 BOOL_CASES = {
     "USE_DEDT": ("idx, expr IN jacobian", "f[$idx$, $idx$] = $expr$"),
-    "SPECIFIC_EINT": ("idx, rhs IN rhses", "f[$idx$] = $rhs$"),
     "RADIATION": ("idx, rhs IN rhses", "f[$idx$] = $rhs$"),
 }
 
@@ -52,7 +51,7 @@ def test_false_spellings_match_default(
 
 
 @pytest.mark.parametrize("spelling", TRUE_SPELLINGS)
-@pytest.mark.parametrize("modifier", ["USE_DEDT", "SPECIFIC_EINT"])
+@pytest.mark.parametrize("modifier", ["USE_DEDT"])
 def test_true_spellings_match_python_true(
     dedt_net: Network, tmp_path: Path, modifier: str, spelling: str
 ) -> None:
@@ -81,19 +80,20 @@ def test_non_boolean_values_rejected(
         _render(dedt_net, tmp_path, repeat, body, f"{modifier} {value}")
 
 
-def test_norm_is_parsed_as_int(dedt_net: Network, tmp_path: Path) -> None:
-    repeat, body = BOOL_CASES["SPECIFIC_EINT"]
-    per_mass = _render(dedt_net, tmp_path, repeat, body, "SPECIFIC_EINT TRUE NORM 0")
-    per_particle = _render(dedt_net, tmp_path, repeat, body, "SPECIFIC_EINT TRUE NORM 1")
-    assert per_mass == _render(dedt_net, tmp_path, repeat, body, "SPECIFIC_EINT TRUE")
-    assert per_particle != per_mass
+def test_dedt_type_selects_energy_form(dedt_net: Network, tmp_path: Path) -> None:
+    repeat, body = "idx, rhs IN rhses", "f[$idx$] = $rhs$"
+    default = _render(dedt_net, tmp_path, repeat, body, "")
+    specific = _render(dedt_net, tmp_path, repeat, body, "DEDT_TYPE specific")
+    per_particle = _render(dedt_net, tmp_path, repeat, body, "DEDT_TYPE per_particle")
+    assert _render(dedt_net, tmp_path, repeat, body, "DEDT_TYPE volumetric") == default
+    assert specific != default
+    assert per_particle != specific
 
 
-@pytest.mark.parametrize("value", ["TRUE", "1.0", "one"])
-def test_non_integer_norm_rejected(dedt_net: Network, tmp_path: Path, value: str) -> None:
-    repeat, body = BOOL_CASES["SPECIFIC_EINT"]
-    with pytest.raises(ParserError, match="NORM expects an integer"):
-        _render(dedt_net, tmp_path, repeat, body, f"SPECIFIC_EINT TRUE NORM {value}")
+def test_unknown_dedt_type_rejected(dedt_net: Network, tmp_path: Path) -> None:
+    repeat, body = "idx, rhs IN rhses", "f[$idx$] = $rhs$"
+    with pytest.raises(ValueError, match="bogus"):
+        _render(dedt_net, tmp_path, repeat, body, "DEDT_TYPE bogus")
 
 
 @pytest.mark.parametrize("pos, expected", [("p", "idx_hep"), ("1", "idx_he1")])

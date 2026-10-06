@@ -6,7 +6,7 @@ tags:
 
 # get_rhs_str
 
-`#!python get_rhs_str(idx_offset=0, use_cse=True, cse_var="cse", ode_var="f", brac_format="", def_prefix="", assignment_op="", line_end="", specific_eint=False, norm=0, radiation=False, rad_order=0)`
+`#!python get_rhs_str(idx_offset=0, use_cse=True, cse_var="cse", ode_var="f", brac_format="", def_prefix="", assignment_op="", line_end="", energy="volumetric", radiation=False, rad_order=0)`
 
 Generates the complete RHS code block (ODE system + energy equation). The energy equation is assigned to `ode_var[n_species]` and the radiation equations are appended after that if radiation code generation in enabled.
 
@@ -36,11 +36,8 @@ Generates the complete RHS code block (ODE system + energy equation). The energy
 **line_end** : _str, optional_
 : Line terminator override. Empty string uses the language default (`";"` for C/C++/Rust, empty for Python/Fortran/Julia/R). Default `""`.
 
-**specific_eint** : _bool, optional_
-: Normalise the energy derivative by total density to yield a specific internal-energy rate. Default `False`.
-
-**norm** : _int, optional_
-: Density normalisation convention when `specific_eint=True`. `0` normalises by mass density (Σ m_i · nden\[i\]); `1` normalises by number density (Σ nden\[i\]). Ignored when `specific_eint=False`. Default `0`.
+**energy** : _str, optional_
+: Evolved internal-energy form of the energy equation: `"volumetric"`, `"specific"`, `"per_particle"` or `"molar"` (see [get_dedt](get_dedt.md)). Default `"volumetric"`.
 
 **radiation** : _bool, optional_
 : Include radiation moment ODEs after the energy equation. Default `False`.

@@ -452,3 +452,17 @@ class TestOdeJacobianWithInternalEnergy:
             "3*std::pow(nden[0], 2)*nden[1]",
             "std::pow(nden[0], 3)",
         ]
+
+
+class TestDedtEnergyForm:
+    """get_dedt(energy=...) divides dE/dt by the chosen EOS form's normaliser."""
+
+    def test_volumetric_matches_default(self, dedt_codegen):
+        assert dedt_codegen.get_dedt(energy="volumetric") == dedt_codegen.get_dedt()
+
+    def test_specific_differs_from_volumetric(self, dedt_codegen):
+        assert dedt_codegen.get_dedt(energy="specific") != dedt_codegen.get_dedt()
+
+    def test_unknown_form_raises(self, dedt_codegen):
+        with pytest.raises(ValueError, match="bogus"):
+            dedt_codegen.get_dedt(energy="bogus")

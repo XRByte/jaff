@@ -1757,10 +1757,7 @@ class TemplateParser:
             "RAD_ORDER": {
                 "kwargs": lambda var, value: {"rad_order": self.__int(var, value)}
             },
-            "SPECIFIC_EINT": {
-                "kwargs": lambda var, value: {"specific_eint": self.__bool(var, value)}
-            },
-            "NORM": {"kwargs": lambda var, value: {"norm": self.__int(var, value)}},
+            "DEDT_TYPE": {"kwargs": lambda var, value: {"energy": value}},
             "POS": {"kwargs": lambda var, value: {"pos": value}},
             "NEG": {"kwargs": lambda var, value: {"neg": value}},
         }

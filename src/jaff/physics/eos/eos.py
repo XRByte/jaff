@@ -5,9 +5,9 @@ from __future__ import annotations
 
 from functools import cached_property
 from numbers import Real
-from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Tuple
 
-from sympy import Expr, Float, Symbol, symbols
+from sympy import Expr, Float, Integer, Symbol, symbols
 
 from ..constants import N_A, k_B
 
@@ -44,13 +44,13 @@ class EosFactory:
         self._net: Network = net
         self._tgas: Symbol = symbols("tgas")
 
-    def generate(self) -> Callable[[], Union[Eos, Expr]]:
-        """Look up the builder for ``props.type``.
+    def generate(self) -> Eos:
+        """Build the EOS selected by ``props.type``.
 
         Returns
         -------
-        Callable[[], Eos | sympy.Expr]
-            The bound builder method for ``props.type`` (not yet called).
+        Eos
+            Symbolic internal energy of the bound network.
 
         Raises
         ------
@@ -63,19 +63,20 @@ class EosFactory:
                 f"Valid eos types are: {', '.join(self._BUILDERS)}"
             )
 
-        return getattr(self, self._BUILDERS[self.props.type])
+        return getattr(self, self._BUILDERS[self.props.type])()
 
-    def ideal(self) -> Expr:
+    def ideal(self) -> Eos:
         """Volumetric ideal-gas internal energy with a single adiabatic index.
 
         ``E = n_tot · k_B · T_gas / (γ − 1)`` [erg cm⁻³].
 
         Returns
         -------
-        sympy.Expr
-            Volumetric internal energy in CGS units.
+        Eos
+            EOS wrapping the volumetric internal energy [erg cm⁻³].
         """
-        return self._net.ntot * k_B.cgs.value * self._tgas / (self.props.gamma - 1.0)  # type: ignore
+        e = self._net.ntot * k_B.cgs.value * self._tgas / (self.props.gamma - 1.0)  # type: ignore
+        return Eos(e, self._net)
 
     def multi_gamma(self) -> Eos:
         """Internal energy summed over species with per-species adiabatic indices.
@@ -142,6 +143,39 @@ class Eos:
         self._net: Network = net
         self._vol_expr: Expr = expr
 
+    def normaliser(self, form: str) -> Expr:
+        """Density dividing the volumetric energy to give *form*.
+
+        Parameters
+        ----------
+        form : str
+            ``"volumetric"`` (``1``), ``"specific"`` (``ρ``),
+            ``"per_particle"`` (``n_tot``) or ``"molar"`` (``n_tot / N_A``).
+
+        Returns
+        -------
+        sympy.Expr
+            Symbolic normaliser.
+
+        Raises
+        ------
+        ValueError
+            If *form* is not one of the forms above.
+        """
+        if form == "volumetric":
+            return Integer(1)
+        if form == "specific":
+            return self._net.rho
+        if form == "per_particle":
+            return self._net.ntot
+        if form == "molar":
+            return self._net.ntot / N_A.cgs.value
+
+        raise ValueError(
+            f"Invalid eos form: '{form}'. "
+            "Valid forms are: volumetric, specific, per_particle, molar"
+        )
+
     @cached_property
     def volumetric(self) -> Expr:
         """Internal energy per unit volume [erg cm⁻³]."""
@@ -150,24 +184,25 @@ class Eos:
     @cached_property
     def specific(self) -> Expr:
         """Internal energy per unit mass, ``E / ρ`` [erg g⁻¹]."""
-        return self._vol_expr / self._net.rho
+        return self._vol_expr / self.normaliser("specific")
 
     @cached_property
     def per_particle(self) -> Expr:
         """Internal energy per particle, ``E / n_tot`` [erg]."""
-        return self._vol_expr / self._net.ntot
+        return self._vol_expr / self.normaliser("per_particle")
 
     @cached_property
     def molar(self) -> Expr:
         """Internal energy per mole, ``N_A · E / n_tot`` [erg mol⁻¹]."""
-        return self.per_particle * N_A.cgs.value
+        return self._vol_expr / self.normaliser("molar")
 
 
 class EosProps:
     """EOS configuration passed to :class:`~jaff.core.network.Network`.
 
     ``type`` selects the EOS; the keyword arguments are the parameters that
-    type requires (see :attr:`_REQUIRED`).  Every argument is validated on
+    type requires (see :attr:`_REQUIRED`), with any omitted parameter taken
+    from :attr:`_DEFAULTS`.  Every argument is validated on
     construction, so a bad configuration fails here rather than in codegen.
 
     Attributes
@@ -175,7 +210,8 @@ class EosProps:
     type : str
         EOS type, one of the keys of :attr:`_REQUIRED`.
     gamma : float
-        Adiabatic index (``ideal``); must be > 1.
+        Adiabatic index (``ideal``); must be > 1.  Default ``1.6666666666667``
+        (monoatomic ideal gas).
     default_gamma : float
         Adiabatic index for species absent from ``gamma_map``
         (``multi_gamma``); must be > 1.
@@ -191,6 +227,10 @@ class EosProps:
         "relativistic_fermi_degenerate": (),
     }
 
+    _DEFAULTS: Dict[str, Dict[str, Any]] = {
+        "ideal": {"gamma": 1.6666666666667},
+    }
+
     def __init__(self, type: str, **kwargs: Any) -> None:
         """Validate and store the EOS configuration.
 
@@ -199,7 +239,8 @@ class EosProps:
         type : str
             EOS type, one of the keys of :attr:`_REQUIRED`.
         **kwargs : Any
-            Exactly the parameters listed for *type* in :attr:`_REQUIRED`.
+            Parameters listed for *type* in :attr:`_REQUIRED`; any omitted
+            one is taken from :attr:`_DEFAULTS`.
 
         Raises
         ------
@@ -215,6 +256,7 @@ class EosProps:
                 f"Invalid eos: '{type}'. Valid eos types are: {', '.join(self._REQUIRED)}"
             )
 
+        kwargs = {**self._DEFAULTS.get(type, {}), **kwargs}
         required = self._REQUIRED[type]
         missing = [k for k in required if k not in kwargs]
         if missing:

@@ -199,6 +199,29 @@ non-empty `bands` — because `chi_pe` is built from the radiation bands and the
 
 ---
 
+## `[network.eos]` section
+
+Selects the equation of state used for the internal-energy equation and the
+Jacobian temperature column. The table maps to the
+`eos_props=EosProps(**table)` constructor argument; `type` picks the EOS and
+the remaining keys are that type's parameters. Without this table an ideal gas
+with `gamma = 1.6666666666667` is used.
+
+```toml
+[network.eos]
+type  = "ideal"
+gamma = 1.4
+```
+
+| `type`        | Keys                                                 | Default                 |
+| ------------- | ---------------------------------------------------- | ----------------------- |
+| `ideal`       | `gamma` (float > 1)                                  | `gamma = 1.6666666666667` |
+| `multi_gamma` | `default_gamma` (float > 1), `gamma_map` (table of species name → float > 1) | —  |
+
+See [eos](../../api/core/network/eos.md) for the full list of types.
+
+---
+
 ## `[network.reactions.<serialized>.shielding]` section
 
 Attaches a shielding factor to one photo-reaction, keyed by the reaction's

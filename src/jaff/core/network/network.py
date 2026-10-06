@@ -253,8 +253,8 @@ class Network:
             reaction's standard serialized form.  Default ``False``.
         eos_props : EosProps | None, optional
             Equation-of-state configuration used by :meth:`eos`.  When
-            ``None`` (default), an :class:`EosProps` must be passed to
-            :meth:`eos` instead.
+            ``None`` (default), an ideal gas with the default adiabatic index
+            (``EosProps("ideal")``) is used.
 
         Raises
         ------
@@ -300,7 +300,9 @@ class Network:
         self.radiation: Radiation | None = (
             Radiation(self, radiation_props) if radiation_props is not None else None
         )
-        self.eos_props: EosProps | None = eos_props
+        self.eos_props: EosProps = (
+            eos_props if eos_props is not None else EosProps("ideal")
+        )
         self._use_proxy_photoreaction: bool = use_proxy_photoreaction
         self.__photochemistry: None | Photochemistry = None
         self.dust: Dust | None = (
@@ -1091,14 +1093,9 @@ class Network:
         Raises
         ------
         ValueError
-            If no EOS configuration is available, or it is not an
-            :class:`~jaff.physics.EosProps`.
+            If the configuration is not an :class:`~jaff.physics.EosProps`.
         """
-        if self.eos_props is None and props is None:
-            raise ValueError(
-                "'eos_props' must be supplied either while initializing Network or calling Network.eos"
-            )
-        props = self.eos_props or props
+        props = props if props is not None else self.eos_props
         if not isinstance(props, EosProps):
             raise ValueError("'eos_props' must be initialized using EosProps")
 

@@ -56,8 +56,11 @@ class TestEosFactoryLifetime:
 
 class TestEosPropsValidation:
     def test_missing_required_key_raises_value_error(self) -> None:
-        with pytest.raises(ValueError, match="gamma"):
-            EosProps("ideal")
+        with pytest.raises(ValueError, match="gamma_map"):
+            EosProps("multi_gamma", default_gamma=GAMMA)
+
+    def test_ideal_gamma_defaults_to_monoatomic(self) -> None:
+        assert EosProps("ideal").gamma == 1.6666666666667
 
     def test_unknown_key_raises_value_error(self) -> None:
         with pytest.raises(ValueError, match="gama"):
@@ -105,6 +108,11 @@ class TestEosFactoryDispatch:
         with pytest.raises(ValueError, match=r"Invalid eos: 'bad'\. Valid eos types"):
             EosFactory(_stub_net("a"), props).generate()
 
+    def test_generate_builds_eos(self) -> None:
+        net = _stub_net("a")
+        eos = EosFactory(net, EosProps("ideal", gamma=GAMMA)).generate()
+        assert isinstance(eos, Eos)
+
     def test_builder_registry_matches_props_types(self) -> None:
         assert set(EosFactory._BUILDERS) == set(EosProps._REQUIRED)
 
@@ -124,15 +132,36 @@ class TestEosForms:
         assert eos.per_particle == sp.Symbol("E") / sp.Symbol("ntot_a")
 
     def test_molar_scales_per_particle_by_avogadro(self, eos: Eos) -> None:
-        assert eos.molar == eos.per_particle * N_A.cgs.value
+        ratio = sp.simplify(eos.molar / (eos.per_particle * N_A.cgs.value))
+        assert float(ratio) == pytest.approx(1.0, rel=1e-14)
+
+
+class TestEosNormaliser:
+    @pytest.mark.parametrize(
+        "form, expected",
+        [
+            ("volumetric", sp.Integer(1)),
+            ("specific", sp.Symbol("rho_a")),
+            ("per_particle", sp.Symbol("ntot_a")),
+            ("molar", sp.Symbol("ntot_a") / N_A.cgs.value),
+        ],
+    )
+    def test_normaliser_per_form(self, form: str, expected: sp.Expr) -> None:
+        eos = Eos(sp.Symbol("E"), _stub_net("a"))
+        assert sp.simplify(eos.normaliser(form) - expected) == 0
+
+    def test_unknown_form_raises(self) -> None:
+        eos = Eos(sp.Symbol("E"), _stub_net("a"))
+        with pytest.raises(ValueError, match="bogus"):
+            eos.normaliser("bogus")
 
 
 class TestEosBuilders:
     def test_ideal_volumetric_energy(self) -> None:
         net = _stub_net("a")
-        expr = EosFactory(net, EosProps("ideal", gamma=GAMMA)).ideal()
+        eos = EosFactory(net, EosProps("ideal", gamma=GAMMA)).ideal()
         expected = net.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
-        assert sp.simplify(expr - expected) == 0
+        assert sp.simplify(eos.volumetric - expected) == 0
 
     def test_multi_gamma_returns_eos(self) -> None:
         props = EosProps("multi_gamma", default_gamma=GAMMA, gamma_map={})
@@ -156,17 +185,16 @@ class TestEosBuilders:
 
 
 class TestNetworkEos:
-    def test_without_props_raises(self, net: Network) -> None:
-        net.eos_props = None
-        with pytest.raises(ValueError, match="eos_props"):
-            net.eos()
+    def test_without_props_defaults_to_ideal(self) -> None:
+        fresh = Network(str(Path(__file__).parent / "fixtures" / "react_cie_hepp.jet"))
+        expected = fresh.ntot * k_B.cgs.value * TGAS / (1.6666666666667 - 1.0)
+        assert sp.simplify(fresh.eos().volumetric - expected) == 0
 
     def test_non_eosprops_raises(self, net: Network) -> None:
         net.eos_props = None
         with pytest.raises(ValueError, match="EosProps"):
             net.eos({"type": "ideal", "gamma": GAMMA})  # type: ignore[arg-type]
 
-    @pytest.mark.xfail(strict=True, reason="#3/#4: generate() returns builder, not Eos")
     def test_constructor_props_return_eos(self, net: Network) -> None:
         net.eos_props = EosProps("ideal", gamma=GAMMA)
         eos = net.eos()
@@ -174,9 +202,6 @@ class TestNetworkEos:
         assert isinstance(eos, Eos)
         assert sp.simplify(eos.volumetric - expected) == 0
 
-    @pytest.mark.xfail(
-        strict=True, reason="#3/#5: explicit props ignored, builder returned"
-    )
     def test_explicit_props_override_constructor(self, net: Network) -> None:
         net.eos_props = EosProps("ideal", gamma=GAMMA)
         eos = net.eos(EosProps("ideal", gamma=1.4))

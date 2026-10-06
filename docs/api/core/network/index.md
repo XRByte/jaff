@@ -47,7 +47,7 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 : Use proxy photo-reactions when computing cross-sections instead of bypassing them. Default `False`.
 
 **eos_props** : _EosProps or None, optional_
-: Equation-of-state configuration used by [eos](eos.md). `None` (default) requires passing an `EosProps` to `eos` instead.
+: Equation-of-state configuration used by [eos](eos.md). `None` (default) uses an ideal gas, `EosProps("ideal")` with `gamma = 1.6666666666667`.
 
 **Raises**
 

@@ -6,27 +6,21 @@ tags:
 
 # get_dedt
 
-`#!python get_dedt(specific_eint=False, norm=0)`
+`#!python get_dedt(energy="volumetric")`
 
-Generates code for the internal energy time derivative (`dE/dt`). An ideal equation of state is assumed for the calculation. Returns the symbolic energy rate `(dEdt_chem + dEdt_other) / den_tot`, rendered as a target-language expression.
+Generates code for the internal energy time derivative (`dE/dt`). Returns the symbolic energy rate `(dEdt_chem + dEdt_other) / den`, rendered as a target-language expression, where `den` is the normaliser of the chosen form of the network's [EOS](../../core/network/eos.md).
 
 **Parameters**
 
-**specific_eint** : _bool, optional_
-: Normalise by total density to yield a *specific* internal-energy rate.
+**energy** : _str, optional_
+: Evolved internal-energy form.
 
-    - `False` → `den_tot = 1` (energy-density rate, erg/cm³/s).
-    - `True` → divides by total density (selected via `norm`) to give a per-mass or per-particle rate.
+    - `"volumetric"` → `den = 1` (erg/cm³/s).
+    - `"specific"` → `den = ρ = Σ m_i · nden[i]` (erg/g/s).
+    - `"per_particle"` → `den = n_tot = Σ nden[i]` (erg/s per particle).
+    - `"molar"` → `den = n_tot / N_A` (erg/mol/s).
 
-    Default `False`.
-
-**norm** : _int, optional_
-: Density normalisation convention when `specific_eint=True`. Ignored when `specific_eint=False`.
-
-    - `0` → mass density `Σ m_i · nden[i]` (result in erg/g/s).
-    - `1` → number density `Σ nden[i]` (result in erg/particle/s).
-
-    Default `0`. Raises `ValueError` for any other value.
+    Default `"volumetric"`. Raises `ValueError` for any other value.
 
 **Returns**
 

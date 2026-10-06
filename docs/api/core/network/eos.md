@@ -10,7 +10,8 @@ tags:
 
 Returns the symbolic internal energy of the network for the equation of state
 selected by an `EosProps`. The configuration is taken from `props` or, when
-`props` is `None`, from the `eos_props` passed to the `Network` constructor.
+`props` is `None`, from the `eos_props` passed to the `Network` constructor
+(an ideal gas with `gamma = 1.6666666666667` if none was given).
 
 The code generator uses this expression to form the temperature column of the
 Jacobian via the chain rule
@@ -42,22 +43,27 @@ _Eos_
 | `per_particle` | $E / n_\mathrm{tot}$          | erg        |
 | `molar`        | $N_A\, E / n_\mathrm{tot}$    | erg mol⁻¹  |
 
+Each form is the volumetric energy divided by `Eos.normaliser(form)`
+(`1`, $\rho$, $n_\mathrm{tot}$ or $n_\mathrm{tot}/N_A$), which the code
+generator also uses to normalise `dE/dt`.
+
 **Raises**
 
 _ValueError_
-: If no EOS configuration is available, or it is not an `EosProps`.
+: If the configuration is not an `EosProps`.
 
 ## EosProps
 
 `#!python EosProps(type, **kwargs)`
 
+Omitted parameters take the type's default (`ideal`: `gamma = 1.6666666666667`).
 Validated on construction: an unknown `type`, a missing or unexpected
 parameter, or an adiabatic index $\le 1$ raises `ValueError`; a non-numeric
 index or a non-`dict` `gamma_map` raises `TypeError`.
 
 | `type`                          | Parameters                                   | Volumetric energy                                                    |
 | ------------------------------- | -------------------------------------------- | -------------------------------------------------------------------- |
-| `ideal`                         | `gamma` (float > 1)                          | $E = \dfrac{n_\mathrm{tot}\, k_B\, T_\mathrm{gas}}{\gamma - 1}$      |
+| `ideal`                         | `gamma` (float > 1, default 1.6666666666667) | $E = \dfrac{n_\mathrm{tot}\, k_B\, T_\mathrm{gas}}{\gamma - 1}$      |
 | `multi_gamma`                   | `default_gamma` (float > 1), `gamma_map` (dict[str, float > 1]) | per-species sum; `gamma_map` keyed by species name, falling back to `default_gamma` |
 | `fermi_degenerate`              | —                                            | not implemented                                                      |
 | `relativistic_fermi_degenerate` | —                                            | not implemented                                                      |

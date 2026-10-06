@@ -236,8 +236,7 @@ fixed order:
 
 ```python
 cg.get_rhs_str(
-    specific_eint=False,   # True → divide dE/dt by total density
-    norm=0,                # 0 = mass density, 1 = number density
+    energy="volumetric",   # or "specific", "per_particle", "molar"
     radiation=True,        # append the radiation moment ODEs
     rad_order=0,           # radiation moment closure order (0–3)
 )
@@ -249,7 +248,7 @@ Just the energy time-derivative `dE/dt`, as a single expression with no
 assignment or line terminator — handy when you splice it into your own line.
 
 ```python
-cg.get_dedt(specific_eint=True, norm=0)   # erg/g/s, normalised by mass density
+cg.get_dedt(energy="specific")   # erg/g/s, normalised by mass density
 ```
 
 ### Radiation ODEs — `#!python get_radode_str()`
