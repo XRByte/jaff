@@ -12,7 +12,7 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 
 ## Constructor
 
-`#!python Network(fname, config=None, errors=False, label=None, funcfile=True, duplicate_policy=None, expand_nuclei=True, radiation_props=None, dust_props=None, use_proxy_photoreaction=False)`
+`#!python Network(fname, config=None, errors=False, label=None, funcfile=True, duplicate_policy=None, expand_nuclei=True, radiation_props=None, dust_props=None, use_proxy_photoreaction=False, eos_props=None)`
 
 **Parameters**
 
@@ -45,6 +45,9 @@ The `Network` class is the most important class in JAFF. It reads a reaction net
 
 **use_proxy_photoreaction** : _bool, optional_
 : Use proxy photo-reactions when computing cross-sections instead of bypassing them. Default `False`.
+
+**eos_props** : _EosProps or None, optional_
+: Equation-of-state configuration used by [eos](eos.md). `None` (default) requires passing an `EosProps` to `eos` instead.
 
 **Raises**
 

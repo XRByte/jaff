@@ -38,8 +38,6 @@ from sympy import (
 )
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
-from jaff.physics.eos.eos import EosFactory
-
 from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
@@ -48,6 +46,7 @@ from ...physics import (
     Dust,
     DustProps,
     Eos,
+    EosFactory,
     EosProps,
     Photochemistry,
     Radiation,
@@ -252,6 +251,10 @@ class Network:
             using the proxy photo-reaction string (via
             :meth:`Reaction.normalized_proxy_reaction_str`) rather than the
             reaction's standard serialized form.  Default ``False``.
+        eos_props : EosProps | None, optional
+            Equation-of-state configuration used by :meth:`eos`.  When
+            ``None`` (default), an :class:`EosProps` must be passed to
+            :meth:`eos` instead.
 
         Raises
         ------
@@ -1065,28 +1068,31 @@ class Network:
         return sum(terms) if terms else Float(0.0)
 
     def eos(self, props: EosProps | None = None) -> Eos:
-        """Symbolic ideal-gas internal energy of the network.
+        """Symbolic internal energy of the network for a configured EOS.
 
-        Thin wrapper around :func:`jaff.physics.get_eos`, which builds the
-        expression from this network's :attr:`ntot` and :attr:`rho`.  Used by
-        the code generator to form the temperature column of the Jacobian via
-        the chain rule ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.
+        Thin wrapper around :class:`jaff.physics.EosFactory`, which builds the
+        expression selected by an :class:`~jaff.physics.EosProps` from this
+        network's densities.  Used by the code generator to form the
+        temperature column of the Jacobian via the chain rule
+        ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.
 
         Parameters
         ----------
-        gamma : float, optional
-            Adiabatic index.  Default ``5/3 ≈ 1.6̄`` (monoatomic ideal gas).
-        specific : bool, optional
-            When True (default), return a specific internal energy normalised
-            by *norm*.  When False, return volumetric internal energy (erg/cm³).
-        norm : int, optional
-            ``0`` (default) per unit mass (erg/g), ``1`` per particle.
-            Ignored when *specific* is False.
+        props : EosProps | None, optional
+            EOS configuration.  When ``None`` (default), the ``eos_props``
+            given to the constructor is used.
 
         Returns
         -------
-        sympy.Expr
-            Symbolic internal energy in CGS units.
+        Eos
+            Symbolic internal energy exposing ``volumetric``, ``specific``,
+            ``per_particle`` and ``molar`` forms in CGS units.
+
+        Raises
+        ------
+        ValueError
+            If no EOS configuration is available, or it is not an
+            :class:`~jaff.physics.EosProps`.
         """
         if self.eos_props is None and props is None:
             raise ValueError(

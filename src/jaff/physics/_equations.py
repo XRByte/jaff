@@ -12,8 +12,8 @@ This module builds SymPy symbolic expressions for:
   first-moment (energy/photon flux) equations for each frequency band, taking
   into account photoionisation/photodissociation sinks and any user-supplied
   radiation source/sink terms (``get_sradodes``).
-- **Equation of state** -- the ideal-gas specific internal energy used to
-  couple the gas temperature into the Jacobian (``get_eos``).
+
+The equation of state lives in :mod:`jaff.physics.eos`.
 
 The symbolic expressions are later code-generated (via SymPy's code printers)
 into efficient numerical kernels.
@@ -21,13 +21,11 @@ into efficient numerical kernels.
 
 from __future__ import annotations
 
-from functools import cache
 from typing import TYPE_CHECKING
 
 from sympy import Basic, Expr, Float, Idx, IndexedBase, symbols
 
 from ..io._logger import jaff_progress
-from .constants import k_B
 
 if TYPE_CHECKING:
     from .. import Network, Reactions, Species

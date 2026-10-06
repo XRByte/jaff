@@ -1,18 +1,37 @@
 # ABOUTME: Robustness tests for the EOS infrastructure (EosProps, EosFactory, Eos)
-# ABOUTME: Validation, per-network Eos identity, no cache leaks, builder registry
+# ABOUTME: Validation, Eos forms, builders, Network.eos wiring, no cache leaks
 
 import gc
 import weakref
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import sympy as sp
 
+from jaff import Network
+from jaff.physics.constants import N_A, k_B
 from jaff.physics.eos import Eos, EosFactory, EosProps
+
+GAMMA = 5.0 / 3.0
+TGAS = sp.Symbol("tgas")
 
 
 def _stub_net(tag: str) -> SimpleNamespace:
     return SimpleNamespace(rho=sp.Symbol(f"rho_{tag}"), ntot=sp.Symbol(f"ntot_{tag}"))
+
+
+def _stub_species_net() -> SimpleNamespace:
+    species = [SimpleNamespace(index=0, name="H"), SimpleNamespace(index=1, name="H2")]
+    ndens = sp.IndexedBase("nden", shape=(2,))
+    return SimpleNamespace(
+        species=species, ndens=ndens, ntot=ndens[0] + ndens[1], rho=sp.Symbol("rho")
+    )
+
+
+@pytest.fixture(scope="module")
+def net() -> Network:
+    return Network(str(Path(__file__).parent / "fixtures" / "react_cie_hepp.jet"))
 
 
 class TestEosIdentity:
@@ -88,3 +107,78 @@ class TestEosFactoryDispatch:
 
     def test_builder_registry_matches_props_types(self) -> None:
         assert set(EosFactory._BUILDERS) == set(EosProps._REQUIRED)
+
+
+class TestEosForms:
+    @pytest.fixture
+    def eos(self) -> Eos:
+        return Eos(sp.Symbol("E"), _stub_net("a"))
+
+    def test_volumetric_is_wrapped_expr(self, eos: Eos) -> None:
+        assert eos.volumetric == sp.Symbol("E")
+
+    def test_specific_divides_by_rho(self, eos: Eos) -> None:
+        assert eos.specific == sp.Symbol("E") / sp.Symbol("rho_a")
+
+    def test_per_particle_divides_by_ntot(self, eos: Eos) -> None:
+        assert eos.per_particle == sp.Symbol("E") / sp.Symbol("ntot_a")
+
+    def test_molar_scales_per_particle_by_avogadro(self, eos: Eos) -> None:
+        assert eos.molar == eos.per_particle * N_A.cgs.value
+
+
+class TestEosBuilders:
+    def test_ideal_volumetric_energy(self) -> None:
+        net = _stub_net("a")
+        expr = EosFactory(net, EosProps("ideal", gamma=GAMMA)).ideal()
+        expected = net.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
+        assert sp.simplify(expr - expected) == 0
+
+    def test_multi_gamma_returns_eos(self) -> None:
+        props = EosProps("multi_gamma", default_gamma=GAMMA, gamma_map={})
+        assert isinstance(EosFactory(_stub_species_net(), props).multi_gamma(), Eos)
+
+    @pytest.mark.xfail(
+        strict=True, reason="#14: multi_gamma divides by gamma, not gamma - 1"
+    )
+    def test_multi_gamma_per_species_energy(self) -> None:
+        net = _stub_species_net()
+        props = EosProps("multi_gamma", default_gamma=GAMMA, gamma_map={"H2": 1.4})
+        eos = EosFactory(net, props).multi_gamma()
+        kt = k_B.cgs.value * TGAS
+        expected = net.ndens[0] * kt / (GAMMA - 1.0) + net.ndens[1] * kt / (1.4 - 1.0)
+        assert sp.simplify(eos.volumetric - expected) == 0
+
+    def test_fermi_degenerate_not_implemented(self) -> None:
+        factory = EosFactory(_stub_net("a"), EosProps("fermi_degenerate"))
+        with pytest.raises(NotImplementedError):
+            factory.fermi_degenerate()
+
+
+class TestNetworkEos:
+    def test_without_props_raises(self, net: Network) -> None:
+        net.eos_props = None
+        with pytest.raises(ValueError, match="eos_props"):
+            net.eos()
+
+    def test_non_eosprops_raises(self, net: Network) -> None:
+        net.eos_props = None
+        with pytest.raises(ValueError, match="EosProps"):
+            net.eos({"type": "ideal", "gamma": GAMMA})  # type: ignore[arg-type]
+
+    @pytest.mark.xfail(strict=True, reason="#3/#4: generate() returns builder, not Eos")
+    def test_constructor_props_return_eos(self, net: Network) -> None:
+        net.eos_props = EosProps("ideal", gamma=GAMMA)
+        eos = net.eos()
+        expected = net.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
+        assert isinstance(eos, Eos)
+        assert sp.simplify(eos.volumetric - expected) == 0
+
+    @pytest.mark.xfail(
+        strict=True, reason="#3/#5: explicit props ignored, builder returned"
+    )
+    def test_explicit_props_override_constructor(self, net: Network) -> None:
+        net.eos_props = EosProps("ideal", gamma=GAMMA)
+        eos = net.eos(EosProps("ideal", gamma=1.4))
+        expected = net.ntot * k_B.cgs.value * TGAS / (1.4 - 1.0)
+        assert sp.simplify(eos.volumetric - expected) == 0

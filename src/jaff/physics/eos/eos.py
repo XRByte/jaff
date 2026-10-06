@@ -5,9 +5,9 @@ from __future__ import annotations
 
 from functools import cached_property
 from numbers import Real
-from typing import TYPE_CHECKING, Any, Dict, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple, Union
 
-from sympy import Expr, Float, symbols
+from sympy import Expr, Float, Symbol, symbols
 
 from ..constants import N_A, k_B
 
@@ -29,13 +29,34 @@ class EosFactory:
         "relativistic_fermi_degenerate": "relativistic_fermi_degenerate",
     }
 
-    def __init__(self, net: Network, props: EosProps):
+    def __init__(self, net: Network, props: EosProps) -> None:
+        """Bind the factory to a network and an EOS configuration.
 
+        Parameters
+        ----------
+        net : Network
+            Network supplying the symbolic densities (``ntot``, ``ndens``,
+            ``rho``) and species list.
+        props : EosProps
+            Validated EOS configuration selecting the builder.
+        """
         self.props: EosProps = props
         self._net: Network = net
-        self._tgas = symbols("tgas")
+        self._tgas: Symbol = symbols("tgas")
 
-    def generate(self):
+    def generate(self) -> Callable[[], Union[Eos, Expr]]:
+        """Look up the builder for ``props.type``.
+
+        Returns
+        -------
+        Callable[[], Eos | sympy.Expr]
+            The bound builder method for ``props.type`` (not yet called).
+
+        Raises
+        ------
+        ValueError
+            If ``props.type`` has no entry in :attr:`_BUILDERS`.
+        """
         if self.props.type not in self._BUILDERS:
             raise ValueError(
                 f"Invalid eos: '{self.props.type}'. "
@@ -44,10 +65,29 @@ class EosFactory:
 
         return getattr(self, self._BUILDERS[self.props.type])
 
-    def ideal(self):
+    def ideal(self) -> Expr:
+        """Volumetric ideal-gas internal energy with a single adiabatic index.
+
+        ``E = n_tot · k_B · T_gas / (γ − 1)`` [erg cm⁻³].
+
+        Returns
+        -------
+        sympy.Expr
+            Volumetric internal energy in CGS units.
+        """
         return self._net.ntot * k_B.cgs.value * self._tgas / (self.props.gamma - 1.0)  # type: ignore
 
     def multi_gamma(self) -> Eos:
+        """Internal energy summed over species with per-species adiabatic indices.
+
+        Each species uses ``props.gamma_map[name]``, falling back to
+        ``props.default_gamma``.
+
+        Returns
+        -------
+        Eos
+            EOS wrapping the volumetric internal energy [erg cm⁻³].
+        """
         e = Float(0.0)
         for sp in self._net.species:
             e += (
@@ -59,32 +99,67 @@ class EosFactory:
 
         return Eos(e, self._net)
 
-    def fermi_degenerate(self):
+    def fermi_degenerate(self) -> Eos:
+        """Non-relativistic degenerate Fermi gas EOS (not implemented).
+
+        Raises
+        ------
+        NotImplementedError
+            Always.
+        """
         raise NotImplementedError()
 
-    def relativistic_fermi_degenerate(self):
+    def relativistic_fermi_degenerate(self) -> Eos:
+        """Relativistic degenerate Fermi gas EOS (not implemented).
+
+        Raises
+        ------
+        NotImplementedError
+            Always.
+        """
         raise NotImplementedError()
 
 
 class Eos:
-    def __init__(self, expr: Expr, net: Network):
+    """Symbolic internal energy of a network in several normalisations.
+
+    Wraps a volumetric internal energy ``E`` [erg cm⁻³] and derives the
+    specific, per-particle and molar forms from the bound network's
+    :attr:`~jaff.core.network.Network.rho` and
+    :attr:`~jaff.core.network.Network.ntot`.
+    """
+
+    def __init__(self, expr: Expr, net: Network) -> None:
+        """Wrap a volumetric internal energy.
+
+        Parameters
+        ----------
+        expr : sympy.Expr
+            Volumetric internal energy [erg cm⁻³].
+        net : Network
+            Network whose ``rho`` and ``ntot`` normalise *expr*.
+        """
         self._net: Network = net
         self._vol_expr: Expr = expr
 
     @cached_property
     def volumetric(self) -> Expr:
+        """Internal energy per unit volume [erg cm⁻³]."""
         return self._vol_expr
 
     @cached_property
     def specific(self) -> Expr:
+        """Internal energy per unit mass, ``E / ρ`` [erg g⁻¹]."""
         return self._vol_expr / self._net.rho
 
     @cached_property
     def per_particle(self) -> Expr:
+        """Internal energy per particle, ``E / n_tot`` [erg]."""
         return self._vol_expr / self._net.ntot
 
     @cached_property
     def molar(self) -> Expr:
+        """Internal energy per mole, ``N_A · E / n_tot`` [erg mol⁻¹]."""
         return self.per_particle * N_A.cgs.value
 
 
@@ -116,8 +191,15 @@ class EosProps:
         "relativistic_fermi_degenerate": (),
     }
 
-    def __init__(self, type: str, **kwargs: Any):
+    def __init__(self, type: str, **kwargs: Any) -> None:
         """Validate and store the EOS configuration.
+
+        Parameters
+        ----------
+        type : str
+            EOS type, one of the keys of :attr:`_REQUIRED`.
+        **kwargs : Any
+            Exactly the parameters listed for *type* in :attr:`_REQUIRED`.
 
         Raises
         ------
@@ -156,6 +238,7 @@ class EosProps:
 
     @staticmethod
     def _validate_gamma(name: str, value: Any) -> float:
+        """Return *value* as a float, requiring a real number > 1."""
         if isinstance(value, bool) or not isinstance(value, Real):
             raise TypeError(f"'{name}' must be a real number, got {value!r}")
 
@@ -166,6 +249,7 @@ class EosProps:
 
     @classmethod
     def _validate_gamma_map(cls, value: Any) -> Dict[str, float]:
+        """Return a copy of *value* with every adiabatic index validated."""
         if not isinstance(value, dict):
             raise TypeError(f"'gamma_map' must be a dict, got {type(value).__name__}")
 

@@ -1,3 +1,6 @@
+# ABOUTME: Physics package: symbolic ODE/flux generators, radiation, dust and EOS
+# ABOUTME: models re-exported for Network and codegen
+
 from . import constants
 from ._equations import get_sfluxes, get_sodes, get_sradodes
 from .dust import Dust, DustProps
@@ -11,18 +14,18 @@ from .photo_reactions._radiation import (
 )
 
 __all__ = [
-    constants,
-    Photochemistry,
-    get_sfluxes,
-    get_sodes,
-    get_sradodes,
-    Radiation,
-    DustProps,
-    RadiationGroup,
-    RadiationProps,
-    RadiationGroupReactionProps,
-    Dust,
-    Eos,
-    EosFactory,
-    EosProps,
+    "constants",
+    "Photochemistry",
+    "get_sfluxes",
+    "get_sodes",
+    "get_sradodes",
+    "Radiation",
+    "DustProps",
+    "RadiationGroup",
+    "RadiationProps",
+    "RadiationGroupReactionProps",
+    "Dust",
+    "Eos",
+    "EosFactory",
+    "EosProps",
 ]
