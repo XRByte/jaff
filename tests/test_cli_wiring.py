@@ -250,7 +250,7 @@ class TestFuncfileWiring:
         aux = tmp_path / "aux.jfunc"
         aux.write_text(self.JFUNC)
         cfg = tmp_path / "jaffgen.toml"
-        cfg.write_text(f'[network]\nfuncfile = "{aux}"\n')
+        cfg.write_text(f'[network]\nfuncfile = "{aux.as_posix()}"\n')
         # The config is rendered alongside the templates; .toml needs --lang.
         with_cfg = ("--config", str(cfg), "--lang", "python")
         assert "k[0] = 9" in self._generate(tmp_path, *with_cfg)
@@ -319,7 +319,10 @@ class TestConfigRelativeNetworkPaths:
 
     def test_absolute_paths_are_kept(self, dirs):
         cfg_dir, cwd = dirs
-        block = f'funcfile = "{cwd / "net.jfunc"}"\nconfig = "{cwd / "jaff.toml"}"\n'
+        block = (
+            f'funcfile = "{(cwd / "net.jfunc").as_posix()}"\n'
+            f'config = "{(cwd / "jaff.toml").as_posix()}"\n'
+        )
         sn = self._state_from(self._write_cfg(cfg_dir, block))
         assert Path(sn.funcfile) == cwd / "net.jfunc"
         assert Path(sn.config) == cwd / "jaff.toml"
