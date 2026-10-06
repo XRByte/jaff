@@ -147,10 +147,10 @@ def test_network_json_roundtrip_preserves_nden_rates(tmp_path):
     )
     (net_dir / "syn.jet.jfunc").write_text(
         "@function deltarad0()\n"
-        "    return 1.5e-11\n"
+        "    @return 1.5e-11\n"
         "\n"
         "@function deltarad1()\n"
-        "    return 3.0e-11\n"
+        "    @return 3.0e-11\n"
     )
 
     net = Network(str(jet))
@@ -197,7 +197,7 @@ def test_network_json_roundtrip_preserves_dEdt_other(tmp_path):
     jet = net_dir / "heat.jet"
     jet.write_text("H + H -> H2                    []         1.0e-17\n")
     (net_dir / "heat.jet.jfunc").write_text(
-        "@function heatingCoolingRate(tgas)\n    return 2*tgas\n"
+        "@function heatingCoolingRate(tgas)\n    @return 2*tgas\n"
     )
 
     net = Network(str(jet))

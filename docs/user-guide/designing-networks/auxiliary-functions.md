@@ -61,11 +61,11 @@ Expressions may reference previously declared `@var` names:
     # optional per-argument documentation comments
     local_var = expression
     ...
-    return final_expression
+    @return final_expression
 ```
 
 - Lines inside a function block are **local variable assignments** evaluated in order.
-- The block ends with a `return` statement whose expression is the function's symbolic value.
+- The block ends with an `@return` statement whose expression is the function's symbolic value.
 - Comments (`#`) inside a block may document individual arguments. A comment is attached to an argument's metadata **only when its first word is one of the declared argument names** (`# tgas Gas temperature in K`); any other comment is ignored.
 - Long expressions can be wrapped with a trailing backslash `\`.
 - `expressions` can contain sympy functions like `Piecewise`
@@ -133,7 +133,7 @@ expression.
 ```text
 @function chemRate7(tgas)
     # Reuse the coefficient of reaction 3 (e.g. a shared temperature fit)
-    return 0.5 * rc_3
+    @return 0.5 * rc_3
 ```
 
 A malformed index (`rc_` not followed by an integer) raises an error naming the
@@ -151,7 +151,7 @@ expression.
 ```text
 @function chemRate7(tgas)
     # Reuse the coefficient of reaction 3 (e.g. a shared temperature fit)
-    return 0.5 * rc_3
+    @return 0.5 * rc_3
 ```
 
 A malformed index (`rc_` not followed by an integer) raises an error naming the
@@ -205,7 +205,7 @@ The GOW (Gong, Ostriker & Wolfire 2017) network ships with a detailed `.jfunc` f
     # n_H_nuc  Total H nucleus density (cm^-3)
     # n_H      Neutral H atom density (cm^-3)
     # n_H2     H2 molecule density (cm^-3)
-    return 2.3 * (n_H2/n_H_nuc) + 1.5 * (n_H/n_H_nuc)
+    @return 2.3 * (n_H2/n_H_nuc) + 1.5 * (n_H/n_H_nuc)
 
 @function kgr_gong(tgas, chi, av, n_e, c0, c1, c2, c3, c4, c5, c6)
     # tgas Gas temperature (K)
@@ -217,7 +217,7 @@ The GOW (Gong, Ostriker & Wolfire 2017) network ships with a detailed `.jfunc` f
     logT = log(tgas)
     k_gr = 1e-14 * c0 / (1 + c1 * psi**c2 * \
         (1 + c3 * tgas**c4 * psi**(-c5 - c6 * logT)))
-    return k_gr
+    @return k_gr
 ```
 
 ### Custom rate coefficients — `chemRate<N>`
@@ -228,14 +228,14 @@ Reactions whose rate cannot be written as a simple Arrhenius expression get a `c
 @function chemRate0(crate, n_H_nuc, n_H, n_H2)
     # Reaction 0: H + CR -> H+ + e-
     # crate  Primary ionisation rate per H nucleon (s^-1)
-    return kcr_H_fac(n_H_nuc, n_H, n_H2) * crate
+    @return kcr_H_fac(n_H_nuc, n_H, n_H2) * crate
 
 @function chemRate14(d2g, n_H_nuc, n_H)
     # Reaction 14: H + H -> H2  (grain-assisted)
     # True rate = 3e-17 * n_H * n_H_nuc * (d2g / d2g_solar)
     # JAFF multiplies by the reactant densities automatically,
     # so we derive k by dividing out the extra n_H factor.
-    return 3.0e-17 * (d2g / d2g_solar) * (n_H_nuc / n_H)
+    @return 3.0e-17 * (d2g / d2g_solar) * (n_H_nuc / n_H)
 
 @function chemRate15(d2g, tgas, chi, av, n_H_nuc, n_e)
     # Reaction 15: H+ + e- -> H  (grain-assisted)
@@ -246,7 +246,7 @@ Reactions whose rate cannot be written as a simple Arrhenius expression get a `c
     c4 = 1.586e-2
     c5 = 0.4723
     c6 = 1.102e-5
-    return kgr_gong(tgas, chi, av, n_e, c0, c1, c2, c3, c4, c5, c6) * \
+    @return kgr_gong(tgas, chi, av, n_e, c0, c1, c2, c3, c4, c5, c6) * \
         (d2g / d2g_solar) * n_H_nuc / n_e
 ```
 
@@ -263,14 +263,14 @@ where $R_i$ represents the rate of the $i^{th}$ reaction and $\Delta E_i$ repres
 ```text
 @function deltaE40()
     # Reaction 40: H2 + H -> H + H + H  (collisional dissociation)
-    return -4.48 * eV
+    @return -4.48 * eV
 
 @function deltaE13(tgas, n_H_nuc, n_H, n_H2, chi, av)
     # Reaction 13: H2 + photon -> H + H
     # Combined FUV-pumping + kinetic-energy heating (Visser+ 2018)
     k_photo = 5.7e-11 * chi * exp(-4.18 * av)
     f = 1 / (1 + ncrH2(tgas, n_H_nuc, n_H, n_H2, k_photo) / n_H_nuc)
-    return (0.4 + 8 * 2 * f) * eV
+    @return (0.4 + 8 * 2 * f) * eV
 ```
 
 ### Heating / cooling function
@@ -280,7 +280,7 @@ The heating cooling function is used to add any non-chemical heating and cooling
 ```text
 @function heatingCoolingRate(chi, av, d2g, tgas, n_H_nuc, n_H, n_H2,
                               n_Cj, n_C, n_O, n_CO, n_e, gradv)
-    return heating_grainPE(chi, av, d2g, tgas, n_H_nuc, n_e) \
+    @return heating_grainPE(chi, av, d2g, tgas, n_H_nuc, n_e) \
         - cooling_LyA(n_H, n_e, tgas) \
         - cooling_H2(n_H2, n_H, n_Hj, n_He_nuc, n_e, tgas) \
         - cooling_Cplus(n_Cj, n_H, n_H2, n_e, tgas) \
@@ -300,7 +300,7 @@ When a network is loaded with radiation transport enabled (by passing `radiation
 ```text
 @function deltaRad5()
     # Reaction 5: local radiation energy source as a function of photon energy E
-    return some_expression_in_E
+    @return some_expression_in_E
 ```
 
 The body must be a function of the photon-energy symbol `E`. JAFF integrates it over each radiation band, so the value represents an energy density. A reaction without a `deltaRad<N>` function contributes no radiation source to the local radiation field.
@@ -339,7 +339,7 @@ Break long expressions across multiple lines with a trailing backslash:
     term2 = 6.97e-9 * exp(-1.38 / tgas) + \
             1.31e-7 * exp(-26.6 / tgas) + \
             1.51e-4 * exp(-8110 / tgas)
-    return (term1 + tgas**-1.5 * term2) / ne
+    @return (term1 + tgas**-1.5 * term2) / ne
 ```
 
 ---
