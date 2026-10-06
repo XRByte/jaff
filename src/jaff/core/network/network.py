@@ -38,6 +38,8 @@ from sympy import (
 )
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
+from jaff.physics.eos.eos import EosFactory
+
 from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
@@ -45,10 +47,11 @@ from ...io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
 from ...physics import (
     Dust,
     DustProps,
+    Eos,
+    EosProps,
     Photochemistry,
     Radiation,
     RadiationProps,
-    get_eos,
     get_sfluxes,
     get_sodes,
     get_sradodes,
@@ -191,6 +194,7 @@ class Network:
         radiation_props: RadiationProps | None = None,
         dust_props: DustProps | None = None,
         use_proxy_photoreaction: bool = False,
+        eos_props: EosProps | None = None,
         _from_cli: bool = False,
         _metadata: dict[str, Any] = {},
     ):
@@ -293,6 +297,7 @@ class Network:
         self.radiation: Radiation | None = (
             Radiation(self, radiation_props) if radiation_props is not None else None
         )
+        self.eos_props: EosProps | None = eos_props
         self._use_proxy_photoreaction: bool = use_proxy_photoreaction
         self.__photochemistry: None | Photochemistry = None
         self.dust: Dust | None = (
@@ -1059,9 +1064,7 @@ class Network:
 
         return sum(terms) if terms else Float(0.0)
 
-    def eos(
-        self, gamma: float = 1.6666666666667, specific: bool = True, norm: int = 0
-    ) -> Expr:
+    def eos(self, props: EosProps | None = None) -> Eos:
         """Symbolic ideal-gas internal energy of the network.
 
         Thin wrapper around :func:`jaff.physics.get_eos`, which builds the
@@ -1085,7 +1088,15 @@ class Network:
         sympy.Expr
             Symbolic internal energy in CGS units.
         """
-        return get_eos(self, gamma, specific, norm)
+        if self.eos_props is None and props is None:
+            raise ValueError(
+                "'eos_props' must be supplied either while initializing Network or calling Network.eos"
+            )
+        props = self.eos_props or props
+        if not isinstance(props, EosProps):
+            raise ValueError("'eos_props' must be initialized using EosProps")
+
+        return EosFactory(self, props).generate()
 
     def __generate_reaction_matrices(self) -> None:
         """Build integer stoichiometry matrices: shape (n_reactions × n_species)."""
