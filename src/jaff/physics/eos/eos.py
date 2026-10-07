@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from sympy import Expr, Integer
 
-from ..constants import N_A, k_B
+from ..constants import N_A
 
 if TYPE_CHECKING:
     from ...core import Network

@@ -12,6 +12,7 @@ from .photo_reactions._radiation import (
     RadiationGroup,
     RadiationGroupReactionProps,
 )
+from .thermodynamics import Thermodynamics
 
 __all__ = [
     "constants",
@@ -28,4 +29,5 @@ __all__ = [
     "Eos",
     "EosFactory",
     "EosProps",
+    "Thermodynamics",
 ]

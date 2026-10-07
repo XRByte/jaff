@@ -51,6 +51,7 @@ from ...physics import (
     Photochemistry,
     Radiation,
     RadiationProps,
+    Thermodynamics,
     get_sfluxes,
     get_sodes,
     get_sradodes,
@@ -294,8 +295,6 @@ class Network:
         self.reactions: Reactions = Reactions()
         self.reactant_matrix: np.ndarray | None = None
         self.product_matrix: np.ndarray | None = None
-        self.dEdt_chem: Basic = Float(0.0)
-        self.dEdt_other: Basic = Float(0.0)
         self.dRad_dt_extra: Basic = Float(0.0)
         self.radiation: Radiation | None = (
             Radiation(self, radiation_props) if radiation_props is not None else None
@@ -324,6 +323,7 @@ class Network:
             self.__load_network_from_jaff_file(jaff_props)
 
         self.__normalize_network_extras(expand_nuclei, loaded_from_jaff_file)
+        self.thermodynamics: Thermodynamics = Thermodynamics(self)
 
         self.check_sink_sources(errors)
         self.check_recombinations(errors)
@@ -521,13 +521,10 @@ class Network:
                         f"Please add a custom deltaRad function for reaction {si}"
                     )
 
-        if "heatingcoolingrate" in aux_funcs:
-            self.dEdt_other = aux_funcs["heatingcoolingrate"]["def"]
-            self.dEdt_other = self._standardize_symbols(
-                self.dEdt_other, self.spec.expand_nuclei
-            )
-            free_symbols |= self.free_symbols(self.dEdt_other)
-            self.__detect_undefined_functions(self.dEdt_other, undef_funcs, interp_funcs)
+        free_symbols |= self.free_symbols(self.thermodynamics.dEdt_extra)
+        self.__detect_undefined_functions(
+            self.thermodynamics.dEdt_extra, undef_funcs, interp_funcs
+        )
 
         self.logger.info(
             f"Variables found: {', '.join(sorted(f'[cyan]{s}[/]' for s in free_symbols))}"
@@ -637,9 +634,7 @@ class Network:
             for s in r.reactants.core:
                 dE_dt *= nden[self.species[s.name].index]
                 dRad_dt *= nden[self.species[s.name].index]
-            self.dEdt_chem += dE_dt
             self.dRad_dt_extra += dRad_dt
-        self.dEdt_chem = self._standardize_symbols(self.dEdt_chem, expand_nuclei)
         self.dRad_dt_extra = self._standardize_symbols(self.dRad_dt_extra, expand_nuclei)
 
     @staticmethod
