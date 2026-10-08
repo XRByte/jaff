@@ -35,7 +35,7 @@ from sympy import (
     parse_expr,
     symbols,
 )
-from sympy.core.function import AppliedUndef, UndefinedFunction
+from sympy.core.function import UndefinedFunction
 
 from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
 from ...errors import ParserError
@@ -167,13 +167,9 @@ class Network:
         Heating/cooling terms: ``dEdt_chemical`` (accumulated over all
         reactions) and ``dEdt_extra`` (from the ``heatingcoolingrate``
         auxiliary function, if present), both in erg cm⁻³ s⁻¹.
-    variables : frozenset[Basic]
-        Free symbols (excluding ``nden`` entries) across all rates, energy
-        terms, and ``dEdt_extra``.
-    interp_functions : frozenset[str]
-        Names of interpolation functions referenced by the network.
-    undefined_functions : frozenset[str]
-        Names of other undefined functions referenced by the network.
+    symbols : NetworkSymbols
+        Canonical symbols, density expressions, introspection sets and symbol
+        standardization for this network.
     dRad_dt_extra : Basic
         Extra radiation moment source terms from ``@function`` definitions.
     radiation : Radiation | None
@@ -331,7 +327,7 @@ class Network:
         self.thermodynamics: Thermodynamics = Thermodynamics(
             self, jaff_props.get("dEdt_other")
         )
-        self.__log_symbol_summary()
+        self.symbols.log_summary()
 
         self.check_sink_sources(errors)
         self.check_recombinations(errors)
@@ -354,71 +350,6 @@ class Network:
         # Finalized to a non-None value in __init__ (label or file stem).
         assert self.spec.label is not None
         return self.spec.label
-
-    def _symbolic_expressions(self) -> list[Expr]:
-        """Standardized network expressions: rates and energy/radiation sources.
-
-        The aggregated ``dEdt_chemical`` and ``dRad_dt_extra`` are used instead
-        of each reaction's raw ``dE``/``dRad`` because only the aggregates have
-        their convenience symbols (``n_X``, ...) resolved to ``nden`` entries.
-        """
-        return [
-            *(r.rate for r in self.reactions),
-            self.thermodynamics.dEdt_chemical.volumetric,
-            self.thermodynamics.dEdt_extra.volumetric,
-            self.dRad_dt_extra,
-        ]
-
-    # The symbol caches below are filled on first access (in __init__, after the
-    # network is fully loaded).  Mutating rates or thermodynamics afterwards
-    # leaves them stale.
-
-    @cached_property
-    def variables(self) -> frozenset[Basic]:
-        """Free symbols across all network expressions, excluding ``nden`` entries."""
-        return frozenset().union(
-            *(NetworkSymbols.free_symbols(e) for e in self._symbolic_expressions())
-        )
-
-    @cached_property
-    def _applied_functions(self) -> frozenset[str]:
-        """Names of all undefined (applied) functions across network expressions."""
-        return frozenset(
-            f.func.__name__
-            for e in self._symbolic_expressions()
-            for f in e.atoms(AppliedUndef)
-        )
-
-    @cached_property
-    def interp_functions(self) -> frozenset[str]:
-        """Names of interpolation functions (containing ``"interp"``) in the network."""
-        return frozenset(f for f in self._applied_functions if "interp" in f)
-
-    @cached_property
-    def undefined_functions(self) -> frozenset[str]:
-        """Names of undefined, non-interpolation functions in the network."""
-        return frozenset(f for f in self._applied_functions if "interp" not in f)
-
-    def __log_symbol_summary(self) -> None:
-        """Log the network's free variables, interpolation and undefined functions."""
-        self.logger.info(
-            "Variables found: "
-            f"{', '.join(sorted(f'[cyan]{s}[/]' for s in self.variables))}"
-        )
-
-        interp_funcs = self.interp_functions
-        if interp_funcs:
-            self.logger.info(
-                "Found the following interpolation functions: "
-                f"{', '.join(f'[cyan]{func}[/]' for func in sorted(interp_funcs))}"
-            )
-
-        undef_funcs = self.undefined_functions
-        if undef_funcs:
-            self.logger.warning(
-                "Found undefined functions "
-                f"{', '.join(f'[red]{func}[/]' for func in sorted(undef_funcs))}"
-            )
 
     def __load_network(self):
         """Parse the network file and build species, reactions, and auxiliary quantities."""

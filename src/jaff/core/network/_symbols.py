@@ -14,7 +14,7 @@ from functools import cached_property, reduce
 from typing import TYPE_CHECKING, ClassVar
 
 from sympy import Basic, Expr, Float, Function, IndexedBase, Symbol
-from sympy.core.function import UndefinedFunction
+from sympy.core.function import AppliedUndef, UndefinedFunction
 
 if TYPE_CHECKING:
     from .network import Network
@@ -185,3 +185,67 @@ class NetworkSymbols:
             self._element_sums[element] = sum(terms) if terms else None
 
         return self._element_sums[element]
+
+    # The introspection caches below are filled on first access (Network.__init__,
+    # after loading).  Mutating rates or thermodynamics afterwards leaves them stale.
+
+    def _expressions(self) -> list[Expr]:
+        """Standardized network expressions: rates and energy/radiation sources.
+
+        The aggregated ``dEdt_chemical`` and ``dRad_dt_extra`` are used instead of
+        each reaction's raw ``dE``/``dRad`` because only the aggregates have their
+        convenience symbols (``n_X``, ...) resolved to ``nden`` entries.
+        """
+        net = self._net
+        return [
+            *(r.rate for r in net.reactions),
+            net.thermodynamics.dEdt_chemical.volumetric,
+            net.thermodynamics.dEdt_extra.volumetric,
+            net.dRad_dt_extra,
+        ]
+
+    @cached_property
+    def variables(self) -> frozenset[Basic]:
+        """Free symbols across all network expressions, excluding ``nden`` entries."""
+        return frozenset().union(*(self.free_symbols(e) for e in self._expressions()))
+
+    @cached_property
+    def _applied_functions(self) -> frozenset[str]:
+        """Names of all undefined (applied) functions across network expressions."""
+        return frozenset(
+            call.func.__name__
+            for e in self._expressions()
+            for call in e.atoms(AppliedUndef)
+        )
+
+    @cached_property
+    def interp_functions(self) -> frozenset[str]:
+        """Names of interpolation functions (containing ``"interp"``)."""
+        return frozenset(name for name in self._applied_functions if "interp" in name)
+
+    @cached_property
+    def undefined_functions(self) -> frozenset[str]:
+        """Names of undefined, non-interpolation functions."""
+        return frozenset(name for name in self._applied_functions if "interp" not in name)
+
+    def log_summary(self) -> None:
+        """Log the network's free variables, interpolation and undefined functions."""
+        logger = self._net.logger
+        logger.info(
+            "Variables found: "
+            f"{', '.join(sorted(f'[cyan]{s}[/]' for s in self.variables))}"
+        )
+
+        if self.interp_functions:
+            names = sorted(self.interp_functions)
+            logger.info(
+                "Found the following interpolation functions: "
+                f"{', '.join(f'[cyan]{name}[/]' for name in names)}"
+            )
+
+        if self.undefined_functions:
+            names = sorted(self.undefined_functions)
+            logger.warning(
+                "Found undefined functions "
+                f"{', '.join(f'[red]{name}[/]' for name in names)}"
+            )

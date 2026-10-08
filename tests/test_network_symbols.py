@@ -92,3 +92,27 @@ def test_n_hnuc_is_zero_without_hydrogen(make_network):
 def test_element_sum_is_memoised(make_network):
     net, _, _ = _h_h2(make_network)
     assert net.symbols.element_sum("H") is net.symbols.element_sum("H")
+
+
+INTROSPECT = (
+    "@format:idx,R,R,P,rate\n"
+    "1,H,H,H2,1e-10*av*foo_interp(tgas)\n"
+    "2,H2,H,H,bar(crate)*n_H\n"
+)
+
+
+def test_introspection_sets(make_network):
+    net = make_network(INTROSPECT, funcfile=False)
+    assert net.symbols.variables == frozenset(
+        {Symbol("av"), Symbol("tgas"), Symbol("crate")}
+    )
+    assert net.symbols.interp_functions == frozenset({"foo_interp"})
+    assert net.symbols.undefined_functions == frozenset({"bar"})
+
+
+def test_introspection_sets_are_cached_frozensets(make_network):
+    net = make_network(INTROSPECT, funcfile=False)
+    for name in ("variables", "interp_functions", "undefined_functions"):
+        value = getattr(net.symbols, name)
+        assert isinstance(value, frozenset)
+        assert getattr(net.symbols, name) is value
