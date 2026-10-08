@@ -44,8 +44,62 @@ class InternalEnergy:
         self._net: Network = net
         self._vol_expr: Expr = expr
 
-    def __add__(self, other: "InternalEnergy"):
-        return self._vol_expr + other._vol_expr
+    def __add__(self, other: object) -> InternalEnergy:
+        return self._combine(other, "+")
+
+    def __sub__(self, other: object) -> InternalEnergy:
+        return self._combine(other, "-")
+
+    def __radd__(self, other: object) -> InternalEnergy:
+        raise self._operand_error(other, "+", reflected=True)
+
+    def __rsub__(self, other: object) -> InternalEnergy:
+        raise self._operand_error(other, "-", reflected=True)
+
+    def _combine(self, other: object, op: str) -> InternalEnergy:
+        """Add or subtract another energy of exactly the same class and network.
+
+        Parameters
+        ----------
+        other : object
+            Right-hand operand.
+        op : str
+            ``"+"`` or ``"-"``.
+
+        Returns
+        -------
+        InternalEnergy
+            A new instance of ``type(self)`` bound to the same network.
+
+        Raises
+        ------
+        TypeError
+            If *other* is not exactly ``type(self)`` (subclasses do not mix).
+        ValueError
+            If *other* is bound to a different network.
+        """
+        if type(other) is not type(self):
+            raise self._operand_error(other, op)
+
+        assert isinstance(other, InternalEnergy)
+        if other._net is not self._net:
+            raise ValueError(f"Cannot {op} energies bound to different networks")
+
+        if op == "+":
+            expr = self._vol_expr + other._vol_expr
+        else:
+            expr = self._vol_expr - other._vol_expr
+
+        return type(self)(expr, self._net)
+
+    def _operand_error(
+        self, other: object, op: str, reflected: bool = False
+    ) -> TypeError:
+        """``TypeError`` naming both operand types in evaluation order."""
+        names = [type(self).__name__, type(other).__name__]
+        left, right = reversed(names) if reflected else names
+
+        return TypeError(f"unsupported operand type(s) for {op}: '{left}' and '{right}'")
 
     def normaliser(self, form: str) -> Expr:
         """Internal energy in the requested normalisation.
