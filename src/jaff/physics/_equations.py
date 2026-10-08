@@ -237,7 +237,7 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
         raise ValueError("Invalid order: Supported orders are 0, 1, 2, 3")
 
     rad_groups = net.radiation.groups
-    nden = net.ndens
+    nden = net.symbols.ndens
 
     rflux = IndexedBase("rflux", shape=(net.radiation.nbands,))
     # Mapping used to obtain the flux-moment equation from the density-moment
@@ -333,7 +333,7 @@ def handle_dust_reduction(
             symbols("Zd")
             * net.radiation.c
             * group.sym
-            * net.n_hnuc
+            * net.symbols.n_hnuc
             * net.dust.tabular.avg_cross_section_per_hnuc(
                 u_reduction, (group.lower, group.upper)
             )
@@ -343,7 +343,7 @@ def handle_dust_reduction(
             symbols("Zd")
             * net.radiation.c
             * rflux[group.index]
-            * net.n_hnuc
+            * net.symbols.n_hnuc
             * net.dust.tabular.avg_cross_section_per_hnuc(
                 f_reduction, (group.lower, group.upper)
             )

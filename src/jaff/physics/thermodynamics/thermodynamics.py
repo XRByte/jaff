@@ -19,13 +19,14 @@ class Thermodynamics:
             if dEdt_extra is not None
             else self._get_dEdt_extra()
         )
+        self.dEdt_tot: DEDt = self.dEdt_chemical + self.dEdt_extra
 
     def _get_dEdt_chemical(self) -> DEDt:
         dEdt = Float(0.0)
         for r in self.net.reactions:
             _dEdt = r.dE * r.rate
             for s in r.reactants.core:
-                _dEdt *= self.net.ndens[self.net.species[s.name].index]
+                _dEdt *= self.net.symbols.ndens[self.net.species[s.name].index]
 
             dEdt += _dEdt
 

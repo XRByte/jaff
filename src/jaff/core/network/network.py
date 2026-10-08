@@ -22,7 +22,7 @@ import logging
 import re
 import sys
 from dataclasses import dataclass
-from functools import cached_property, lru_cache, reduce
+from functools import cache, cached_property, lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -32,7 +32,6 @@ from sympy import (
     Expr,
     Float,
     Function,
-    IndexedBase,
     parse_expr,
     symbols,
 )
@@ -45,7 +44,6 @@ from ...io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
 from ...physics import (
     Dust,
     DustProps,
-    Eos,
     EosFactory,
     EosProps,
     Photochemistry,
@@ -61,8 +59,10 @@ from ..parsers import NetworkParser
 from ..reaction import RateSegment, RateSegments, Reaction, Reactions
 from ..species import Specie, Species
 from ._spec import NetworkSpec
+from ._symbols import NetworkSymbols
 
 if TYPE_CHECKING:
+    from ...physics.thermodynamics import InternalEnergy
     from .._typing import ElementProps
     from ..parsers.auxiliary_func._typing import AuxiliaryFunctionsDict
 
@@ -298,6 +298,7 @@ class Network:
         self.mass_dict: dict[str, ElementProps] = {}
         self.species: Species = Species()
         self.reactions: Reactions = Reactions()
+        self.symbols: NetworkSymbols = NetworkSymbols(self)
         self.reactant_matrix: np.ndarray | None = None
         self.product_matrix: np.ndarray | None = None
         self.dRad_dt_extra: Basic = Float(0.0)
@@ -312,7 +313,6 @@ class Network:
         self.dust: Dust | None = (
             Dust(self, dust_props) if dust_props is not None else None
         )
-        self.__element_sums: dict[str, Expr | None] = {}
         self.__charge_reverse: dict[str, Specie] | None = None
         self.__tgas_clamp_cache: dict[tuple[float | None, float | None], Expr] = {}
 
@@ -355,7 +355,7 @@ class Network:
         assert self.spec.label is not None
         return self.spec.label
 
-    def __symbolic_expressions(self) -> list[Expr]:
+    def _symbolic_expressions(self) -> list[Expr]:
         """Standardized network expressions: rates and energy/radiation sources.
 
         The aggregated ``dEdt_chemical`` and ``dRad_dt_extra`` are used instead
@@ -377,7 +377,7 @@ class Network:
     def variables(self) -> frozenset[Basic]:
         """Free symbols across all network expressions, excluding ``nden`` entries."""
         return frozenset().union(
-            *(self.free_symbols(e) for e in self.__symbolic_expressions())
+            *(NetworkSymbols.free_symbols(e) for e in self._symbolic_expressions())
         )
 
     @cached_property
@@ -385,7 +385,7 @@ class Network:
         """Names of all undefined (applied) functions across network expressions."""
         return frozenset(
             f.func.__name__
-            for e in self.__symbolic_expressions()
+            for e in self._symbolic_expressions()
             for f in e.atoms(AppliedUndef)
         )
 
@@ -661,7 +661,7 @@ class Network:
             wrap the already-collapsed rate in a second piecewise, so the stored
             rate is used as-is instead.
         """
-        nden = self.ndens
+        nden = self.symbols.ndens
         for r in self.reactions:
             if loaded_from_jaff:
                 r.rate = self._standardize_symbols(r.rate, expand_nuclei)
@@ -781,25 +781,6 @@ class Network:
             not enforced.
         """
         to_jaff_file(filename, self)
-
-    @staticmethod
-    def free_symbols(expr: Basic) -> set[Basic]:
-        """Return the free symbols of *expr*, excluding ``nden`` matrix entries.
-
-        ``nden[i]`` references are excluded because they are internal index
-        variables, not user-visible physical symbols.
-
-        Parameters
-        ----------
-        expr : Basic
-            A SymPy expression.
-
-        Returns
-        -------
-        set[Basic]
-            Free symbols that do not involve ``"nden"``.
-        """
-        return {fs for fs in expr.free_symbols if "nden" not in str(fs)}
 
     def compare_reactions(self, other: Network, verbosity: int = 1):
         """Log reactions present in one network but not the other.
@@ -1014,76 +995,8 @@ class Network:
 
         return report
 
-    @cached_property
-    def ndens(self) -> IndexedBase:
-        """Symbolic ``nden`` indexed base for species number densities.
-
-        A SymPy :class:`~sympy.tensor.indexed.IndexedBase` that provides
-        scalar-indexed access. Entry ``nden[i]`` is the number density of the
-        species with index ``i``.  Cached so every consumer shares one symbol.
-
-        Returns
-        -------
-        sympy.IndexedBase
-            The ``nden`` indexed base symbol.
-        """
-        return IndexedBase("nden", shape=(self.species.count,))
-
-    @cached_property
-    def ntot(self) -> Expr:
-        """Total number density ``Σ_i nden[i]`` over all species.
-
-        Returns
-        -------
-        sympy.Expr
-            Symbolic sum of every entry of :attr:`ndens`.
-        """
-        return sum(self.ndens[i] for i in range(self.species.count))
-
-    @cached_property
-    def rho(self) -> Expr:
-        """Mass density ``Σ_i m_i · nden[i]`` over all species.
-
-        Each species contributes its mass ``m_i`` times its number density.
-        Species with an unset mass (``mass is None``) contribute ``0``.
-
-        Returns
-        -------
-        sympy.Expr
-            Symbolic mass density.
-        """
-        return reduce(
-            lambda x, y: x + y,
-            [(s.mass or 0.0) * self.ndens[s.index] for s in self.species],
-        )
-
-    @cached_property
-    def n_hnuc(self) -> Expr:
-        """Total hydrogen-nuclei number density ``Σ_i n_H(i) · nden[i]``.
-
-        Each species contributes its hydrogen-atom count (``H2`` counts twice,
-        ``H+`` once, ...) times its number density, so the sum is the total H
-        nuclei density rather than a molecular count.  Equivalent to the
-        ``n_H_nuc`` grammar token; used directly by the dust radiation-moment
-        source terms (see :mod:`jaff.physics._equations`), cached so every
-        consumer shares one expression.
-
-        Returns
-        -------
-        sympy.Expr
-            Symbolic total hydrogen-nuclei number density.  ``Float(0.0)`` when
-            the network contains no H-bearing species.
-        """
-        nden = self.ndens
-        terms = [
-            count * nden[i]
-            for i, spec in enumerate(self.species)
-            if (count := spec.exploded.count("H")) > 0
-        ]
-
-        return sum(terms) if terms else Float(0.0)
-
-    def eos(self, props: EosProps | None = None) -> Eos:
+    @cache
+    def eos(self, props: EosProps | None = None) -> InternalEnergy:
         """Symbolic internal energy of the network for a configured EOS.
 
         Thin wrapper around :class:`jaff.physics.EosFactory`, which builds the
@@ -1100,7 +1013,7 @@ class Network:
 
         Returns
         -------
-        Eos
+        InternalEnergy
             Symbolic internal energy exposing ``volumetric``, ``specific``,
             ``per_particle`` and ``molar`` forms in CGS units.
 
@@ -1159,19 +1072,8 @@ class Network:
         if expr == Float(0.0):
             return Float(0.0)
 
-        nden = self.ndens
+        nden = self.symbols.ndens
         reps = {}
-
-        def get_element_sum(element):
-            if element not in self.__element_sums:
-                terms = []
-                for i, spec in enumerate(self.species):
-                    count = spec.exploded.count(element)
-                    if count > 0:
-                        terms.append(count * nden[i])
-                self.__element_sums[element] = sum(terms) if terms else None
-
-            return self.__element_sums[element]
 
         for fs in expr.free_symbols:
             name = str(fs)
@@ -1179,7 +1081,7 @@ class Network:
             repl = None
 
             if low_name == "ntot":
-                repl = self.ntot
+                repl = self.symbols.ntot
 
             elif low_name == "chi_pe":
                 if self.radiation is None:
@@ -1212,7 +1114,7 @@ class Network:
                             f"'{base}'"
                         )
                     if expand_nuclei:
-                        total = get_element_sum(element)
+                        total = self.symbols.element_sum(element)
                         if total is None:
                             raise ParserError(
                                 f"'{name}': no species in the network bears "
@@ -1276,7 +1178,7 @@ class Network:
         list[Expr]
             One SymPy expression per reaction, in reaction-index order.
         """
-        return get_sfluxes(self.reactions, self.species, self.ndens)
+        return get_sfluxes(self.reactions, self.species, self.symbols.ndens)
 
     def sodes(self) -> list[Basic]:
         """Return symbolic ODE right-hand sides for all species.
@@ -1290,7 +1192,7 @@ class Network:
         list[Basic]
             One SymPy expression per species, in species-index order.
         """
-        return get_sodes(self.reactions, self.species, self.ndens)
+        return get_sodes(self.reactions, self.species, self.symbols.ndens)
 
     def sradodes(self, order: int = 0) -> list[Expr]:
         """Return symbolic radiation moment ODE right-hand sides.

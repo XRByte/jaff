@@ -97,7 +97,7 @@ def test_decode_multi_charge_density(make_network):
     )
     expr = net._standardize_symbols(sympy.Symbol("n_Hejj"), True)
     idx = net.species["He++"].index
-    assert expr == net.ndens[idx]
+    assert expr == net.symbols.ndens[idx]
 
 
 def test_decode_single_cation(make_network):
@@ -106,7 +106,7 @@ def test_decode_single_cation(make_network):
     net = make_network(["C + C+ -> C+ + C [10,1000] 1e-10"])
     expr = net._standardize_symbols(sympy.Symbol("n_Cj"), True)
     idx = net.species["C+"].index
-    assert expr == net.ndens[idx]
+    assert expr == net.symbols.ndens[idx]
 
 
 def test_decode_neutral_zero_suffix(make_network):
@@ -115,7 +115,7 @@ def test_decode_neutral_zero_suffix(make_network):
     net = make_network(["O + O -> O + O [10,1000] 1e-10"])
     expr = net._standardize_symbols(sympy.Symbol("n_O"), True)
     idx = net.species["O"].index
-    assert expr == net.ndens[idx]
+    assert expr == net.symbols.ndens[idx]
 
 
 def test_decode_neutral_h_vs_sum(make_network):
@@ -124,7 +124,7 @@ def test_decode_neutral_h_vs_sum(make_network):
     net = make_network(["H + H+ -> H+ + H [10,1000] 1e-10"])
     expr = net._standardize_symbols(sympy.Symbol("n_H"), True)
     idx = net.species["H"].index
-    assert expr == net.ndens[idx]
+    assert expr == net.symbols.ndens[idx]
 
 
 def test_decode_electron(make_network):
@@ -133,7 +133,7 @@ def test_decode_electron(make_network):
     net = make_network(["H -> H+ + e- [10,1000] 1e-10"])
     expr = net._standardize_symbols(sympy.Symbol("n_e"), True)
     idx = net.species["e-"].index
-    assert expr == net.ndens[idx]
+    assert expr == net.symbols.ndens[idx]
 
 
 def test_cie_h_chemrate_resolves_hepp_density(fixtures_dir):
@@ -157,4 +157,4 @@ def test_cie_h_chemrate_resolves_hepp_density(fixtures_dir):
     net = Network(str(fixtures_dir / "react_cie_hepp.jet"))
     idx = net.species["He++"].index
     used = set().union(*(r.rate.atoms(Indexed) for r in net.reactions))
-    assert net.ndens[idx] in used
+    assert net.symbols.ndens[idx] in used

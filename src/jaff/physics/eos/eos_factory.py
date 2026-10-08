@@ -25,6 +25,7 @@ class EosFactory:
         "fermi_degenerate": "fermi_degenerate",
         "relativistic_fermi_degenerate": "relativistic_fermi_degenerate",
     }
+    _tgas: Symbol = symbols("tgas")
 
     def __init__(self, net: Network, props: EosProps) -> None:
         """Bind the factory to a network and an EOS configuration.
@@ -39,7 +40,6 @@ class EosFactory:
         """
         self.props: EosProps = props
         self._net: Network = net
-        self._tgas: Symbol = symbols("tgas")
 
     def generate(self) -> InternalEnergy:
         """Build the EOS selected by ``props.type``.
@@ -72,7 +72,9 @@ class EosFactory:
         Eos
             EOS wrapping the volumetric internal energy [erg cm⁻³].
         """
-        e = self._net.ntot * k_B.cgs.value * self._tgas / (self.props.gamma - 1.0)  # type: ignore
+        ntot = self._net.symbols.ntot
+        e = ntot * k_B.cgs.value * self._tgas / (self.props.gamma - 1.0)  # type: ignore
+
         return InternalEnergy(e, self._net)
 
     def multi_gamma(self) -> InternalEnergy:
@@ -89,7 +91,7 @@ class EosFactory:
         e = Float(0.0)
         for sp in self._net.species:
             e += (
-                self._net.ndens[sp.index]
+                self._net.symbols.ndens[sp.index]
                 * k_B.cgs.value
                 * self._tgas
                 / (self.props.gamma_map.get(sp.name, self.props.default_gamma))  # type: ignore

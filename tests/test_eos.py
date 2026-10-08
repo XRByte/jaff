@@ -23,7 +23,7 @@ def net() -> Network:
 
 
 def _volumetric(net: Network) -> sp.Expr:
-    return net.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
+    return net.symbols.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
 
 
 def test_volumetric(net: Network) -> None:
@@ -31,7 +31,7 @@ def test_volumetric(net: Network) -> None:
 
 
 def test_specific_per_mass(net: Network) -> None:
-    expected = _volumetric(net) / net.rho
+    expected = _volumetric(net) / net.symbols.rho
     assert sp.simplify(net.eos().specific - expected) == 0
 
 

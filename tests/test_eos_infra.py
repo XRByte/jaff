@@ -18,15 +18,22 @@ TGAS = sp.Symbol("tgas")
 
 
 def _stub_net(tag: str) -> SimpleNamespace:
-    return SimpleNamespace(rho=sp.Symbol(f"rho_{tag}"), ntot=sp.Symbol(f"ntot_{tag}"))
+    symbols = SimpleNamespace(
+        rho=sp.Symbol(f"rho_{tag}"), ntot=sp.Symbol(f"ntot_{tag}"), tgas=sp.Symbol("tgas")
+    )
+    return SimpleNamespace(symbols=symbols)
 
 
 def _stub_species_net() -> SimpleNamespace:
     species = [SimpleNamespace(index=0, name="H"), SimpleNamespace(index=1, name="H2")]
     ndens = sp.IndexedBase("nden", shape=(2,))
-    return SimpleNamespace(
-        species=species, ndens=ndens, ntot=ndens[0] + ndens[1], rho=sp.Symbol("rho")
+    symbols = SimpleNamespace(
+        ndens=ndens,
+        ntot=ndens[0] + ndens[1],
+        rho=sp.Symbol("rho"),
+        tgas=sp.Symbol("tgas"),
     )
+    return SimpleNamespace(species=species, symbols=symbols)
 
 
 @pytest.fixture(scope="module")
@@ -40,8 +47,8 @@ class TestEosIdentity:
         expr = sp.Symbol("e")
         eos_a = Eos(expr, net_a)
         eos_b = Eos(expr, net_b)
-        assert eos_b.specific == expr / net_b.rho
-        assert eos_a.specific == expr / net_a.rho
+        assert eos_b.specific == expr / net_b.symbols.rho
+        assert eos_a.specific == expr / net_a.symbols.rho
 
 
 class TestEosFactoryLifetime:
@@ -160,7 +167,7 @@ class TestEosBuilders:
     def test_ideal_volumetric_energy(self) -> None:
         net = _stub_net("a")
         eos = EosFactory(net, EosProps("ideal", gamma=GAMMA)).ideal()
-        expected = net.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
+        expected = net.symbols.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
         assert sp.simplify(eos.volumetric - expected) == 0
 
     def test_multi_gamma_returns_eos(self) -> None:
@@ -175,7 +182,8 @@ class TestEosBuilders:
         props = EosProps("multi_gamma", default_gamma=GAMMA, gamma_map={"H2": 1.4})
         eos = EosFactory(net, props).multi_gamma()
         kt = k_B.cgs.value * TGAS
-        expected = net.ndens[0] * kt / (GAMMA - 1.0) + net.ndens[1] * kt / (1.4 - 1.0)
+        nden = net.symbols.ndens
+        expected = nden[0] * kt / (GAMMA - 1.0) + nden[1] * kt / (1.4 - 1.0)
         assert sp.simplify(eos.volumetric - expected) == 0
 
     def test_fermi_degenerate_not_implemented(self) -> None:
@@ -187,7 +195,7 @@ class TestEosBuilders:
 class TestNetworkEos:
     def test_without_props_defaults_to_ideal(self) -> None:
         fresh = Network(str(Path(__file__).parent / "fixtures" / "react_cie_hepp.jet"))
-        expected = fresh.ntot * k_B.cgs.value * TGAS / (1.6666666666667 - 1.0)
+        expected = fresh.symbols.ntot * k_B.cgs.value * TGAS / (1.6666666666667 - 1.0)
         assert sp.simplify(fresh.eos().volumetric - expected) == 0
 
     def test_non_eosprops_raises(self, net: Network) -> None:
@@ -198,12 +206,12 @@ class TestNetworkEos:
     def test_constructor_props_return_eos(self, net: Network) -> None:
         net.eos_props = EosProps("ideal", gamma=GAMMA)
         eos = net.eos()
-        expected = net.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
+        expected = net.symbols.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
         assert isinstance(eos, Eos)
         assert sp.simplify(eos.volumetric - expected) == 0
 
     def test_explicit_props_override_constructor(self, net: Network) -> None:
         net.eos_props = EosProps("ideal", gamma=GAMMA)
         eos = net.eos(EosProps("ideal", gamma=1.4))
-        expected = net.ntot * k_B.cgs.value * TGAS / (1.4 - 1.0)
+        expected = net.symbols.ntot * k_B.cgs.value * TGAS / (1.4 - 1.0)
         assert sp.simplify(eos.volumetric - expected) == 0

@@ -6,7 +6,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable, ClassVar
 
-from sympy import Expr
+from sympy import Expr, diff
 
 from ..constants import N_A
 
@@ -19,8 +19,8 @@ class InternalEnergy:
 
     Wraps a volumetric internal energy ``E`` [erg cm⁻³] and derives the
     specific, per-particle and molar forms from the bound network's
-    :attr:`~jaff.core.network.Network.rho` and
-    :attr:`~jaff.core.network.Network.ntot`.
+    :attr:`~jaff.core.network._symbols.NetworkSymbols.rho` and
+    :attr:`~jaff.core.network._symbols.NetworkSymbols.ntot`.
     """
 
     #: Form name -> accessor of the matching normalised property.
@@ -43,6 +43,9 @@ class InternalEnergy:
         """
         self._net: Network = net
         self._vol_expr: Expr = expr
+
+    def __add__(self, other: "InternalEnergy"):
+        return self._vol_expr + other._vol_expr
 
     def normaliser(self, form: str) -> Expr:
         """Internal energy in the requested normalisation.
@@ -79,18 +82,22 @@ class InternalEnergy:
     @cached_property
     def specific(self) -> Expr:
         """Internal energy per unit mass, ``E / ρ`` [erg g⁻¹]."""
-        return self._vol_expr / self._net.rho
+        return self._vol_expr / self._net.symbols.rho
 
     @cached_property
     def per_particle(self) -> Expr:
         """Internal energy per particle, ``E / n_tot`` [erg]."""
-        return self._vol_expr / self._net.ntot
+        return self._vol_expr / self._net.symbols.ntot
 
     @cached_property
     def molar(self) -> Expr:
         """Internal energy per mole, ``N_A · E / n_tot`` [erg mol⁻¹]."""
-        return self._vol_expr * N_A.cgs.value / self._net.ntot
+        return self._vol_expr * N_A.cgs.value / self._net.symbols.ntot
 
 
 class DEDt(InternalEnergy):
-    pass
+    def __init__(self, expr: Expr, net: Network):
+        super().__init__(expr, net)
+
+    def get_dTdt(self) -> Expr:
+        return self._vol_expr / diff(self._net.eos(), self._net.symbols.tgas)
