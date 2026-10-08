@@ -27,14 +27,14 @@ def _volumetric(net: Network) -> sp.Expr:
 
 
 def test_volumetric(net: Network) -> None:
-    assert sp.simplify(net.eos().volumetric - _volumetric(net)) == 0
+    assert sp.simplify(net.thermodynamics.eos.volumetric - _volumetric(net)) == 0
 
 
 def test_specific_per_mass(net: Network) -> None:
     expected = _volumetric(net) / net.symbols.rho
-    assert sp.simplify(net.eos().specific - expected) == 0
+    assert sp.simplify(net.thermodynamics.eos.specific - expected) == 0
 
 
 def test_specific_per_particle(net: Network) -> None:
     expected = k_B.cgs.value * TGAS / (GAMMA - 1.0)
-    assert sp.simplify(net.eos().per_particle - expected) == 0
+    assert sp.simplify(net.thermodynamics.eos.per_particle - expected) == 0

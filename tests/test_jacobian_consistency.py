@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from jaff.physics.constants import k_B
-from jaff.physics.eos import EosProps
+from jaff.physics import EosProps
 from tests.codegen_render import NETWORKS, draw_inputs, evaluate, free_names, load
 
 KB = k_B.cgs.value

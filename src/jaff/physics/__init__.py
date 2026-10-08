@@ -4,7 +4,7 @@
 from . import constants
 from ._equations import get_sfluxes, get_sodes, get_sradodes
 from .dust import Dust, DustProps
-from .eos import EosFactory, EosProps
+from .thermodynamics.eos import EosFactory, EosProps
 from .photo_reactions import RadiationProps
 from .photo_reactions._photochemistry import Photochemistry
 from .photo_reactions._radiation import (

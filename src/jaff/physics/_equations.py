@@ -13,7 +13,7 @@ This module builds SymPy symbolic expressions for:
   into account photoionisation/photodissociation sinks and any user-supplied
   radiation source/sink terms (``get_sradodes``).
 
-The equation of state lives in :mod:`jaff.physics.eos`.
+The equation of state lives in :mod:`jaff.physics.thermodynamics.eos`.
 
 The symbolic expressions are later code-generated (via SymPy's code printers)
 into efficient numerical kernels.

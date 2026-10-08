@@ -4,16 +4,16 @@ from typing import TYPE_CHECKING, Dict
 
 from sympy import Float
 
-from ..constants import k_B
-from ..thermodynamics import InternalEnergy
+from ...constants import k_B
+from ..internal_energy import InternalEnergy
 from .eos_props import EosProps
 
 if TYPE_CHECKING:
-    from ...core import Network
+    from ....core import Network
 
 
 class EosFactory:
-    """Build the symbolic :class:`Eos` selected by an :class:`EosProps`.
+    """Build the symbolic :class:`InternalEnergy` selected by an :class:`EosProps`.
 
     Each EOS type maps to a builder method through :attr:`_BUILDERS`; the
     valid types must match :attr:`EosProps._REQUIRED`.
@@ -45,7 +45,7 @@ class EosFactory:
 
         Returns
         -------
-        Eos
+        InternalEnergy
             Symbolic internal energy of the bound network.
 
         Raises
@@ -68,8 +68,8 @@ class EosFactory:
 
         Returns
         -------
-        Eos
-            EOS wrapping the volumetric internal energy [erg cm⁻³].
+        InternalEnergy
+            InternalEnergy wrapping the volumetric internal energy [erg cm⁻³].
         """
         ntot = self._net.symbols.ntot
         tgas = self._net.symbols.tgas
@@ -85,16 +85,19 @@ class EosFactory:
 
         Returns
         -------
-        Eos
-            EOS wrapping the volumetric internal energy [erg cm⁻³].
+        InternalEnergy
+            InternalEnergy wrapping the volumetric internal energy [erg cm⁻³].
         """
         e = Float(0.0)
+        gamma_map = self.props.gamma_map  # type: ignore
+        default_gamma = self.props.default_gamma  # type: ignore
         for sp in self._net.species:
+            gamma = gamma_map.get(sp.name, default_gamma)
             e += (
                 self._net.symbols.ndens[sp.index]
                 * k_B.cgs.value
                 * self._net.symbols.tgas
-                / (self.props.gamma_map.get(sp.name, self.props.default_gamma))  # type: ignore
+                / (gamma - 1.0)
             )
 
         return InternalEnergy(e, self._net)

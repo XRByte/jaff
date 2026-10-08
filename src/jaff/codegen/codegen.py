@@ -202,11 +202,7 @@ class Codegen:
                 if type(rea.rate) is str:
                     continue
                 # Skip photorates() calls — the $IDX$ placeholder prevents CSE
-                if (
-                    hasattr(rea.rate, "func")
-                    and isinstance(rea.rate.func, type(sp.Function("f")))
-                    and rea.rate.func.__name__ == "photorates"
-                ):
+                if getattr(rea.rate, "func", None) == self.net.symbols.photorates:
                     continue
                 cse_dict[i] = rea.rate
 
@@ -577,7 +573,7 @@ class Codegen:
         assert isinstance(self.net.dEdt_chem, sp.Expr)
         assert isinstance(self.net.dEdt_other, sp.Expr)
 
-        den = self.net.eos().normaliser(energy)
+        den = self.net.thermodynamics.eos.normaliser(energy)
         return (self.net.dEdt_chem + self.net.dEdt_other) / den
 
     def get_dedt(self, energy: str = "volumetric") -> str:
@@ -1169,7 +1165,7 @@ class Codegen:
                     y_syms[n_species + ei] = sp.symbols(f"ry_{i}")
                     y_syms[n_species + fi] = sp.symbols(f"fy_{i}")
 
-            nden_matrix = self.net.ndens
+            nden_matrix = self.net.symbols.ndens
 
             # Substitution dicts: scalar indexed form -> scalar y_i symbols
             nden_to_y = {}
@@ -1240,9 +1236,9 @@ class Codegen:
             # into the state-vector framework via the ideal-gas EOS relation
             # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
             dde = sp.zeros(n_ode_eqns, 1)
-            eos = self.net.eos()
+            eos = self.net.thermodynamics.eos
             eos_expr = eos.volumetric / eos.normaliser(energy)
-            dedot_dtgas = sp.diff(eos_expr, sp.symbols("tgas"))
+            dedot_dtgas = sp.diff(eos_expr, self.net.symbols.tgas)
 
             # Compute dq/dn_j: derivatives of energy equation w.r.t. each species
             # nden_matrix is scalar indexed (IndexedBase), use scalar form for differentiation
@@ -1255,7 +1251,7 @@ class Codegen:
                 range(n_ode_eqns),
                 description="Generating jacobian internal energy terms",
             ):
-                dxdot_dtgas = sp.diff(ode_symbols[i], sp.symbols("tgas"))
+                dxdot_dtgas = sp.diff(ode_symbols[i], self.net.symbols.tgas)
                 dxdot_dtgas_list.append(dxdot_dtgas)
                 dde[i, 0] = dxdot_dtgas / dedot_dtgas
 

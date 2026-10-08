@@ -22,7 +22,7 @@ import logging
 import re
 import sys
 from dataclasses import dataclass
-from functools import cache, cached_property, lru_cache
+from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -42,7 +42,6 @@ from ...io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
 from ...physics import (
     Dust,
     DustProps,
-    EosFactory,
     EosProps,
     Photochemistry,
     Radiation,
@@ -60,7 +59,6 @@ from ._spec import NetworkSpec
 from ._symbols import NetworkSymbols
 
 if TYPE_CHECKING:
-    from ...physics.thermodynamics import InternalEnergy
     from .._typing import ElementProps
     from ..parsers.auxiliary_func._typing import AuxiliaryFunctionsDict
 
@@ -252,9 +250,9 @@ class Network:
             :meth:`Reaction.normalized_proxy_reaction_str`) rather than the
             reaction's standard serialized form.  Default ``False``.
         eos_props : EosProps | None, optional
-            Equation-of-state configuration used by :meth:`eos`.  When
-            ``None`` (default), an ideal gas with the default adiabatic index
-            (``EosProps("ideal")``) is used.
+            Equation-of-state configuration used by
+            :attr:`Thermodynamics.eos`.  When ``None`` (default), an ideal gas
+            with the default adiabatic index (``EosProps("ideal")``) is used.
 
         Raises
         ------
@@ -917,39 +915,6 @@ class Network:
             sys.exit(1)
 
         return report
-
-    @cache
-    def eos(self, props: EosProps | None = None) -> InternalEnergy:
-        """Symbolic internal energy of the network for a configured EOS.
-
-        Thin wrapper around :class:`jaff.physics.EosFactory`, which builds the
-        expression selected by an :class:`~jaff.physics.EosProps` from this
-        network's densities.  Used by the code generator to form the
-        temperature column of the Jacobian via the chain rule
-        ``∂ẋ/∂e = (∂ẋ/∂T) / (∂e/∂T)``.
-
-        Parameters
-        ----------
-        props : EosProps | None, optional
-            EOS configuration.  When ``None`` (default), the ``eos_props``
-            given to the constructor is used.
-
-        Returns
-        -------
-        InternalEnergy
-            Symbolic internal energy exposing ``volumetric``, ``specific``,
-            ``per_particle`` and ``molar`` forms in CGS units.
-
-        Raises
-        ------
-        ValueError
-            If the configuration is not an :class:`~jaff.physics.EosProps`.
-        """
-        props = props if props is not None else self.eos_props
-        if not isinstance(props, EosProps):
-            raise ValueError("'eos_props' must be initialized using EosProps")
-
-        return EosFactory(self, props).generate()
 
     def __generate_reaction_matrices(self) -> None:
         """Build integer stoichiometry matrices: shape (n_reactions × n_species)."""

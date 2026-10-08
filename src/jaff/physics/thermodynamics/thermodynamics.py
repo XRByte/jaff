@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from sympy import Expr, Float
 
-from .internal_energy import DEDt
+from .eos import EosFactory
+from .internal_energy import DEDt, InternalEnergy
 
 if TYPE_CHECKING:
     from ...core import Network
@@ -20,6 +22,17 @@ class Thermodynamics:
             else self._get_dEdt_extra()
         )
         self.dEdt_tot: DEDt = self.dEdt_chemical + self.dEdt_extra
+
+    @cached_property
+    def eos(self) -> InternalEnergy:
+        """Internal energy of the network for its configured EOS (built once).
+
+        Returns
+        -------
+        InternalEnergy
+            Built by :class:`EosFactory` from ``net.eos_props``.
+        """
+        return EosFactory(self.net, self.net.eos_props).generate()
 
     def _get_dEdt_chemical(self) -> DEDt:
         dEdt = Float(0.0)

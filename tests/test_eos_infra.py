@@ -1,5 +1,5 @@
-# ABOUTME: Robustness tests for the EOS infrastructure (EosProps, EosFactory, Eos)
-# ABOUTME: Validation, Eos forms, builders, Network.eos wiring, no cache leaks
+# ABOUTME: Robustness tests for the EOS infrastructure (EosProps, EosFactory)
+# ABOUTME: Validation, InternalEnergy forms, builders, Thermodynamics.eos wiring
 
 import gc
 import weakref
@@ -11,10 +11,12 @@ import sympy as sp
 
 from jaff import Network
 from jaff.physics.constants import N_A, k_B
-from jaff.physics.eos import Eos, EosFactory, EosProps
+from jaff.physics import EosFactory, EosProps
+from jaff.physics.thermodynamics import InternalEnergy
 
 GAMMA = 5.0 / 3.0
 TGAS = sp.Symbol("tgas")
+E = sp.Symbol("E")
 
 
 def _stub_net(tag: str) -> SimpleNamespace:
@@ -36,17 +38,12 @@ def _stub_species_net() -> SimpleNamespace:
     return SimpleNamespace(species=species, symbols=symbols)
 
 
-@pytest.fixture(scope="module")
-def net() -> Network:
-    return Network(str(Path(__file__).parent / "fixtures" / "react_cie_hepp.jet"))
-
-
 class TestEosIdentity:
     def test_same_expr_different_networks_bind_own_network(self) -> None:
         net_a, net_b = _stub_net("a"), _stub_net("b")
         expr = sp.Symbol("e")
-        eos_a = Eos(expr, net_a)
-        eos_b = Eos(expr, net_b)
+        eos_a = InternalEnergy(expr, net_a)
+        eos_b = InternalEnergy(expr, net_b)
         assert eos_b.specific == expr / net_b.symbols.rho
         assert eos_a.specific == expr / net_a.symbols.rho
 
@@ -118,7 +115,7 @@ class TestEosFactoryDispatch:
     def test_generate_builds_eos(self) -> None:
         net = _stub_net("a")
         eos = EosFactory(net, EosProps("ideal", gamma=GAMMA)).generate()
-        assert isinstance(eos, Eos)
+        assert isinstance(eos, InternalEnergy)
 
     def test_builder_registry_matches_props_types(self) -> None:
         assert set(EosFactory._BUILDERS) == set(EosProps._REQUIRED)
@@ -126,19 +123,19 @@ class TestEosFactoryDispatch:
 
 class TestEosForms:
     @pytest.fixture
-    def eos(self) -> Eos:
-        return Eos(sp.Symbol("E"), _stub_net("a"))
+    def eos(self) -> InternalEnergy:
+        return InternalEnergy(sp.Symbol("E"), _stub_net("a"))
 
-    def test_volumetric_is_wrapped_expr(self, eos: Eos) -> None:
+    def test_volumetric_is_wrapped_expr(self, eos: InternalEnergy) -> None:
         assert eos.volumetric == sp.Symbol("E")
 
-    def test_specific_divides_by_rho(self, eos: Eos) -> None:
+    def test_specific_divides_by_rho(self, eos: InternalEnergy) -> None:
         assert eos.specific == sp.Symbol("E") / sp.Symbol("rho_a")
 
-    def test_per_particle_divides_by_ntot(self, eos: Eos) -> None:
+    def test_per_particle_divides_by_ntot(self, eos: InternalEnergy) -> None:
         assert eos.per_particle == sp.Symbol("E") / sp.Symbol("ntot_a")
 
-    def test_molar_scales_per_particle_by_avogadro(self, eos: Eos) -> None:
+    def test_molar_scales_per_particle_by_avogadro(self, eos: InternalEnergy) -> None:
         ratio = sp.simplify(eos.molar / (eos.per_particle * N_A.cgs.value))
         assert float(ratio) == pytest.approx(1.0, rel=1e-14)
 
@@ -147,18 +144,18 @@ class TestEosNormaliser:
     @pytest.mark.parametrize(
         "form, expected",
         [
-            ("volumetric", sp.Integer(1)),
-            ("specific", sp.Symbol("rho_a")),
-            ("per_particle", sp.Symbol("ntot_a")),
-            ("molar", sp.Symbol("ntot_a") / N_A.cgs.value),
+            ("volumetric", E),
+            ("specific", E / sp.Symbol("rho_a")),
+            ("per_particle", E / sp.Symbol("ntot_a")),
+            ("molar", E * N_A.cgs.value / sp.Symbol("ntot_a")),
         ],
     )
     def test_normaliser_per_form(self, form: str, expected: sp.Expr) -> None:
-        eos = Eos(sp.Symbol("E"), _stub_net("a"))
+        eos = InternalEnergy(sp.Symbol("E"), _stub_net("a"))
         assert sp.simplify(eos.normaliser(form) - expected) == 0
 
     def test_unknown_form_raises(self) -> None:
-        eos = Eos(sp.Symbol("E"), _stub_net("a"))
+        eos = InternalEnergy(sp.Symbol("E"), _stub_net("a"))
         with pytest.raises(ValueError, match="bogus"):
             eos.normaliser("bogus")
 
@@ -172,11 +169,10 @@ class TestEosBuilders:
 
     def test_multi_gamma_returns_eos(self) -> None:
         props = EosProps("multi_gamma", default_gamma=GAMMA, gamma_map={})
-        assert isinstance(EosFactory(_stub_species_net(), props).multi_gamma(), Eos)
+        assert isinstance(
+            EosFactory(_stub_species_net(), props).multi_gamma(), InternalEnergy
+        )
 
-    @pytest.mark.xfail(
-        strict=True, reason="#14: multi_gamma divides by gamma, not gamma - 1"
-    )
     def test_multi_gamma_per_species_energy(self) -> None:
         net = _stub_species_net()
         props = EosProps("multi_gamma", default_gamma=GAMMA, gamma_map={"H2": 1.4})
@@ -195,23 +191,14 @@ class TestEosBuilders:
 class TestNetworkEos:
     def test_without_props_defaults_to_ideal(self) -> None:
         fresh = Network(str(Path(__file__).parent / "fixtures" / "react_cie_hepp.jet"))
-        expected = fresh.symbols.ntot * k_B.cgs.value * TGAS / (1.6666666666667 - 1.0)
-        assert sp.simplify(fresh.eos().volumetric - expected) == 0
+        sym = fresh.symbols
+        expected = sym.ntot * k_B.cgs.value * TGAS / (1.6666666666667 - 1.0)
+        assert sp.simplify(fresh.thermodynamics.eos.volumetric - expected) == 0
 
-    def test_non_eosprops_raises(self, net: Network) -> None:
-        net.eos_props = None
-        with pytest.raises(ValueError, match="EosProps"):
-            net.eos({"type": "ideal", "gamma": GAMMA})  # type: ignore[arg-type]
-
-    def test_constructor_props_return_eos(self, net: Network) -> None:
-        net.eos_props = EosProps("ideal", gamma=GAMMA)
-        eos = net.eos()
-        expected = net.symbols.ntot * k_B.cgs.value * TGAS / (GAMMA - 1.0)
-        assert isinstance(eos, Eos)
-        assert sp.simplify(eos.volumetric - expected) == 0
-
-    def test_explicit_props_override_constructor(self, net: Network) -> None:
-        net.eos_props = EosProps("ideal", gamma=GAMMA)
-        eos = net.eos(EosProps("ideal", gamma=1.4))
-        expected = net.symbols.ntot * k_B.cgs.value * TGAS / (1.4 - 1.0)
-        assert sp.simplify(eos.volumetric - expected) == 0
+    def test_constructor_props_used(self) -> None:
+        fresh = Network(
+            str(Path(__file__).parent / "fixtures" / "react_cie_hepp.jet"),
+            eos_props=EosProps("ideal", gamma=1.4),
+        )
+        expected = fresh.symbols.ntot * k_B.cgs.value * TGAS / (1.4 - 1.0)
+        assert sp.simplify(fresh.thermodynamics.eos.volumetric - expected) == 0

@@ -154,4 +154,6 @@ class DEDt(InternalEnergy):
         super().__init__(expr, net)
 
     def get_dTdt(self) -> Expr:
-        return self._vol_expr / diff(self._net.eos(), self._net.symbols.tgas)
+        return self._vol_expr / diff(
+            self._net.thermodynamics.eos.volumetric, self._net.symbols.tgas
+        )
