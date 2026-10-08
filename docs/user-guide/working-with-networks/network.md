@@ -121,7 +121,7 @@ net = Network(
 | `dRad_dt_extra`   | `sympy.Basic`     | Extra radiation-moment source terms from `@function` aux definitions (else `0`)                                     |
 | `radiation`       | `Radiation\|None` | Radiation field object; `None` when no `radiation_props` are configured                                             |
 | `mass_dict`       | `dict`            | Element mass dictionary used to build the species                                                                   |
-| `n_hnuc`          | `sympy.Expr`      | Symbolic total hydrogen-nuclei density `Σ_i H-count(i)·nden[i]` (cached); equivalent to the `n_H_nuc` grammar token |
+| `symbols`         | `NetworkSymbols`  | Canonical symbols, densities (`ndens`, `ntot`, `rho`, `n_hnuc`), introspection sets and `standardize`; see [symbols](../../api/core/network/symbols.md) |
 
 ```python
 net = Network("networks/h_photoionization/h_photo.jet")
