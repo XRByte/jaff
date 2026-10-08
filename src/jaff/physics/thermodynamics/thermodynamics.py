@@ -30,16 +30,13 @@ class Thermodynamics:
 
             dEdt += _dEdt
 
-        return DEDt(
-            self.net._standardize_symbols(dEdt, self.net.spec.expand_nuclei), self.net
-        )
+        return DEDt(self.net.symbols.standardize(dEdt), self.net)
 
     def _get_dEdt_extra(self) -> DEDt:
         dEdt = Float(0.0)
         if "heatingcoolingrate" in self.net.spec.aux_funcs:
-            dEdt = self.net._standardize_symbols(
-                self.net.spec.aux_funcs["heatingcoolingrate"]["def"],
-                self.net.spec.expand_nuclei,
+            dEdt = self.net.symbols.standardize(
+                self.net.spec.aux_funcs["heatingcoolingrate"]["def"]
             )
 
         return DEDt(dEdt, self.net)

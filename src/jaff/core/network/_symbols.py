@@ -16,7 +16,10 @@ from typing import TYPE_CHECKING, ClassVar
 from sympy import Basic, Expr, Float, Function, IndexedBase, Symbol
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
+from ...errors import ParserError
+
 if TYPE_CHECKING:
+    from ..species import Specie
     from .network import Network
 
 
@@ -227,6 +230,160 @@ class NetworkSymbols:
     def undefined_functions(self) -> frozenset[str]:
         """Names of undefined, non-interpolation functions."""
         return frozenset(name for name in self._applied_functions if "interp" not in name)
+
+    @cached_property
+    def _element_lookup(self) -> dict[str, str]:
+        """Lower-cased element token -> canonical element symbol.
+
+        Valid only once ``net.mass_dict`` is loaded; first touched by
+        :meth:`standardize`, which runs after loading.
+        """
+        return {s.lower(): s for s in self._net.mass_dict}
+
+    @cached_property
+    def _charge_reverse(self) -> dict[str, Specie]:
+        """j/k-normalized species identifier -> ``Specie`` (see ``charge_reverse_map``).
+
+        Assumes a collision-free network; raises ValueError on case-distinct
+        colliding species (e.g. CO / Co).
+        """
+        return self._net.species.charge_reverse_map()
+
+    def standardize(self, expr: Basic) -> Expr:
+        """Replace convenience symbols with ``nden``-based expressions.
+
+        ``ntot`` → :attr:`ntot`; ``n_<species>`` → that species' density;
+        ``n_e`` → electron density; ``n_<element>_nuc`` → :meth:`element_sum`
+        (or the free symbol ``n<element>_nuc`` when the network was built with
+        ``expand_nuclei=False``); ``rc_<int>`` → the rate of the reaction whose
+        file-side number is ``<int>`` (looked up via ``reactions.by_source_index``,
+        not the catalogue position, so it stays dedup-safe and consistent with
+        ``chemRateN``); ``chi_pe`` → ``net.dust.pe.chi`` (needs radiation and
+        dust).  Name matching is case-insensitive.
+
+        Parameters
+        ----------
+        expr : Basic
+            Expression to standardize.
+
+        Returns
+        -------
+        Expr
+            *expr* with every recognised convenience symbol replaced.
+
+        Raises
+        ------
+        ParserError
+            On an unknown species/element, a charged nucleus alias, a missing
+            ``rc_`` target, or ``chi_pe`` without radiation or dust.
+        ValueError
+            If two species collide case-insensitively (e.g. ``CO`` / ``Co``).
+        """
+        if expr == Float(0.0):
+            return Float(0.0)
+
+        reps = {}
+        for fs in expr.free_symbols:
+            repl = self._replacement(str(fs))
+            if repl is not None:
+                reps[fs] = repl
+
+        return expr.xreplace(reps)
+
+    def _replacement(self, name: str) -> Basic | None:
+        """Replacement for the convenience symbol *name*, or ``None`` to keep it.
+
+        Raises
+        ------
+        ParserError
+            For ``chi_pe`` without radiation/dust, or an ``rc_`` target that is
+            not in the network (see also :meth:`_density_replacement`).
+        """
+        net = self._net
+        low_name = name.lower()
+
+        if low_name == "ntot":
+            return self.ntot
+
+        if low_name == self.chi_pe.name:
+            if net.radiation is None:
+                raise ParserError(
+                    "In order to replace the 'chi_pe' symbol, radiation must be enabled"
+                )
+            if net.dust is None:
+                raise ParserError(
+                    "In order to replace the 'chi_pe' symbol, dust must be enabled"
+                )
+            return net.dust.pe.chi
+
+        if low_name.startswith("n_"):
+            return self._density_replacement(name)
+
+        if low_name.startswith("rc_"):
+            try:
+                num = int(name[3:])
+            except ValueError:
+                net.logger.error(
+                    f"The 'rc_' keyword in {net.spec.funcfile} must be followed by "
+                    f"an integer\ndenoting the reaction number. Found {name}"
+                )
+                return None
+
+            rxn = net.reactions.by_source_index(num)
+            if rxn is None:
+                raise ParserError(
+                    f"'{name}' references reaction {num}, which is not in the network"
+                )
+            return rxn.rate
+
+        return None
+
+    def _density_replacement(self, name: str) -> Basic | None:
+        """Replacement for an ``n_*`` density symbol (species, electron, nucleus).
+
+        Raises
+        ------
+        ParserError
+            For a charged nucleus alias, an unknown element, an element no species
+            bears, or a species name not in the network.
+        """
+        net = self._net
+        core = name[2:]
+        core_low = core.lower()
+
+        if core_low.endswith("_nuc"):
+            base = core_low[:-4]
+            if base.endswith(("j", "k")):
+                raise ParserError(
+                    f"'{name}' is invalid: a nucleus sum is per-element, "
+                    f"so a charged nucleus alias is meaningless"
+                )
+            element = self._element_lookup.get(base)
+            if element is None:
+                raise ParserError(
+                    f"'{name}' requests a nucleus sum for unknown element '{base}'"
+                )
+            if not net.spec.expand_nuclei:
+                return Symbol(f"n{base}_nuc")
+
+            total = self.element_sum(element)
+            if total is None:
+                raise ParserError(
+                    f"'{name}': no species in the network bears element '{element}'"
+                )
+            return total
+
+        if core == "e":
+            if "e-" in net.species:
+                return self.ndens[net.species["e-"].index]
+            return None
+
+        sp = self._charge_reverse.get(core_low)
+        if sp is None:
+            raise ParserError(
+                f"Density symbol '{name}' does not match any species in this network"
+            )
+        return self.ndens[sp.index]
 
     def log_summary(self) -> None:
         """Log the network's free variables, interpolation and undefined functions."""

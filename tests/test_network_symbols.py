@@ -6,6 +6,7 @@ import sympy
 from sympy import Function, Symbol
 
 from jaff.core.network._symbols import NetworkSymbols
+from jaff.errors import ParserError
 
 TWO_SPECIES = "@format:idx,R,R,P,rate\n1,H,H,H2,1\n2,H2,H,H,1\n"
 
@@ -116,3 +117,53 @@ def test_introspection_sets_are_cached_frozensets(make_network):
         value = getattr(net.symbols, name)
         assert isinstance(value, frozenset)
         assert getattr(net.symbols, name) is value
+
+
+def test_standardize_resolves_species_density(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False)
+    idx = net.species["H2"].index
+    assert net.symbols.standardize(Symbol("n_H2")) == net.symbols.ndens[idx]
+
+
+def test_standardize_keeps_nucleus_symbol_when_not_expanded(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False, expand_nuclei=False)
+    assert net.symbols.standardize(Symbol("n_H_nuc")) == Symbol("nh_nuc")
+
+
+def test_standardize_chi_pe_requires_radiation(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False)
+    with pytest.raises(ParserError, match="radiation must be enabled"):
+        net.symbols.standardize(NetworkSymbols.chi_pe)
+
+
+def test_standardize_chi_pe_is_case_insensitive(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False)
+    with pytest.raises(ParserError, match="radiation must be enabled"):
+        net.symbols.standardize(Symbol("CHI_PE"))
+
+
+def test_standardize_zero_short_circuits(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False)
+    assert net.symbols.standardize(sympy.Float(0.0)) == sympy.Float(0.0)
+
+
+def test_standardize_keeps_non_integer_rc(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False)
+    assert net.symbols.standardize(Symbol("rc_abc")) == Symbol("rc_abc")
+
+
+def test_standardize_missing_rc_target_raises(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False)
+    with pytest.raises(ParserError, match="not in the network"):
+        net.symbols.standardize(Symbol("rc_99"))
+
+
+def test_standardize_unknown_species_raises(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False)
+    with pytest.raises(ParserError, match="does not match any species"):
+        net.symbols.standardize(Symbol("n_CO"))
+
+
+def test_standardize_keeps_n_e_without_electrons(make_network):
+    net = make_network(TWO_SPECIES, funcfile=False)
+    assert net.symbols.standardize(Symbol("n_e")) == Symbol("n_e")
