@@ -3,9 +3,11 @@
 """Canonical symbols and symbolic quantities of a :class:`~jaff.Network`.
 
 Reached as ``net.symbols``.  Fixed physics symbols are class attributes, so code
-without a network can use ``NetworkSymbols.tgas``.  Runtime imports are limited to
-SymPy, the standard library and :mod:`jaff.errors` so that any module may import this
-one without creating an import cycle.
+without a network can use ``NetworkSymbols.tgas``.  This module's own runtime imports
+are limited to SymPy, the standard library and :mod:`jaff.errors`, but importing it
+still initialises the ``jaff.core.network`` package; modules imported during that
+package's initialisation (``io``, ``core.reaction``, ``physics``) must therefore import
+:class:`NetworkSymbols` inside the function that uses it.
 """
 
 from __future__ import annotations
@@ -44,6 +46,13 @@ class NetworkSymbols:
         Velocity dispersion [cm s⁻¹].
     photorates : UndefinedFunction
         Placeholder function for photo-reaction rates.
+
+    Notes
+    -----
+    The fixed symbols carry no SymPy assumptions on purpose: rate strings are
+    parsed with ``parse_expr``, which creates assumption-free symbols, and SymPy
+    only treats two symbols as equal when name *and* assumptions match.  Adding
+    e.g. ``positive=True`` here would silently break substitution and ``diff``.
     """
 
     tgas: ClassVar[Symbol] = Symbol("tgas")

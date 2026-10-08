@@ -42,7 +42,6 @@ from sympy import (
     expand_log,
     lambdify,
     log,
-    symbols,
 )
 from sympy.core.function import AppliedUndef
 
@@ -602,10 +601,13 @@ def get_table(
 
     react_sympy = [r.get_sympy() for r in reactions]
 
-    trivial_subs = {symbols("av"): Float(0.0), symbols("crate"): Float(1.0)}
+    # Local import: a module-level one would cycle via jaff.core.network.
+    from ..core import NetworkSymbols
+
+    trivial_subs = {NetworkSymbols.av: Float(0.0), NetworkSymbols.crate: Float(1.0)}
     react_subst = [r.xreplace(trivial_subs) for r in react_sympy]
 
-    tgas = symbols("tgas")
+    tgas = NetworkSymbols.tgas
     react_func = []
     react_vectorizable = []
     branchy = (Piecewise, Heaviside, Min, Max)

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sympy import Basic, Expr, Float, Idx, IndexedBase, symbols
+from sympy import Basic, Expr, Float, Idx, IndexedBase
 
 from ..io._logger import jaff_progress
 
@@ -330,7 +330,7 @@ def handle_dust_reduction(
     f_reduction = net.dust.f_reduction
     if u_reduction not in (None, "none"):
         grate -= (
-            symbols("Zd")
+            net.symbols.zd
             * net.radiation.c
             * group.sym
             * net.symbols.n_hnuc
@@ -340,7 +340,7 @@ def handle_dust_reduction(
         )
     if f_reduction not in (None, "none"):
         gflux -= (
-            symbols("Zd")
+            net.symbols.zd
             * net.radiation.c
             * rflux[group.index]
             * net.symbols.n_hnuc

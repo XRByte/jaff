@@ -31,11 +31,9 @@ from sympy import (
     Basic,
     Expr,
     Float,
-    Function,
     parse_expr,
     symbols,
 )
-from sympy.core.function import UndefinedFunction
 
 from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
 from ...errors import ParserError
@@ -646,7 +644,7 @@ class Network:
         elif rate in global_vars:
             rate_expr = symbols(rate)
         elif "photo" in rate.lower():
-            f: UndefinedFunction = Function("photorates")  # type: ignore
+            f = NetworkSymbols.photorates
             n_photo += 1
 
             match = re.match(r"(?i:photo)\((.*?)\)", rate)

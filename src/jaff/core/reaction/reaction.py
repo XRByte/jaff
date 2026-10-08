@@ -50,7 +50,6 @@ from astropy import units as u
 from sympy import (
     Basic,
     Expr,
-    Function,
     sympify,
 )
 
@@ -637,11 +636,10 @@ class Reaction:
 
         language = Language(lang)
 
-        if (
-            hasattr(self.rate, "func")
-            and isinstance(self.rate.func, type(Function("f")))
-            and self.rate.func.__name__ == "photorates"
-        ):
+        # Local import: a module-level one would cycle via jaff.core.network.
+        from ..network import NetworkSymbols
+
+        if getattr(self.rate, "func", None) == NetworkSymbols.photorates:
             # $IDX$ placeholder is replaced by the actual index at codegen time
             return (
                 f"photorates($IDX$, {', '.join(str(arg) for arg in self.rate.args[1:])})"

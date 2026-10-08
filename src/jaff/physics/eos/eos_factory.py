@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict
 
-from sympy import Float, Symbol, symbols
+from sympy import Float
 
 from ..constants import k_B
 from ..thermodynamics import InternalEnergy
@@ -25,7 +25,6 @@ class EosFactory:
         "fermi_degenerate": "fermi_degenerate",
         "relativistic_fermi_degenerate": "relativistic_fermi_degenerate",
     }
-    _tgas: Symbol = symbols("tgas")
 
     def __init__(self, net: Network, props: EosProps) -> None:
         """Bind the factory to a network and an EOS configuration.
@@ -73,7 +72,8 @@ class EosFactory:
             EOS wrapping the volumetric internal energy [erg cm⁻³].
         """
         ntot = self._net.symbols.ntot
-        e = ntot * k_B.cgs.value * self._tgas / (self.props.gamma - 1.0)  # type: ignore
+        tgas = self._net.symbols.tgas
+        e = ntot * k_B.cgs.value * tgas / (self.props.gamma - 1.0)  # type: ignore
 
         return InternalEnergy(e, self._net)
 
@@ -93,7 +93,7 @@ class EosFactory:
             e += (
                 self._net.symbols.ndens[sp.index]
                 * k_B.cgs.value
-                * self._tgas
+                * self._net.symbols.tgas
                 / (self.props.gamma_map.get(sp.name, self.props.default_gamma))  # type: ignore
             )
 
