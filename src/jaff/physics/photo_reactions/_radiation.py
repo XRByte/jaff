@@ -18,8 +18,11 @@ The photon number spectrum is assumed to follow a power law in photon energy::
     n(E) ∝ E^(α - 2)
 
 where ``α`` is the spectral index ``profile_idx`` (from
-``RadiationProps.profile_index``).  The energy-integrated version (energy
-density per unit energy interval) is therefore::
+``RadiationProps.profile_index``).  ``α`` may be a single global value or one
+value per band, in which case the spectrum is a piecewise power law (a
+histogram, intentionally discontinuous at band edges): each band ``i`` uses its
+own ``α_i`` and is normalised independently.  The energy-integrated version
+(energy density per unit energy interval) is therefore::
 
     u(E) = E * n(E) ∝ E^(α - 1)
 
@@ -96,6 +99,9 @@ class RadiationGroup:
     sym : sympy.Basic
         Symbolic radiation-density entry for this band (the ``self.den``
         matrix element ``den[index]`` supplied by :class:`Radiation`).
+    profile_idx : float
+        Spectral index *α* of this band's photon-number spectrum
+        ``n(E) ∝ E^(α-2)``.
 
     Attributes
     ----------
@@ -126,16 +132,33 @@ class RadiationGroup:
         - ``"delta_rad"`` : integrated ``dRad`` over the band -- the radiation
           energy added to the band per reaction event (erg).
 
-    eavg : float or None
+    profile_idx : float
+        Spectral index *α* of this band.
+    nph_profile : sympy.Expr
+        Photon-number spectral profile ``E^(profile_idx - 2)`` of this band.
+    energy_profile : sympy.Expr
+        Energy-density spectral profile ``E * nph_profile`` =
+        ``E^(profile_idx - 1)`` of this band.
+    photden : sympy.Expr or float
+        ``∫ nph_profile dE`` over the band, the normalisation for band
+        averages.
+    eavg : float
         Photon-number-weighted average energy of this band, in **erg** (the
         band-edge integral is in eV and converted via
         ``astropy.units``, ``u.eV.to(u.erg)``), so that dividing rate/ODE
-        terms by it stays CGS-consistent.  Computed in
-        :class:`Radiation.__init__` and shared across all reactions in the band.
+        terms by it stays CGS-consistent.  Computed on construction and
+        shared across all reactions in the band.
     """
 
+    E_sym: sp.Symbol = sp.Symbol("E")
+
     def __init__(
-        self, lower: float | int, upper: float | int | sp.Basic, index: int, sym: sp.Basic
+        self,
+        lower: float | int,
+        upper: float | int | sp.Basic,
+        index: int,
+        sym: sp.Basic,
+        profile_idx: float,
     ):
         """Initialise a single radiation band.
 
@@ -151,6 +174,9 @@ class RadiationGroup:
         sym : sympy.Basic
             Symbolic radiation-density entry for this band (the ``den[index]``
             matrix element supplied by :class:`Radiation`).
+        profile_idx : float
+            Spectral index *α* of this band's photon-number spectrum
+            ``n(E) ∝ E^(α-2)``.
         """
         self.index: int = index
         self.sym: sp.Basic = sym
@@ -168,10 +194,20 @@ class RadiationGroup:
             if all(isinstance(val, (int, float)) for val in [self.upper, self.lower])
             else None
         )
-        self.photden: float = 0.0
         self.props: dict[Reaction, RadiationGroupReactionProps] = {}
-        # Populated on the first call to set_reaction_rate_coefficient for this band.
-        self.eavg: float | None = None
+        self.profile_idx: float = profile_idx
+        self.nph_profile: sp.Expr = self.E_sym ** (self.profile_idx - 2)
+        self.energy_profile: sp.Expr = self.E_sym * self.nph_profile
+        # ∫ n(E) dE over the band — used as normalisation for averages.
+        self.photden = smart_integrate(
+            self.nph_profile, self.E_sym, (self.lower, self.upper)
+        )
+        # Compute the band-average photon energy once per band (shared
+        # across all reactions): <E>_i = ∫ E n(E) dE / ∫ n(E) dE
+        self.eavg: float = (
+            smart_integrate(self.energy_profile, self.E_sym, (self.lower, self.upper))
+            / self.photden
+        ) * u.eV.to(u.erg)
 
     def __repr__(self):
         """Return detailed string representation of this radiation group.
@@ -219,10 +255,6 @@ class Radiation:
     bands : list of (int, float, or sympy.Basic)
         Band-edge list from ``props.bands`` (``"inf"`` already replaced by
         ``sympy.oo`` by :class:`RadiationProps`).
-    profile_idx : int or float
-        Spectral index *α* (from ``props.profile_index``) for the assumed
-        photon-number spectrum ``n(E) ∝ E^(α-2)``.  Typical values: 1 (flat
-        energy spectrum), 0 (flat photon spectrum).
     mode : str
         ``"nph"`` -- field tracked as photon number density (cm⁻³) -- or
         ``"u"`` -- field tracked as energy density (erg cm⁻³).  Controls the
@@ -240,17 +272,21 @@ class Radiation:
         Symbolic radiation-density variable, shape ``(nbands,)``, named
         ``"radeden"`` in energy-density mode or ``"photden"`` otherwise.
     groups : list of RadiationGroup
-        One :class:`RadiationGroup` per band, in ascending energy order.
+        One :class:`RadiationGroup` per band, in ascending energy order.  Each
+        carries its own spectral index *α_i* (``grp.profile_idx``, from
+        ``props.profile_index``; a scalar applies to every band).  Typical
+        values: 1 (flat energy spectrum), 2 (flat photon spectrum).
     E_sym : sympy.Symbol
         The photon-energy symbol ``E`` (eV) used in the symbolic profiles.
-    ph_profile_sym : sympy.Expr
-        Photon-number spectral profile ``E^(profile_idx - 2)``.
-    energy_profile_sym : sympy.Expr
-        Energy-density spectral profile ``E * ph_profile_sym`` =
-        ``E^(profile_idx - 1)``.
-    photden_tot : sympy.Expr
-        Integral of ``ph_profile_sym`` over the full band range, used to
-        normalise the band-average cross sections and photon energies.
+    nph_profile : sympy.Piecewise
+        Piecewise photon-number spectral profile: ``E^(α_i - 2)`` in band *i*
+        (see :meth:`_piecewise_profile`).
+    energy_profile : sympy.Piecewise
+        Piecewise energy-density spectral profile: ``E^(α_i - 1)`` in band *i*.
+    photden_tot : sympy.Expr or float
+        Integral of ``nph_profile`` over the full band range (the sum of the
+        per-band ``grp.photden``), used to normalise the full-spectrum
+        cross section ``reaction.rad_xsecs``.
     """
 
     def __init__(
@@ -268,14 +304,14 @@ class Radiation:
         props : RadiationProps
             Radiation configuration supplying ``bands`` (photon-energy band
             edges in eV, ``"inf"`` already replaced by ``sympy.oo``),
-            ``profile_index`` (spectral index *α* for ``n(E) ∝ E^(α-2)``),
+            ``profile_index`` (spectral index *α* for ``n(E) ∝ E^(α-2)``; a
+            scalar or one value per band),
             ``mode`` (``"nph"`` photon number density or ``"u"`` energy
             density), ``c`` (speed of light in cm/s, or a string converted to a
             symbol), and ``background_field``.
         """
         self.network: Network = network
         self.bands: list[int | float | sp.Basic] = props.bands
-        self.profile_idx: int | float = props.profile_index
         self.mode: str = props.mode
         # Speed of light (cm/s) for k = c * σ * n(E) expressions
         self.c: float | sp.Symbol = (
@@ -290,30 +326,45 @@ class Radiation:
             "radeden" if self.mode == "u" else "photden", shape=(self.nbands,)
         )
         self.groups: list[RadiationGroup] = [
-            RadiationGroup(lower, self.bands[i + 1], i, self.den[i])
+            RadiationGroup(
+                lower=lower,  # type: ignore
+                upper=self.bands[i + 1],
+                index=i,
+                sym=self.den[i],
+                profile_idx=props.profile_index
+                if not isinstance(props.profile_index, list)
+                else props.profile_index[i],
+            )
             for i, lower in enumerate(self.bands[:-1])
         ]
         self.E_sym: sp.Symbol = sp.Symbol("E")
-        self.ph_profile_sym: sp.Expr = self.E_sym ** (self.profile_idx - 2)
-        self.energy_profile_sym: sp.Expr = self.E_sym * self.ph_profile_sym
+        self.nph_profile: sp.Expr = self._piecewise_profile("nph_profile")
+        self.energy_profile: sp.Expr = self._piecewise_profile("energy_profile")
 
-        self.photden_tot = smart_integrate(
-            self.ph_profile_sym, self.E_sym, (self.bands[0], self.bands[-1])
-        )
+        # ∫ n(E) dE over the full range = sum of the per-band integrals.
+        self.photden_tot = sum(grp.photden for grp in self.groups)
 
-        for grp in self.groups:
-            # ∫ n(E) dE over the band — used as normalisation for averages.
-            grp.photden = smart_integrate(
-                self.ph_profile_sym, self.E_sym, (grp.lower, grp.upper)
-            )
-            # Compute the band-average photon energy once per band (shared
-            # across all reactions): <E>_i = ∫ E n(E) dE / ∫ n(E) dE
-            grp.eavg = (
-                smart_integrate(
-                    self.energy_profile_sym, self.E_sym, (grp.lower, grp.upper)
-                )
-                / grp.photden
-            ) * u.eV.to(u.erg)
+    def _piecewise_profile(self, attr: str) -> sp.Expr:
+        """Join the per-band profiles ``grp.<attr>`` into one ``sympy.Piecewise``.
+
+        Parameters
+        ----------
+        attr : str
+            Name of the :class:`RadiationGroup` profile attribute
+            (``"nph_profile"`` or ``"energy_profile"``).
+
+        Returns
+        -------
+        sympy.Expr
+            Piecewise expression in ``E`` selecting the band containing ``E``
+            (``lower <= E < upper``); the last band is the catch-all.
+        """
+        pieces = [
+            (getattr(grp, attr), self.E_sym < grp.upper) for grp in self.groups[:-1]
+        ]
+        pieces.append((getattr(self.groups[-1], attr), True))
+
+        return sp.Piecewise(*pieces)
 
     def set_reaction_rate_coefficient(self, reaction: Reaction) -> None:
         """
@@ -359,10 +410,10 @@ class Radiation:
 
         Notes
         -----
-        The photon-number spectrum used for averaging is
-        ``n(E) ∝ E^(profile_idx - 2)``.  For ``profile_idx = 1`` this
-        gives a flat energy spectrum; for ``profile_idx = 0`` a flat photon
-        spectrum.
+        The photon-number spectrum used for averaging is the piecewise power
+        law ``n(E) ∝ E^(α_i - 2)`` in band *i* (``α_i = grp.profile_idx``).
+        For ``α = 1`` this gives a flat energy spectrum; for ``α = 2`` a flat
+        photon spectrum.
 
         Cross-section integrals (``∫ σ n dE``) are evaluated numerically by
         :func:`~jaff.common._integrators.arr_integrate` over the tabulated
@@ -382,8 +433,8 @@ class Radiation:
 
         assert isinstance(xsec["photon_energy"], np.ndarray)
 
-        # Photon-number spectrum: n(E) ∝ E^(α-2) used for weighing the cross-section
-        # where α = profile_idx.  The factor E^(α-2) arises from
+        # Photon-number spectrum: n(E) ∝ E^(α_i-2) used for weighing the cross-section
+        # where α_i = profile_idx of the band containing E.  The factor E^(α-2) arises from
         # n(E) = u(E)/E and u(E) ∝ E^(α-1).
         E = xsec["photon_energy"]  # photon energy array in eV
         ph_profile = self.get_photden_profile(E)
@@ -581,7 +632,14 @@ class Radiation:
         return ei, fi
 
     def get_photden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
-        """Evaluate the photon-number spectral profile on an energy grid.
+        """Evaluate the piecewise photon-number spectral profile on an energy grid.
+
+        Each energy is assigned to the band containing it (``lower <= E < upper``)
+        and evaluated with that band's spectral index.  Energies below
+        ``bands[0]`` use the first band's index and energies above
+        ``bands[-1]`` use the last band's, so endpoint interpolation in
+        :func:`~jaff.common._integrators.arr_integrate` is not biased by zeros
+        outside the band range.
 
         Parameters
         ----------
@@ -591,10 +649,16 @@ class Radiation:
         Returns
         -------
         numpy.ndarray
-            The photon-number profile ``E^(profile_idx - 2)`` evaluated at
-            each energy.
+            The photon-number profile ``E^(profile_idx_i - 2)`` evaluated at
+            each energy, same shape as ``ph_energy``.
         """
-        return ph_energy ** (self.profile_idx - 2)
+        lowers = np.array([float(grp.lower) for grp in self.groups])
+        alphas = np.array([float(grp.profile_idx) for grp in self.groups])
+        band_idx = np.clip(
+            np.searchsorted(lowers, ph_energy, side="right") - 1, 0, self.nbands - 1
+        )
+
+        return ph_energy ** (alphas[band_idx] - 2)
 
     def get_eden_profile(self, ph_energy: np.ndarray) -> np.ndarray:
         """Evaluate the energy-density spectral profile on an energy grid.
@@ -607,7 +671,8 @@ class Radiation:
         Returns
         -------
         numpy.ndarray
-            The energy-density profile ``E^(profile_idx - 1)`` evaluated at
-            each energy.
+            The piecewise energy-density profile ``E^(profile_idx_i - 1)``
+            evaluated at each energy, using each band's own spectral index
+            (see :meth:`get_photden_profile`).
         """
-        return ph_energy ** (self.profile_idx - 1)
+        return ph_energy * self.get_photden_profile(ph_energy)

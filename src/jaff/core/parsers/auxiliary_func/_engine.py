@@ -8,7 +8,7 @@ that augment a reaction network.  The format uses two directives:
 
 ``@function name(arg1, arg2, ...)``
     Begin a function block.  Lines inside the block are local variable
-    assignments; the block ends with a ``return <expression>`` statement.
+    assignments; the block ends with a ``@return <expression>`` statement.
     Comments (``# arg doc``) inside a block attach documentation to the
     named argument.
 
@@ -174,12 +174,12 @@ class AuxiliaryFunctionParser:
                 self.file,
             )
 
-        # A function block that never saw a ``return`` leaves the scope open;
+        # A function block that never saw a ``@return`` leaves the scope open;
         # its ``def`` would stay 0.0 with unresolved locals.
         if self.scope == "function":
             raise ParserError(
                 f"Unterminated function block '{self.current_func}': "
-                f"missing return statement",
+                f"missing @return statement",
                 self.og_line,
                 self.nline,
                 self.file,
@@ -194,6 +194,7 @@ class AuxiliaryFunctionParser:
         """
         if self.scope == "function":
             self.__parse_function()
+            return
 
         if self.line.startswith("@"):
             self.parse = True
@@ -319,7 +320,7 @@ class AuxiliaryFunctionParser:
         """Dispatch a line inside a function body to the correct sub-handler.
 
         Handles three line types:
-        - ``return <expr>``  — delegates to :meth:`__handle_function_return`.
+        - ``@return <expr>`` — delegates to :meth:`__handle_function_return`.
         - ``# arg doc``      — delegates to :meth:`__handle_function_comment`.
         - ``var = expr``     — stores a local variable assignment.
 
@@ -329,7 +330,7 @@ class AuxiliaryFunctionParser:
             If the line is neither a comment, a return, nor a valid assignment.
         """
         line = self.line
-        if line.startswith("return"):
+        if line.startswith("@return"):
             self.__handle_function_return()
             return
 
@@ -374,7 +375,7 @@ class AuxiliaryFunctionParser:
             self.func_dict[self.current_func]["argcomments"][arg] = comment.strip()
 
     def __handle_function_return(self) -> None:
-        """Parse the ``return`` statement, resolve locals, and close the function scope.
+        """Parse the ``@return`` statement, resolve locals, and close the function scope.
 
         Resolves local variable dependencies, substitutes them into the return
         expression, and stores the fully-expanded SymPy expression in
@@ -396,7 +397,7 @@ class AuxiliaryFunctionParser:
 
         try:
             funcdef = sp.parse_expr(
-                line.lstrip("return").strip(),
+                line.removeprefix("@return").strip(),
                 local_dict={
                     **self.globals,
                     **self.func_dict[self.current_func]["locals"],

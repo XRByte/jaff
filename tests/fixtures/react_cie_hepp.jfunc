@@ -6,4 +6,4 @@
 # convention it decodes to nden[<He++ index>, 0].  The tgas argument is unused;
 # it only keeps the declaration a well-formed function.
 @function chemRate2(tgas)
-    return n_Hejj
+    @return n_Hejj

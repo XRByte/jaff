@@ -254,6 +254,7 @@ nav = [
     { "Physics" = [
       "api/physics/index.md",
       { "physics.Constants" = ["api/physics/constants/index.md"] },
+      { "physics.Radiation" = ["api/physics/radiation/index.md"] },
     ] },
     { "Plotting" = [
       "api/plotting/index.md",

@@ -658,12 +658,13 @@ class TemplateParser:
         This method handles REDUCE commands that aggregate property values across
         network components. It expands reduction expressions from the template syntax
         ``$(...$var$...)$`` into explicit sum expressions by iterating over property
-        values.
+        values. Each summand and the whole sum are parenthesised so the
+        expansion acts as a single operand; an empty reduction expands to ``0``.
 
         Example transformation::
 
             Template: const double TOTAL_CHARGE = $($specie_charge$)$;
-            Output:   const double TOTAL_CHARGE = -1.0 + 1.0 + 0.0;
+            Output:   const double TOTAL_CHARGE = ((-1.0) + (1.0) + (0.0));
 
         Parameters
         ----------
@@ -726,8 +727,11 @@ class TemplateParser:
 
             expressions[i] = token
 
-        # Join all expressions with " + " to create the final sum
-        expression = " + ".join(expressions)
+        # Parenthesise each summand and the whole sum so the expansion acts as a
+        # single operand wherever the $()$ sits (e.g. ``2 * $()$``, ``1 / $()$``).
+        expression = (
+            f"({' + '.join(f'({expr})' for expr in expressions)})" if expressions else "0"
+        )
 
         # Replace the reduction pattern $()$ with the expanded expression
         line = line.replace(match.group(1), expression)

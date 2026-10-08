@@ -25,9 +25,9 @@ def test_swapped_arguments(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "@function subtract(x,y)\n"
-        "return x-y\n"
+        "@return x-y\n"
         "@function swapped(x,y)\n"
-        "return subtract(y,x)\n",
+        "@return subtract(y,x)\n",
     )
     funcs = AuxiliaryFunctionParser(path).get_dict()
     x, y = sp.symbols("x y")
@@ -39,9 +39,9 @@ def test_actual_arg_contains_other_formal(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "@function subtract(x,y)\n"
-        "return x-y\n"
+        "@return x-y\n"
         "@function combine(a,b)\n"
-        "return subtract(a+b, b)\n",
+        "@return subtract(a+b, b)\n",
     )
     funcs = AuxiliaryFunctionParser(path).get_dict()
     a, b = sp.symbols("a b")
@@ -54,9 +54,9 @@ def test_too_few_arguments(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "@function subtract(x,y)\n"
-        "return x-y\n"
+        "@return x-y\n"
         "@function bad(t)\n"
-        "return subtract(t)\n",
+        "@return subtract(t)\n",
     )
     with pytest.raises(ParserError, match="subtract"):
         AuxiliaryFunctionParser(path)
@@ -67,9 +67,9 @@ def test_too_many_arguments(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "@function subtract(x,y)\n"
-        "return x-y\n"
+        "@return x-y\n"
         "@function bad(t)\n"
-        "return subtract(t,1,99)\n",
+        "@return subtract(t,1,99)\n",
     )
     with pytest.raises(ParserError, match="subtract"):
         AuxiliaryFunctionParser(path)
@@ -80,9 +80,9 @@ def test_zero_arg_func_called_with_arg(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "@function nullary()\n"
-        "return 42\n"
+        "@return 42\n"
         "@function bad(t)\n"
-        "return nullary(t)\n",
+        "@return nullary(t)\n",
     )
     with pytest.raises(ParserError, match="nullary"):
         AuxiliaryFunctionParser(path)

@@ -18,15 +18,16 @@ class RadiationProps:
     density (cm⁻³) or ``"u"`` for energy density (erg cm⁻³).  ``bands`` is the
     ordered list of photon-energy band edges (eV) defining the frequency bands.
     ``profile_index`` is the spectral index *α* of the assumed photon-number
-    spectrum ``n(E) ∝ E^(α-2)``.  ``c`` is the speed of light (a float in cm/s,
-    or a string such as ``"c_hat"`` for a reduced speed of light that becomes a
-    symbol downstream).  ``background_field`` names the background radiation
+    spectrum ``n(E) ∝ E^(α-2)``: a scalar applied to every band, or a list with
+    one *α_i* per band (a piecewise power law).  ``c`` is the speed of light
+    (a float in cm/s, or a string such as ``"c_hat"`` for a reduced speed of
+    light that becomes a symbol downstream).  ``background_field`` names the background radiation
     field.
 
     Attributes
     ----------
-    profile_index : float
-        Validated spectral index *α*.
+    profile_index : float or list of float
+        Validated spectral index *α*, or one index per band.
     mode : str
         Validated mode, ``"nph"`` or ``"u"`` (lower-cased).
     bands : list of (float or sympy.Basic)
@@ -56,7 +57,7 @@ class RadiationProps:
     def __init__(
         self,
         bands: list[str | float | Basic] = [],
-        profile_index: float = 0.0,
+        profile_index: float | list[float] = 0.0,
         mode: str = "nph",  # nph or u,
         c: float | str = constants.c.cgs.value,
         background_field: str = "draine",
@@ -69,9 +70,10 @@ class RadiationProps:
             Ordered photon-energy band edges in eV (default ``[]``).  The
             string ``"inf"`` is accepted in the last slot and replaced with
             ``sympy.oo``.
-        profile_index : float, optional
+        profile_index : float or list of float, optional
             Spectral index *α* of the photon-number spectrum
-            ``n(E) ∝ E^(α-2)`` (default ``0.0``).  Must be an int or float.
+            ``n(E) ∝ E^(α-2)`` (default ``0.0``).  Must be an int or float,
+            or a list of ``len(bands) - 1`` ints/floats (one per band).
         mode : str, optional
             Radiation-tracking mode (default ``"nph"``); one of
             ``("nph", "u")`` -- photon number density or energy density.
@@ -89,7 +91,9 @@ class RadiationProps:
             If any argument fails validation (invalid type, mode, or field).
         """
         self.logger: logging.Logger = JaffLogger().get_logger()
-        self.profile_index: float = self._validate_profile_index(profile_index)
+        self.profile_index: float | list[float] = self._validate_profile_index(
+            profile_index
+        )
         self.mode: str = self._validate_mode(mode)
         self.bands: list[float | Basic] = self._validate_bands(bands)
         self.c: float | str = self._validate_c(c)
@@ -129,14 +133,52 @@ class RadiationProps:
 
         return mode.lower()
 
-    def _validate_profile_index(self, index: float) -> float:
-        if isinstance(index, (float, int)):
+    @staticmethod
+    def _is_number(value: object) -> bool:
+        # bool is a subclass of int but is never a meaningful spectral index.
+        return isinstance(value, (float, int)) and not isinstance(value, bool)
+
+    def _validate_profile_index(self, index: float | list[float]) -> float | list[float]:
+        if self._is_number(index):
             return index
 
+        if isinstance(index, list) and index and all(self._is_number(i) for i in index):
+            return list(index)
+
         raise ParserError(
-            f"Invalid type for radiation profile index: {type(index)}\n"
-            "Radiation profile index must be an integer or a float"
+            f"Invalid radiation profile index: {index!r} ({type(index)})\n"
+            "Radiation profile index must be an integer, float or a non-empty list "
+            "of int/float (one per band)"
         )
+
+    def _band_profile_indices(self, nbands: int) -> list[float]:
+        """Return one spectral index per band, validating a list's length.
+
+        Parameters
+        ----------
+        nbands : int
+            Number of bands (``len(bands) - 1``).
+
+        Returns
+        -------
+        list of float
+            The per-band spectral indices.
+
+        Raises
+        ------
+        ParserError
+            If ``profile_index`` is a list whose length is not ``nbands``.
+        """
+        if not isinstance(self.profile_index, list):
+            return [float(self.profile_index)] * nbands
+
+        if len(self.profile_index) != nbands:
+            raise ParserError(
+                f"profile_index has {len(self.profile_index)} entries but there are "
+                f"{nbands} radiation bands; supply one index per band or a scalar"
+            )
+
+        return [float(i) for i in self.profile_index]
 
     def _validate_bands(self, bands: list[float | str | Basic]) -> list[float | Basic]:
         """
@@ -147,10 +189,12 @@ class RadiationProps:
         The average energy ``<E>_i = ∫ E·n(E) dE / ∫ n(E) dE`` must
         converge; this requires:
 
-        - The lower edge to be non-zero when the spectral index is steep
-          enough to cause a divergence at ``E → 0``.
-        - The upper edge to be finite when the spectral index is shallow
-          enough to cause a divergence at ``E → ∞``.
+        - The lower edge to be non-zero when the first band's spectral index
+          is steep enough to cause a divergence at ``E → 0``.
+        - The upper edge to be finite when the last band's spectral index is
+          shallow enough to cause a divergence at ``E → ∞``.
+
+        Interior bands have finite, non-zero edges and always converge.
 
         Parameters
         ----------
@@ -162,7 +206,8 @@ class RadiationProps:
         ------
         ParserError
             If ``bands`` contains a string entry other than ``"inf"`` in the
-            last slot.
+            last slot, has fewer than two edges, or a list ``profile_index``
+            does not have one entry per band.
         RuntimeError
             If the average-energy integral would diverge given the supplied
             band edges and power-law index.
@@ -179,48 +224,44 @@ class RadiationProps:
 
         # self.bands = cast(list[int | float | Basic], bands)
 
+        if len(bands) < 2:
+            raise ParserError(
+                f"Radiation bands need at least two edges (one band). Found: {bands}"
+            )
+
+        alphas = self._band_profile_indices(len(bands) - 1)
+        # Only the first band reaches E -> 0 and only the last reaches E -> inf,
+        # so each edge is checked against its own band's index.
+        alpha_lo, alpha_hi = alphas[0], alphas[-1]
+        starts_at_zero = isinstance(bands[0], (float, int)) and float(bands[0]) == 0.0
+        ends_at_inf = bands[-1] == oo
+
         if self.mode == "u":
             # The average-energy integral uses the *energy-density* spectrum
             # u(E) ∝ E^(α-1), so the integral ∫ E · u(E) dE ∝ ∫ E^α dE.
             # The effective power-law index for the ∫ E·n(E) dE integral is
             # pl_index = (α-2) + 1 = α - 1.
-            pl_index: float = float(self.profile_index) - 1.0
-
-            if pl_index == -1.0:
-                # Integrand ~ E^(-1): log-divergence at both E=0 and E=∞.
-                if isinstance(bands[0], (float, int)) and float(bands[0]) == 0.0:
-                    raise RuntimeError(
-                        f"The integral for average energy will diverge since the radiation band starts from bands[0]: {bands[0]}\n"
-                        "Please try a non-zero value"
-                    )
-                if bands[-1] == oo:
-                    raise RuntimeError(
-                        f'The integral for average energy will diverge since the radiation band ends at bands[{len(bands) - 1}]: "inf"\n'
-                        "Please try a non-infinite value or change the profile_index"
-                    )
-            elif pl_index + 1.0 > 0.0:
-                # Integrand ~ E^p with p > -1: diverges at E → ∞.
-                if bands[-1] == oo:
-                    raise RuntimeError(
-                        f'The integral for average energy will diverge since the radiation band ends at bands[{len(bands) - 1}]: "inf"\n'
-                        "Please try a non-infinite value or change the profile_index"
-                    )
-            elif pl_index + 1.0 < 0.0:
-                # Integrand ~ E^p with p < -1: diverges at E → 0.
-                if isinstance(bands[0], (float, int)) and float(bands[0]) == 0.0:
-                    raise RuntimeError(
-                        f"The integral for average energy will diverge since the radiation band starts from bands[0]: {bands[0]}\n"
-                        "Please try a non-zero value"
-                    )
+            # pl_index + 1 = α: α < 0 diverges at E → 0, α > 0 diverges at
+            # E → ∞, and α == 0 (pl_index == -1) log-diverges at both ends.
+            if starts_at_zero and alpha_lo <= 0.0:
+                raise RuntimeError(
+                    f"The integral for average energy will diverge since the radiation band starts from bands[0]: {bands[0]}\n"
+                    "Please try a non-zero value"
+                )
+            if ends_at_inf and alpha_hi >= 0.0:
+                raise RuntimeError(
+                    f'The integral for average energy will diverge since the radiation band ends at bands[{len(bands) - 1}]: "inf"\n'
+                    "Please try a non-infinite value or change the profile_index"
+                )
 
         if (
-            float(self.profile_index) <= 1.0
+            alpha_lo <= 1.0
             and isinstance(bands[0], (float, int))
             and float(bands[0]) < 1.0
         ):
             self.logger.warning(
                 f"Radiation band starts at bands[0]={bands[0]} eV with "
-                f"profile_index={self.profile_index}: the photon-number "
+                f"profile_index={alpha_lo} (first band): the photon-number "
                 "normalisation integral ∫E^(α-2)dE is lower-edge divergent "
                 "(exponent ≤ -1) and near E→0 becomes ill-conditioned, which "
                 "can yield a negative/garbage photon density. Use a non-zero "

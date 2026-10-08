@@ -28,5 +28,4 @@ fdust = exp(-4.18 * av)
 # Final dissociation rate including shielding
 rate = Rfree * chi * fdust * fself
 
-# Return
-return rate
+@return  rate

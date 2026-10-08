@@ -5,8 +5,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import sympy as sp
 
 from jaff.cli import JaffGen
+from jaff.errors import ParserError
 from jaff.physics import Dust, Radiation
 
 REPO = Path(__file__).resolve().parent.parent
@@ -72,3 +74,34 @@ def test_dust_enabled(gen):
 def test_dust_has_photoelectric_emission(gen):
     """The enabled dust model carries its photoelectric-emission sub-model."""
     assert gen.net.dust.pe is not None
+
+
+def test_photoelectric_chi_weights_bands_by_eavg(gen):
+    """Bands fully inside the PE window: each band's chi weight is its eavg (nph)."""
+    rad = gen.net.radiation
+    chi = sp.expand(gen.net.dust.pe.chi)
+    # Coefficients carry the c_hat symbol; it cancels in the ratio.
+    coeffs = [chi.coeff(grp.sym) for grp in rad.groups]
+    eavgs = [float(grp.eavg) for grp in rad.groups]
+    assert float(coeffs[0] / coeffs[1]) == pytest.approx(eavgs[0] / eavgs[1])
+
+
+def _gen_with_profile_index(tmp_path, profile_index):
+    """Run jaffgen with CONFIG_TOML's profile_index replaced."""
+    config = tmp_path / "jaffgen.toml"
+    config.write_text(
+        CONFIG_TOML.replace("profile_index = 0", f"profile_index = {profile_index}")
+    )
+    return JaffGen(_args(config, tmp_path / "out"))
+
+
+def test_list_profile_index_sets_per_band_index(tmp_path):
+    """A TOML list profile_index gives each radiation band its own index."""
+    gen = _gen_with_profile_index(tmp_path, "[0, 1]")
+    assert [grp.profile_idx for grp in gen.net.radiation.groups] == [0, 1]
+
+
+def test_list_profile_index_length_mismatch_raises(tmp_path):
+    """profile_index list must have one entry per band (2 bands here)."""
+    with pytest.raises(ParserError, match="profile_index"):
+        _gen_with_profile_index(tmp_path, "[0, 1, 2]")

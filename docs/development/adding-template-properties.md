@@ -152,7 +152,7 @@ The handler can be any callable returning a list-like object — an existing net
 # // $JAFF REDUCE my_var IN my_property
 # double total = $($my_var$)$;
 # // $JAFF END
-# →  double total = 1.0 + 2.0 + 3.0;
+# →  double total = ((1.0) + (2.0) + (3.0));
 ```
 
 Add to the `REDUCE` props dict:

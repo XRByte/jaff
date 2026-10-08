@@ -245,17 +245,22 @@ class JaffGen:
         sn.label = np.get("label") or sn.label
         if (v := np.get("errors")) is not None:
             sn.errors = v
-        sn.config = np.get("config") or sn.config
+        # Path-valued [network] options are config-relative, like [jaffgen] paths.
+        if v := np.get("config"):
+            sn.config = self.resolve_path(v, cdir).abspath
         if (v := np.get("expand_nuclei")) is not None:
             sn.expand_nuclei = v
         if (v := np.get("funcfile")) is not None:
-            sn.funcfile = v
+            # Booleans toggle the sibling-file scan; anything else is a path.
+            sn.funcfile = v if isinstance(v, bool) else self.resolve_path(v, cdir).abspath
         if (v := np.get("duplicate_policy")) is not None:
             sn.duplicate_policy = v
 
         nr = np.get("radiation") or {}
         if nr:
             sn.rad_bands = nr.get("bands") or sn.rad_bands
+            # Scalar (all bands) or a list with one index per band; the
+            # type and list length are validated by RadiationProps.
             if (v := nr.get("profile_index")) is not None:
                 sn.rad_profile_index = v
             if (v := nr.get("mode")) is not None:
@@ -496,9 +501,10 @@ class JaffGen:
         sn = self.state.network_args
 
         sn.label = a.label or sn.label
-        sn.funcfile = a.funcfile or sn.funcfile
         self.state.lang = a.lang or self.state.lang
 
+        if a.funcfile is not None:
+            sn.funcfile = a.funcfile
         if a.expand_nuclei is not None:
             sn.expand_nuclei = a.expand_nuclei
         if a.errors is not None:
