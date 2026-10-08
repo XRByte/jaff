@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, ClassVar
 
-from sympy import Expr, Integer
+from sympy import Expr
 
 from ..constants import N_A
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ...core import Network
 
 
-class Eos:
+class InternalEnergy:
     """Symbolic internal energy of a network in several normalisations.
 
     Wraps a volumetric internal energy ``E`` [erg cm⁻³] and derives the
@@ -22,6 +22,14 @@ class Eos:
     :attr:`~jaff.core.network.Network.rho` and
     :attr:`~jaff.core.network.Network.ntot`.
     """
+
+    #: Form name -> accessor of the matching normalised property.
+    _NORMALISED: ClassVar[dict[str, Callable[[InternalEnergy], Expr]]] = {
+        "volumetric": lambda e: e.volumetric,
+        "specific": lambda e: e.specific,
+        "per_particle": lambda e: e.per_particle,
+        "molar": lambda e: e.molar,
+    }
 
     def __init__(self, expr: Expr, net: Network) -> None:
         """Wrap a volumetric internal energy.
@@ -37,37 +45,31 @@ class Eos:
         self._vol_expr: Expr = expr
 
     def normaliser(self, form: str) -> Expr:
-        """Density dividing the volumetric energy to give *form*.
+        """Internal energy in the requested normalisation.
 
         Parameters
         ----------
         form : str
-            ``"volumetric"`` (``1``), ``"specific"`` (``ρ``),
-            ``"per_particle"`` (``n_tot``) or ``"molar"`` (``n_tot / N_A``).
+            ``"volumetric"``, ``"specific"``, ``"per_particle"`` or ``"molar"``.
 
         Returns
         -------
         sympy.Expr
-            Symbolic normaliser.
+            The internal energy normalised to *form* (see the property of the
+            same name).
 
         Raises
         ------
         ValueError
             If *form* is not one of the forms above.
         """
-        if form == "volumetric":
-            return Integer(1)
-        if form == "specific":
-            return self._net.rho
-        if form == "per_particle":
-            return self._net.ntot
-        if form == "molar":
-            return self._net.ntot / N_A.cgs.value
+        if form not in self._NORMALISED:
+            raise ValueError(
+                f"Invalid eos form: '{form}'. "
+                f"Valid forms are: {', '.join(self._NORMALISED)}"
+            )
 
-        raise ValueError(
-            f"Invalid eos form: '{form}'. "
-            "Valid forms are: volumetric, specific, per_particle, molar"
-        )
+        return self._NORMALISED[form](self)
 
     @cached_property
     def volumetric(self) -> Expr:
@@ -77,14 +79,18 @@ class Eos:
     @cached_property
     def specific(self) -> Expr:
         """Internal energy per unit mass, ``E / ρ`` [erg g⁻¹]."""
-        return self._vol_expr / self.normaliser("specific")
+        return self._vol_expr / self._net.rho
 
     @cached_property
     def per_particle(self) -> Expr:
         """Internal energy per particle, ``E / n_tot`` [erg]."""
-        return self._vol_expr / self.normaliser("per_particle")
+        return self._vol_expr / self._net.ntot
 
     @cached_property
     def molar(self) -> Expr:
         """Internal energy per mole, ``N_A · E / n_tot`` [erg mol⁻¹]."""
-        return self._vol_expr / self.normaliser("molar")
+        return self._vol_expr * N_A.cgs.value / self._net.ntot
+
+
+class DEDt(InternalEnergy):
+    pass

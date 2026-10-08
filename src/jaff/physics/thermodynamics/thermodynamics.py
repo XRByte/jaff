@@ -4,17 +4,23 @@ from typing import TYPE_CHECKING
 
 from sympy import Expr, Float
 
+from .internal_energy import DEDt
+
 if TYPE_CHECKING:
     from ...core import Network
 
 
 class Thermodynamics:
-    def __init__(self, net: Network):
+    def __init__(self, net: Network, dEdt_extra: Expr | None = None):
         self.net: Network = net
-        self.dEdt_chemical: Expr = self._get_dEdt_chemical()
-        self.dEdt_extra: Expr
+        self.dEdt_chemical: DEDt = self._get_dEdt_chemical()
+        self.dEdt_extra: DEDt = (
+            DEDt(dEdt_extra, self.net)
+            if dEdt_extra is not None
+            else self._get_dEdt_extra()
+        )
 
-    def _get_dEdt_chemical(self) -> Expr:
+    def _get_dEdt_chemical(self) -> DEDt:
         dEdt = Float(0.0)
         for r in self.net.reactions:
             _dEdt = r.dE * r.rate
@@ -23,9 +29,11 @@ class Thermodynamics:
 
             dEdt += _dEdt
 
-        return self.net._standardize_symbols(dEdt, self.net.spec.expand_nuclei)
+        return DEDt(
+            self.net._standardize_symbols(dEdt, self.net.spec.expand_nuclei), self.net
+        )
 
-    def _get_dEdt_extra(self) -> Expr:
+    def _get_dEdt_extra(self) -> DEDt:
         dEdt = Float(0.0)
         if "heatingcoolingrate" in self.net.spec.aux_funcs:
             dEdt = self.net._standardize_symbols(
@@ -33,4 +41,4 @@ class Thermodynamics:
                 self.net.spec.expand_nuclei,
             )
 
-        return dEdt
+        return DEDt(dEdt, self.net)

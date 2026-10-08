@@ -163,12 +163,17 @@ class Network:
         reactant in reaction *i*.
     product_matrix : np.ndarray
         Integer stoichiometry matrix for products, same shape.
-    dEdt_chem : Basic
-        SymPy expression for the total chemical heating/cooling rate
-        (erg cm⁻³ s⁻¹), accumulated over all reactions.
-    dEdt_other : Basic
-        Additional heating/cooling rate from the ``heatingcoolingrate``
-        auxiliary function, if present.
+    thermodynamics : Thermodynamics
+        Heating/cooling terms: ``dEdt_chemical`` (accumulated over all
+        reactions) and ``dEdt_extra`` (from the ``heatingcoolingrate``
+        auxiliary function, if present), both in erg cm⁻³ s⁻¹.
+    variables : frozenset[Basic]
+        Free symbols (excluding ``nden`` entries) across all rates, energy
+        terms, and ``dEdt_extra``.
+    interp_functions : frozenset[str]
+        Names of interpolation functions referenced by the network.
+    undefined_functions : frozenset[str]
+        Names of other undefined functions referenced by the network.
     dRad_dt_extra : Basic
         Extra radiation moment source terms from ``@function`` definitions.
     radiation : Radiation | None
@@ -323,7 +328,10 @@ class Network:
             self.__load_network_from_jaff_file(jaff_props)
 
         self.__normalize_network_extras(expand_nuclei, loaded_from_jaff_file)
-        self.thermodynamics: Thermodynamics = Thermodynamics(self)
+        self.thermodynamics: Thermodynamics = Thermodynamics(
+            self, jaff_props.get("dEdt_other")
+        )
+        self.__log_symbol_summary()
 
         self.check_sink_sources(errors)
         self.check_recombinations(errors)
@@ -347,13 +355,75 @@ class Network:
         assert self.spec.label is not None
         return self.spec.label
 
+    def __symbolic_expressions(self) -> list[Expr]:
+        """Standardized network expressions: rates and energy/radiation sources.
+
+        The aggregated ``dEdt_chemical`` and ``dRad_dt_extra`` are used instead
+        of each reaction's raw ``dE``/``dRad`` because only the aggregates have
+        their convenience symbols (``n_X``, ...) resolved to ``nden`` entries.
+        """
+        return [
+            *(r.rate for r in self.reactions),
+            self.thermodynamics.dEdt_chemical.volumetric,
+            self.thermodynamics.dEdt_extra.volumetric,
+            self.dRad_dt_extra,
+        ]
+
+    # The symbol caches below are filled on first access (in __init__, after the
+    # network is fully loaded).  Mutating rates or thermodynamics afterwards
+    # leaves them stale.
+
+    @cached_property
+    def variables(self) -> frozenset[Basic]:
+        """Free symbols across all network expressions, excluding ``nden`` entries."""
+        return frozenset().union(
+            *(self.free_symbols(e) for e in self.__symbolic_expressions())
+        )
+
+    @cached_property
+    def _applied_functions(self) -> frozenset[str]:
+        """Names of all undefined (applied) functions across network expressions."""
+        return frozenset(
+            f.func.__name__
+            for e in self.__symbolic_expressions()
+            for f in e.atoms(AppliedUndef)
+        )
+
+    @cached_property
+    def interp_functions(self) -> frozenset[str]:
+        """Names of interpolation functions (containing ``"interp"``) in the network."""
+        return frozenset(f for f in self._applied_functions if "interp" in f)
+
+    @cached_property
+    def undefined_functions(self) -> frozenset[str]:
+        """Names of undefined, non-interpolation functions in the network."""
+        return frozenset(f for f in self._applied_functions if "interp" not in f)
+
+    def __log_symbol_summary(self) -> None:
+        """Log the network's free variables, interpolation and undefined functions."""
+        self.logger.info(
+            "Variables found: "
+            f"{', '.join(sorted(f'[cyan]{s}[/]' for s in self.variables))}"
+        )
+
+        interp_funcs = self.interp_functions
+        if interp_funcs:
+            self.logger.info(
+                "Found the following interpolation functions: "
+                f"{', '.join(f'[cyan]{func}[/]' for func in sorted(interp_funcs))}"
+            )
+
+        undef_funcs = self.undefined_functions
+        if undef_funcs:
+            self.logger.warning(
+                "Found undefined functions "
+                f"{', '.join(f'[red]{func}[/]' for func in sorted(undef_funcs))}"
+            )
+
     def __load_network(self):
         """Parse the network file and build species, reactions, and auxiliary quantities."""
         specie_names = set()
         special_species: dict[str, Specie] = {}
-        free_symbols = set()
-        undef_funcs = set()
-        interp_funcs = set()
 
         n_photo = 0
         default_tcutoff: str = "clip"
@@ -473,14 +543,11 @@ class Network:
             if aux_delta_rad in aux_funcs:
                 deltaRad = aux_funcs[aux_delta_rad]["def"]
 
-            # deltae{si}: chemical energy change per reaction, accumulates into dEdt_chem
+            # deltae{si}: chemical energy change per reaction, accumulates into
+            # thermodynamics.dEdt_chemical
             deltaE: Basic = Float(0.0)
             if aux_delta_e in aux_funcs:
                 deltaE = aux_funcs[aux_delta_e]["def"]
-
-            for expr in [rate_expr, deltaE, deltaRad]:
-                free_symbols |= self.free_symbols(expr)
-                self.__detect_undefined_functions(expr, undef_funcs, interp_funcs)
 
             rea = Reaction(
                 reactants=rr,
@@ -510,7 +577,7 @@ class Network:
             if rea.type == "photo" and self.radiation is not None:
                 if aux_chem_rate not in aux_funcs:
                     self.radiation.set_reaction_rate_coefficient(rea)
-                elif aux_chem_rate in aux_funcs and aux_delta_rad:
+                elif aux_delta_rad in aux_funcs:
                     rea.custom_rad_rate = True
                     self.radiation.set_custom_rate(rea)
                 else:
@@ -521,25 +588,8 @@ class Network:
                         f"Please add a custom deltaRad function for reaction {si}"
                     )
 
-        free_symbols |= self.free_symbols(self.thermodynamics.dEdt_extra)
-        self.__detect_undefined_functions(
-            self.thermodynamics.dEdt_extra, undef_funcs, interp_funcs
-        )
-
-        self.logger.info(
-            f"Variables found: {', '.join(sorted(f'[cyan]{s}[/]' for s in free_symbols))}"
-        )
         self.logger.info(f"Loaded {self.reactions.count} reactions")
         self.logger.info(f"Loaded {n_photo} photo-chemistry reactions")
-
-        if interp_funcs:
-            self.logger.info(
-                f"Found the following interpolation functions: {', '.join([f'[cyan]{func}[/]' for func in interp_funcs])}"
-            )
-        if undef_funcs:
-            self.logger.warning(
-                f"Found undefined functions {', '.join([f'[red]{func}[/]' for func in undef_funcs])}"
-            )
 
     def __load_network_from_jaff_file(self, jaff_props: JaffProps):
         """Restore species, reactions, and radiation state from a ``.jaff`` file payload.
@@ -551,10 +601,6 @@ class Network:
             :func:`~jaff.io._io.from_jaff_file`.
         """
         self.species = jaff_props["species"]
-
-        stored_dEdt_other = jaff_props.get("dEdt_other")
-        if stored_dEdt_other is not None:
-            self.dEdt_other = stored_dEdt_other
 
         for i, reaction in enumerate(jaff_props["reactions"]):
             rea = Reaction(
@@ -571,7 +617,7 @@ class Network:
                 type=reaction.get("reaction_type", "unknown"),
                 errors=self.spec.errors,
             )
-            rea.custom_rad_rate = reaction["custom_rad_rate"]
+            rea.custom_rad_rate = bool(reaction.get("custom_rad_rate"))
             segments = reaction.get("rate_segments")
             if segments:
                 rea.rate_segments = RateSegments(
@@ -600,9 +646,8 @@ class Network:
         """Standardize convenience symbols in all rate and auxiliary expressions.
 
         Replaces shorthand symbols (``n_X``, ``n_X_nuc``, ``n_e``, ``ntot``, …) with
-        ``nden[i]`` references in every reaction rate, the chemical heating/cooling
-        sum :attr:`dEdt_chem`, and the extra radiation source term
-        :attr:`dRad_dt_extra`.
+        ``nden[i]`` references in every reaction rate and the extra radiation
+        source term :attr:`dRad_dt_extra`.
 
         Parameters
         ----------
@@ -629,10 +674,8 @@ class Network:
                 r.rate = r.rate_segments.sort().evaluate_equivalent_rate(r)
 
             r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
-            dE_dt = r.dE * r.rate
             dRad_dt = r.dRad * r.rate
             for s in r.reactants.core:
-                dE_dt *= nden[self.species[s.name].index]
                 dRad_dt *= nden[self.species[s.name].index]
             self.dRad_dt_extra += dRad_dt
         self.dRad_dt_extra = self._standardize_symbols(self.dRad_dt_extra, expand_nuclei)
@@ -727,30 +770,6 @@ class Network:
             reaction._metadata["jaffgen"] = {
                 "jaffgen_object": self.spec._metadata["jaffgen_object"]
             }
-
-    @staticmethod
-    def __detect_undefined_functions(
-        expr: Expr | Basic, undef_funcs: set, interp_funcs: set
-    ) -> None:
-        """Scan *expr* for undefined function calls and categorise them.
-
-        Functions whose names contain ``"interp"`` are added to *interp_funcs*;
-        all others are added to *undef_funcs*.
-
-        Parameters
-        ----------
-        expr : Expr | Basic
-            SymPy expression to scan.
-        undef_funcs : set
-            Accumulator for unrecognised undefined function names.
-        interp_funcs : set
-            Accumulator for interpolation function names.
-        """
-        for f in expr.atoms(AppliedUndef):
-            if "interp" in f.func.__name__:
-                interp_funcs |= {f.func.__name__}
-                continue
-            undef_funcs |= {f.func.__name__}
 
     def to_jaff(self, filename: str | Path):
         """Serialise this network to a binary ``.jaff`` file.
@@ -1339,7 +1358,7 @@ class Network:
             fname = Path(fname)
 
         if fname.suffix not in [".hdf5", ".hdf"]:
-            fname.with_suffix(".hdf5")
+            fname = fname.with_suffix(".hdf5")
 
         write_data_table(
             reactions=self.reactions,
@@ -1406,7 +1425,7 @@ class Network:
             fname = Path(fname)
 
         if fname.suffix != ".txt":
-            fname.with_suffix(".txt")
+            fname = fname.with_suffix(".txt")
 
         write_data_table(
             reactions=self.reactions,

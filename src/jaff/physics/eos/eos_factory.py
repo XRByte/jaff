@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Dict
 from sympy import Float, Symbol, symbols
 
 from ..constants import k_B
-from .eos import Eos
+from ..thermodynamics import InternalEnergy
 from .eos_props import EosProps
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ class EosFactory:
         self._net: Network = net
         self._tgas: Symbol = symbols("tgas")
 
-    def generate(self) -> Eos:
+    def generate(self) -> InternalEnergy:
         """Build the EOS selected by ``props.type``.
 
         Returns
@@ -62,7 +62,7 @@ class EosFactory:
 
         return getattr(self, self._BUILDERS[self.props.type])()
 
-    def ideal(self) -> Eos:
+    def ideal(self) -> InternalEnergy:
         """Volumetric ideal-gas internal energy with a single adiabatic index.
 
         ``E = n_tot · k_B · T_gas / (γ − 1)`` [erg cm⁻³].
@@ -73,9 +73,9 @@ class EosFactory:
             EOS wrapping the volumetric internal energy [erg cm⁻³].
         """
         e = self._net.ntot * k_B.cgs.value * self._tgas / (self.props.gamma - 1.0)  # type: ignore
-        return Eos(e, self._net)
+        return InternalEnergy(e, self._net)
 
-    def multi_gamma(self) -> Eos:
+    def multi_gamma(self) -> InternalEnergy:
         """Internal energy summed over species with per-species adiabatic indices.
 
         Each species uses ``props.gamma_map[name]``, falling back to
@@ -95,9 +95,9 @@ class EosFactory:
                 / (self.props.gamma_map.get(sp.name, self.props.default_gamma))  # type: ignore
             )
 
-        return Eos(e, self._net)
+        return InternalEnergy(e, self._net)
 
-    def fermi_degenerate(self) -> Eos:
+    def fermi_degenerate(self) -> InternalEnergy:
         """Non-relativistic degenerate Fermi gas EOS (not implemented).
 
         Raises
@@ -107,7 +107,7 @@ class EosFactory:
         """
         raise NotImplementedError()
 
-    def relativistic_fermi_degenerate(self) -> Eos:
+    def relativistic_fermi_degenerate(self) -> InternalEnergy:
         """Relativistic degenerate Fermi gas EOS (not implemented).
 
         Raises
