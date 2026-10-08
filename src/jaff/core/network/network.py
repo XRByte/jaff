@@ -505,7 +505,7 @@ class Network:
             if rea.type == "photo" and self.radiation is not None:
                 if aux_chem_rate not in aux_funcs:
                     self.radiation.set_reaction_rate_coefficient(rea)
-                elif aux_delta_rad in aux_funcs:
+                elif aux_chem_rate in aux_funcs and aux_delta_rad:
                     rea.custom_rad_rate = True
                     self.radiation.set_custom_rate(rea)
                 else:
