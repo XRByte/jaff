@@ -13,9 +13,9 @@ package's initialisation (``io``, ``core.reaction``, ``physics``) must therefore
 from __future__ import annotations
 
 from functools import cached_property, reduce
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Sequence
 
-from sympy import Basic, Expr, Float, Function, IndexedBase, Symbol
+from sympy import Basic, Expr, Float, Function, IndexedBase, S, Symbol
 from sympy.core.function import AppliedUndef, UndefinedFunction
 
 from ...errors import ParserError
@@ -197,6 +197,61 @@ class NetworkSymbols:
             self._element_sums[element] = sum(terms) if terms else None
 
         return self._element_sums[element]
+
+    def weighted_rate(self, weights: Sequence[Basic | float]) -> Expr:
+        """Rate of ``Σ_i w_i n_i``: ``Σ_r (Σ_i w_i ν_ri) F_r``.
+
+        ``ν = product_matrix − reactant_matrix`` (core species) and ``F_r`` are the
+        reaction fluxes (:meth:`Network.sfluxes`).  Flux expressions are substituted,
+        so the result can be differentiated and shares CSE with the species rows.
+        Reactions whose coefficient is exactly zero are skipped.
+
+        Parameters
+        ----------
+        weights : Sequence[Basic | float]
+            One weight per species, in species-index order.
+
+        Returns
+        -------
+        Expr
+            The weighted rate [weight units · cm⁻³ s⁻¹].
+
+        Raises
+        ------
+        ValueError
+            If the number of weights differs from the number of species.
+        """
+        weights = list(weights)
+        if len(weights) != self._net.species.count:
+            raise ValueError(
+                f"weighted_rate needs one weight per species "
+                f"({self._net.species.count}), got {len(weights)}"
+            )
+
+        net = self._net
+        nu = net.product_matrix - net.reactant_matrix
+        total = S.Zero
+        for row, flux in zip(nu, net.sfluxes()):
+            coeff = sum(w * int(n) for w, n in zip(weights, row) if n)
+            if coeff != 0:
+                total += coeff * flux
+
+        return total
+
+    @cached_property
+    def dntot_dt(self) -> Expr:
+        """Chemical rate of total number density, ``Σ_r Δn_r F_r`` [cm⁻³ s⁻¹]."""
+        return self.weighted_rate([1] * self._net.species.count)
+
+    @cached_property
+    def drho_dt(self) -> Expr:
+        """Chemical rate of mass density, ``Σ_r Δm_r F_r`` [g cm⁻³ s⁻¹].
+
+        Never forced to zero: every reaction contributes its actual mass change,
+        so the per-cell rate is kept even for reactions that pass
+        :meth:`Reaction.check_mass`.  Unset masses count as ``0``.
+        """
+        return self.weighted_rate([s.mass or 0.0 for s in self._net.species])
 
     # The introspection caches below are filled on first access (Network.__init__,
     # after loading).  Mutating rates or thermodynamics afterwards leaves them stale.
