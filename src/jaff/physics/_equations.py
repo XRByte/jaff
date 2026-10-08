@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 def get_sfluxes(
     reactions: "Reactions",
     species: Species,
-    nden: IndexedBase | None = None,
+    nden: IndexedBase,
 ) -> list[Expr]:
     """
     Build the symbolic reaction flux for every reaction in the network.
@@ -45,8 +45,7 @@ def get_sfluxes(
         flux_i = k_i * nden[idx_A] * nden[idx_B]
 
     The number densities are represented as indexed-base symbols ``nden`` that
-    support scalar indexing (``nden[i]`` for species *i*). When *nden* is None,
-    a default ``IndexedBase("nden")`` symbol is created.
+    support scalar indexing (``nden[i]`` for species *i*).
 
     Parameters
     ----------
@@ -58,9 +57,8 @@ def get_sfluxes(
     species : Species
         Collection of all species.  Used to look up the numeric index of each
         reactant via ``species[str(reactant)].index``.
-    nden : Expr, optional
-        Density symbol (typically ``IndexedBase("nden")`` or similar).
-        When None, a default ``IndexedBase("nden")`` is created.
+    nden : IndexedBase
+        The network's density base (``net.symbols.ndens``).
 
     Returns
     -------
@@ -74,11 +72,6 @@ def get_sfluxes(
     The flux is purely a *loss* term from the reactants' perspective; signs
     are applied in :func:`get_sodes`.
     """
-    from sympy import IndexedBase
-
-    if nden is None:
-        nden = IndexedBase("nden", shape=(species.count,))
-
     fluxes: list[Expr] = [Float(0.0) for _ in range(reactions.count)]
 
     for i, reaction in enumerate(reactions):
@@ -94,7 +87,7 @@ def get_sfluxes(
 def get_sodes(
     reactions: "Reactions",
     species: Species,
-    nden: IndexedBase | None = None,
+    nden: IndexedBase,
 ) -> list[Basic]:
     """
     Assemble the symbolic ODE right-hand sides for all species.
@@ -110,9 +103,8 @@ def get_sodes(
         Collection of all reactions in the network.
     species : Species
         Collection of all species, used to resolve array indices.
-    nden : Expr, optional
-        Density symbol (typically ``IndexedBase("nden")`` or similar).
-        When None, a default ``IndexedBase("nden")`` is created.
+    nden : IndexedBase
+        The network's density base (``net.symbols.ndens``).
 
     Returns
     -------
