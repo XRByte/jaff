@@ -431,11 +431,14 @@ class TestOdeJacobianWithInternalEnergy:
         assert rates[-1].split("=")[-1].strip().rstrip(";") == "nden[0]"
 
     def test_dedt_expression(self, dedt_network):
-        assert str(dedt_network.dEdt_chem) == "nden[0]**3*nden[1]"
+        assert (
+            str(dedt_network.thermodynamics.dEdt_chemical.volumetric)
+            == "nden[0]**3*nden[1]"
+        )
 
     def test_rhs_and_jacobian(self, dedt_codegen):
         rhs = _rhs_terms(dedt_codegen.get_rhs_str(use_cse=False))
-        jac = _rhs_terms(dedt_codegen.get_jacobian_str(use_cse=False, use_dedt=True))
+        jac = _rhs_terms(dedt_codegen.get_jacobian_str(use_cse=False, thermal="dedt"))
         assert rhs == [
             "-std::pow(nden[0], 2)*nden[1]",
             "-std::pow(nden[0], 2)*nden[1]",
@@ -454,15 +457,36 @@ class TestOdeJacobianWithInternalEnergy:
         ]
 
 
-class TestDedtEnergyForm:
-    """get_dedt(energy=...) divides dE/dt by the chosen EOS form's normaliser."""
+class TestThermalModes:
+    """``thermal`` selects the thermal ODE row: none, dE/dt (dedt) or dT/dt (dtdt)."""
 
-    def test_volumetric_matches_default(self, dedt_codegen):
-        assert dedt_codegen.get_dedt(energy="volumetric") == dedt_codegen.get_dedt()
+    def test_rhs_thermal_modes(self, dedt_codegen) -> None:
+        n = dedt_codegen.net.species.count
+        none = dedt_codegen.get_indexed_rhs(use_cse=False, thermal="none")
+        dedt = dedt_codegen.get_indexed_rhs(use_cse=False, thermal="dedt")
+        dtdt = dedt_codegen.get_indexed_rhs(use_cse=False, thermal="dtdt")
+        assert len(none["expressions"]) == n
+        assert len(dedt["expressions"]) == len(dtdt["expressions"]) == n + 1
+        assert dedt["expressions"][n] != dtdt["expressions"][n]
 
-    def test_specific_differs_from_volumetric(self, dedt_codegen):
-        assert dedt_codegen.get_dedt(energy="specific") != dedt_codegen.get_dedt()
+    def test_jacobian_thermal_modes_add_one_row_and_column(self, dedt_codegen) -> None:
+        # Structural zeros are skipped, so compare entry counts and the extent of
+        # the (row, col) indices instead of a dense size*size count.
+        n = dedt_codegen.net.species.count
+        jacs = {
+            thermal: dedt_codegen.get_indexed_jacobian(use_cse=False, thermal=thermal)
+            for thermal in ("none", "dedt", "dtdt")
+        }
+        none_idx = [idx for idx, _ in jacs["none"]["expressions"]]
+        assert max(max(idx) for idx in none_idx) < n
+        for thermal in ("dedt", "dtdt"):
+            idx = [idx for idx, _ in jacs[thermal]["expressions"]]
+            assert len(idx) > len(none_idx)
+            assert max(i for i, _ in idx) == n
+        dedt_row = [e for (i, _), e in jacs["dedt"]["expressions"] if i == n]
+        dtdt_row = [e for (i, _), e in jacs["dtdt"]["expressions"] if i == n]
+        assert dedt_row != dtdt_row
 
-    def test_unknown_form_raises(self, dedt_codegen):
-        with pytest.raises(ValueError, match="bogus"):
-            dedt_codegen.get_dedt(energy="bogus")
+    def test_invalid_thermal_raises(self, dedt_codegen) -> None:
+        with pytest.raises(ValueError, match="thermal"):
+            dedt_codegen.get_indexed_rhs(use_cse=False, thermal="bogus")

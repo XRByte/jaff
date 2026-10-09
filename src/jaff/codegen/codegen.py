@@ -81,6 +81,8 @@ class Codegen:
         If *lang* is not a supported language.
     """
 
+    _THERMAL_MODES = ("none", "dedt", "dtdt")
+
     def __init__(
         self,
         network: Network,
@@ -546,60 +548,64 @@ class Codegen:
 
         return sode
 
-    def __gen_sdedt(self, energy: str = "volumetric") -> sp.Expr:
-        """Return the symbolic total energy time-derivative expression.
+    def _thermal_rows(self, thermal: str, energy: str) -> list[sp.Expr]:
+        """Thermal ODE row for *thermal* (``none`` → no row).
 
-        Computes ``(dE/dt_chem + dE/dt_other) / den`` where ``den`` is the
-        normaliser of the *energy* form of the network EOS (see
-        :meth:`~jaff.physics.Eos.normaliser`): ``1`` (``volumetric``,
-        erg/cm³/s), ``ρ`` (``specific``, erg/g/s), ``n_tot``
-        (``per_particle``, erg/s) or ``n_tot / N_A`` (``molar``, erg/mol/s).
-
-        Parameters
-        ----------
-        energy : str, optional
-            Evolved internal-energy form.  Default ``"volumetric"``.
-
-        Returns
-        -------
-        sympy.Expr
-            Symbolic expression for the total energy time-derivative.
+        ``dedt`` → total dE/dt in the *energy* form (see
+        :attr:`Thermodynamics.dEdt_tot` and :meth:`InternalEnergy.normaliser`);
+        ``dtdt`` → total dT/dt (:attr:`Thermodynamics.dTdt_tot`).
 
         Raises
         ------
         ValueError
-            If *energy* is not a valid EOS form.
+            If *thermal* is not ``none``, ``dedt`` or ``dtdt``.
         """
-        assert isinstance(self.net.dEdt_chem, sp.Expr)
-        assert isinstance(self.net.dEdt_other, sp.Expr)
+        if thermal not in self._THERMAL_MODES:
+            raise ValueError(
+                f"Invalid thermal mode {thermal!r}; "
+                f"valid modes are: {', '.join(self._THERMAL_MODES)}"
+            )
 
-        den = self.net.thermodynamics.eos.normaliser(energy)
-        return (self.net.dEdt_chem + self.net.dEdt_other) / den
+        thermo = self.net.thermodynamics
+        if thermal == "dedt":
+            return [thermo.dEdt_tot.normaliser(energy)]
+        if thermal == "dtdt":
+            return [thermo.dTdt_tot]
 
-    def get_dedt(self, energy: str = "volumetric") -> str:
-        """Return a target-language code string for the energy time-derivative.
+        return []
 
-        Calls :meth:`__gen_sdedt` to obtain the symbolic expression and then
-        serialises it using the language-appropriate SymPy printer.
+    def _energy_column(
+        self,
+        jacobian_matrix: sp.Matrix,
+        dxdot_dtgas_list: list[sp.Expr],
+        nden_matrix: sp.IndexedBase,
+        energy: str,
+    ) -> sp.Matrix:
+        """Energy column ∂F/∂e and in-place species-column chain-rule correction.
 
-        Parameters
-        ----------
-        energy : str, optional
-            Evolved internal-energy form: ``"volumetric"`` (default),
-            ``"specific"``, ``"per_particle"`` or ``"molar"``.
+        Converts the temperature dependence into the state-vector framework via
+        the EOS relation.  With ``e = eos.normaliser(energy)`` the state variable
+        replacing T:
 
-        Returns
-        -------
-        str
-            Single-expression code string (no assignment or line terminator).
+        * ``∂F/∂e = (∂F/∂T)/(∂e/∂T)`` (returned column), and
+        * ``∂F/∂n_j|_e = ∂F/∂n_j|_T − (∂F/∂T)(∂e/∂n_j)/(∂e/∂T)`` (applied to
+          the species columns of *jacobian_matrix* in place).
         """
-        expr = self.lang.code_gen(
-            self.__gen_sdedt(energy),
-            strict=False,
-            allow_unknown_functions=True,
-        )
+        n_species = self.net.species.count
+        tgas = self.net.symbols.tgas
+        e_form = self.net.thermodynamics.eos.normaliser(energy)
+        de_dtgas = sp.diff(e_form, tgas)
+        # nden_matrix is scalar indexed (IndexedBase), use scalar form for differentiation
+        de_dn = [sp.diff(e_form, nden_matrix[j]) for j in range(n_species)]
 
-        return expr
+        for j in jaff_progress.track(
+            range(n_species), description="Applying EOS chain rule to species columns"
+        ):
+            for i, dxdot_dtgas in enumerate(dxdot_dtgas_list):
+                correction = dxdot_dtgas * de_dn[j] / de_dtgas
+                jacobian_matrix[i, j] = jacobian_matrix[i, j] - correction
+
+        return sp.Matrix([d / de_dtgas for d in dxdot_dtgas_list])
 
     def get_indexed_odes(
         self,
@@ -750,6 +756,7 @@ class Codegen:
         self,
         use_cse: bool = True,
         cse_var: str = "cse",
+        thermal: str = "dedt",
         energy: str = "volumetric",
         radiation: bool = False,
         rad_order: int = 0,
@@ -760,7 +767,8 @@ class Codegen:
         Assembles the full right-hand side vector by concatenating, in order:
 
         1. Per-species density ODEs (``dn_i/dt`` for each species).
-        2. Energy time-derivative (``dE/dt``).
+        2. Thermal row: ``dedt`` → normalised dE/dt, ``dtdt`` → dT/dt,
+           ``none`` → omitted.
         3. Radiation ODEs (optional, appended only when *radiation* is ``True``).
 
         CSE is applied simultaneously across the *entire* vector so that
@@ -776,8 +784,12 @@ class Codegen:
         cse_suffix : str, optional
             Text appended after the index of each CSE temporary name, e.g.
             ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
+        thermal : str, optional
+            Thermal equation mode: ``"none"``, ``"dedt"`` or ``"dtdt"``.
+            Default ``"dedt"``.
         energy : str, optional
-            Evolved internal-energy form (see :meth:`get_dedt`).
+            Evolved internal-energy form (see :attr:`Thermodynamics.dEdt_tot`
+            and :meth:`InternalEnergy.normaliser`).
             Default ``"volumetric"``.
         radiation : bool, optional
             Include radiation moment ODEs in the RHS.  Default ``False``.
@@ -809,10 +821,10 @@ class Codegen:
             # Start with species density ODEs; inline rate expressions
             rhs_symbols = self.net.sodes()
             rhs_symbols = [sode.xreplace(subs_k) for sode in rhs_symbols]
-            # Append energy derivative and (optionally) radiation ODEs
+            # Append thermal row (per *thermal*) and (optionally) radiation ODEs
             rhs_symbols.extend(
                 [
-                    self.__gen_sdedt(energy),
+                    *self._thermal_rows(thermal, energy),
                     *(self.net.sradodes(rad_order) if radiation else []),
                 ]
             )
@@ -853,6 +865,7 @@ class Codegen:
         def_prefix: str = "",
         assignment_op: str = "",
         line_end: str = "",
+        thermal: str = "dedt",
         energy: str = "volumetric",
         radiation: bool = False,
         rad_order: int = 0,
@@ -865,7 +878,7 @@ class Codegen:
             const double cse0 = …;  // CSE temporaries
             f[0] = …;               // dn_H/dt
             …
-            f[N] = …;               // dE/dt
+            f[N] = …;               // dE/dt or dT/dt (thermal row)
             f[N+1] = …;             // radiation ODE 0 (if radiation=True)
 
         Parameters
@@ -887,8 +900,12 @@ class Codegen:
             Assignment operator override.  Empty string uses the language default.
         line_end : str, optional
             Line terminator override.  Empty string uses the language default.
+        thermal : str, optional
+            Thermal equation mode: ``"none"``, ``"dedt"`` or ``"dtdt"``.
+            Default ``"dedt"``.
         energy : str, optional
-            Evolved internal-energy form (see :meth:`get_dedt`).
+            Evolved internal-energy form (see :attr:`Thermodynamics.dEdt_tot`
+            and :meth:`InternalEnergy.normaliser`).
             Default ``"volumetric"``.
         radiation : bool, optional
             Include radiation moment ODEs.  Default ``False``.
@@ -906,6 +923,7 @@ class Codegen:
         rhs_expressions = self.get_indexed_rhs(
             use_cse=use_cse,
             cse_var=cse_var,
+            thermal=thermal,
             energy=energy,
             radiation=radiation,
             rad_order=rad_order,
@@ -1062,7 +1080,7 @@ class Codegen:
 
     def get_indexed_jacobian(
         self,
-        use_dedt: bool = False,
+        thermal: str = "none",
         use_cse: bool = True,
         cse_var: str = "cse",
         energy: str = "volumetric",
@@ -1093,15 +1111,17 @@ class Codegen:
            ``nden[i]`` (and ``radeden[i]`` / ``rflux[i]`` for radiation) via
            regex.
 
-        When *use_dedt* is ``True``, an extra column ``dẋ_i/dT_gas`` is
-        computed using the ideal-gas EOS and inserted after the species
-        columns to account for the implicit temperature dependence.
+        When *thermal* is not ``"none"``, the thermal row is appended and an
+        extra column is inserted after the species columns to account for the
+        implicit temperature dependence: ``∂ẋ_i/∂T_gas`` for ``"dtdt"``, or
+        ``∂ẋ_i/∂e`` via the EOS chain rule for ``"dedt"`` (see
+        :meth:`_energy_column`).
 
         Parameters
         ----------
-        use_dedt : bool, optional
-            Include the energy equation in the Jacobian and compute the
-            ``dẋ_i/dT_gas`` column via the EOS.  Default ``False``.
+        thermal : str, optional
+            Thermal equation mode: ``"none"``, ``"dedt"`` or ``"dtdt"``.
+            Default ``"none"``.
         use_cse : bool, optional
             Apply joint CSE across all Jacobian elements.  Default ``True``.
         cse_var : str, optional
@@ -1110,7 +1130,8 @@ class Codegen:
             Text appended after the index of each CSE temporary name, e.g.
             ``"_value"`` yields ``<cse_var>0_value``.  Default ``""``.
         energy : str, optional
-            Evolved internal-energy form (see :meth:`get_dedt`).
+            Evolved internal-energy form (see :attr:`Thermodynamics.dEdt_tot`
+            and :meth:`InternalEnergy.normaliser`).
             Default ``"volumetric"``.
         radiation : bool, optional
             Include radiation moment equations in the Jacobian.
@@ -1132,7 +1153,8 @@ class Codegen:
         Raises
         ------
         ValueError
-            If *radiation* is ``True`` and *rad_order* is not in ``{0,1,2,3}``.
+            If *radiation* is ``True`` and *rad_order* is not in ``{0,1,2,3}``,
+            or *thermal* is not a valid mode.
         """
 
         with jaff_progress.indeterminate("Preprocessing jacobian"):
@@ -1147,7 +1169,8 @@ class Codegen:
             n_rad_eqns = (
                 2 * self.net.radiation.nbands if radiation and self.net.radiation else 0
             )
-            n_ode_eqns = n_species + int(use_dedt) + n_rad_eqns
+            thermal_rows = self._thermal_rows(thermal, energy)
+            n_ode_eqns = n_species + len(thermal_rows) + n_rad_eqns
 
             # Scalar differentiation symbols for each state variable.
             # SymPy's jacobian() requires ordinary scalar symbols, not
@@ -1205,9 +1228,8 @@ class Codegen:
             }
             ode_symbols = self.net.sodes()
 
-            # Optionally append the energy equation and radiation ODEs
-            if use_dedt:
-                ode_symbols.append(self.__gen_sdedt(energy))
+            # Optionally append the thermal equation and radiation ODEs
+            ode_symbols.extend(thermal_rows)
 
             if radiation:
                 ode_symbols.extend(self.net.sradodes(order=rad_order))
@@ -1231,44 +1253,24 @@ class Codegen:
                 if col is not None:
                     jacobian_matrix[row, col] = sode.diff(sym)
 
-        if use_dedt:
-            # Insert the dẋ_i/dT_gas column: convert temperature dependence
-            # into the state-vector framework via the ideal-gas EOS relation
-            # dẋ_i/dy_e = (dẋ_i/dT_gas) / (de/dT_gas)
-            dde = sp.zeros(n_ode_eqns, 1)
-            eos = self.net.thermodynamics.eos
-            eos_expr = eos.volumetric / eos.normaliser(energy)
-            dedot_dtgas = sp.diff(eos_expr, self.net.symbols.tgas)
-
-            # Compute dq/dn_j: derivatives of energy equation w.r.t. each species
-            # nden_matrix is scalar indexed (IndexedBase), use scalar form for differentiation
-            dede_dny = [sp.diff(eos_expr, nden_matrix[j]) for j in range(n_species)]
-
-            # Store dxdot_dtgas for chain rule correction to species columns
-            dxdot_dtgas_list = []
-
-            for i in jaff_progress.track(
-                range(n_ode_eqns),
-                description="Generating jacobian internal energy terms",
-            ):
-                dxdot_dtgas = sp.diff(ode_symbols[i], self.net.symbols.tgas)
-                dxdot_dtgas_list.append(dxdot_dtgas)
-                dde[i, 0] = dxdot_dtgas / dedot_dtgas
-
-            # Apply chain rule to species columns: when state changes from T to e,
-            # dF/dn_j|_e = dF/dn_j|_T - (dF/dT) * (dq/dn_j) / (dq/dT)
-            for j in jaff_progress.track(
-                range(n_species),
-                description="Applying EOS chain rule to species columns",
-            ):
-                for i in range(n_ode_eqns):
-                    correction = (dxdot_dtgas_list[i] * dede_dny[j]) / dedot_dtgas
-                    jacobian_matrix[i, j] = jacobian_matrix[i, j] - correction
-
+        if thermal_rows:
+            tgas = self.net.symbols.tgas
+            dxdot_dtgas_list = [
+                sp.diff(ode_symbols[i], tgas)
+                for i in jaff_progress.track(
+                    range(n_ode_eqns), description="Generating jacobian thermal terms"
+                )
+            ]
+            if thermal == "dtdt":
+                dde = sp.Matrix(dxdot_dtgas_list)
+            else:
+                dde = self._energy_column(
+                    jacobian_matrix, dxdot_dtgas_list, nden_matrix, energy
+                )
             left = jacobian_matrix[:, :n_species]
             right = jacobian_matrix[:, n_species:]
 
-            # Insert the energy-coupling column between species and radiation cols
+            # Insert the thermal-coupling column between species and radiation cols
             jacobian_matrix = left.row_join(dde).row_join(right)
 
         # Regex patterns to back-substitute scalar symbols -> array notation in
@@ -1360,7 +1362,7 @@ class Codegen:
     @scoped_tokens("lang")
     def get_jacobian_str(
         self,
-        use_dedt: bool = False,
+        thermal: str = "none",
         idx_offset: int = 0,
         use_cse: bool = True,
         cse_var: str = "cse",
@@ -1382,8 +1384,9 @@ class Codegen:
 
         Parameters
         ----------
-        use_dedt : bool, optional
-            Include the energy equation row/column.  Default ``False``.
+        thermal : str, optional
+            Thermal equation mode (``"none"``, ``"dedt"`` or ``"dtdt"``);
+            adds the thermal row/column when not ``"none"``.  Default ``"none"``.
         idx_offset : int, optional
             Base index for row and column subscripts.  Default ``0``.
         use_cse : bool, optional
@@ -1417,7 +1420,7 @@ class Codegen:
         ioff = idx_offset if idx_offset >= 0 else self.lang.idx_offset
 
         jac_expressions = self.get_indexed_jacobian(
-            cse_var=cse_var, use_cse=use_cse, use_dedt=use_dedt
+            cse_var=cse_var, use_cse=use_cse, thermal=thermal
         )
 
         jac_code: str = ""
