@@ -320,7 +320,7 @@ class Network:
 
         self.__normalize_network_extras(loaded_from_jaff_file)
         self.thermodynamics: Thermodynamics = Thermodynamics(
-            self, jaff_props.get("dEdt_other")
+            self, jaff_props.get("dEdt_extra")
         )
         self.symbols.log_summary()
 
