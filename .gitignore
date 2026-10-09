@@ -94,4 +94,6 @@ src/jaff/data/shielding/*.csv
 src/jaff/data/xsecs/*.hdf5
 src/jaff/data/xsecs/*.csv
 src/jaff/data/dust/*.hdf5
+# compressed, hash-verified pooch downloads (installed copies live beside them)
+src/jaff/data/.downloads/
 registry.txt

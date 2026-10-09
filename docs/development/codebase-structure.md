@@ -114,6 +114,7 @@ src/jaff/
 │   └── _parser.py              # ParserError hierarchy
 │
 ├── data/                       # Raw data assets
+│   ├── .downloads/             # Compressed, hash-verified pooch downloads + registry.txt (not bundled)
 │   ├── atom_mass.csv           # Element mass table (bundled)
 │   ├── xsecs/                  # Photo cross-section data (downloaded via drivers/pooch.py, not bundled)
 │   │   ├── leiden.hdf5         # Leiden PDR cross sections (one group per reaction)
@@ -134,6 +135,13 @@ src/jaff/
     ├── generate_ion_xsecs_table.py     # Build verner_cross_sections table in jaff.db
     └── build_shielding_hdf5.py         # Collapse Leiden shielding tables into shielding/leiden.hdf5
 ```
+
+Downloaded data files are cached, compressed and hash-checked, under
+`src/jaff/data/.downloads/`. `drivers/pooch.py` then installs a copy at the path
+shown above: HDF5 files are rewritten uncompressed and contiguous so they load
+quickly (the Leiden cross sections take ≈365 MB), other files are copied. A file
+you place at an install path yourself is never overwritten; JAFF logs a warning
+instead. Set `JAFF_OFFLINE=1` to skip all downloads.
 
 ## Architecture Diagram
 
