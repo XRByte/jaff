@@ -1155,7 +1155,7 @@
     # provide in the form of either a numerical solver or a table
     # interpolation of the solution.
     psi_coll = PsiGD_coll_interp2d(n_H_nuc, tgas)
-    cool_rate_coll = psi_coll * d2g / d2g_solar
+    cool_rate_coll = psi_coll * d2g / d2g_solar * n_H_nuc
 
     # Get dust heating rate from CMB and ISRF
     heat_rate_CMB = sigma_d10 * 0.01 * c_a * TCMB**6
@@ -1165,7 +1165,7 @@
     Td_rad = ( (heat_rate_CMB + heat_rate_ISRF) / (0.01 * sigma_d10 * c_a) )**(1/6)
 
     # Get dust cooling rate assuming radiative heating sets dust temp
-    cool_rate_rad = alpha_GD * (d2g / d2g_solar) * n_H_nuc * sqrt(tgas) * (tgas - Td_rad)
+    cool_rate_rad = alpha_GD * (d2g / d2g_solar) * n_H_nuc**2 * sqrt(tgas) * (tgas - Td_rad)
 
     # @return min cooling rate
     @return Min(cool_rate_coll, cool_rate_rad)
