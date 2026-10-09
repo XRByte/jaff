@@ -273,6 +273,8 @@ class JaffGen:
             # field used to scale chi_pe), so it lives in [network.radiation].
             if (v := nr.get("background_field")) is not None:
                 sn.background_field = v
+            if (v := nr.get("pi_database")) is not None:
+                sn.pi_database = v
 
         # The presence of a [network.dust] table enables the dust module
         # (photoelectric emission, ...); it is a network-level module, not a
@@ -665,6 +667,7 @@ class JaffGen:
                     mode=sn.rad_mode,
                     c=sn.c,
                     background_field=sn.background_field,
+                    pi_database=sn.pi_database,
                 )
                 if sn.rad_bands
                 else None

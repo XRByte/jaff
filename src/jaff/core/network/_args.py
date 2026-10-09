@@ -40,5 +40,6 @@ class NetworkArgs:
     eos: dict[str, Any] | None = None
     background_field: str = "draine"
     c: float = constants.c.cgs.value
+    pi_database: str = "norad"
     _from_cli: bool = True
     _metadata: dict[str, Any] = field(default_factory=dict)

@@ -210,6 +210,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 "custom_rad_rate": r.custom_rad_rate,
                 "original_string": r.original_string,
                 "type": r.type,
+                "pi_database": r.pi_database,
             }
             for r in net.reactions
         ],
@@ -448,6 +449,7 @@ def from_jaff_file(filename: str | Path, errors=False):
             rate_segments = [{"rate": rate, "tmin": tmin, "tmax": tmax}]
         original_string = rj.get("original_string") or ""
         reaction_type = rj.get("type") or "unknown"
+        pi_database = rj.get("pi_database")
         xsecs = rj.get("xsecs")
 
         # Cross-section arrays are JSON-serialized as plain lists; restore them
@@ -477,6 +479,7 @@ def from_jaff_file(filename: str | Path, errors=False):
                     "rate_segments": rate_segments,
                     "original_string": original_string,
                     "reaction_type": reaction_type,
+                    "pi_database": pi_database,
                     "xsecs_dict": xsecs,
                 },
             )

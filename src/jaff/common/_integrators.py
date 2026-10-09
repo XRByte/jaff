@@ -1,20 +1,23 @@
 """
-Numerical integration helpers for SymPy expressions.
+Numerical integration helpers for SymPy expressions and tabulated data.
 
-This module provides three utilities:
+This module provides:
 
 * :func:`integrate` -- fixed-sample quadrature (trapezoid or Simpson) via
   :func:`sympy.lambdify`, for use when a quick approximate answer is needed.
 * :func:`get_bounds` -- extract breakpoints (discontinuities / kinks) from a
   piecewise SymPy expression so that adaptive integrators can avoid them.
-* :func:`smart_integrate` -- adaptive quadrature via :func:`scipy.integrate.quad`
+* :func:`sym_integrate` -- adaptive quadrature via :func:`scipy.integrate.quad`
   that handles piecewise expressions, symbolic infinity bounds, and
   multi-decade ranges.
+* :func:`arr_integrate` -- trapezoidal integral of tabulated ``y(x)`` arrays.
+* :func:`smart_integrate` -- dispatches to :func:`arr_integrate` for arrays and
+  to :func:`sym_integrate` for SymPy expressions.
 """
 
 import numpy as np
 from scipy.integrate import quad, simpson, trapezoid
-from sympy import Basic, Expr, FiniteSet, lambdify, piecewise_fold, solve
+from sympy import Basic, Expr, FiniteSet, Symbol, lambdify, piecewise_fold, solve
 from sympy.core.relational import Relational
 
 
@@ -134,7 +137,7 @@ def get_bounds(expr: Basic, sym: Basic):
     return sorted(list(boundaries))
 
 
-def smart_integrate(
+def sym_integrate(
     expr: Basic, sym: Basic, bounds: tuple[float | int | Basic, float | int | Basic]
 ) -> float:
     """
@@ -274,6 +277,55 @@ def arr_integrate(
     y_seg = np.r_[np.interp(t_low, x, y), y_seg, np.interp(t_high, x, y)]
 
     return np.trapezoid(y_seg, x_seg)
+
+
+def smart_integrate(
+    y: np.ndarray | Basic,
+    x: np.ndarray | Basic,
+    bounds: tuple[float | int | Basic, float | int | Basic],
+) -> float:
+    """
+    Integrate tabulated data or a SymPy expression over an interval.
+
+    Dispatches on the type of *y*: a :class:`numpy.ndarray` integrand is
+    integrated with :func:`arr_integrate` over the sample abscissae *x*;
+    anything else is treated as a SymPy expression in the symbol *x* and
+    integrated with :func:`sym_integrate`.
+
+    Parameters
+    ----------
+    y : numpy.ndarray or sympy.Basic
+        Sampled integrand values, or a SymPy expression.
+    x : numpy.ndarray or sympy.Basic
+        Sample abscissae (for array *y*) or the integration symbol.
+    bounds : tuple
+        ``(lower, upper)`` integration limits; symbolic values mean ``±inf``.
+
+    Returns
+    -------
+    float
+        The definite integral.
+
+    Raises
+    ------
+    TypeError
+        If *y* is an array but *x* is not, or *y* is symbolic but *x* is not a
+        :class:`sympy.Symbol`.
+    """
+    if isinstance(y, np.ndarray):
+        if not isinstance(x, np.ndarray):
+            raise TypeError(
+                f"Array integrand needs ndarray abscissae, got {type(x).__name__}"
+            )
+
+        return arr_integrate(y, x, bounds)
+
+    if not isinstance(x, Symbol):
+        raise TypeError(
+            f"Symbolic integrand needs a sympy Symbol variable, got {type(x).__name__}"
+        )
+
+    return sym_integrate(y, x, bounds)
 
 
 def safe_integrate():

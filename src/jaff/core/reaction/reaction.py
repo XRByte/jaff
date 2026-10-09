@@ -127,8 +127,14 @@ class Reaction:
     xsecs_dict : dict or None
         Photo cross-section data for the reaction's single decay channel:
         ``photon_energy`` (eV), optional ``photo_absorption`` and the
-        ``photodecay`` array (cm²), plus ``_equations`` metadata.  ``None`` for
-        non-photo reactions.
+        ``photodecay`` array (cm²), ``database`` (source used: ``"norad"``,
+        ``"verner"`` or ``"leiden"``), ``photodecay_expr`` (Verner SymPy
+        expression in ``E`` (eV), else ``None``; the arrays are ``None`` for
+        Verner), plus ``_equations`` metadata.  ``None`` for non-photo reactions.
+    pi_database : str or None
+        Per-reaction photoionization database override (``"norad"``,
+        ``"verner"`` or ``"leiden"``); ``None`` uses the global
+        :attr:`RadiationProps.pi_database`.
     rad_groups : list[RadiationGroup]
         Back-references to the radiation bands this reaction contributes to,
         populated when a radiation field is configured.  Empty otherwise.  See
@@ -209,6 +215,7 @@ class Reaction:
         self.rad_xsecs: float | None = None
         self.rad_groups: list[RadiationGroup] = []
         self.xsecs_dict: XsecsProps | None = None
+        self.pi_database: str | None = None
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
         self.verbatim: str = self.get_verbatim()

@@ -51,6 +51,7 @@ from ...physics import (
     get_sodes,
     get_sradodes,
 )
+from ...physics.photo_reactions._radiation_props import validate_pi_database
 from ..elements import Elements
 from ..parsers import NetworkParser
 from ..reaction import RateSegment, RateSegments, Reaction, Reactions
@@ -494,11 +495,27 @@ class Network:
 
             self.reactions.add(rea)
 
+            # Per-reaction photoionization database: jaffgen.toml wins over jaff.toml.
+            pi_db = reaction_props.get(srxn, {}).get("pi_database")
+            if pi_db is None:
+                pi_db = reactions_config.get(srxn, {}).get("pi_database")
+            if pi_db is not None:
+                if rea.type != "photo":
+                    raise ParserError(
+                        f"pi_database is only valid for photo reactions: {srxn}"
+                    )
+                rea.pi_database = validate_pi_database(pi_db)
+
             if rea.type == "photo":
                 if self.__photochemistry is None:
                     self.__photochemistry = Photochemistry(self)
 
-                rea.xsecs_dict = self.__photochemistry.get_xsec(rea)
+                # A cross section is mandatory only when radiation sets the rate.
+                rea.xsecs_dict = self.__photochemistry.get_xsec(
+                    rea,
+                    required=self.radiation is not None
+                    and aux_chem_rate not in aux_funcs,
+                )
 
             if rea.type == "photo" and self.radiation is not None:
                 if aux_chem_rate not in aux_funcs:
@@ -513,6 +530,9 @@ class Network:
                         "necessary to weigh the first moment radiation equations\n"
                         f"Please add a custom deltaRad function for reaction {si}"
                     )
+
+        if self.__photochemistry is not None:
+            self.__photochemistry.log_fallback_summary()
 
         self.logger.info(f"Loaded {self.reactions.count} reactions")
         self.logger.info(f"Loaded {n_photo} photo-chemistry reactions")
@@ -544,6 +564,7 @@ class Network:
                 errors=self.spec.errors,
             )
             rea.custom_rad_rate = bool(reaction.get("custom_rad_rate"))
+            rea.pi_database = reaction.get("pi_database")
             segments = reaction.get("rate_segments")
             if segments:
                 rea.rate_segments = RateSegments(
@@ -555,9 +576,10 @@ class Network:
             if rea.type == "photo":
                 if self.__photochemistry is None:
                     self.__photochemistry = Photochemistry(self)
-                rea.xsecs_dict = self.__photochemistry.get_xsec(rea) or reaction.get(
-                    "xsecs_dict"
-                )
+                rea.xsecs_dict = self.__photochemistry.get_xsec(
+                    rea,
+                    required=self.radiation is not None and not rea.custom_rad_rate,
+                ) or reaction.get("xsecs_dict")
 
             if rea.type == "photo" and self.radiation is not None:
                 if rea.custom_rad_rate:
@@ -565,6 +587,9 @@ class Network:
                     continue
 
                 self.radiation.set_reaction_rate_coefficient(rea)
+
+        if self.__photochemistry is not None:
+            self.__photochemistry.log_fallback_summary()
 
     def __normalize_network_extras(self, loaded_from_jaff: bool = False):
         """Standardize convenience symbols in all rate and auxiliary expressions.

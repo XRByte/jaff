@@ -42,6 +42,7 @@ RadiationProps(
     mode="nph",
     c=constants.c.cgs.value,
     background_field="draine",
+    pi_database="norad",
 )
 ```
 
@@ -52,12 +53,13 @@ RadiationProps(
 | `mode`             | `str`                          | `"nph"`                 | `"nph"` tracks photon number density (`photden`, cm⁻³); `"u"` tracks energy density (`radeden`, erg cm⁻³)      |
 | `c`                | `float` or `str`               | `constants.c.cgs.value` | Speed of light in cm/s. A string (e.g. `"c_hat"`) becomes a symbol, for a reduced speed of light              |
 | `background_field` | `str`                          | `"draine"`              | Reference field used to scale `chi_pe`: `bb_4000`, `bb_10000`, `bb_20000`, `draine`, `habing`, `mathis`, `solar`, `tw_hydra` |
+| `pi_database`      | `str`                          | `"norad"`               | Photoionization cross-section database: `norad`, `verner` or `leiden` (case-insensitive). Falls back `norad` → `verner` → `leiden` with one summary warning after loading; photodissociation always uses Leiden |
 
 The arguments are validated at construction; the table of `ParserError` /
 `RuntimeError` conditions is in
 [Valid band / index combinations](../../../user-guide/designing-networks/photochemistry.md#valid-band-index-combinations).
 The validated values are stored as attributes of the same names, with `"inf"`
-replaced by `sympy.oo` and `mode` / `background_field` lower-cased.
+replaced by `sympy.oo` and `mode` / `background_field` / `pi_database` lower-cased.
 
 ---
 
