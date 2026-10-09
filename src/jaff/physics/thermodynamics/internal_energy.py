@@ -6,7 +6,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable, ClassVar
 
-from sympy import Expr, diff
+from sympy import Expr
 
 from ..constants import N_A
 
@@ -150,10 +150,37 @@ class InternalEnergy:
 
 
 class DEDt(InternalEnergy):
-    def __init__(self, expr: Expr, net: Network):
-        super().__init__(expr, net)
+    """Rate of change of the volumetric internal energy, ``Ė`` [erg cm⁻³ s⁻¹].
 
-    def get_dTdt(self) -> Expr:
-        return self._vol_expr / diff(
-            self._net.thermodynamics.eos.volumetric, self._net.symbols.tgas
-        )
+    The normalised forms are time derivatives of the normalised energies, so they use
+    the quotient rule with the network's per-cell density rates
+    (:attr:`NetworkSymbols.drho_dt`, :attr:`NetworkSymbols.dntot_dt`): neither ρ nor
+    n_tot is constant in a cell.  ``E`` is read lazily from
+    ``net.thermodynamics.eos`` because ``DEDt`` objects are created while
+    ``Thermodynamics`` itself is being constructed.
+    """
+
+    @cached_property
+    def _energy(self) -> Expr:
+        """Volumetric internal energy ``E`` of the network's EOS."""
+        return self._net.thermodynamics.eos.volumetric
+
+    @cached_property
+    def specific(self) -> Expr:
+        """``d(E/ρ)/dt = Ė/ρ − E·ρ̇/ρ²`` [erg g⁻¹ s⁻¹]."""
+        rho = self._net.symbols.rho
+
+        return self._vol_expr / rho - self._energy * self._net.symbols.drho_dt / rho**2
+
+    @cached_property
+    def per_particle(self) -> Expr:
+        """``d(E/n)/dt = Ė/n − E·ṅ/n²`` [erg s⁻¹]."""
+        ntot = self._net.symbols.ntot
+        dntot = self._net.symbols.dntot_dt
+
+        return self._vol_expr / ntot - self._energy * dntot / ntot**2
+
+    @cached_property
+    def molar(self) -> Expr:
+        """``N_A · d(E/n)/dt`` [erg mol⁻¹ s⁻¹]."""
+        return self.per_particle * N_A.cgs.value

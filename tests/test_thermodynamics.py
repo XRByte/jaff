@@ -5,8 +5,8 @@ import pytest
 import sympy as sp
 
 from jaff.physics import EosProps
-from jaff.physics.constants import k_B
-from jaff.physics.thermodynamics import InternalEnergy
+from jaff.physics.constants import N_A, k_B
+from jaff.physics.thermodynamics import InternalEnergy, Thermodynamics
 
 GAMMA = 5.0 / 3.0
 TWO_SPECIES = "@format:idx,R,R,P,rate\n1,H,H,H2,1\n2,H2,H,H,1\n"
@@ -101,3 +101,88 @@ def test_weighted_rate_rejects_wrong_length(net):
 def test_rate_helpers_are_cached(net):
     assert net.symbols.dntot_dt is net.symbols.dntot_dt
     assert net.symbols.drho_dt is net.symbols.drho_dt
+
+
+def test_dedt_specific_uses_quotient_rule(net):
+    th, sym = net.thermodynamics, net.symbols
+    e, edot, rho = th.eos.volumetric, th.dEdt_tot.volumetric, sym.rho
+    expected = edot / rho - e * sym.drho_dt / rho**2
+    assert sp.simplify(th.dEdt_tot.specific - expected) == 0
+
+
+def test_dedt_per_particle_uses_quotient_rule(net):
+    th, sym = net.thermodynamics, net.symbols
+    e, edot, n = th.eos.volumetric, th.dEdt_tot.volumetric, sym.ntot
+    expected = edot / n - e * sym.dntot_dt / n**2
+    assert sp.simplify(th.dEdt_tot.per_particle - expected) == 0
+
+
+def test_dedt_molar_is_avogadro_times_per_particle(net):
+    th, sym = net.thermodynamics, net.symbols
+    e, edot, n = th.eos.volumetric, th.dEdt_tot.volumetric, sym.ntot
+    expected = N_A.cgs.value * (edot / n - e * sym.dntot_dt / n**2)
+    assert sp.simplify(th.dEdt_tot.molar - expected) == 0
+
+
+def test_dtdt_tot_ideal_gas(net):
+    th, sym = net.thermodynamics, net.symbols
+    cv = k_B.cgs.value / (GAMMA - 1.0)
+    expected = (th.dEdt_tot.volumetric - cv * sym.tgas * sym.dntot_dt) / (cv * sym.ntot)
+    assert sp.simplify(th.dTdt_tot - expected) == 0
+
+
+def _numerically_equal(a: sp.Expr, b: sp.Expr) -> bool:
+    """Compare two expressions at fixed positive values of all their atoms.
+
+    Avoids false negatives from SymPy keeping equal floats at different precisions.
+    """
+    atoms = sorted((a - b).atoms(sp.Indexed), key=str)
+    values: dict = {x: 1.0 + 0.37 * i for i, x in enumerate(atoms)}
+    a_num, b_num = a.xreplace(values), b.xreplace(values)
+    symbols = sorted(a_num.free_symbols | b_num.free_symbols, key=str)
+    values = {x: 2.0 + 0.53 * i for i, x in enumerate(symbols)}
+    a_val, b_val = float(a_num.xreplace(values)), float(b_num.xreplace(values))
+    return abs(a_val - b_val) <= 1e-12 * max(abs(a_val), abs(b_val))
+
+
+@pytest.fixture
+def thermo_with_extra(net):
+    """Thermodynamics with a non-zero heating/cooling rate ``Lambda``."""
+    return Thermodynamics(net, dEdt_extra=sp.Symbol("Lambda"))
+
+
+def test_dtdt_extra_has_no_composition_term(net, thermo_with_extra):
+    # Heating/cooling does not change particle number: Ṫ_extra = Λ / (∂E/∂T)
+    cv = k_B.cgs.value / (GAMMA - 1.0)
+    expected = sp.Symbol("Lambda") / (cv * net.symbols.ntot)
+    assert _numerically_equal(thermo_with_extra.dTdt_extra, expected)
+
+
+def test_dtdt_chemical_carries_composition_term(net, thermo_with_extra):
+    th, sym = thermo_with_extra, net.symbols
+    cv = k_B.cgs.value / (GAMMA - 1.0)
+    edot_chem = th.dEdt_chemical.volumetric
+    expected = (edot_chem - cv * sym.tgas * sym.dntot_dt) / (cv * sym.ntot)
+    assert sp.simplify(th.dTdt_chemical - expected) == 0
+
+
+def test_dtdt_parts_sum_to_total(thermo_with_extra):
+    th = thermo_with_extra
+    assert sp.simplify(th.dTdt_chemical + th.dTdt_extra - th.dTdt_tot) == 0
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "dEdt_chemical",
+        "dEdt_extra",
+        "dEdt_tot",
+        "dTdt_chemical",
+        "dTdt_extra",
+        "dTdt_tot",
+    ],
+)
+def test_rates_are_lazy_and_cached(net, name):
+    th = Thermodynamics(net)
+    assert name not in vars(th)
+    assert getattr(th, name) is getattr(th, name)
