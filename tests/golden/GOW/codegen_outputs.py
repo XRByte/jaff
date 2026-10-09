@@ -1693,7 +1693,7 @@ def jacobian_species():
 
 def jacobian_volumetric():
     out = {}
-    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True USE_DEDT True]$
+    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True THERMAL dedt]$
     cse0 = 1/(2.0709734999999e-16*nden[0] + 2.0709734999999e-16*nden[10] + 2.0709734999999e-16*nden[11] + 2.0709734999999e-16*nden[12] + 2.0709734999999e-16*nden[13] + 2.0709734999999e-16*nden[14] + 2.0709734999999e-16*nden[15] + 2.0709734999999e-16*nden[16] + 2.0709734999999e-16*nden[17] + 2.0709734999999e-16*nden[1] + 2.0709734999999e-16*nden[2] + 2.0709734999999e-16*nden[3] + 2.0709734999999e-16*nden[4] + 2.0709734999999e-16*nden[5] + 2.0709734999999e-16*nden[6] + 2.0709734999999e-16*nden[7] + 2.0709734999999e-16*nden[8] + 2.0709734999999e-16*nden[9])
     cse1 = tgas**(-2)
     cse2 = 1/tgas
@@ -3295,7 +3295,7 @@ def jacobian_volumetric():
 
 def jacobian_specific_mass():
     out = {}
-    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True USE_DEDT True DEDT_TYPE specific]$
+    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True THERMAL dedt DEDT_TYPE specific]$
     cse0 = 2.81429849824067e-11*tgas**0.26
     cse1 = cse0*nden[14]
     cse2 = math.sqrt(tgas)
@@ -4872,7 +4872,7 @@ def jacobian_specific_mass():
 
 def jacobian_specific_number():
     out = {}
-    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True USE_DEDT True DEDT_TYPE per_particle]$
+    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True THERMAL dedt DEDT_TYPE per_particle]$
     cse0 = nden[0] + nden[10] + nden[11] + nden[12] + nden[13] + nden[14] + nden[15] + nden[16] + nden[17] + nden[1] + nden[2] + nden[3] + nden[4] + nden[5] + nden[6] + nden[7] + nden[8] + nden[9]
     cse1 = 1.380649e-16*nden[0] + 1.380649e-16*nden[10] + 1.380649e-16*nden[11] + 1.380649e-16*nden[12] + 1.380649e-16*nden[13] + 1.380649e-16*nden[14] + 1.380649e-16*nden[15] + 1.380649e-16*nden[16] + 1.380649e-16*nden[17] + 1.380649e-16*nden[1] + 1.380649e-16*nden[2] + 1.380649e-16*nden[3] + 1.380649e-16*nden[4] + 1.380649e-16*nden[5] + 1.380649e-16*nden[6] + 1.380649e-16*nden[7] + 1.380649e-16*nden[8] + 1.380649e-16*nden[9]
     cse2 = 2.0709734999999e-16*tgas/cse0 - 1.49999999999992*cse1*tgas/cse0**2

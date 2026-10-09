@@ -164,7 +164,7 @@ def jacobian_species():
 
 def jacobian_volumetric():
     out = {}
-    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True USE_DEDT True]$
+    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True THERMAL dedt]$
     cse0 = 1.69110862029763e-18*c_hat
     cse1 = cse0*photden[0]
     cse2 = 1/(2.0709734999999e-16*nden[0] + 2.0709734999999e-16*nden[1] + 2.0709734999999e-16*nden[2])
@@ -217,7 +217,7 @@ def jacobian_volumetric():
 
 def jacobian_specific_mass():
     out = {}
-    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True USE_DEDT True DEDT_TYPE specific]$
+    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True THERMAL dedt DEDT_TYPE specific]$
     cse0 = 1.69110862029763e-18*c_hat
     cse1 = cse0*photden[0]
     cse2 = tgas**(-1.7)
@@ -279,7 +279,7 @@ def jacobian_specific_mass():
 
 def jacobian_specific_number():
     out = {}
-    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True USE_DEDT True DEDT_TYPE per_particle]$
+    # $JAFF REPEAT idx, expr, cse IN jacobian $[RADIATION True THERMAL dedt DEDT_TYPE per_particle]$
     cse0 = 1.69110862029763e-18*c_hat
     cse1 = cse0*photden[0]
     cse2 = nden[0] + nden[1] + nden[2]

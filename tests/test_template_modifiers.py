@@ -16,7 +16,6 @@ FALSE_SPELLINGS = ["False", "FALSE", "false"]
 
 # Boolean modifier -> REPEAT line and body exercising it.  All default to False.
 BOOL_CASES = {
-    "USE_DEDT": ("idx, expr IN jacobian", "f[$idx$, $idx$] = $expr$"),
     "RADIATION": ("idx, rhs IN rhses", "f[$idx$] = $rhs$"),
 }
 
@@ -48,17 +47,6 @@ def test_false_spellings_match_default(
     repeat, body = BOOL_CASES[modifier]
     default = _render(dedt_net, tmp_path, repeat, body, "")
     assert _render(dedt_net, tmp_path, repeat, body, f"{modifier} {spelling}") == default
-
-
-@pytest.mark.parametrize("spelling", TRUE_SPELLINGS)
-@pytest.mark.parametrize("modifier", ["USE_DEDT"])
-def test_true_spellings_match_python_true(
-    dedt_net: Network, tmp_path: Path, modifier: str, spelling: str
-) -> None:
-    repeat, body = BOOL_CASES[modifier]
-    enabled = _render(dedt_net, tmp_path, repeat, body, f"{modifier} True")
-    assert enabled != _render(dedt_net, tmp_path, repeat, body, "")
-    assert _render(dedt_net, tmp_path, repeat, body, f"{modifier} {spelling}") == enabled
 
 
 @pytest.mark.parametrize("spelling", TRUE_SPELLINGS)
@@ -108,3 +96,36 @@ def test_pos_neg_stay_strings(
         f"POS {pos} NEG m",
     )
     assert any(line.startswith(f"f_{expected} =") for line in lines), lines
+
+
+JAC = ("idx, expr IN jacobian", "f[$idx$, $idx$] = $expr$")
+RHS = ("idx, rhs IN rhses", "f[$idx$] = $rhs$")
+
+
+@pytest.mark.parametrize("repeat, body", [JAC, RHS])
+def test_thermal_modes_change_output(
+    dedt_net: Network, tmp_path: Path, repeat: str, body: str
+) -> None:
+    out = {
+        mode: _render(dedt_net, tmp_path, repeat, body, f"THERMAL {mode}")
+        for mode in ("none", "dedt", "dtdt")
+    }
+    assert out["none"] != out["dedt"] != out["dtdt"]
+
+
+def test_thermal_rejects_unknown_mode(dedt_net: Network, tmp_path: Path) -> None:
+    with pytest.raises(ParserError, match="THERMAL"):
+        _render(dedt_net, tmp_path, *JAC, "THERMAL bogus")
+
+
+def test_use_dedt_is_gone(dedt_net: Network, tmp_path: Path) -> None:
+    # Unknown modifiers surface as a KeyError from the modifier table lookup
+    with pytest.raises(KeyError, match="USE_DEDT"):
+        _render(dedt_net, tmp_path, *JAC, "USE_DEDT True")
+
+
+def test_dtdt_token_renders(dedt_net: Network, tmp_path: Path) -> None:
+    template = tmp_path / "t.py"
+    template.write_text("# $JAFF SUB dtdt\nx = $dtdt$\n# $JAFF END\n")
+    out = TemplateParser(dedt_net, template).parse_file()
+    assert "tgas" in out and "$dtdt$" not in out

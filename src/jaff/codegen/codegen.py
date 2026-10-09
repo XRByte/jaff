@@ -548,6 +548,44 @@ class Codegen:
 
         return sode
 
+    def get_dedt(self, energy: str = "volumetric") -> str:
+        """Target-language code for the total energy time-derivative.
+
+        Prints :attr:`Thermodynamics.dEdt_tot` in the requested form (see
+        :meth:`InternalEnergy.normaliser`).
+
+        Parameters
+        ----------
+        energy : str, optional
+            Internal-energy form: ``"volumetric"`` (default), ``"specific"``,
+            ``"per_particle"`` or ``"molar"``.
+
+        Returns
+        -------
+        str
+            Single-expression code string (no assignment or line terminator).
+
+        Raises
+        ------
+        ValueError
+            If *energy* is not a valid form.
+        """
+        expr = self.net.thermodynamics.dEdt_tot.normaliser(energy)
+        return self.lang.code_gen(expr, strict=False, allow_unknown_functions=True)
+
+    def get_dtdt(self) -> str:
+        """Target-language code for the gas-temperature rate ``dT/dt``.
+
+        Prints :attr:`Thermodynamics.dTdt_tot`.
+
+        Returns
+        -------
+        str
+            Single-expression code string (no assignment or line terminator).
+        """
+        expr = self.net.thermodynamics.dTdt_tot
+        return self.lang.code_gen(expr, strict=False, allow_unknown_functions=True)
+
     def _thermal_rows(self, thermal: str, energy: str) -> list[sp.Expr]:
         """Thermal ODE row for *thermal* (``none`` → no row).
 

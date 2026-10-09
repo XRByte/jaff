@@ -457,6 +457,33 @@ class TestOdeJacobianWithInternalEnergy:
         ]
 
 
+class TestThermalCodeStrings:
+    """``get_dedt``/``get_dtdt`` print the Thermodynamics expressions."""
+
+    def test_get_dedt_prints_requested_form(self, dedt_codegen) -> None:
+        thermo = dedt_codegen.net.thermodynamics
+        for form in ("volumetric", "specific", "per_particle", "molar"):
+            expected = dedt_codegen.lang.code_gen(
+                thermo.dEdt_tot.normaliser(form),
+                strict=False,
+                allow_unknown_functions=True,
+            )
+            assert dedt_codegen.get_dedt(energy=form) == expected
+        assert dedt_codegen.get_dedt() == dedt_codegen.get_dedt(energy="volumetric")
+
+    def test_get_dedt_rejects_unknown_form(self, dedt_codegen) -> None:
+        with pytest.raises(ValueError, match="bogus"):
+            dedt_codegen.get_dedt(energy="bogus")
+
+    def test_get_dtdt_prints_dTdt_tot(self, dedt_codegen) -> None:
+        expected = dedt_codegen.lang.code_gen(
+            dedt_codegen.net.thermodynamics.dTdt_tot,
+            strict=False,
+            allow_unknown_functions=True,
+        )
+        assert dedt_codegen.get_dtdt() == expected
+
+
 class TestThermalModes:
     """``thermal`` selects the thermal ODE row: none, dE/dt (dedt) or dT/dt (dtdt)."""
 
