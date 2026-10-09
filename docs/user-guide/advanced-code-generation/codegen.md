@@ -249,6 +249,7 @@ assignment or line terminator — handy when you splice it into your own line.
 
 ```python
 cg.get_dedt(energy="specific")   # erg/g/s, normalised by mass density
+cg.get_dtdt()                    # dT/dt in K/s, see get_dtdt
 ```
 
 ### Radiation ODEs — `#!python get_radode_str()`
@@ -274,8 +275,8 @@ J[1][1] = -2.7e-10;
 
 A few specifics:
 
-- **`use_dedt=True`** adds the energy equation's row and column, coupling the
-  chemistry to temperature through the ideal-gas EOS.
+- **`thermal="dedt"`** (or **`"dtdt"`**) adds the thermal equation's row and column, coupling the
+  chemistry to temperature through the network's EOS. The default is `"none"`.
 - Rate functions SymPy can't differentiate symbolically (e.g.
   `#!python photorates(...)`) become named partial calls —
   `#!python photorates_partial_0(...)`, where the suffix is the argument

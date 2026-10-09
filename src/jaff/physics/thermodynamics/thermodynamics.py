@@ -1,3 +1,6 @@
+# ABOUTME: Thermodynamics: per-network dE/dt and dT/dt expressions plus the lazily
+# ABOUTME: built equation of state (eos) they are derived from
+
 from __future__ import annotations
 
 from functools import cached_property
@@ -13,6 +16,30 @@ if TYPE_CHECKING:
 
 
 class Thermodynamics:
+    """Thermal state equations of a network: heating rates, EOS and ``dT/dt``.
+
+    Bound to one :class:`~jaff.core.network.Network`; reachable as
+    ``net.thermodynamics``. All attributes are built lazily and cached.
+
+    Parameters
+    ----------
+    net : Network
+        Network whose reactions, symbols and EOS properties are used.
+    dEdt_extra : sympy.Expr, optional
+        Stored volumetric non-reactive heating/cooling rate (e.g. restored from a
+        ``.jaff`` file). When ``None`` it is built from the ``heatingcoolingrate``
+        auxiliary function.
+
+    Attributes
+    ----------
+    eos : InternalEnergy
+        Internal energy for the configured equation of state.
+    dEdt_chemical, dEdt_extra, dEdt_tot : DEDt
+        Chemical, non-reactive and total heating/cooling rates.
+    dTdt_chemical, dTdt_extra, dTdt_tot : sympy.Expr
+        Corresponding temperature rates [K s⁻¹].
+    """
+
     def __init__(self, net: Network, dEdt_extra: Expr | None = None):
         self.net: Network = net
         # Stored volumetric heating/cooling rate (e.g. restored from a .jaff file);
@@ -94,6 +121,13 @@ class Thermodynamics:
         return (self.dEdt_tot.volumetric - self._composition_rate) / self._dE_dT
 
     def _get_dEdt_chemical(self) -> DEDt:
+        """Build the chemical heating rate from the reactions.
+
+        Returns
+        -------
+        DEDt
+            ``Σ_r dE_r · k_r · Π n_reactants`` as a volumetric rate.
+        """
         dEdt = Float(0.0)
         for r in self.net.reactions:
             _dEdt = r.dE * r.rate
@@ -105,6 +139,13 @@ class Thermodynamics:
         return DEDt(self.net.symbols.standardize(dEdt), self.net)
 
     def _get_dEdt_extra(self) -> DEDt:
+        """Build the non-reactive heating rate from ``heatingcoolingrate``.
+
+        Returns
+        -------
+        DEDt
+            The standardised auxiliary-function definition, or zero if absent.
+        """
         dEdt = Float(0.0)
         if "heatingcoolingrate" in self.net.spec.aux_funcs:
             dEdt = self.net.symbols.standardize(

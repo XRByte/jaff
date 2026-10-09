@@ -1,3 +1,6 @@
+# ABOUTME: EosProps: validated EOS configuration (type plus gamma parameters)
+# ABOUTME: consumed by EosFactory
+
 from numbers import Real
 from typing import Any, Dict, Tuple
 

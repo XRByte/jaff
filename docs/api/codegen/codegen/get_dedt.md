@@ -8,7 +8,7 @@ tags:
 
 `#!python get_dedt(energy="volumetric")`
 
-Generates code for the internal energy time derivative (`dE/dt`). Returns the symbolic energy rate `(dEdt_chem + dEdt_other) / den`, rendered as a target-language expression, where `den` is the normaliser of the chosen form of the network's [EOS](../../core/network/eos.md).
+Generates code for the internal energy time derivative (`dE/dt`). A thin printer over [`thermodynamics.dEdt_tot`](../../core/network/thermodynamics.md): it renders `net.thermodynamics.dEdt_tot.normaliser(energy)` as a target-language expression, where `normaliser(energy)` divides the volumetric rate by the normaliser of the chosen form (`den` below). For the temperature rate see [get_dtdt](get_dtdt.md).
 
 **Parameters**
 
@@ -26,3 +26,5 @@ Generates code for the internal energy time derivative (`dE/dt`). Returns the sy
 
 _str_
 : Energy-equation code string (single target-language expression, no assignment or line terminator).
+
+The normalisation is applied through the quotient rule, so for the non-volumetric forms the result also contains the term from the changing normaliser (e.g. `d(E/ρ)/dt`), not just `dE/dt / den`.

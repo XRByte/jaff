@@ -1,5 +1,5 @@
-# ABOUTME: Symbolic equation-of-state infrastructure: EosProps config, EosFactory
-# ABOUTME: builder dispatch and the Eos wrapper exposing volumetric/specific forms
+# ABOUTME: InternalEnergy (symbolic internal energy in volumetric/specific/per-particle/
+# ABOUTME: molar forms) and DEDt (its heating-rate counterpart with same-class +/-)
 
 from __future__ import annotations
 

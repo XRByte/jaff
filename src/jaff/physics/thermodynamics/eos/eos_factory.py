@@ -1,3 +1,6 @@
+# ABOUTME: EosFactory: builds the symbolic InternalEnergy of a network from its
+# ABOUTME: EosProps (ideal, multi_gamma and Fermi-degenerate types)
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict

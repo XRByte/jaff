@@ -218,7 +218,7 @@ gamma = 1.4
 | `ideal`       | `gamma` (float > 1)                                  | `gamma = 1.6666666666667` |
 | `multi_gamma` | `default_gamma` (float > 1), `gamma_map` (table of species name → float > 1) | —  |
 
-See [eos](../../api/core/network/eos.md) for the full list of types.
+See [eos](../../api/core/network/thermodynamics.md#eosprops) for the full list of types.
 
 ---
 
