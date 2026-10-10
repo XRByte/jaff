@@ -35,7 +35,7 @@ MANIFEST
 upload/
 builds/
 site/
-generated/
+generated*/
 __marimo__/
 
 # PyInstaller
