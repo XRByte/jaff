@@ -1195,3 +1195,30 @@
         - cooling_CO(n_CO, n_H, n_H2, n_e, tgas, gradv, n_H_nuc) \
         - cooling_dust_coll(chi_pe, d2g, tgas, n_H_nuc) \
         - cooling_dust_rec(chi_pe, d2g, tgas, n_e)
+
+@function radEmissivityN()
+@function radEmissionCoeffN()
+    @return ...
+
+@function radOpacityN()
+@function radAbsroptionCoeffN()
+    @return ...
+
+@function radGlobalOpacity()
+    @return ...
+@function radGlobalEmissivity()
+    @return ...
+
+@function deltaRadEnergyN() # local
+    # Amount of photon energy density per unit photon
+    # energy contributed by one occurance of radiation N
+    # delta dE_gamma/dE_nu
+
+    @return rE * rF
+
+@function deltaRadEnergyRateN() # global
+    # Global energy production per band
+    @return r_nPhotden_0 * r_Eden_0 * r_Flux_0
+
+@function deltaRadFluxN() # local
+@function deltaRadFlux() # local
