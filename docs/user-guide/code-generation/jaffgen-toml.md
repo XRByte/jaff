@@ -149,15 +149,15 @@ use_proxy_photoreaction = false     # use proxy photo-reactions when computing c
 pi_database = "norad"               # photoionization xsecs: norad | verner | leiden
 ```
 
-| Key                       | Type             | Default                 | Description                                                                                                      |
-| ------------------------- | ---------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `bands`                   | `list`           | `[]`                    | Band boundaries in eV; omit to disable photochemistry                                                            |
-| `profile_index`           | `int`, `float` or `list` | `0`             | Spectral index for band integration; a list gives one index per band (length `len(bands) - 1`)                   |
-| `mode`                    | `str`            | `"nph"`                 | Radiation density variable type: `"nph"` (photon number density, `photden`) or `"u"` (energy density, `radeden`) |
-| `rsl`                     | `float` or `str` | `constants.c.cgs.value` | Speed of light override (maps to the `c` `RadiationProps` arg). Becomes a symbol if passed as a string           |
-| `background_field`        | `str`            | `"draine"`              | Reference radiation field (HDF5 group name) used to scale the photoelectric-band `chi_pe` symbol                 |
-| `use_proxy_photoreaction` | `bool`           | `false`                 | Whether to use proxy photo-reactions when computing cross-sections instead of bypassing them                     |
-| `pi_database`             | `str`            | `"norad"`               | Photoionization cross-section database: `"norad"`, `"verner"` or `"leiden"` (case-insensitive)                   |
+| Key                       | Type                     | Default                 | Description                                                                                                      |
+| ------------------------- | ------------------------ | ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `bands`                   | `list`                   | `[]`                    | Band boundaries in eV; omit to disable photochemistry                                                            |
+| `profile_index`           | `int`, `float` or `list` | `0`                     | Spectral index for band integration; a list gives one index per band (length `len(bands) - 1`)                   |
+| `mode`                    | `str`                    | `"nph"`                 | Radiation density variable type: `"nph"` (photon number density, `photden`) or `"u"` (energy density, `radeden`) |
+| `rsl`                     | `float` or `str`         | `constants.c.cgs.value` | Speed of light override (maps to the `c` `RadiationProps` arg). Becomes a symbol if passed as a string           |
+| `background_field`        | `str`                    | `"draine"`              | Reference radiation field (HDF5 group name) used to scale the photoelectric-band `chi_pe` symbol                 |
+| `use_proxy_photoreaction` | `bool`                   | `false`                 | Whether to use proxy photo-reactions when computing cross-sections instead of bypassing them                     |
+| `pi_database`             | `str`                    | `"norad"`               | Photoionization cross-section database: `"norad"`, `"verner"` or `"leiden"` (case-insensitive)                   |
 
 `profile_index` is used to configure the weight factor of the photo-reaction cross-sections (Refer to the [Photochemistry](../designing-networks/photochemistry.md) section for more information). A scalar applies the same index to every band; a list such as `profile_index = [0, 1]` sets one index per band and must have exactly `len(bands) - 1` entries.
 
@@ -246,10 +246,10 @@ type  = "ideal"
 gamma = 1.4
 ```
 
-| `type`        | Keys                                                 | Default                 |
-| ------------- | ---------------------------------------------------- | ----------------------- |
-| `ideal`       | `gamma` (float > 1)                                  | `gamma = 1.6666666666667` |
-| `multi_gamma` | `default_gamma` (float > 1), `gamma_map` (table of species name → float > 1) | —  |
+| `type`        | Keys                                                                         | Default                   |
+| ------------- | ---------------------------------------------------------------------------- | ------------------------- |
+| `ideal`       | `gamma` (float > 1)                                                          | `gamma = 1.6666666666667` |
+| `multi_gamma` | `default_gamma` (float > 1), `gamma_map` (table of species name → float > 1) | —                         |
 
 See [eos](../../api/core/network/thermodynamics.md#eosprops) for the full list of types.
 
