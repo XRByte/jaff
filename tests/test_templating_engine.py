@@ -231,3 +231,29 @@ def test_end_line_is_kept_with_its_indentation():
 def test_define_has_no_end_lines():
     (block,) = split("$$JAFF DEFINE m { }\n")
     assert block.end_lines == []
+
+
+def test_error_on_continuation_line_reports_that_line():
+    with pytest.raises(ParserError) as err:
+        split("$$JAFF SUB x {\n  SORT { ENABLED -> True }\n  BAD { K }\n}\n")
+    assert err.value.nline == 3
+    assert err.value.line == "  BAD { K }"
+
+
+def test_split_option_on_continuation_line_has_no_brace_hint():
+    with pytest.raises(ParserError) as err:
+        split("$$JAFF SUB x {\n  SORT { K ->\n  V }\n}\n")
+    assert "keep each pair" in err.value.message
+    assert "missing" not in err.value.message
+
+
+def test_define_use_error_points_at_the_use_line():
+    with pytest.raises(ParserError, match="DEFINE cannot contain USE") as err:
+        split("$$JAFF DEFINE m {\n  SORT { ENABLED -> True }\n  USE other\n}\n")
+    assert err.value.nline == 3
+    assert err.value.line == "  USE other"
+
+
+def test_define_brace_on_next_line_needs_an_option_block():
+    with pytest.raises(ParserError, match="DEFINE needs an option block"):
+        split("$$JAFF DEFINE m\n{ SORT { ENABLED -> True } }\n")

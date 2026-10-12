@@ -1,4 +1,4 @@
-// ABOUTME: Lark grammar for one $$JAFF directive header (the $$JAFF marker already stripped).
+// ABOUTME: Lark grammar for one $$JAFF directive header (the marker is blanked to spaces).
 // ABOUTME: Parses the command and its optional { } option block; the body is not parsed here.
 
 start: command options?

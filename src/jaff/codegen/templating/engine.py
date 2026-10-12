@@ -13,6 +13,7 @@ from .syntax import (
     Directive,
     DirectiveSyntaxError,
     IncompleteHeaderError,
+    SplitOptionError,
     parse_header,
 )
 
@@ -60,7 +61,10 @@ def _read_header(lines: List[str], start: int, file: Path) -> Tuple[Directive, i
                 raise
 
             hint = f" (in directive opened at line {start + 1}"
-            hint += "; missing '}'?)" if isinstance(e, DirectiveSyntaxError) else ")"
+            brace = isinstance(e, DirectiveSyntaxError) and not isinstance(
+                e, SplitOptionError
+            )
+            hint += "; missing '}'?)" if brace else ")"
 
             raise ParserError(e.message + hint, e.line, e.nline, e.fname) from None
 
@@ -97,13 +101,23 @@ def _read_body(
     raise ParserError("Missing $$JAFF END", _src(lines[opened]), opened + 1, file)
 
 
-def _check_define(options: Optional[Options], line: str, nline: int, file: Path) -> None:
-    """A DEFINE needs an option block and cannot pull in other sets with USE."""
+def _check_define(
+    options: Optional[Options], lines: List[str], start: int, file: Path
+) -> None:
+    """A DEFINE needs an option block and cannot pull in other sets with USE.
+
+    *start* is the index of the DEFINE's first header line.
+    """
     if options is None:
-        raise ParserError("DEFINE needs an option block { ... }", line, nline, file)
+        raise ParserError(
+            "DEFINE needs an option block { ... }", _src(lines[start]), start + 1, file
+        )
 
     if options.uses:
-        raise ParserError("DEFINE cannot contain USE", line, nline, file)
+        nline = options.use_lines[options.uses[0]]
+        raise ParserError(
+            "DEFINE cannot contain USE", _src(lines[nline - 1]), nline, file
+        )
 
 
 def split_blocks(text: str, file: Path) -> List[Block]:
@@ -141,7 +155,7 @@ def split_blocks(text: str, file: Path) -> List[Block]:
             )
 
         if isinstance(command, Define):
-            _check_define(options, _src(lines[i]), i + 1, file)
+            _check_define(options, lines, i, file)
 
         body: List[str] = []
         end_lines: List[str] = []

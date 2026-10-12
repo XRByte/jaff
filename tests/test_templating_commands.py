@@ -22,11 +22,21 @@ from jaff.codegen.templating.commands import (
 GRAMMAR = Path(templating.__file__).with_name("grammar.lark")
 
 
-def test_registry_keys_match_grammar_aliases():
-    aliases = set(re.findall(r"->\s*(\w+)", GRAMMAR.read_text()))
-    command_aliases = {"repeat", "sub", "get", "has", "reduce", "define", "end"}
-    assert command_aliases <= aliases
-    assert set(COMMANDS) == command_aliases
+def _command_aliases() -> set:
+    """Aliases of the grammar's ``command`` rule alternatives."""
+    rule = re.search(r"^command:(.*?)^\s*$", GRAMMAR.read_text(), re.M | re.S)
+    return set(re.findall(r"->\s*(\w+)", rule.group(1)))
+
+
+def test_registry_keys_match_grammar_command_aliases():
+    assert set(COMMANDS) == _command_aliases()
+
+
+def test_command_aliases_do_not_shadow_transformer_rules():
+    # Explicit transformer methods win over __default__, so a command alias with
+    # one of these names would never reach the registry
+    rules = {"start", "names", "replacement", "setting", "replace", "use", "group"}
+    assert not rules & set(COMMANDS)
 
 
 @pytest.mark.parametrize(

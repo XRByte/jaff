@@ -49,7 +49,7 @@ class _ToDirective(Transformer):
     def __default__(self, data: str, children: List[Any], meta: Meta) -> Any:
         """Build a command for command aliases; leave other rules as trees."""
         if data in COMMANDS:
-            items = [_text(c) if isinstance(c, Token) else c for c in children]
+            items = [_unescape(c) if isinstance(c, Token) else c for c in children]
             return COMMANDS[data].from_items(items)
 
         return super().__default__(data, children, meta)
@@ -175,10 +175,38 @@ class IncompleteHeaderError(DirectiveSyntaxError):
     """The header ended inside an open option block; more lines may complete it."""
 
 
+class SplitOptionError(DirectiveSyntaxError):
+    """A line ended in the middle of an option (a pair, ``NAME {`` or ``USE name``)."""
+
+
+def _inside_block(e: UnexpectedToken) -> bool:
+    """Whether the parser had an option block ``{`` open when it failed."""
+    state = getattr(getattr(e, "interactive_parser", None), "parser_state", None)
+    stack = getattr(state, "value_stack", [])
+    return any(getattr(item, "type", None) == "LBRACE" for item in stack)
+
+
+def _end_of_header_error(e: UnexpectedToken) -> Tuple[str, Type[ParserError]]:
+    """Message and error class for a header that ran out of text."""
+    if "RBRACE" in e.expected:
+        return _describe(e), IncompleteHeaderError
+
+    if _inside_block(e):
+        message = (
+            f"Invalid directive: line ends inside an option at column "
+            f"{max(e.column, 1)}; keep each pair, 'NAME {{' and 'USE name' on one line"
+        )
+        return message, SplitOptionError
+
+    return _describe(e), DirectiveSyntaxError
+
+
 def _blank_marker(text: str) -> Optional[str]:
     """Replace the leading ``$$JAFF`` with spaces so Lark columns match the source.
 
-    Returns ``None`` when the marker is not followed by whitespace.
+    *text* must start with optional whitespace and ``$$JAFF`` (the engine only
+    passes lines for which ``is_directive`` holds). Returns ``None`` when the
+    marker is not followed by whitespace.
     """
     body = text.lstrip()
     indent = len(text) - len(body)
@@ -203,6 +231,7 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
 
     Raises:
         IncompleteHeaderError: If the text ends inside an open option block.
+        SplitOptionError: If a line ends in the middle of an option.
         DirectiveSyntaxError: If the text does not match the grammar.
         ParserError: On a repeated option group or key.
     """
@@ -217,14 +246,19 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
     source = _blank_marker(text)
     if source is None:
         raise error(f"Expected a space after {MARKER}", 1, DirectiveSyntaxError)
+    if not source.strip():
+        raise error(
+            f"Invalid directive: missing command after {MARKER}", 1, DirectiveSyntaxError
+        )
 
     try:
         tree = _parser().parse(source)
     except UnexpectedToken as e:
-        incomplete = e.token.type == "$END" and "RBRACE" in e.expected
-        cls = IncompleteHeaderError if incomplete else DirectiveSyntaxError
+        if e.token.type == "$END":
+            message, cls = _end_of_header_error(e)
+            raise error(message, e.line, cls) from None
 
-        raise error(_describe(e), e.line, cls) from None
+        raise error(_describe(e), e.line, DirectiveSyntaxError) from None
     except UnexpectedInput as e:
         raise error(_describe(e), e.line, DirectiveSyntaxError) from None
 

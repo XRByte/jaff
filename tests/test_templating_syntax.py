@@ -11,6 +11,7 @@ from jaff.codegen.templating.syntax import (
     DirectiveSyntaxError,
     IncompleteHeaderError,
     Options,
+    SplitOptionError,
     parse_header,
 )
 from jaff.errors import ParserError
@@ -242,3 +243,60 @@ def test_option_lines_do_not_affect_equality():
         parse("SUB x { USE m }", line=1).options
         == parse("SUB x {\n USE m }", line=5).options
     )
+
+
+@pytest.mark.parametrize(
+    "text, command",
+    [
+        (r'GET reaction_idx IN "a \"b\""', Get(("reaction_idx",), 'a "b"')),
+        ('HAS reaction "H + H -> H2"', Has("reaction", "H + H -> H2")),
+    ],
+)
+def test_quoted_command_values_unescape_quotes(text, command):
+    assert parse(text).command == command
+
+
+def test_bare_marker_reports_missing_command():
+    with pytest.raises(DirectiveSyntaxError, match="missing command after"):
+        parse_header("  $$JAFF   ", 1, FILE)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "SUB x { SORT { K ->",
+        "SUB x { SORT",
+        "SUB x { USE",
+        'SUB x { REPLACE { "a"',
+    ],
+)
+def test_line_ending_inside_an_option_is_a_split_option_error(text):
+    with pytest.raises(SplitOptionError, match="keep each pair"):
+        parse(text)
+
+
+def test_line_ending_outside_a_block_is_a_plain_syntax_error():
+    with pytest.raises(DirectiveSyntaxError) as err:
+        parse("REPEAT idx IN")
+    assert not isinstance(err.value, SplitOptionError)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ['$$JAFF SUB x { REPLACE { "a -> "b" } }', "$$JAFFSUB x"],
+)
+def test_lexer_and_marker_errors_are_directive_syntax_errors(text):
+    with pytest.raises(DirectiveSyntaxError):
+        parse_header(text, 1, FILE)
+
+
+def test_tab_indented_marker_keeps_absolute_column():
+    text = "\t$$JAFF SUB x { SORT { K } }"
+    with pytest.raises(ParserError) as err:
+        parse_header(text, 1, FILE)
+    assert f"column {text.index('}') + 1}" in err.value.message
+
+
+def test_crlf_header_parses():
+    directive = parse_header("$$JAFF SUB x {\r\n  USE m\r\n}\r\n", 1, FILE)
+    assert directive.options.uses == ["m"]

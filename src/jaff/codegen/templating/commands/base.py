@@ -2,7 +2,7 @@
 # ABOUTME: Subclasses are frozen dataclasses whose fields mirror the header's parts
 
 from dataclasses import dataclass
-from typing import Any, ClassVar, List
+from typing import Any, ClassVar, Self, Sequence
 
 
 @dataclass(frozen=True)
@@ -12,7 +12,7 @@ class Command:
     has_body: ClassVar[bool] = True
 
     @classmethod
-    def from_items(cls, items: List[Any]) -> "Command":
+    def from_items(cls, items: Sequence[Any]) -> Self:
         """Build the command from its header parts, in grammar order.
 
         Args:
