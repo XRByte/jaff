@@ -227,3 +227,18 @@ def test_repeated_group_is_not_a_syntax_error():
     with pytest.raises(ParserError) as err:
         parse("SUB x { SORT { A -> 1 } SORT { A -> 2 } }")
     assert not isinstance(err.value, DirectiveSyntaxError)
+
+
+def test_options_record_template_lines_of_uses_and_groups():
+    options = parse(
+        "SUB x {\n    USE micro\n    SORT { ENABLED -> True }\n}", line=10
+    ).options
+    assert options.use_lines == {"micro": 11}
+    assert options.group_lines == {"SORT": 12}
+
+
+def test_option_lines_do_not_affect_equality():
+    assert (
+        parse("SUB x { USE m }", line=1).options
+        == parse("SUB x {\n USE m }", line=5).options
+    )

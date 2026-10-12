@@ -38,7 +38,8 @@ def _unescape(token: Token) -> str:
     return _text(token).replace('\\"', '"')
 
 
-# One raw option: (kind, value); groups carry (name, line, [(key, value, line)])
+# One raw option: (kind, value); USE carries (name, line), groups carry
+# (name, line, [(key, value, line)]); lines are relative to the header text
 _Part = Tuple[str, Any]
 
 
@@ -75,7 +76,7 @@ class _ToDirective(Transformer):
 
     def use(self, items: List[Any]) -> _Part:
         """A USE of a named option set."""
-        return ("use", str(items[0]))
+        return ("use", (str(items[0]), items[0].line))
 
     def group(self, items: List[Any]) -> _Part:
         """A named group: name, its relative line and its settings."""
@@ -100,8 +101,13 @@ class _OptionError(ValueError):
         self.rel_line = rel_line
 
 
-def _add_group(options: Options, name: str, rel_line: int, settings: List[Any]) -> None:
-    """Add one group to *options*; a repeated group or key is an error."""
+def _add_group(
+    options: Options, first: int, name: str, rel_line: int, settings: List[Any]
+) -> None:
+    """Add one group to *options*; a repeated group or key is an error.
+
+    *first* is the template line of the header's first line.
+    """
     if name in options.groups:
         raise _OptionError(f"option group {name} given twice", rel_line)
     seen: Dict[str, int] = {}
@@ -111,18 +117,24 @@ def _add_group(options: Options, name: str, rel_line: int, settings: List[Any]) 
 
         seen[key] = key_line
     options.groups[name] = {key: value for key, value, _ in settings}
+    options.group_lines[name] = first + rel_line - 1
 
 
-def _build_options(parts: List[_Part]) -> Options:
-    """Collect option parts; a repeated group or key in one block is an error."""
+def _build_options(parts: List[_Part], first: int) -> Options:
+    """Collect option parts; a repeated group or key in one block is an error.
+
+    *first* is the template line of the header's first line.
+    """
     options = Options()
     for kind, value in parts:
         if kind == "replace":
             options.replace.extend(value)
         elif kind == "use":
-            options.uses.append(value)
+            name, rel_line = value
+            options.uses.append(name)
+            options.use_lines.setdefault(name, first + rel_line - 1)
         else:
-            _add_group(options, *value)
+            _add_group(options, first, *value)
 
     return options
 
@@ -220,6 +232,6 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
     if parts is None:
         return Directive(command, None)
     try:
-        return Directive(command, _build_options(parts))
+        return Directive(command, _build_options(parts, line))
     except _OptionError as e:
         raise error(str(e), e.rel_line) from None

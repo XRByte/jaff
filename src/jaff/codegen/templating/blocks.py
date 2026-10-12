@@ -20,13 +20,15 @@ class TextBlock:
 class CommandBlock:
     """One ``$$JAFF`` directive: command, options, raw header lines and body lines.
 
-    ``body_lines`` is empty for commands without a body (``DEFINE``).
+    ``body_lines`` and ``end_lines`` are empty for commands without a body
+    (``DEFINE``); ``end_lines`` holds the raw ``$$JAFF END`` line otherwise.
     """
 
     command: Command
     options: Optional[Options]
     header_lines: List[str]
     body_lines: List[str]
+    end_lines: List[str]
     line: int
 
 

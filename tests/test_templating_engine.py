@@ -221,3 +221,13 @@ def test_malformed_nested_directive_reports_its_own_error():
     with pytest.raises(ParserError, match="Invalid directive") as err:
         split("$$JAFF SUB x\n$$JAFF SUB {\n$$JAFF END\n")
     assert err.value.nline == 2
+
+
+def test_end_line_is_kept_with_its_indentation():
+    (block,) = split("  $$JAFF SUB x\nbody\n    $$JAFF END  # done\n")
+    assert block.end_lines == ["    $$JAFF END  # done\n"]
+
+
+def test_define_has_no_end_lines():
+    (block,) = split("$$JAFF DEFINE m { }\n")
+    assert block.end_lines == []

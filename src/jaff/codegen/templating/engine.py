@@ -67,11 +67,11 @@ def _read_header(lines: List[str], start: int, file: Path) -> Tuple[Directive, i
 
 def _read_body(
     lines: List[str], opened: int, start: int, file: Path
-) -> Tuple[List[str], int]:
+) -> Tuple[List[str], List[str], int]:
     """Collect body lines from *start* up to ``$$JAFF END``.
 
     *opened* is the index of the directive's first header line, for errors.
-    Returns the body lines and the index after the END line.
+    Returns the body lines, the END line(s) and the index after the END line.
     """
     i = start
     while i < len(lines):
@@ -90,7 +90,7 @@ def _read_body(
                     "$$JAFF END takes no options", _src(lines[i]), i + 1, file
                 )
 
-            return lines[start:i], after
+            return lines[start:i], lines[i:after], after
 
         i += 1
 
@@ -144,11 +144,13 @@ def split_blocks(text: str, file: Path) -> List[Block]:
             _check_define(options, _src(lines[i]), i + 1, file)
 
         body: List[str] = []
+        end_lines: List[str] = []
         end = after
         if command.has_body:
-            body, end = _read_body(lines, i, after, file)
+            body, end_lines, end = _read_body(lines, i, after, file)
 
-        blocks.append(CommandBlock(command, options, lines[i:after], body, i + 1))
+        header = lines[i:after]
+        blocks.append(CommandBlock(command, options, header, body, end_lines, i + 1))
         i = end
 
     return blocks
