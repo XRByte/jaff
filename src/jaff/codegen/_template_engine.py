@@ -1647,7 +1647,9 @@ class TemplateParser:
                 "func": self.__get,
                 "props": {
                     # Returns: int - index of element
-                    "element_idx": {"func": lambda e: self.net.elements[e].index},
+                    "element_idx": {
+                        "func": lambda e: self.net.elements.symbols().index(e)
+                    },
                     # Returns: int - index of species
                     "specie_idx": {"func": lambda s: self.net.species[s].index},
                     # Returns: int - catalogue position of reaction
