@@ -8,9 +8,7 @@ from ...errors import ParserError
 from .blocks import Block, CommandBlock, TextBlock
 from .commands import Define, End
 from .options import Options
-from .syntax import Directive, IncompleteHeaderError, parse_header
-
-MARKER = "$$JAFF"
+from .syntax import MARKER, Directive, IncompleteHeaderError, parse_header
 
 
 def is_directive(line: str) -> bool:
@@ -37,7 +35,7 @@ def _read_header(lines: List[str], start: int, file: Path) -> Tuple[Directive, i
     The header continues onto the next line only while the parser reports that it
     ended inside an open option block.
     """
-    text = lines[start].lstrip()[len(MARKER) :]
+    text = lines[start]
     end = start + 1
     while True:
         try:

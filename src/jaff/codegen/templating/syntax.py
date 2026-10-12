@@ -14,6 +14,7 @@ from .commands import COMMANDS, Command
 from .options import Options
 
 GRAMMAR = Path(__file__).with_name("grammar.lark")
+MARKER = "$$JAFF"
 
 
 @dataclass(frozen=True)
@@ -150,11 +151,26 @@ class IncompleteHeaderError(ParserError):
     """The header ended inside an open option block; more lines may complete it."""
 
 
+def _blank_marker(text: str) -> Optional[str]:
+    """Replace the leading ``$$JAFF`` with spaces so Lark columns match the source.
+
+    Returns ``None`` when the marker is not followed by whitespace.
+    """
+    body = text.lstrip()
+    indent = len(text) - len(body)
+    rest = body[len(MARKER) :]
+    if rest and not rest[0].isspace():
+        return None
+
+    return text[:indent] + " " * len(MARKER) + rest
+
+
 def parse_header(text: str, line: int, file: Path) -> Directive:
     """Parse the header text that follows ``$$JAFF``.
 
     Args:
-        text: Header text with the ``$$JAFF`` marker removed; may span lines.
+        text: Raw header source, starting with the (indented) ``$$JAFF`` line;
+            may span lines.
         line: 1-based template line on which the header starts.
         file: Template path, for error messages.
 
@@ -165,7 +181,7 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
         IncompleteHeaderError: If the text ends inside an open option block.
         ParserError: On a syntax error or a repeated option group or key.
     """
-    lines = text.splitlines() or [""]
+    lines = [part.rstrip("\r") for part in text.split("\n")]
 
     def error(
         message: str, rel_line: int, cls: Type[ParserError] = ParserError
@@ -173,8 +189,12 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
         rel = rel_line if 0 < rel_line <= len(lines) else 1
         return cls(message, lines[rel - 1], line + rel - 1, file)
 
+    source = _blank_marker(text)
+    if source is None:
+        raise error(f"Expected a space after {MARKER}", 1)
+
     try:
-        tree = _parser().parse(text)
+        tree = _parser().parse(source)
     except UnexpectedToken as e:
         incomplete = e.token.type == "$END" and "RBRACE" in e.expected
         cls = IncompleteHeaderError if incomplete else ParserError

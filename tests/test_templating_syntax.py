@@ -14,7 +14,8 @@ FILE = Path("template.cpp")
 
 
 def parse(text: str, line: int = 1):
-    return parse_header(text, line, FILE)
+    """Parse *text* as the header following a ``$$JAFF`` marker."""
+    return parse_header(f"$$JAFF {text}", line, FILE)
 
 
 @pytest.mark.parametrize(
@@ -190,3 +191,23 @@ def test_other_end_of_input_is_final_error(text):
     with pytest.raises(ParserError) as err:
         parse(text)
     assert not isinstance(err.value, IncompleteHeaderError)
+
+
+def test_error_shows_full_source_line_and_absolute_column():
+    text = "    $$JAFF SUB x { SORT { K } }"
+    with pytest.raises(ParserError) as err:
+        parse_header(text, 7, FILE)
+    assert err.value.line == text
+    assert err.value.nline == 7
+    assert f"column {text.index('}') + 1}" in err.value.message
+
+
+def test_marker_needs_a_space_after_it():
+    with pytest.raises(ParserError, match="Expected a space after"):
+        parse_header("$$JAFFREPEAT idx IN x", 1, FILE)
+
+
+def test_crlf_header_error_line_has_no_carriage_return():
+    with pytest.raises(ParserError) as err:
+        parse_header("$$JAFF SUB x {\r\n  SORT { K }\r\n}", 1, FILE)
+    assert err.value.line == "  SORT { K }"
