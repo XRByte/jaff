@@ -1,7 +1,7 @@
 # ABOUTME: Parses one $$JAFF directive header with Lark into typed header and option objects
 # ABOUTME: Syntax only: no network, codegen or registry knowledge lives here
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from lark import Lark, Token, Transformer, UnexpectedInput, UnexpectedToken
 
 from ...errors import ParserError
+from .options import Options
 
 GRAMMAR = Path(__file__).with_name("grammar.lark")
 
@@ -55,15 +56,6 @@ class EndHeader:
 Header = Union[
     RepeatHeader, SubHeader, GetHeader, HasHeader, ReduceHeader, DefineHeader, EndHeader
 ]
-
-
-@dataclass
-class Options:
-    """Options of one directive block, in the order they were written."""
-
-    replace: List[Tuple[str, str]] = field(default_factory=list)
-    uses: List[str] = field(default_factory=list)
-    groups: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
