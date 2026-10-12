@@ -53,7 +53,7 @@ output_dir   = "../generated"          # where generated files are written
 input_dir    = "."                     # directory of template files
 input_files  = ["extra.cpp"]           # individual files (combined with input_dir)
 template     = "microphysics"          # built-in template collection name
-network      = "networks/GOW/GOW.jet"  # network file or built-in network name
+network_file = "networks/GOW/GOW.jet"  # network file or built-in network name
 echo         = false                   # don't copy $$JAFF lines into the output
 ```
 
@@ -63,7 +63,7 @@ echo         = false                   # don't copy $$JAFF lines into the output
 | `input_dir`    | `str`       | Directory of template files to process                              |
 | `input_files`  | `list[str]` | Individual template files; combined with `input_dir` and `template` |
 | `template`     | `str`       | Built-in collection under `jaff/templates/generator/`               |
-| `network`      | `str`       | Network file path, or a built-in network name                       |
+| `network_file` | `str`       | Network file path (relative to this file), or a built-in network name; `--network` overrides it |
 | `echo`         | `bool`      | Echo `$$JAFF` directives as comments in the output (default `true`); `--echo/--no-echo` overrides it |
 
 ---
@@ -467,7 +467,7 @@ output_dir   = "../generated"
 input_dir    = "."
 input_files  = ["../new.cpp", "test.cpp"]
 template     = "microphysics"
-network      = "networks/GOW/GOW.jet"
+network_file = "networks/GOW/GOW.jet"
 
 [network]
 label      = "GOW-generator"
