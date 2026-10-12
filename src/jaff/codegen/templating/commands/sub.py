@@ -50,7 +50,7 @@ class Sub(Command):
 
     tokens: Tuple[str, ...]
 
-    def validate(self, resolved: Resolved, ctx: RenderContext) -> None:
+    def validate(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> None:
         """Every listed token must be a known SUB token."""
         check_names(self.keyword, "token", self.tokens, TOKENS)
 

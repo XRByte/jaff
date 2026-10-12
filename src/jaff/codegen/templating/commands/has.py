@@ -23,7 +23,7 @@ class Has(Command):
     kind: str
     entity: str
 
-    def validate(self, resolved: Resolved, ctx: RenderContext) -> None:
+    def validate(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> None:
         """The kind must be ``specie``, ``reaction`` or ``element``."""
         check_names(self.keyword, "kind", (self.kind,), KINDS)
 

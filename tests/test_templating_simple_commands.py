@@ -64,7 +64,7 @@ def test_sub_filename_and_label(ctx):
 
 def test_sub_rejects_unknown_token(ctx):
     with pytest.raises(TemplateError, match="SUB has no token nspecs"):
-        Sub(("nspec", "nspecs")).validate(resolved(), ctx)
+        Sub(("nspec", "nspecs")).validate([], resolved(), ctx)
 
 
 @pytest.mark.parametrize(
@@ -82,7 +82,7 @@ def test_get_substitutes_entity_properties(ctx, props, entity, line, expected):
 
 def test_get_rejects_unknown_property(ctx):
     with pytest.raises(TemplateError, match="GET has no property mass"):
-        Get(("mass",), "H").validate(resolved(), ctx)
+        Get(("mass",), "H").validate([], resolved(), ctx)
 
 
 @pytest.mark.parametrize(
@@ -96,7 +96,7 @@ def test_has_substitutes_one_or_zero(ctx, kind, entity, expected):
 
 def test_has_rejects_unknown_kind(ctx):
     with pytest.raises(TemplateError, match="HAS has no kind species"):
-        Has("species", "H").validate(resolved(), ctx)
+        Has("species", "H").validate([], resolved(), ctx)
 
 
 @pytest.mark.parametrize(
@@ -117,7 +117,7 @@ def test_has_rejects_unknown_kind(ctx):
 )
 def test_get_rejects_entity_of_the_wrong_kind_or_unknown(ctx, prop, entity, message):
     with pytest.raises(TemplateError, match=message):
-        Get((prop,), entity).validate(resolved(), ctx)
+        Get((prop,), entity).validate([], resolved(), ctx)
 
 
 @pytest.mark.parametrize(
@@ -130,4 +130,4 @@ def test_get_rejects_entity_of_the_wrong_kind_or_unknown(ctx, prop, entity, mess
     ],
 )
 def test_get_accepts_existing_entities(ctx, prop, entity):
-    Get((prop,), entity).validate(resolved(), ctx)
+    Get((prop,), entity).validate([], resolved(), ctx)

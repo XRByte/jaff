@@ -62,15 +62,17 @@ class Command:
         """The command's keyword as written in templates, e.g. ``SUB``."""
         return type(self).__name__.upper()
 
-    def validate(self, resolved: Resolved, ctx: RenderContext) -> None:
-        """Check the header against the network before anything is rendered.
+    def validate(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> None:
+        """Check the block against the network before anything is rendered.
 
         Args:
+            body: Raw body lines, with their line endings.
             resolved: Layered options and compiled REPLACE of the block.
             ctx: Render context.
 
         Raises:
-            TemplateError: If the header names something the command cannot use.
+            TemplateError: If the block names something the command cannot use;
+                ``body_index`` set when a body line is at fault.
         """
 
     def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
@@ -83,6 +85,9 @@ class Command:
 
         Returns:
             The generated text, one ``\\n``-terminated line per output line.
+
+        Raises:
+            TemplateError: If a body line cannot be expanded.
         """
         raise NotImplementedError(f"{self.keyword} rendering is not implemented")
 

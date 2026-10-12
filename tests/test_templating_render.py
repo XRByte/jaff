@@ -7,6 +7,8 @@ import pytest
 
 from jaff import Network
 from jaff.codegen.templating import TemplateParser
+from jaff.codegen.templating.commands import Sub
+from jaff.codegen.templating.errors import TemplateError
 from jaff.errors import ParserError
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -157,3 +159,32 @@ def test_replace_patterns_are_compiled_once_per_block(net, tmp_path, monkeypatch
     text = '$$JAFF SUB nspec { REPLACE { "5" -> "five" } }\nn = $nspec$\n$$JAFF END\n'
     assert render(net, tmp_path, text) == "n = five\n"
     assert len(calls) == 1
+
+
+def test_validation_error_on_a_body_line_reports_that_line(net, tmp_path, monkeypatch):
+    def validate(self, body, resolved, ctx):
+        raise TemplateError("bad body line", body_index=1)
+
+    monkeypatch.setattr(Sub, "validate", validate)
+    text = "x\n$$JAFF SUB nspec {\n}\na\nb = 1\n$$JAFF END\n"
+    with pytest.raises(ParserError, match="bad body line") as err:
+        render(net, tmp_path, text)
+    assert err.value.nline == 5
+    assert "b = 1" in str(err.value)
+
+
+def test_validate_receives_the_body(net, tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(Sub, "validate", lambda self, body, r, c: seen.append(body))
+    render(net, tmp_path, "$$JAFF SUB nspec\na\nb\n$$JAFF END\n")
+    assert seen == [["a\n", "b\n"]]
+
+
+def test_render_error_becomes_a_parser_error(net, tmp_path, monkeypatch):
+    def render_fails(self, body, resolved, ctx):
+        raise TemplateError("cannot expand", body_index=0)
+
+    monkeypatch.setattr(Sub, "render", render_fails)
+    with pytest.raises(ParserError, match="cannot expand") as err:
+        render(net, tmp_path, "$$JAFF SUB nspec\nn = $nspec$\n$$JAFF END\n")
+    assert err.value.nline == 2

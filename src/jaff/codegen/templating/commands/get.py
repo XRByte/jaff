@@ -62,7 +62,7 @@ class Get(Command):
     props: Tuple[str, ...]
     entity: str
 
-    def validate(self, resolved: Resolved, ctx: RenderContext) -> None:
+    def validate(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> None:
         """Every property must be known and the entity must exist as its kind."""
         check_names(self.keyword, "property", self.props, PROPS)
         for name in self.props:

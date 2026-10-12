@@ -1,7 +1,7 @@
 # ABOUTME: Renders split template blocks: validates every block first, then renders
 # ABOUTME: Resolves USE layering, registers DEFINEs and echoes directives as comments
 
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set
 
 from ...errors import ParserError
 from .blocks import Block, CommandBlock, TextBlock
@@ -20,15 +20,18 @@ def _all_groups() -> Dict[str, Set[str]]:
     return groups
 
 
-def _error(
-    block: CommandBlock, message: str, nline: Optional[int], ctx: RenderContext
-) -> ParserError:
-    """ParserError at *nline* (default: the directive's first line)."""
-    nline = nline or block.line
-    index = nline - block.line
-    lines = block.header_lines
-    text = lines[index] if 0 <= index < len(lines) else lines[0]
-    return ParserError(message, text.rstrip("\r\n"), nline, ctx.file)
+def _error(block: CommandBlock, error: TemplateError, ctx: RenderContext) -> ParserError:
+    """ParserError at the body line, the line or the header *error* points at."""
+    if error.body_index is not None:
+        nline = block.line + len(block.header_lines) + error.body_index
+        text = block.body_lines[error.body_index]
+    else:
+        nline = error.nline or block.line
+        index = nline - block.line
+        lines = block.header_lines
+        text = lines[index] if 0 <= index < len(lines) else lines[0]
+
+    return ParserError(str(error), text.rstrip("\r\n"), nline, ctx.file)
 
 
 def _prepare(block: CommandBlock, ctx: RenderContext) -> Resolved:
@@ -39,14 +42,17 @@ def _prepare(block: CommandBlock, ctx: RenderContext) -> Resolved:
         accepted = _all_groups() if isinstance(command, Define) else command.groups
         check_groups(command.keyword, options, accepted)
         resolved = Resolved(options, compile_replacements(options))
-        command.validate(resolved, ctx)
+        command.validate(block.body_lines, resolved, ctx)
     except TemplateError as e:
-        raise _error(block, str(e), e.nline, ctx) from None
+        raise _error(block, e, ctx) from None
 
     if isinstance(command, Define):
         if command.name in ctx.defines:
-            raise _error(block, f"DEFINE {command.name} given twice", None, ctx)
+            error = TemplateError(f"DEFINE {command.name} given twice")
+            raise _error(block, error, ctx)
+
         ctx.defines[command.name] = options
+
     return resolved
 
 
@@ -72,7 +78,8 @@ def render_blocks(blocks: List[Block], ctx: RenderContext) -> str:
         The generated text.
 
     Raises:
-        ParserError: On the first invalid block, before anything is rendered.
+        ParserError: On the first invalid block, before anything is rendered, or
+            on a body line that cannot be expanded.
     """
     prepared = [
         _prepare(block, ctx) if isinstance(block, CommandBlock) else None
@@ -87,7 +94,10 @@ def render_blocks(blocks: List[Block], ctx: RenderContext) -> str:
 
         if ctx.echo_directives:
             out.append(echo(block.header_lines, comment))
-        out.append(block.command.render(block.body_lines, resolved, ctx))
+        try:
+            out.append(block.command.render(block.body_lines, resolved, ctx))
+        except TemplateError as e:
+            raise _error(block, e, ctx) from None
         if ctx.echo_directives:
             out.append(echo(block.end_lines, comment))
     return "".join(out)
