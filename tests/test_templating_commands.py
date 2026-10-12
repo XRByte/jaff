@@ -10,10 +10,12 @@ import pytest
 import jaff.codegen.templating as templating
 from jaff.codegen.templating.commands import (
     COMMANDS,
+    Comment,
     Define,
     End,
     Get,
     Has,
+    Lang,
     Reduce,
     Repeat,
     Sub,
@@ -49,6 +51,8 @@ def test_command_aliases_do_not_shadow_transformer_rules():
         ("reduce", [("a",), ("p",)], Reduce(("a",), ("p",))),
         ("define", ["micro"], Define("micro")),
         ("end", [], End()),
+        ("lang", ["fortran"], Lang("fortran")),
+        ("comment", ["#"], Comment("#")),
     ],
 )
 def test_from_items(alias, items, command):

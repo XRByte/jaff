@@ -92,6 +92,21 @@ class Command:
         raise NotImplementedError(f"{self.keyword} rendering is not implemented")
 
 
+@dataclass(frozen=True)
+class FileSetting(Command):
+    """A directive that configures the whole template, such as ``LANG``.
+
+    It has no body and renders nothing; the engine requires it before every
+    other directive, at most once per keyword.
+    """
+
+    has_body: ClassVar[bool] = False
+
+    def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
+        """A file setting produces no output of its own."""
+        return ""
+
+
 def render_each_line(
     body: List[str],
     transform: Callable[[str], str],

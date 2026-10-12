@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 
 from ...errors import ParserError
 from .blocks import Block, CommandBlock, TextBlock
-from .commands import Define, End
+from .commands import Comment, Define, End, FileSetting
 from .options import Options
 from .syntax import (
     MARKER,
@@ -120,6 +120,33 @@ def _check_define(
         )
 
 
+def _check_setting(
+    block: CommandBlock, blocks: List[Block], lines: List[str], file: Path
+) -> None:
+    """A file setting has no options, comes before other directives, and only once.
+
+    *blocks* are the blocks before *block*.
+    """
+    keyword = block.command.keyword
+    start = block.line - 1
+
+    def error(message: str) -> ParserError:
+        return ParserError(message, _src(lines[start]), block.line, file)
+
+    if block.options is not None:
+        raise error(f"$$JAFF {keyword} takes no options")
+
+    if isinstance(block.command, Comment) and not block.command.token.strip():
+        raise error('$$JAFF COMMENT needs a comment token, e.g. COMMENT "#"')
+
+    earlier = [b.command for b in blocks if isinstance(b, CommandBlock)]
+    if any(not isinstance(command, FileSetting) for command in earlier):
+        raise error(f"$$JAFF {keyword} must come before the other $$JAFF directives")
+
+    if any(command.keyword == keyword for command in earlier):
+        raise error(f"$$JAFF {keyword} given twice")
+
+
 def split_blocks(text: str, file: Path) -> List[Block]:
     """Split a template into text and directive blocks in one pass.
 
@@ -164,7 +191,11 @@ def split_blocks(text: str, file: Path) -> List[Block]:
             body, end_lines, end = _read_body(lines, i, after, file)
 
         header = lines[i:after]
-        blocks.append(CommandBlock(command, options, header, body, end_lines, i + 1))
+        block = CommandBlock(command, options, header, body, end_lines, i + 1)
+        if isinstance(command, FileSetting):
+            _check_setting(block, blocks, lines, file)
+
+        blocks.append(block)
         i = end
 
     return blocks

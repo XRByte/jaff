@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from jaff.codegen.templating.blocks import CommandBlock, TextBlock
-from jaff.codegen.templating.commands import Define, Repeat, Sub
+from jaff.codegen.templating.commands import Comment, Define, Lang, Repeat, Sub
 from jaff.codegen.templating.engine import split_blocks
 from jaff.errors import ParserError
 
@@ -257,3 +257,36 @@ def test_define_use_error_points_at_the_use_line():
 def test_define_brace_on_next_line_needs_an_option_block():
     with pytest.raises(ParserError, match="DEFINE needs an option block"):
         split("$$JAFF DEFINE m\n{ SORT { ENABLED -> True } }\n")
+
+
+def test_lang_and_comment_are_header_only_blocks():
+    text = '#!/bin/sh\n$$JAFF LANG fortran\n$$JAFF COMMENT "#"\nx\n'
+    blocks = split(text)
+    assert [type(b) for b in blocks] == [TextBlock, CommandBlock, CommandBlock, TextBlock]
+    assert blocks[1].command == Lang("fortran")
+    assert blocks[2].command == Comment("#")
+    assert blocks[2].body_lines == []
+
+
+def test_file_setting_after_another_directive_is_an_error():
+    text = "$$JAFF SUB nspec\nx\n$$JAFF END\n$$JAFF LANG python\n"
+    with pytest.raises(ParserError, match="must come before the other") as err:
+        split(text)
+    assert err.value.nline == 4
+
+
+def test_file_setting_given_twice_is_an_error():
+    with pytest.raises(ParserError, match="COMMENT given twice") as err:
+        split('$$JAFF COMMENT "#"\n$$JAFF COMMENT "!"\n')
+    assert err.value.nline == 2
+
+
+def test_file_setting_takes_no_options():
+    with pytest.raises(ParserError, match="LANG takes no options"):
+        split("$$JAFF LANG python { USE m }\n")
+
+
+@pytest.mark.parametrize("token", ['""', '" "'])
+def test_comment_needs_a_token(token):
+    with pytest.raises(ParserError, match="COMMENT needs a comment token"):
+        split(f"$$JAFF COMMENT {token}\n")

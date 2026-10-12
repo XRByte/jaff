@@ -9,6 +9,8 @@ command: "REPEAT" names "IN" ATOM       -> repeat
        | "HAS" ATOM value               -> has
        | "REDUCE" names "IN" names      -> reduce
        | "DEFINE" ATOM                  -> define
+       | "LANG" ATOM                    -> lang
+       | "COMMENT" STRING               -> comment
        | "END"                          -> end
 
 options: "{" option* "}"

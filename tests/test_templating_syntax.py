@@ -6,7 +6,17 @@ from pathlib import Path
 
 import pytest
 
-from jaff.codegen.templating.commands import Define, End, Get, Has, Reduce, Repeat, Sub
+from jaff.codegen.templating.commands import (
+    Comment,
+    Define,
+    End,
+    Get,
+    Has,
+    Lang,
+    Reduce,
+    Repeat,
+    Sub,
+)
 from jaff.codegen.templating.syntax import (
     DirectiveSyntaxError,
     IncompleteHeaderError,
@@ -41,6 +51,8 @@ def parse(text: str, line: int = 1):
         ("REDUCE a, b IN p, q", Reduce(("a", "b"), ("p", "q"))),
         ("DEFINE micro { }", Define("micro")),
         ("END", End()),
+        ("LANG c++", Lang("c++")),
+        ('COMMENT "//"', Comment("//")),
     ],
 )
 def test_commands(text, command):
