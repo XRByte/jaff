@@ -6,13 +6,8 @@ from typing import List, Tuple
 
 from ...errors import ParserError
 from .blocks import Block, CommandBlock, TextBlock
-from .syntax import (
-    DefineHeader,
-    Directive,
-    EndHeader,
-    IncompleteHeaderError,
-    parse_header,
-)
+from .commands import Define, End
+from .syntax import Directive, IncompleteHeaderError, parse_header
 
 MARKER = "$$JAFF"
 
@@ -79,7 +74,7 @@ def _read_body(
     while i < len(lines):
         if is_directive(lines[i]):
             directive, after = _read_header(lines, i, file)
-            if not isinstance(directive.header, EndHeader):
+            if not isinstance(directive.command, End):
                 raise ParserError(
                     "Nested $$JAFF directive (missing $$JAFF END?)",
                     _src(lines[i]),
@@ -127,14 +122,14 @@ def split_blocks(text: str, file: Path) -> List[Block]:
             continue
 
         directive, after = _read_header(lines, i, file)
-        if isinstance(directive.header, EndHeader):
+        if isinstance(directive.command, End):
             raise ParserError(
                 "$$JAFF END without a directive", _src(lines[i]), i + 1, file
             )
 
         body: List[str] = []
         end = after
-        if not isinstance(directive.header, DefineHeader):
+        if not isinstance(directive.command, Define):
             body, end = _read_body(lines, i, after, file)
 
         blocks.append(CommandBlock(directive, lines[i:after], body, i + 1))

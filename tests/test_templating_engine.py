@@ -7,7 +7,7 @@ import pytest
 
 from jaff.codegen.templating.blocks import CommandBlock, TextBlock
 from jaff.codegen.templating.engine import split_blocks
-from jaff.codegen.templating.syntax import DefineHeader, RepeatHeader, SubHeader
+from jaff.codegen.templating.commands import Define, Repeat, Sub
 from jaff.errors import ParserError
 
 FILE = Path("template.cpp")
@@ -26,7 +26,7 @@ def test_single_line_directive_with_body():
     blocks = split("before\n$$JAFF SUB nspec\nn = $nspec$;\n$$JAFF END\nafter\n")
     assert [type(b) for b in blocks] == [TextBlock, CommandBlock, TextBlock]
     block = blocks[1]
-    assert block.directive.header == SubHeader(("nspec",))
+    assert block.directive.command == Sub(("nspec",))
     assert block.header_lines == ["$$JAFF SUB nspec\n"]
     assert block.body_lines == ["n = $nspec$;\n"]
     assert block.line == 2
@@ -43,7 +43,7 @@ def test_multiline_header_and_indented_body():
         "  $$JAFF END\n"
     )
     (block,) = split(text)
-    assert block.directive.header == RepeatHeader(("idx", "rhs"), "rhses")
+    assert block.directive.command == Repeat(("idx", "rhs"), "rhses")
     assert block.directive.options.replace == [("tgas", "T")]
     assert len(block.header_lines) == 3
     assert block.body_lines == ["  f[$idx$] = $rhs$;\n", "\n"]
@@ -58,7 +58,7 @@ def test_brace_on_header_line_only():
 
 def test_define_has_no_body():
     blocks = split("$$JAFF DEFINE micro {\n    RADIATION { ENABLED -> True }\n}\nx\n")
-    assert blocks[0].directive.header == DefineHeader("micro")
+    assert blocks[0].directive.command == Define("micro")
     assert blocks[0].body_lines == []
     assert blocks[1] == TextBlock(["x\n"], 4)
 
@@ -134,7 +134,7 @@ def test_empty_template():
 
 def test_crlf_is_preserved():
     (block,) = split("$$JAFF SUB nspec\r\nx\r\n$$JAFF END\r\n")
-    assert block.directive.header == SubHeader(("nspec",))
+    assert block.directive.command == Sub(("nspec",))
     assert block.header_lines == ["$$JAFF SUB nspec\r\n"]
     assert block.body_lines == ["x\r\n"]
 
@@ -143,7 +143,7 @@ def test_no_trailing_newline_after_end_and_define():
     (block,) = split("$$JAFF SUB x\nb\n$$JAFF END")
     assert block.body_lines == ["b\n"]
     blocks = split("$$JAFF DEFINE m {\n  RADIATION { ENABLED -> True }\n}")
-    assert blocks[0].directive.header == DefineHeader("m")
+    assert blocks[0].directive.command == Define("m")
 
 
 def test_missing_end_reports_header_line_after_text():

@@ -1,66 +1,26 @@
-# ABOUTME: Parses one $$JAFF directive header with Lark into typed header and option objects
+# ABOUTME: Parses one $$JAFF directive header with Lark into a command and its options
 # ABOUTME: Syntax only: no network, codegen or registry knowledge lives here
 
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from lark import Lark, Token, Transformer, UnexpectedInput, UnexpectedToken
+from lark.tree import Meta
 
 from ...errors import ParserError
+from .commands import COMMANDS, Command
 from .options import Options
 
 GRAMMAR = Path(__file__).with_name("grammar.lark")
 
 
 @dataclass(frozen=True)
-class RepeatHeader:
-    vars: Tuple[str, ...]
-    prop: str
-
-
-@dataclass(frozen=True)
-class SubHeader:
-    tokens: Tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class GetHeader:
-    props: Tuple[str, ...]
-    entity: str
-
-
-@dataclass(frozen=True)
-class HasHeader:
-    kind: str
-    entity: str
-
-
-@dataclass(frozen=True)
-class ReduceHeader:
-    vars: Tuple[str, ...]
-    props: Tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class DefineHeader:
-    name: str
-
-
-@dataclass(frozen=True)
-class EndHeader:
-    pass
-
-
-Header = Union[
-    RepeatHeader, SubHeader, GetHeader, HasHeader, ReduceHeader, DefineHeader, EndHeader
-]
-
-
-@dataclass(frozen=True)
 class Directive:
-    header: Header
+    """A parsed directive header: its command and its option block, if any."""
+
+    command: Command
     options: Optional[Options]
 
 
@@ -82,34 +42,23 @@ _Part = Tuple[str, Any]
 
 
 class _ToDirective(Transformer):
-    """Lark transformer turning the parse tree into a header and raw option parts."""
+    """Lark transformer turning the parse tree into a command and raw option parts."""
 
-    def start(self, items: List[Any]) -> Tuple[Header, Optional[List[_Part]]]:
+    def __default__(self, data: str, children: List[Any], meta: Meta) -> Any:
+        """Build a command for command aliases; leave other rules as trees."""
+        if data in COMMANDS:
+            items = [_text(c) if isinstance(c, Token) else c for c in children]
+            return COMMANDS[data].from_items(items)
+
+        return super().__default__(data, children, meta)
+
+    def start(self, items: List[Any]) -> Tuple[Command, Optional[List[_Part]]]:
+        """Pair the command with its raw option parts (``None`` without a block)."""
         return items[0], (items[1] if len(items) > 1 else None)
 
     def names(self, items: List[Any]) -> Tuple[str, ...]:
+        """Comma-separated names as a tuple of strings."""
         return tuple(str(t) for t in items)
-
-    def repeat(self, items: List[Any]) -> RepeatHeader:
-        return RepeatHeader(items[0], str(items[1]))
-
-    def sub(self, items: List[Any]) -> SubHeader:
-        return SubHeader(items[0])
-
-    def get(self, items: List[Any]) -> GetHeader:
-        return GetHeader(items[0], _text(items[1]))
-
-    def has(self, items: List[Any]) -> HasHeader:
-        return HasHeader(str(items[0]), _text(items[1]))
-
-    def reduce(self, items: List[Any]) -> ReduceHeader:
-        return ReduceHeader(items[0], items[1])
-
-    def define(self, items: List[Any]) -> DefineHeader:
-        return DefineHeader(str(items[0]))
-
-    def end(self, items: List[Any]) -> EndHeader:
-        return EndHeader()
 
     def replacement(self, items: List[Any]) -> Tuple[str, str]:
         return (_text(items[0]), _unescape(items[1]))
@@ -234,10 +183,10 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
     except UnexpectedInput as e:
         raise error(_describe(e), e.line) from None
 
-    header, parts = _ToDirective().transform(tree)
+    command, parts = _ToDirective().transform(tree)
     if parts is None:
-        return Directive(header, None)
+        return Directive(command, None)
     try:
-        return Directive(header, _build_options(parts))
+        return Directive(command, _build_options(parts))
     except _OptionError as e:
         raise error(str(e), e.rel_line) from None

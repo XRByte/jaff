@@ -6,18 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from jaff.codegen.templating.syntax import (
-    DefineHeader,
-    EndHeader,
-    GetHeader,
-    HasHeader,
-    IncompleteHeaderError,
-    Options,
-    ReduceHeader,
-    RepeatHeader,
-    SubHeader,
-    parse_header,
-)
+from jaff.codegen.templating.commands import Define, End, Get, Has, Reduce, Repeat, Sub
+from jaff.codegen.templating.syntax import IncompleteHeaderError, Options, parse_header
 from jaff.errors import ParserError
 
 FILE = Path("template.cpp")
@@ -28,26 +18,26 @@ def parse(text: str, line: int = 1):
 
 
 @pytest.mark.parametrize(
-    "text, header",
+    "text, command",
     [
-        ("REPEAT idx, rhs, cse IN rhses", RepeatHeader(("idx", "rhs", "cse"), "rhses")),
-        ("SUB nspec, label", SubHeader(("nspec", "label"))),
+        ("REPEAT idx, rhs, cse IN rhses", Repeat(("idx", "rhs", "cse"), "rhses")),
+        ("SUB nspec, label", Sub(("nspec", "label"))),
         (
             "GET specie_idx, specie_mass IN H+",
-            GetHeader(("specie_idx", "specie_mass"), "H+"),
+            Get(("specie_idx", "specie_mass"), "H+"),
         ),
         (
             'GET reaction_idx IN "H + H -> H2"',
-            GetHeader(("reaction_idx",), "H + H -> H2"),
+            Get(("reaction_idx",), "H + H -> H2"),
         ),
-        ("HAS specie e-", HasHeader("specie", "e-")),
-        ("REDUCE a, b IN p, q", ReduceHeader(("a", "b"), ("p", "q"))),
-        ("DEFINE micro { }", DefineHeader("micro")),
-        ("END", EndHeader()),
+        ("HAS specie e-", Has("specie", "e-")),
+        ("REDUCE a, b IN p, q", Reduce(("a", "b"), ("p", "q"))),
+        ("DEFINE micro { }", Define("micro")),
+        ("END", End()),
     ],
 )
-def test_headers(text, header):
-    assert parse(text).header == header
+def test_commands(text, command):
+    assert parse(text).command == command
 
 
 def test_no_block_means_no_options():
@@ -60,7 +50,7 @@ def test_empty_block_gives_empty_options():
 
 def test_prop_named_like_a_keyword_suffix():
     # Old engine split on the substring "IN"; INF must stay one name (bug 5)
-    assert parse("REPEAT idx IN INF").header == RepeatHeader(("idx",), "INF")
+    assert parse("REPEAT idx IN INF").command == Repeat(("idx",), "INF")
 
 
 def test_replace_pairs_keep_regex_escapes():
@@ -184,7 +174,7 @@ def test_directive_and_headers_are_immutable():
     directive = parse("SUB a, b")
     with pytest.raises(FrozenInstanceError):
         directive.options = Options()
-    assert isinstance(directive.header.tokens, tuple)
+    assert isinstance(directive.command.tokens, tuple)
 
 
 @pytest.mark.parametrize("text", ["SUB x {", 'SUB x { REPLACE { "a" -> "b"'])
