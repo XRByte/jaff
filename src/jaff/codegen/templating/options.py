@@ -12,6 +12,7 @@ class Options:
     replace: List[Tuple[str, str]] = field(default_factory=list)
     uses: List[str] = field(default_factory=list)
     groups: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    # Template line of each USE name and group name, for error messages
+    # Template lines for error messages: of each REPLACE pair, USE name and group
+    replace_lines: List[int] = field(default_factory=list, compare=False)
     use_lines: Dict[str, int] = field(default_factory=dict, compare=False)
     group_lines: Dict[str, int] = field(default_factory=dict, compare=False)

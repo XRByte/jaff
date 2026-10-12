@@ -300,3 +300,10 @@ def test_tab_indented_marker_keeps_absolute_column():
 def test_crlf_header_parses():
     directive = parse_header("$$JAFF SUB x {\r\n  USE m\r\n}\r\n", 1, FILE)
     assert directive.options.uses == ["m"]
+
+
+def test_options_record_template_lines_of_replace_pairs():
+    options = parse(
+        'SUB x {\n  REPLACE {\n    "a" -> "b"\n    "c" -> "d"\n  }\n}', line=20
+    ).options
+    assert options.replace_lines == [22, 23]

@@ -38,8 +38,9 @@ def _unescape(token: Token) -> str:
     return _text(token).replace('\\"', '"')
 
 
-# One raw option: (kind, value); USE carries (name, line), groups carry
-# (name, line, [(key, value, line)]); lines are relative to the header text
+# One raw option: (kind, value); REPLACE carries [(pattern, replacement, line)],
+# USE (name, line), groups (name, line, [(key, value, line)]); lines are relative
+# to the header text
 _Part = Tuple[str, Any]
 
 
@@ -62,9 +63,9 @@ class _ToDirective(Transformer):
         """Comma-separated names as a tuple of strings."""
         return tuple(str(t) for t in items)
 
-    def replacement(self, items: List[Any]) -> Tuple[str, str]:
-        """A REPLACE pair: raw regex pattern and unescaped replacement."""
-        return (_text(items[0]), _unescape(items[1]))
+    def replacement(self, items: List[Any]) -> Tuple[str, str, int]:
+        """A REPLACE pair: raw regex pattern, unescaped replacement, relative line."""
+        return (_text(items[0]), _unescape(items[1]), items[0].line)
 
     def setting(self, items: List[Any]) -> Tuple[str, str, int]:
         """A group setting: key, unescaped value and the key's relative line."""
@@ -128,7 +129,9 @@ def _build_options(parts: List[_Part], first: int) -> Options:
     options = Options()
     for kind, value in parts:
         if kind == "replace":
-            options.replace.extend(value)
+            for pattern, replacement, rel_line in value:
+                options.replace.append((pattern, replacement))
+                options.replace_lines.append(first + rel_line - 1)
         elif kind == "use":
             name, rel_line = value
             options.uses.append(name)
