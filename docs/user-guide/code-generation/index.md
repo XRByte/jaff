@@ -7,7 +7,7 @@ icon: phosphor/code-block
 
 # Code Generation
 
-JAFF can turn any loaded network into ready-to-compile/run source files in C, C++, Fortran, Python, Rust, Julia, or R. The generation pipeline is template-driven: you write ordinary source files that contain special JAFF directives, and JAFF expands them into network-specific code.
+JAFF can turn any loaded network into ready-to-compile/run source files in C, C++, Fortran, Python, Rust, Julia, or R. The generation pipeline is template-driven: you write ordinary source files that contain special `$$JAFF` directives, and JAFF expands them into network-specific code.
 
 <div class="grid cards" markdown>
 
@@ -15,7 +15,7 @@ JAFF can turn any loaded network into ready-to-compile/run source files in C, C+
 
     ***
 
-    Learn the `$JAFF` directive language: `SUB`, `REPEAT`, `REDUCE`, `GET`, `HAS`, `END`, and the optional `REPLACE` modifier.
+    Learn the `$$JAFF` directive language: `SUB`, `REPEAT`, `REDUCE`, `GET`, `HAS`, `END`, option blocks with `REPLACE`, reusable `DEFINE`/`USE` sets, and the `LANG` and `COMMENT` file settings.
 
     [:octicons-arrow-right-24: Template Syntax](template-syntax.md)
 

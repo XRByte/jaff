@@ -25,7 +25,7 @@ So the example is split across three files:
 | `main.cpp`       | you (the host code)        | the driver that wires the two together |
 
 The mental model is the only thing to hold onto: **a template is ordinary source
-code; every line is copied to the output verbatim except the `$JAFF` blocks,
+code; every line is copied to the output verbatim except the `$$JAFF` blocks,
 which are expanded against the network.** The
 [Template Syntax](template-syntax.md) page is the
 full directive reference; this page just puts the pieces together.
@@ -57,26 +57,26 @@ The template produces **only** the network-specific code: the species/reaction
 counts, the ODE right-hand side, and the analytic Jacobian. There is no solver
 and no `main` here — those belong to the host code (sections 4 and 5). The
 output is a header the rest of the program `#include`s. Save it as `chem_rhs.hpp`.
-The `$JAFF` blocks are the only generated regions — everything else is C++ copied
+The `$$JAFF` blocks are the only generated regions — everything else is C++ copied
 through untouched.
 
 ```cpp
 // chem_rhs.hpp — a JAFF template.
-// Every line is plain C++ copied verbatim, except the $JAFF blocks, which JAFF
+// Every line is plain C++ copied verbatim, except the $$JAFF blocks, which JAFF
 // fills in from the network. The output is a header the host code #includes.
 #pragma once
 #include <cmath>
 
-// $JAFF SUB nspec, nreact
+$$JAFF SUB nspec, nreact
 constexpr int NSPEC  = $nspec$;
 constexpr int NREACT = $nreact$;
-// $JAFF END
+$$JAFF END
 
 // dn/dt for every species. nden = number densities (cm^-3), tgas = K.
 inline void derivatives(const double* nden, double tgas, double* f) {
-    // $JAFF REPEAT idx, ode IN odes
+    $$JAFF REPEAT idx, ode IN odes
     f[$idx$] = $ode$;
-    // $JAFF END
+    $$JAFF END
 }
 
 // Analytic Jacobian J[i][j] = d f[i] / d nden[j]. Only the non-zero entries are
@@ -84,9 +84,9 @@ inline void derivatives(const double* nden, double tgas, double* f) {
 inline void jacobian(const double* nden, double tgas, double** J) {
     for (int i = 0; i < NSPEC; ++i)
         for (int j = 0; j < NSPEC; ++j) J[i][j] = 0.0;
-    // $JAFF REPEAT idx, expr IN jacobian
+    $$JAFF REPEAT idx, expr IN jacobian
     J[$idx$][$idx$] = $expr$;
-    // $JAFF END
+    $$JAFF END
 }
 ```
 
@@ -96,7 +96,7 @@ Three directives carry the whole template:
 - **`REPEAT idx, ode IN odes`** emits one `f[$idx$] = $ode$;` line per species,
   filling `$idx$` with the species index and `$ode$` with the full
   dn/dt expression. The
-  [`odes`](template-syntax.md#expression-generating-collections)
+  [`odes`](template-syntax.md#expression-generating-properties)
   collection inlines the rate coefficients, so the rates never need a separate
   array here.
 - **`REPEAT idx, expr IN jacobian`** emits the analytic Jacobian. It is a 2D
@@ -113,17 +113,18 @@ and stay completely network-independent — it never has to know `NSPEC`. The
 generated code uses `NSPEC` only as the loop bound when it clears `J`, since here
 it is the file that owns that constant.
 
-The comment token (`//`) is read from the `.hpp` extension; JAFF recognises a
-directive only when a line begins with it immediately followed by `$JAFF`. The
-generated code uses the names `nden` and `tgas`, so the host code below speaks
+The target language (C++) is read from the `.hpp` extension; a template with an
+unknown extension would declare it with a `$$JAFF LANG` line. A directive is
+any line whose first non-blank text is `$$JAFF`, so it needs no comment prefix
+and can be indented to match the surrounding code. The generated code uses the names `nden` and `tgas`, so the host code below speaks
 the same names — no remapping needed.
 
 <!-- prettier-ignore -->
 !!! tip "Renaming JAFF's symbols"
     To target a codebase that calls the density array `y` and the temperature
-    `T`, add a `REPLACE` modifier instead of renaming by hand:
-    `#!text // $JAFF REPEAT idx, ode IN odes $[REPLACE nden y REPLACE tgas T]$`.
-    See [REPLACE](template-syntax.md#replace-directive).
+    `T`, add a `REPLACE` option instead of renaming by hand:
+    `#!text $$JAFF REPEAT idx, ode IN odes { REPLACE { "nden" -> "y"  "tgas" -> "T" } }`.
+    See [REPLACE](template-syntax.md#replace).
 
 ---
 
@@ -142,21 +143,21 @@ INFO     Successfully generated files
 ```
 
 The expanded file keeps its name and lands in `generated/chem_rhs.hpp`. The
-directive lines survive in the output (as comments), with the generated content
+directive lines survive in the output (echoed as comments), with the generated content
 spliced in beneath them:
 
 ```cpp
-// $JAFF SUB nspec, nreact
+// $$JAFF SUB nspec, nreact
 constexpr int NSPEC  = 2;
 constexpr int NREACT = 2;
-// $JAFF END
+// $$JAFF END
 
 // dn/dt for every species. nden = number densities (cm^-3), tgas = K.
 inline void derivatives(const double* nden, double tgas, double* f) {
-    // $JAFF REPEAT idx, ode IN odes
-    f[0] = -3.4641016151377544e-9*std::pow(tgas, -0.5)*std::pow(nden[0], 2) + 4.0000000000000002e-9*std::exp(-100.0/tgas)*nden[1];
-    f[1] = 1.7320508075688772e-9*std::pow(tgas, -0.5)*std::pow(nden[0], 2) - 2.0000000000000001e-9*std::exp(-100.0/tgas)*nden[1];
-    // $JAFF END
+    // $$JAFF REPEAT idx, ode IN odes
+    f[0] = -3.4641016151377549e-9*std::pow(tgas, -0.5)*std::pow(nden[0], 2) + 4.0000000000000002e-9*std::exp(-100.0/tgas)*nden[1];
+    f[1] = 1.7320508075688774e-9*std::pow(tgas, -0.5)*std::pow(nden[0], 2) - 2.0000000000000001e-9*std::exp(-100.0/tgas)*nden[1];
+    // $$JAFF END
 }
 
 // Analytic Jacobian J[i][j] = d f[i] / d nden[j]. Only the non-zero entries are
@@ -164,12 +165,12 @@ inline void derivatives(const double* nden, double tgas, double* f) {
 inline void jacobian(const double* nden, double tgas, double** J) {
     for (int i = 0; i < NSPEC; ++i)
         for (int j = 0; j < NSPEC; ++j) J[i][j] = 0.0;
-    // $JAFF REPEAT idx, expr IN jacobian
-    J[0][0] = -6.9282032302755089e-9*std::pow(tgas, -0.5)*nden[0];
+    // $$JAFF REPEAT idx, expr IN jacobian
+    J[0][0] = -6.9282032302755097e-9*std::pow(tgas, -0.5)*nden[0];
     J[0][1] = 4.0000000000000002e-9*std::exp(-100.0/tgas);
-    J[1][0] = 3.4641016151377544e-9*std::pow(tgas, -0.5)*nden[0];
+    J[1][0] = 3.4641016151377549e-9*std::pow(tgas, -0.5)*nden[0];
     J[1][1] = -2.0000000000000001e-9*std::exp(-100.0/tgas);
-    // $JAFF END
+    // $$JAFF END
 }
 ```
 
@@ -347,7 +348,7 @@ network file, the solver infrastructure stays in your repo, and a single
 
 ## See also
 
-- [Template Syntax](template-syntax.md) — every directive, collection, and modifier.
+- [Template Syntax](template-syntax.md) — every directive, property, and option.
 - [jaffgen CLI](jaffgen.md) — inputs, built-in templates, and options.
 - [`Codegen`](../../api/codegen/codegen/index.md) — the low-level generator behind the `odes`/`rates`/`jacobian` collections.
 - [`Builder`](../../api/codegen/builder/index.md) — ready-made solver templates when you don't want to write your own.

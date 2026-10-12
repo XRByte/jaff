@@ -49,7 +49,7 @@ There are **two halves**, and keeping them apart is the key to the whole API:
   [`Elements`](../user-guide/working-with-networks/elements.md);
 - the **code generator** — the
   [`jaffgen`](../user-guide/code-generation/index.md) CLI, which expands your
-  `$JAFF` templates against the model to emit rate, ODE, and Jacobian source.
+  `$$JAFF` templates against the model to emit rate, ODE, and Jacobian source.
 
 ```text
 Network                          ← the loaded model
@@ -58,7 +58,7 @@ Network                          ← the loaded model
   └── net.elements  → Elements   ← the atoms they are made of
         │
         ▼
-jaffgen --network … --files …    ← expands $JAFF templates against the model
+jaffgen --network … --files …    ← expands $$JAFF templates against the model
   → generated/                   ← network-specific source out
 ```
 
@@ -204,7 +204,7 @@ representation is the point of the parser.
 JAFF's code generation is **template-driven**, and the
 [`jaffgen`](../user-guide/code-generation/jaffgen.md) CLI is how you run it. You
 write an ordinary source file — C, C++, Fortran, Python, Rust, Julia, or R — and
-mark up the parts that depend on the network with `$JAFF` directives. `jaffgen`
+mark up the parts that depend on the network with `$$JAFF` directives. `jaffgen`
 loads a network, expands every directive against it, and writes the result out.
 
 A template is real source code with small generated regions. Every line that is
@@ -212,14 +212,14 @@ A template is real source code with small generated regions. Every line that is
 
 ```cpp
 // rates.cpp — a template
-// $JAFF SUB nreact
+$$JAFF SUB nreact
 const int NREACT = $nreact$;
-// $JAFF END
+$$JAFF END
 
 void compute_rates(double* k, double T) {
-    // $JAFF REPEAT idx, rate IN rates
+    $$JAFF REPEAT idx, rate IN rates
     k[$idx$] = $rate$;
-    // $JAFF END
+    $$JAFF END
 }
 ```
 
@@ -230,19 +230,25 @@ jaffgen --network networks/h_photoionization/h_photo.jet --files rates.cpp
 ```
 
 The expanded file lands in `generated/`, keeping its name. `SUB` swaps a single
-value; `REPEAT` loops a line once per item in a collection (here `rates`):
+value; `REPEAT` loops a line once per item in a collection (here `rates`). The
+directive lines themselves stay in the output as comments:
 
 ```cpp
+// rates.cpp — a template
+// $$JAFF SUB nreact
 const int NREACT = 2;
+// $$JAFF END
 
 void compute_rates(double* k, double T) {
+    // $$JAFF REPEAT idx, rate IN rates
     k[0] = photorates(0, …);
     k[1] = …;
+    // $$JAFF END
 }
 ```
 
 The directive language is small — `SUB`, `REPEAT`, `REDUCE`, `GET`, `HAS`,
-`END`, plus a `REPLACE` modifier. The
+`END`, plus options such as `REPLACE`. The
 [Template Syntax](../user-guide/code-generation/template-syntax.md) page is the
 full reference. Three ideas explain what the collections emit: indexing, CSE,
 and the ODE/Jacobian pair.
@@ -250,8 +256,8 @@ and the ODE/Jacobian pair.
 ### Array indexing
 
 Languages disagree on where arrays start and how they are bracketed. JAFF reads
-the target language from each file's extension (or the `--lang` fallback) and
-emits the right convention automatically:
+the target language from each file's extension (or from a `$$JAFF LANG` line
+in the file) and emits the right convention automatically:
 
 | Language | Starting index | Example  |
 | -------- | -------------- | -------- |
@@ -270,18 +276,18 @@ adding the `cse` variable to a `REPEAT`:
 === "Without CSE"
 
     ```cpp
-    // $JAFF REPEAT idx, rate IN rates
+    $$JAFF REPEAT idx, rate IN rates
     k[$idx$] = $rate$;
-    // $JAFF END
+    $$JAFF END
     ```
 
 === "With CSE"
 
     ```cpp
-    // $JAFF REPEAT idx, rate, cse IN rates
-    const double x$idx$ = $cse$;   // shared temporaries, emitted first
-    k[$idx$] = $rate$;             // rate now references the x_i
-    // $JAFF END
+    $$JAFF REPEAT idx, rate, cse IN rates
+    const double x$idx$ = $cse$;
+    k[$idx$] = $rate$;
+    $$JAFF END
     ```
 
 ### ODEs and the Jacobian
@@ -298,13 +304,13 @@ which the `jacobian` collection emits. Because every `rate` is a symbolic
 expression, JAFF differentiates it exactly rather than numerically:
 
 ```cpp
-// $JAFF REPEAT idx, ode IN odes
+$$JAFF REPEAT idx, ode IN odes
 dydt[$idx$] = $ode$;
-// $JAFF END
+$$JAFF END
 
-// $JAFF REPEAT idx, expr IN jacobian
-J[$idx$] = $expr$;
-// $JAFF END
+$$JAFF REPEAT idx, expr IN jacobian
+J[$idx$][$idx$] = $expr$;
+$$JAFF END
 ```
 
 ---
@@ -357,7 +363,7 @@ these objects.
 | **ODE**              | Ordinary Differential Equation describing concentration changes |
 | **Jacobian**         | Matrix of partial derivatives of the ODEs                       |
 | **CSE**              | Common Subexpression Elimination (an optimization)              |
-| **Template**         | A source file with `$JAFF` directives for code generation       |
+| **Template**         | A source file with `$$JAFF` directives for code generation       |
 | **Network**          | A collection of species and reactions                           |
 | **Index offset**     | Starting index for generated arrays (`0` or `1`)                |
 
@@ -369,5 +375,5 @@ Now that the pieces have names:
 
 1. [Working with Networks](../user-guide/working-with-networks/index.md) — inspect species, reactions, and elements in depth;
 2. [Code Generation](../user-guide/code-generation/index.md) — run `jaffgen` over your templates;
-3. [Template Syntax](../user-guide/code-generation/template-syntax.md) — write your own `$JAFF` templates;
+3. [Template Syntax](../user-guide/code-generation/template-syntax.md) — write your own `$$JAFF` templates;
 4. [API Reference](../api/index.md) — the complete surface.
