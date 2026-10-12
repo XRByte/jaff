@@ -93,25 +93,25 @@ class Reduce(Command):
         check_names(self.keyword, "variable", self.vars, known)
 
     def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
-        """Expand the first ``$( ... )$`` of each line that uses a listed variable.
+        """Expand every ``$( ... )$`` that uses a listed variable, on every line.
 
-        Other lines are copied. REPLACE runs on the content of every line.
+        Other text is copied. REPLACE runs on the content of every line.
         """
         columns: Optional[Dict[str, List[Any]]] = None
-        out = []
 
-        for index, raw in enumerate(body):
-            indent, line = split_line(raw)
-            match = _REDUCTION.search(line)
-            if not (match and any(f"${var}$" in match.group(2) for var in self.vars)):
-                out.append(finish_line(indent, line, resolved.replacements))
-                continue
-
+        def expand(match: re.Match[str], index: int) -> str:
+            nonlocal columns
+            summand = match.group(2)
+            if not any(f"${var}$" in summand for var in self.vars):
+                return match.group(1)
             if columns is None:
                 columns = self._columns(ctx)
+            return self._sum(summand, columns, index)
 
-            expression = self._sum(match.group(2), columns, index)
-            line = line.replace(match.group(1), expression)
+        out = []
+        for index, raw in enumerate(body):
+            indent, line = split_line(raw)
+            line = _REDUCTION.sub(lambda m: expand(m, index), line)
             out.append(finish_line(indent, line, resolved.replacements))
 
         return "".join(out)

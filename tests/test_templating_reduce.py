@@ -91,11 +91,12 @@ def test_variable_must_belong_to_a_listed_property(ctx):
         Reduce(("specie_mass",), ("specie_charges",)).validate([], resolved(), ctx)
 
 
-def test_only_the_first_reduction_is_expanded_and_its_copies_replaced(ctx):
-    body = ["a = $($specie_charge$)$ + $($specie_charge$)$ + $($specie_charge$*2)$\n"]
+def test_every_reduction_on_a_line_is_expanded(ctx):
+    body = ["a = $($specie_charge$)$ + $($specie_charge$*2)$ + $($other$)$\n"]
     total = "((0) + (-1) + (1) + (2) + (1))"
+    doubled = "((0*2) + (-1*2) + (1*2) + (2*2) + (1*2))"
     assert charges().render(body, resolved(), ctx) == (
-        f"a = {total} + {total} + $($specie_charge$*2)$\n"
+        f"a = {total} + {doubled} + $($other$)$\n"
     )
 
 

@@ -622,9 +622,9 @@ ne = (((1 * xn[2])) + ((2 * xn[3])) + ((1 * xn[4])));
 // $$JAFF END
 ```
 
-Only the first `$( … )$` on a line is expanded (identical copies of it on the
-same line are replaced too). A line with no `$( … )$`, or whose `$( … )$` uses
-none of the listed variables, is copied (with `REPLACE` applied).
+Every `$( … )$` that uses a listed variable is expanded, however many share a
+line; one that uses none of them is left as written. Lines are otherwise
+copied (with `REPLACE` applied).
 
 **Properties** (variable in brackets):
 
