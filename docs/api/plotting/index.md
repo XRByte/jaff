@@ -6,82 +6,96 @@ icon: phosphor/chart-line
 
 # jaff.plotting
 
-Publication-quality plotting for reaction rates and photo cross sections, built
-on the [seaborn objects](https://seaborn.pydata.org/tutorial/objects_interface.html)
-interface. The preferred entry points are the free functions `plot_rates` and
-`plot_xsecs`, which accept a single item **or a list** and overlay them on
-shared axes.
+Publication-style plotting in pure matplotlib. A figure is described as
+**data**: a `grid` of axes, each holding a list of series. Themes supply the
+look; every series can override it.
 
 ## Functions
 
-| Function                            | Description                                                                                   |
-| ----------------------------------- | --------------------------------------------------------------------------------------------- |
-| [`plot_rates`](plot_rates.md)       | Plot one or more rate coefficients (reactions, SymPy expressions, or `(x, y)` arrays)         |
-| [`plot_xsecs`](plot_xsecs.md)       | Plot photo cross sections for one or more reactions, with optional shading and band bars       |
-| `apply_global_theme`                | Apply the house theme globally and persistently for the session                                |
-
-## Classes
-
-| Class                     | Description                                                            |
-| ------------------------- | --------------------------------------------------------------------- |
-| [`Plotter`](plotter.md)   | Low-level renderer; `render_series` is the shared multi-curve backend |
+| Function                          | Description                                                                 |
+| --------------------------------- | --------------------------------------------------------------------------- |
+| [`plot`](plot.md)                 | Render a figure-spec dict (any data: rates, cross sections, statistics ...) |
+| [`plot_rates`](plot_rates.md)     | Rate coefficients vs temperature, one panel per item or overlaid            |
+| [`plot_xsecs`](plot_xsecs.md)     | Photo cross sections vs photon energy, with optional band-average bars      |
+| `render`                          | `FigureSpec` → `(fig, axes)` without saving or showing                      |
+| `register_style`, `register_palette` | Add named themes (see [Themes](themes.md))                               |
 
 ## Quick start
 
 ```python
 from jaff import Network
-from jaff.physics import RadiationProps
-from jaff.plotting import plot_rates, plot_xsecs
+from jaff.plotting import plot, plot_rates, plot_xsecs
 
-net = Network(
-    "networks/h_photoionization/h_photo.jet",
-    radiation_props=RadiationProps(bands=[1, 13.6, 100, "inf"]),
-)
+net = Network("networks/uclchem_small_gas/uclchem_small_gas_network.jet")
+r = list(net.reactions)
 
-# One reaction, or many on shared axes with a legend.
-plot_rates(net.reactions[0])
-plot_rates(list(net.reactions))              # overlay all rates
-net.reactions.plot_rates()                   # equivalent, via the catalogue
+plot_rates(r[:3])                                 # one axes, three curves
+plot_rates([r[0], [r[1], r[2]]], grid=(1, 2))      # nested list = overlay
+plot_rates(r[:4], grid=(2, 2), style="talk", palette="sunset")
 
-# Cross sections, with shading and band-averaged bars.
-photo = net.reactions.photo_reactions()[0]
-plot_xsecs(photo, shade=True, show_bands=True)
-plot_xsecs(net.reactions.photo_reactions())  # overlay several reactions
+photo = [p for p in net.reactions.photo_reactions() if p.xsecs_dict]
+plot_xsecs(photo[:4], grid=(2, 2), bands=True, save="xsecs.pdf")
 ```
 
-The `Reaction.plot_rate_coefficient` / `Reaction.plot_xsecs` methods and the
-`Reactions.plot_rates` / `Reactions.plot_xsecs` catalogue methods are thin
-wrappers over these functions.
+Nesting rule: each top-level item is one panel; a nested list is overlaid on
+one axes. Without `grid` everything shares a single axes, unless there are
+more curves than the style's `legend_max` (default 12): then the curves are
+split in order over an automatic grid. Panels fill the grid row by row;
+leftover cells are hidden (the bottom-right one hosts the shared legend). An
+axis label common to every panel is drawn once for the whole figure
+(`supxlabel` / `supylabel`) when the panels span two or more columns / rows.
 
-## Theming
+Figures are closed in pyplot after saving / showing (`close=True`), so loops
+don't accumulate open figures; the returned `(fig, axes)` still work. Pass
+`close=False` to keep the figure open. After an interactive, non-blocking show
+(`plt.isinteractive()`) the figure is left open.
 
-The house theme is built from seaborn's own style machinery
-(`seaborn.axes_style` + `seaborn.plotting_context`). By default it is applied
-*scoped* — only while a figure is being drawn — so importing or using the
-plotter never mutates global matplotlib state. Opt into a sticky, session-wide
-theme with `apply_global_theme()`.
+The `Reaction.plot_rate_coefficient`, `Reaction.plot_xsecs`,
+`Reactions.plot_rates` and `Reactions.plot_xsecs` methods forward their keyword
+arguments to these functions.
 
-The default style is `"darkgrid"` with the JAFF brand palette. Three palettes
-are exported:
+## Look
 
-| Palette         | Description                                            |
-| --------------- | ------------------------------------------------------ |
-| `LOGO_PALETTE`  | JAFF brand colours (default): purple, magenta, coral, amber |
-| `MUTED_PALETTE` | seaborn "muted" (10 colours; use for many curves)      |
-| `DEEP_PALETTE`  | seaborn "deep" (10 colours)                            |
+White surface, black spines on all four sides, inward major and minor ticks on
+all sides, DejaVu Sans with STIX maths. Panels sit on a tight grid: the same
+gap (`style.gap`, inches) between columns and rows, margins sized to the
+outer labels. In each column the top panel carries its x tick labels on the
+top spine and the bottom panel at the bottom; a middle panel shows none when
+it shares the bottom panel's x range, else small labels inside above its
+bottom spine. Rows and columns without a used panel take no space. Each
+panel box is `style.panel_size`, unless `figsize` fixes the figure.
 
-```python
-from jaff.plotting import Plotter, MUTED_PALETTE, apply_global_theme
+In the default `"paper"` style:
 
-Plotter(palette=MUTED_PALETTE, style="whitegrid")   # per-plotter override
-apply_global_theme(palette=MUTED_PALETTE)            # sticky, whole session
-```
+- y tick labels are drawn **inside** the panel, right of the left spine (labels
+  at the top/bottom edge are blanked, and the x range gets an empty strip on
+  the left so no curve runs under a label);
+- panel **titles** sit inside, upper right, with headroom above the data (a
+  title too wide for the panel goes above it);
+- log axes are labelled by exponent (`−3` for 10⁻³) with at most ~4 labelled
+  decades, minor ticks on decades (at most 4 between labels); axes under 1.5 decades get fractional
+  exponents (`1.05`); the axis label gains a `log₁₀` prefix.
 
-## Design
+Marker series are hollow markers spaced evenly along the curve on screen; a
+line+marker style (`"-o"`, `"--D"`) adds sparse markers to a line. A series
+with `"role": "reference"` is a thick dark-grey line drawn beneath the rest.
+See [Themes](themes.md).
 
-Both free functions build a tidy long `DataFrame` and delegate to
-[`Plotter.render_series`](plotter.md), the single home for multi-curve
-rendering (log scales, axis trimming, shaded fills, band bars, per-curve
-line-width variation, and legends). The plotting package imports only
-`numpy` / `pandas` / `sympy` / `seaborn` — never `jaff.core` — so it stays a
-leaf dependency and can also plot bare SymPy expressions and arrays.
+## Legends
+
+The default `legend="auto"` (same as `"figure"`) draws **one shared legend**
+for the whole figure, de-duplicated by label, in the bottom-right hidden grid
+cell when the grid is unfinished, else in the right margin. A label keeps one
+colour and style across every panel, so the shared legend keys them all.
+
+`legend="axes"` (opt-in, for panels with different labels) draws one legend
+**group per panel**, stacked in the right margin and headed by the panel's
+title, tag or letter `(a)`, `(b)`, … (an untitled panel shows its letter
+inside). `"none"` draws no legend; an axes-level `legend` (`"axes"` /
+`"none"`) overrides the figure policy for that panel.
+
+A legend with more than the style's `legend_max` (default 12) entries is not
+drawn (with a warning); a shared legend over the cap that keys several panels
+falls back to per-panel groups. `legend_title="Source"` adds a bold heading to
+the shared legend (or above the stack of groups). Panel names are explicit: use the axes `title` or
+`tag`; a lone series is not turned into a tag.

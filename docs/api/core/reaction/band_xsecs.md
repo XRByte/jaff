@@ -12,7 +12,7 @@ Band-averaged cross sections for this reaction, one row per radiation band, as a
 tidy `pandas.DataFrame`. Assembled from the `rad_groups` back-references, which
 are populated when a radiation field is configured on the network (via the
 `radiation_props` argument to `Network`). Intended as the data source for band bar
-plots (see the `show_bands` option of [`plot_xsecs`](plot_xsecs.md)).
+plots (see the `bands` option of [`plot_xsecs`](plot_xsecs.md)).
 
 **Returns**
 
@@ -42,5 +42,5 @@ net = Network(
 )
 rxn = net.reactions.photo_reactions()[0]
 rxn.band_xsecs          # DataFrame: lower / upper / eavg / xsec / xsec_frac
-rxn.plot_xsecs(show_bands=True)   # overlay the band-averaged bars on σ(E)
+rxn.plot_xsecs(bands=True)        # overlay the band-averaged bars on σ(E)
 ```

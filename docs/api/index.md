@@ -39,7 +39,7 @@ This is a complete reference for all public APIs in JAFF.
 
 - :phosphor-chart-line:{ .sm .middle } **Plotting**
 
-    Publication-quality plots of rates and cross sections: `plot_rates`, `plot_xsecs`, `Plotter`.
+    Spec-driven publication plots: `plot`, `plot_rates`, `plot_xsecs`, themes.
 
     [:octicons-arrow-right-24: jaff.plotting](plotting/index.md)
 
@@ -73,9 +73,9 @@ classDiagram
         Photochemistry
     }
     class plotting {
+        plot
         plot_rates
         plot_xsecs
-        Plotter
     }
     jaff --> core
     jaff --> codegen

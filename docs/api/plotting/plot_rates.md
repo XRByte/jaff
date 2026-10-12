@@ -6,75 +6,84 @@ tags:
 
 # plot_rates
 
-`#!python plot_rates(rates, *, tmin=None, tmax=None, var="tgas", npoints=100, labels=None, palette=None, xlabel="Temperature (K)", ylabel=r"Rate coefficient $k$", xscale="log", yscale="log", shade=False, title="", fig=None, ax=None, grid=True, show=True, save=False, filename="rates.png")`
+`#!python plot_rates(rates, *, grid=None, tmin=None, tmax=None, var="tgas", npoints=200, xscale="log", yscale="log", xlabel=r"$T$ (K)", ylabel=r"$\kappa$", labels=None, style=None, palette=None, sharex=False, sharey=False, legend="auto", title=None, save=None, show=True, close=True)`
 
-Plots one or more rate coefficients on shared axes with a legend. Each curve is
-coerced to `(x, y, label)` and drawn with a distinct line width (thinner curves
-in front). Inputs are duck-typed and dispatched per item, so a single call may
-mix reactions, expressions, and arrays.
+Plot rate coefficients against gas temperature.
 
 **Parameters**
 
 **rates** : _reaction-like, sympy.Basic, (x, y) tuple, or list of these_
-: What to plot. Each item is one of:
+: Each leaf is a reaction (anything with `rate`, optionally `tmin` / `tmax` /
+  `get_latex`), a SymPy expression (needs `tmin` and `tmax`), or an `(x, y)`
+  tuple used verbatim. With `grid`, each top-level item is one panel and a
+  nested list is overlaid on one panel; without `grid` everything is overlaid.
 
-    - a **reaction-like** object (anything exposing `rate`, and usually `tmin` / `tmax` / `get_latex`): its rate is evaluated over its temperature range on a log grid;
-    - a **SymPy expression**: evaluated over `[tmin, tmax]` (both required);
-    - an **`(x, y)`** pair of arrays: used verbatim.
+**grid** : _tuple\[int, int\] or None, optional_
+: `(rows, cols)`; panels fill row-major. Without `grid`, more curves than the
+  style's `legend_max` (default 12) are split in order into panels of at most
+  `legend_max` curves on an automatic grid: up to three panels in one row,
+  else `cols = ceil(sqrt(n))`, `rows = ceil(n / cols)`. An explicit grid is
+  never split.
 
 **tmin, tmax** : _float or None, optional_
-: Temperature range (K). For reactions, falls back to each reaction's own bounds, then to `2.73` / `1e6`. Required for bare SymPy expressions.
+: Temperature range (K). Reactions fall back to their own bounds, then to
+  `2.73` / `1e6`. The range must satisfy `0 < tmin < tmax`; otherwise a
+  `ValueError` is raised.
 
 **var** : _str, optional_
-: Symbol name to substitute when evaluating reaction rates. Default `"tgas"`.
+: Temperature symbol substituted in reaction rates. Default `"tgas"`.
 
 **npoints** : _int, optional_
-: Number of log-spaced sample points. Default `100`.
+: Log-spaced samples per curve. Default `200`.
 
-**labels** : _list\[str\] or None, optional_
-: Legend labels aligned to `rates`. Defaults to each reaction's LaTeX equation (or `str`).
-
-**palette** : _list\[str\] or None, optional_
-: Colour-cycle override (e.g. `MUTED_PALETTE` for many curves).
+**xscale, yscale** : _str or list\[str\], optional_
+: `"log"` / `"linear"` for every panel, or one entry per panel (a list
+  needs an explicit `grid` once the curves are split automatically).
 
 **xlabel, ylabel** : _str, optional_
-: Axis labels. Default `"Temperature (K)"` and `Rate coefficient $k$`.
+: Axis labels; the rate axis defaults to `$\kappa$` (no units), read as
+  "log₁₀ κ" with the `"paper"` exponent ticks. A label shared by all panels is drawn once for the figure
+  (`supxlabel` over two or more columns, `supylabel` over two or more rows);
+  otherwise it is kept only on the outer panels of the grid.
 
-**xscale, yscale** : _str, optional_
-: `"log"` (default) or `"linear"`.
+**labels** : _list\[str\] or None, optional_
+: Legend labels, one per leaf in input order. Default: LaTeX equations.
 
-**shade** : _bool or float, optional_
-: Shade the area under each curve. Default `False`.
+**style, palette, sharex, sharey, legend, title** : _optional_
+: Figure options; see [`plot`](plot.md) and [Themes](themes.md).
 
-**title** : _str, optional_
-: Plot title. Default `""`.
-
-**fig, ax** : _matplotlib.figure.Figure / matplotlib.axes.Axes or None, optional_
-: Existing figure/axes to draw on. Created if `None`.
-
-**grid, show, save, filename** : _optional_
-: Standard rendering controls. `filename` default `"rates.png"`.
+**save, show, close** : _optional_
+: As in [`plot`](plot.md).
 
 **Returns**
 
-_tuple\[matplotlib.figure.Figure, matplotlib.axes.Axes\] or None_
-: The figure and axes, or `None` when no input could be evaluated.
+_tuple\[Figure, numpy.ndarray\] or None_
+: `None` when no rate could be evaluated.
 
-!!! note
-    Photo-reaction rates carry a symbolic radiation-density variable and cannot
-    be evaluated as a function of temperature; such inputs are skipped with a
-    warning.
+**Notes**
 
-**Examples**
+Series with fewer than two plottable points on the chosen scales (e.g. a zero
+rate on a log axis) are dropped before panels are assembled, with one summary
+warning, so the automatic split never produces blank panels. With the split,
+the legend switches to per-panel groups in the right margin
+(`legend="axes"`); an explicit `legend="figure"` does too, with a warning.
+Otherwise one shared legend keys every panel.
+
+A panel holding a single curve shows its equation as the panel title (inside
+the panel, or above it when too long). Rates
+that cannot be evaluated against temperature alone (photo, cosmic-ray,
+interpolated-function rates) are skipped with one summary warning (the
+per-reaction reason is logged at debug level); a panel left empty is
+dropped.
+
+**Example**
 
 ```python
 from jaff.plotting import plot_rates
-import sympy as sp
 
-plot_rates(net.reactions[0])                     # single reaction
-plot_rates(list(net.reactions))                  # overlay all, legend by equation
-plot_rates([r1, r2], tmax=1e4, shade=True)       # shared bounds + shading
-
-t = sp.Symbol("tgas")
-plot_rates([1e-10 * (t / 300) ** 0.5], tmin=10, tmax=1e4, labels=["my rate"])
+r = list(net.reactions)
+plot_rates(r[:5], tmin=10, tmax=1e4)                    # overlay
+plot_rates(r[:30])                                      # 3 panels of 12/12/6
+plot_rates(r[:20], style={"legend_max": 20})            # one panel, 20 curves
+plot_rates([r[0], r[1:4]], grid=(1, 2), yscale=["log", "linear"])
 ```
