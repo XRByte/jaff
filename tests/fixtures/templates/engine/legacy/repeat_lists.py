@@ -80,6 +80,10 @@ charged_ne[$idx$] = $charged_specie_index_ne$
 neutral_masses = [$neutral_specie_mass$, ]
 # $JAFF END
 
+# $JAFF REPEAT charge_truth IN charge_truths
+charge_truth = [$charge_truth$, ]
+# $JAFF END
+
 # $JAFF REPEAT idx, photo_reaction_truth IN photo_reaction_truths
 photo[$idx$] = $photo_reaction_truth$
 # $JAFF END

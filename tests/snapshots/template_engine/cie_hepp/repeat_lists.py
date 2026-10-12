@@ -111,6 +111,10 @@ charged_ne[2] = 4
 neutral_masses = [1.673773e-24]
 # $JAFF END
 
+# $JAFF REPEAT charge_truth IN charge_truths
+charge_truth = [0, 1, 1, 1, 1]
+# $JAFF END
+
 # $JAFF REPEAT idx, photo_reaction_truth IN photo_reaction_truths
 photo[0] = 0
 photo[1] = 0

@@ -31,6 +31,10 @@ charge_H = $specie_charge$
 latex_H = r"$specie_latex$"
 # $JAFF END
 
+# $JAFF GET element_idx FOR H
+eidx_H = $element_idx$
+# $JAFF END
+
 # $JAFF HAS specie H
 has_H = $specie$
 # $JAFF END
