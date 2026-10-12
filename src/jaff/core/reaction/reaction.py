@@ -714,142 +714,46 @@ class Reaction:
 
         return pd.DataFrame(rows, columns=columns)
 
-    def plot_rate_coefficient(
-        self,
-        fig: plt.Figure | None = None,
-        ax: plt.Axes | None = None,
-        title: str | None = None,
-        grid: bool = True,
-        show: bool = True,
-        save: bool = False,
-        filename: str = "",
-    ) -> tuple[plt.Figure, plt.Axes] | None:
+    def plot_rate_coefficient(self, **kwargs: Any) -> tuple[plt.Figure, Any] | None:
         """Plot the rate coefficient as a function of gas temperature.
 
-        A thin wrapper around :func:`jaff.plotting.plot_rates`, which applies
-        the publication house style.  To compare several reactions on one axes,
-        call ``plot_rates`` (or :meth:`Reactions.plot_rates`) directly.
-
-        Parameters
-        ----------
-        fig, ax : matplotlib objects or None, optional
-            Existing figure/axes to draw on.  Created if ``None``.
-        title : str or None, optional
-            Plot title.  Defaults to the LaTeX reaction equation.
-        grid : bool, optional
-            Draw a grid, by default ``True``.
-        show : bool, optional
-            Display the figure, by default ``True``.
-        save : bool, optional
-            Save to *filename* (format inferred from extension).
-        filename : str, optional
-            Output path.  Defaults to ``"<reaction>_rate.png"``.
+        Forwards to :func:`jaff.plotting.plot_rates` with this reaction as the
+        only item; every ``plot_rates`` keyword is accepted (``grid``, ``tmin``,
+        ``tmax``, ``xscale``, ``yscale``, ``labels``, ``style``, ``palette``,
+        ``save``, ``show`` ...).
+        The panel is titled with the LaTeX reaction equation.
 
         Returns
         -------
-        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
-            ``None`` if the rate cannot be evaluated numerically (e.g. a photo
-            reaction, whose rate carries the symbolic radiation-density
-            variable).
+        tuple[matplotlib.figure.Figure, numpy.ndarray] or None
+            ``(fig, axes)``, or ``None`` if the rate cannot be evaluated
+            numerically (e.g. a photo reaction, whose rate carries the
+            symbolic radiation-density variable).
 
         Notes
         -----
         The temperature axis spans [``tmin``, ``tmax``] on a log scale.
         When ``tmin`` or ``tmax`` is ``None``, defaults of 2.73 K and 1e6 K
-        are used respectively.  Drawing is delegated to
-        :func:`jaff.plotting.plot_rates`, which also plots lists of reactions
-        on shared axes.
+        are used respectively.
         """
         from ...plotting import plot_rates
 
-        return plot_rates(
-            [self],
-            fig=fig,
-            ax=ax,
-            title=title or self.get_latex(),
-            grid=grid,
-            show=show,
-            save=save,
-            filename=filename or f"{self}_rate.png",
-        )
+        return plot_rates(self, **kwargs)
 
-    def plot_xsecs(
-        self,
-        processes: str | list[str] | None = "all",
-        layout: str = "overlay",
-        fig: plt.Figure | None = None,
-        ax: plt.Axes | None = None,
-        energy_unit: str = "eV",
-        xsec_unit: str = "Mb",
-        energy_log: bool = True,
-        xsecs_log: bool = True,
-        shade: bool | float = False,
-        show_bands: bool = False,
-        title: str | None = None,
-        grid: bool = True,
-        show: bool = True,
-        save: bool = False,
-        filename: str = "",
-    ) -> tuple[plt.Figure, Any] | None:
+    def plot_xsecs(self, **kwargs: Any) -> tuple[plt.Figure, Any] | None:
         """Plot photo cross sections against photon energy or wavelength.
 
-        Parameters
-        ----------
-        processes : str | list[str] | None, optional
-            Which cross-section processes to draw.  ``"all"`` (default) or
-            ``None`` plots every process with data; a single key (e.g.
-            ``"photodecay"``) or a list of keys selects a subset.
-            Valid keys: ``"photo_absorption"``, ``"photodecay"``.
-        layout : str, optional
-            ``"overlay"`` (default) draws all processes on one axes;
-            ``"subplots"`` gives each process its own stacked panel.
-        ax : matplotlib.axes.Axes or None, optional
-            Axes to draw on (overlay only).  If ``None``, a figure is created.
-        energy_unit : str, optional
-            Horizontal-axis unit: ``"eV"`` (default), ``"erg"``, ``"nm"``,
-            ``"um"``.
-        xsec_unit : str, optional
-            Cross-section unit for the vertical axis, by default ``"Mb"``
-            (megabarn); ``"cm^2"`` and ``"barn"`` are also accepted.
-        energy_log, xsecs_log : bool, optional
-            Log-scale the energy / cross-section axis (default ``True``).
-        shade : bool or float, optional
-            Shade the area under each curve.  ``True`` uses a default alpha; a
-            float sets the alpha explicitly.  Default ``False``.
-        show_bands : bool, optional
-            Overlay the band-averaged cross section (from :attr:`band_xsecs`)
-            as bars.  Only meaningful when a radiation field is configured;
-            silently draws nothing otherwise.  Default ``False``.
+        Forwards to :func:`jaff.plotting.plot_xsecs` with this reaction as the
+        only item; every ``plot_xsecs`` keyword is accepted (``grid``,
+        ``processes``, ``energy_unit``, ``xsec_unit``, ``xscale``, ``yscale``,
+        ``bands``, ``style``, ``palette``, ``save``, ``show`` ...).
 
         Returns
         -------
-        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
-            The figure and axes, or ``None`` when there is nothing to draw.
-
-        Notes
-        -----
-        Does nothing (logs a message) if ``self.xsecs_dict`` is ``None`` or no
-        requested process has data.  Drawing, unit conversion and labelling are
-        delegated to :func:`jaff.plotting.plot_xsecs`, which also plots lists of
-        reactions on shared axes.
+        tuple[matplotlib.figure.Figure, numpy.ndarray] or None
+            ``(fig, axes)``, or ``None`` (with a log message) if
+            ``self.xsecs_dict`` is ``None`` or no requested process has data.
         """
         from ...plotting import plot_xsecs
 
-        return plot_xsecs(
-            [self],
-            processes=processes,
-            layout=layout,
-            fig=fig,
-            ax=ax,
-            energy_unit=energy_unit,
-            xsec_unit=xsec_unit,
-            energy_log=energy_log,
-            xsecs_log=xsecs_log,
-            shade=shade,
-            show_bands=show_bands,
-            title=title,
-            grid=grid,
-            show=show,
-            save=save,
-            filename=filename,
-        )
+        return plot_xsecs(self, **kwargs)
