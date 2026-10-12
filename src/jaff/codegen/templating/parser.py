@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
-from .._languages import wrap_fortran_source
+from .._languages import Language, wrap_fortran_source
 from ..codegen import Codegen
 from .context import RenderContext
 from .engine import split_blocks
@@ -14,27 +14,6 @@ from .render import render_blocks
 
 if TYPE_CHECKING:
     from ...core.network.network import Network
-
-EXTENSIONS: Dict[str, str] = {
-    "cpp": "cxx",
-    "cxx": "cxx",
-    "cc": "cxx",
-    "hpp": "cxx",
-    "hxx": "cxx",
-    "hh": "cxx",
-    "h": "cxx",
-    "c": "c",
-    "f": "fortran",
-    "for": "fortran",
-    "f90": "fortran",
-    "f95": "fortran",
-    "f03": "fortran",
-    "f08": "fortran",
-    "py": "python",
-    "rs": "rust",
-    "jl": "julia",
-    "r": "r",
-}
 
 
 class TemplateParser:
@@ -67,7 +46,8 @@ class TemplateParser:
         self.file = Path(file)
         self.echo_directives = echo_directives
         ext = self.file.suffix[1:].lower()
-        lang = EXTENSIONS.get(ext, default_lang)
+        found = Language.from_extension(self.file.suffix)
+        lang = found.name if found is not None else default_lang
         if lang is None:
             raise RuntimeError(
                 f"{ext} files are not yet supported\n"
