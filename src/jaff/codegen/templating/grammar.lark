@@ -1,0 +1,30 @@
+// ABOUTME: Lark grammar for one $$JAFF directive header (the $$JAFF marker already stripped).
+// ABOUTME: Parses the command and its optional { } option block; the body is not parsed here.
+
+start: command options?
+
+command: "REPEAT" names "IN" ATOM       -> repeat
+       | "SUB" names                    -> sub
+       | "GET" names "IN" value         -> get
+       | "HAS" ATOM value               -> has
+       | "REDUCE" names "IN" names      -> reduce
+       | "DEFINE" ATOM                  -> define
+       | "END"                          -> end
+
+options: "{" option* "}"
+
+option: "REPLACE" "{" replacement* "}"  -> replace
+      | "USE" ATOM                      -> use
+      | ATOM "{" setting* "}"           -> group
+
+replacement: STRING "->" STRING
+setting: ATOM "->" value
+
+names: ATOM ("," ATOM)*
+?value: STRING | ATOM
+
+%import common.ESCAPED_STRING -> STRING
+ATOM: /(?:[^\s{},"#\-]|-(?!>))+/
+COMMENT: /#[^\n]*/
+%ignore COMMENT
+%ignore /\s+/
