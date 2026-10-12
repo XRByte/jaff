@@ -65,7 +65,7 @@ class Command:
         Returns:
             The generated text, one ``\\n``-terminated line per output line.
         """
-        return "".join(body)
+        raise NotImplementedError(f"{self.keyword} rendering is not implemented")
 
 
 def render_each_line(
