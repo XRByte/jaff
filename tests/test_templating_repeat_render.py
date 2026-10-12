@@ -1,5 +1,5 @@
 # ABOUTME: Tests for REPEAT's vertical and horizontal line expansion functions
-# ABOUTME: Plain lists and IndexedLists in; expanded text out, matching the old engine
+# ABOUTME: Plain lists and IndexedLists in; expanded line contents out
 
 import pytest
 

@@ -1,5 +1,5 @@
 # ABOUTME: Tests for the REPEAT command rendered through the new engine's TemplateParser
-# ABOUTME: Vertical/horizontal expansion, the old engine's quirks, CSE naming and options
+# ABOUTME: Vertical/horizontal expansion, which lines expand, CSE naming and options
 
 from pathlib import Path
 
@@ -106,15 +106,23 @@ def test_cse_block_names_temporaries(net, tmp_path):
 
 
 def test_cse_line_without_shared_terms_produces_nothing(net, tmp_path):
+    rates = Codegen(network=net, lang="python").get_indexed_rates(cse_var="c")
+    assert not rates["extras"]["cse"]
     text = block("REPEAT idx, rate, cse IN rates", "c$idx$ = $cse$", "k[$idx$] = $rate$")
-    assert render(net, tmp_path, text).startswith("k[0] = ")
+    expected = "".join(f"k[{i[0]}] = {v}\n" for i, v in rates["expressions"])
+    assert render(net, tmp_path, text) == expected
+
+
+def test_cse_line_is_not_special_unless_cse_is_declared(net, tmp_path):
+    text = block("REPEAT idx, rate IN rates", "# c = $cse$")
+    assert render(net, tmp_path, text) == "# c = $cse$\n"
 
 
 @pytest.mark.parametrize(
     "body, message",
     [
         (["k[$idx$] = $rate$", "c$idx$ = $cse$"], "must be the first line"),
-        (["c$idx+1$ = $cse$"], "cannot use an offset index"),
+        (["c$idx+1$ = $cse$"], "cannot use arithmetic on"),
         (["[$idx$] = $cse$"], "must be an identifier"),
     ],
 )

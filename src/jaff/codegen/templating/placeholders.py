@@ -1,5 +1,5 @@
 # ABOUTME: Placeholder substitution shared by the commands: $name$ and $name op N$
-# ABOUTME: Also splits body lines into indentation and content the way the old engine did
+# ABOUTME: Also splits body lines into indentation (spaces and tabs) and content
 
 import operator
 import re

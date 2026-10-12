@@ -18,14 +18,15 @@ if TYPE_CHECKING:
     from ..resolve import Resolved
 
 
-def _active(line: str, prop: RepeatProp) -> bool:
+def _active(line: str, names: Tuple[str, ...]) -> bool:
     """Whether a body line holds a placeholder of this REPEAT.
 
-    Placeholders are ``$item$``, special variables such as ``$cse$``, ``$idx$``
-    with or without arithmetic, and ``$IDX$``. Other lines are copied unchanged.
+    Placeholders are ``$name$`` for *names* (the item and the declared special
+    variables such as ``cse``), ``$idx$`` with or without arithmetic, and
+    ``$IDX$``. Other lines are copied, with REPLACE applied.
     """
-    names = "|".join(re.escape(var) for var in prop.vars[1:])
-    placeholder = re.search(rf"\$(?:{names})\$", line)
+    pattern = "|".join(re.escape(name) for name in names)
+    placeholder = re.search(rf"\$(?:{pattern})\$", line)
     return bool(placeholder or find_idx(line) or "$IDX$" in line)
 
 
@@ -58,7 +59,7 @@ class Repeat(Command):
         for index, raw in enumerate(body):
             indent, line = split_line(raw)
             contents = [line]
-            if _active(line, prop):
+            if _active(line, self._names(prop)):
                 if items is None:
                     items = prop.source(ctx, kwargs)
                 contents = self._expand(prop, items, line, index)
@@ -78,10 +79,14 @@ class Repeat(Command):
             return [line if expanded is None else expanded]
 
         for var in prop.special:
-            if f"${var}$" in line:
+            if var in self.vars and f"${var}$" in line:
                 return expand_vertical(extras[var], line, f"${var}$", index)
 
         return expand_vertical(as_flattened(items), line, f"${prop.item}$", index)
+
+    def _names(self, prop: RepeatProp) -> Tuple[str, ...]:
+        """The item variable and the special variables this REPEAT declares."""
+        return (prop.item, *(var for var in prop.special if var in self.vars))
 
     def _kwargs(self, body: List[str], resolved: Resolved) -> Dict[str, Any]:
         """Keyword arguments for the property's source: options, then CSE naming."""
@@ -105,7 +110,8 @@ class Repeat(Command):
             return {"use_cse": False}
 
         index = next(
-            (i for i, raw in enumerate(body) if _active(raw.strip(), prop)), None
+            (i for i, raw in enumerate(body) if _active(raw.strip(), self._names(prop))),
+            None,
         )
         if index is None:
             return {"use_cse": True}
@@ -126,7 +132,7 @@ class Repeat(Command):
         (begin, end), op, _ = spans[0]
         if op:
             raise error(
-                "CSE temporaries cannot use an offset index; use $idx$ in the $cse$ name"
+                "CSE temporaries cannot use arithmetic on $idx$; use $idx$ in the $cse$ name"
             )
 
         prefix = re.search(r"\w*$", line[:begin]).group()

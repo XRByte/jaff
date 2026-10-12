@@ -66,7 +66,8 @@ $$JAFF END
 
 Directive blocks **do not nest**: a `$$JAFF` line inside a body is an error.
 Indentation of the directive and of the body lines (spaces and tabs) is
-preserved in the output, so directives can sit inside a function body.
+preserved in the output, so directives can sit inside a function body. Output
+lines always end in `\n`, also for templates written with `\r\n`.
 
 ---
 
@@ -161,11 +162,10 @@ per item (**vertical**); without it, the body's bracketed list is filled inline
 ### Vertical mode
 
 Every body line holding a placeholder of the REPEAT (`$idx…$`, `$IDX$`, the item
-variable or `$cse$`) is written once per item; other lines are copied once.
-`$idx$` is the zero-based index; `$idx+N$`, `$idx-N$`, `$idx*N$`, `$idx/N$`
-transform it. If a line has
-`$idx$` tokens, their number must match the collection's dimensionality (1 for
-lists, 2 for matrices).
+variable or a declared `$cse$`) is written once per item; other lines are copied
+once. `$idx$` is the zero-based index; `$idx+N$`, `$idx-N$`, `$idx*N$` and
+`$idx/N$` transform it. If a line has `$idx$` tokens, their number must match the
+collection's dimensionality (1 for lists, 2 for matrices).
 
 ```cpp
 $$JAFF REPEAT idx, specie IN species
@@ -234,8 +234,9 @@ double charges[] = {0, -1, 1, 2, 1};
 ```
 
 The recognised brackets are `(`, `{`, `<`, `[` and Fortran's `(/` with the
-matching closers `)`, `}`, `>`, `]` and `/)`. Between the opening bracket and the variable only whitespace
-and an optional quote (`'` or `"`, matching the one after the variable) are
+matching closers `)`, `}`, `>`, `]` and `/)`. A line without a bracketed
+variable is copied (with `REPLACE` applied). Between the opening bracket and the
+variable only whitespace and an optional quote (`'` or `"`, matching the one after the variable) are
 allowed, and the quote is preserved. The separator is what follows the variable
 before the closing bracket (`{$x$, }` joins with `", "`; it may consist of `,`,
 `;`, `:` and whitespace). When none is written, `", "` is used:
@@ -289,8 +290,9 @@ The temporaries are named after the identifier that contains `$idx$` on the
 `tmp0_value, tmp1_value, …`, with or without spaces around `=`. That line must
 be the first line of the block that expands, since the temporaries have to be
 declared before the other lines use them. The identifier must start with a
-letter or underscore before `$idx$`, and the index takes no offset, so `$idx$x`,
-`cse[$idx$]` and `cse$idx+1$` are rejected with a `ParserError`.
+letter or underscore before `$idx$`, and the index takes no arithmetic, so
+`$idx$x`, `cse[$idx$]` and `cse$idx+1$` are rejected with a `ParserError`. A
+`$cse$` line is only special when `cse` is in the variable list.
 
 ### Properties
 
@@ -707,7 +709,9 @@ REPLACE {
   group the pattern does not have is an error.
 - Pairs apply **in order** to every output line of the block — expanded or
   copied — on the line's content after substitution (the indentation is never
-  touched). A pattern cannot match across lines.
+  touched, but trailing whitespace is part of the content, so anchor with
+  `\s*$` rather than `$` if the template may have trailing spaces). A pattern
+  cannot match across lines.
 - Patterns are compiled and checked before any rendering.
 
 ```cpp

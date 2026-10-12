@@ -118,8 +118,8 @@ def test_suffix_pattern_consistent_for_every_prop(
         ("$idx$x = $cse$\nk[$idx$] = $rate$", "identifier"),
         # array-style temporaries are not identifiers
         ("cse[$idx$] = $cse$\nk[$idx$] = $rate$", "identifier"),
-        # offset index would declare cse1 for temporary cse0
-        ("cse$idx+1$ = $cse$\nk[$idx$] = $rate$", "offset"),
+        # arithmetic on the index would declare cse1 for temporary cse0
+        ("cse$idx+1$ = $cse$\nk[$idx$] = $rate$", "arithmetic"),
         # temporaries must be emitted (and named) before they are used
         ("k[$idx$] = $rate$\ncse$idx$ = $cse$", r"\$cse\$"),
     ],

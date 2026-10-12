@@ -1,5 +1,5 @@
 # ABOUTME: REPEAT's line expansion: vertical (a line per item) or horizontal (inline list)
-# ABOUTME: Pure functions over IndexedList items, kept byte-compatible with the old engine
+# ABOUTME: Pure functions over IndexedList items; callers add indentation and REPLACE
 
 import re
 from typing import Any, List, Optional, Pattern, Tuple
