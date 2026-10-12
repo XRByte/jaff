@@ -9,7 +9,7 @@ _OPS: Dict[str, Callable[[Any, Any], Any]] = {
     "+": operator.add,
     "-": operator.sub,
     "*": operator.mul,
-    "/": operator.truediv,
+    "/": operator.floordiv,
 }
 
 
@@ -28,8 +28,8 @@ def substitute(text: str, values: Mapping[str, Callable[[], Any]]) -> str:
     """Replace ``$name$`` and ``$name op N$`` placeholders in *text*.
 
     Each value is computed only when its placeholder occurs. ``op`` is one of
-    ``+ - * /`` and applies only when the value is an integer; otherwise the
-    value is inserted unchanged.
+    ``+ - * /`` (``/`` is floor division, so results stay integers) and applies
+    only when the value is an integer; otherwise the value is inserted unchanged.
 
     Args:
         text: Text to substitute into.

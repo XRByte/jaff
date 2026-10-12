@@ -660,7 +660,7 @@ Body lines are substituted as follows:
 - `$name+N$`, `$name-N$`, `$name*N$`, `$name/N$` apply arithmetic with an
   integer literal `N` to an integer value (`$nspec+1$`, `$specie_idx*2$`).
   Spaces around the operator are allowed. This works in `SUB`, `GET` and `HAS`;
-  `/` is true division, so `$nspec/2$` with five species gives `2.5`.
+  `/` is integer (floor) division, so `$nspec/2$` with five species gives `2`.
 - In `REPEAT`, `$idx$` is the item index and `$idx+N$` / `$idx-N$` shift it
   (only `+` and `-`, no spaces). **Every** `$idx…$` token on a line counts
   towards the dimensionality check. `$IDX$` is the first index, plus the offset

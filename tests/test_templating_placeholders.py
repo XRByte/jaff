@@ -17,7 +17,7 @@ def const(value):
         ("n = $nspec+1$", "n = 6"),
         ("n = $nspec - 1$", "n = 4"),
         ("n = $nspec*2$", "n = 10"),
-        ("n = $nspec/2$", "n = 2.5"),
+        ("n = $nspec/2$", "n = 2"),
         ("n = $nspec $", "n = 5"),
         ("$nspec$ and $nspec+1$", "5 and 6"),
         ("$nspecx$ $other$", "$nspecx$ $other$"),
