@@ -26,12 +26,10 @@ dependencies = [
   "matplotlib>=3.9.4",
   "numpy>=2.0.0",
   "pandas>=2.3.3",
-  "plotly>=6.0",
   "pooch>=1.9.0",
   "pygments>=2.19.2",
   "rich>=15.0.0",
   "scipy>=1.13.0",
-  "seaborn>=0.13",
   "sympy>=1.14.0",
   "typer>=0.27.0",
 ]

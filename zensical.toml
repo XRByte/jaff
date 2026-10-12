@@ -259,9 +259,10 @@ nav = [
     ] },
     { "Plotting" = [
       "api/plotting/index.md",
+      "api/plotting/plot.md",
       "api/plotting/plot_rates.md",
       "api/plotting/plot_xsecs.md",
-      { "plotting.Plotter" = ["api/plotting/plotter.md"] },
+      "api/plotting/themes.md",
     ] }
   ] },
   { "Development" = [

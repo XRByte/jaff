@@ -16,7 +16,7 @@ from jaff.errors import ParserError
 from jaff.physics import RadiationProps
 from jaff.physics.photo_reactions._photochemistry import Photochemistry
 from jaff.physics.photo_reactions._radiation import Radiation
-from jaff.plotting._api import _sampled_xsecs
+from jaff.plotting.adapters.xsecs import _sampled_xsecs
 
 BANDS = [6.0, 13.6, 100.0, 1000.0]
 
@@ -396,13 +396,13 @@ class TestPlotSampling:
         x = make(_net("norad")).get_xsec(_rxn("C._PHOTON__C+.e-"))
         assert _sampled_xsecs(x) is x
 
-    def test_plotter_plot_xsec_accepts_verner(self, pc_and_warn):
-        import matplotlib
+    def test_xsec_series_accepts_verner(self, pc_and_warn):
+        from types import SimpleNamespace
 
-        matplotlib.use("Agg")
-        from jaff.plotting.plotter import Plotter
+        from jaff.plotting.adapters import xsec_series
 
         make, _ = pc_and_warn
         x = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-"))
-        fig, _ax = Plotter().plot_xsec(x, show=False)
-        assert fig is not None
+        (s,) = xsec_series(SimpleNamespace(xsecs_dict=x), processes="photodecay")
+        assert s["x"][0] == pytest.approx(11.26, rel=1e-3)
+        assert np.all(s["y"] > 0)
