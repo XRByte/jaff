@@ -76,22 +76,25 @@ class TemplateParser:
             ParserError: For an unknown ``LANG``, or no ``LANG`` and an extension
                 no language claims.
         """
-        lang: Optional[CommandBlock] = None
+        lang: Optional[Lang] = None
+        lang_block: Optional[CommandBlock] = None
         comment: Optional[str] = None
+
         for block in blocks:
             if not isinstance(block, CommandBlock):
                 continue
             if isinstance(block.command, Lang):
-                lang = block
+                lang, lang_block = block.command, block
             elif isinstance(block.command, Comment):
                 comment = block.command.token
 
-        if lang is not None:
+        if lang is not None and lang_block is not None:
             try:
-                return Language(lang.command.name.lower()).name, comment
+                return Language(lang.name.lower()).name, comment
             except InvalidLanguageError as e:
-                line = lang.header_lines[0].rstrip("\r\n")
-                raise ParserError(str(e), line, lang.line, self.file) from None
+                line = lang_block.header_lines[0].rstrip("\r\n")
+
+                raise ParserError(str(e), line, lang_block.line, self.file) from None
 
         found = Language.from_extension(self.file.suffix)
         if found is None:

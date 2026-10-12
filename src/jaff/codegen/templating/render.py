@@ -17,6 +17,7 @@ def _all_groups() -> Dict[str, Set[str]]:
     for cls in COMMANDS.values():
         for name, keys in cls.groups.items():
             groups.setdefault(name, set()).update(keys)
+
     return groups
 
 
@@ -64,6 +65,7 @@ def echo(lines: List[str], comment: str) -> str:
         content = text.lstrip()
         indent = text[: len(text) - len(content)]
         out.append(f"{indent}{comment} {content}".rstrip() + "\n")
+
     return "".join(out)
 
 
@@ -109,4 +111,5 @@ def render_blocks(blocks: List[Block], ctx: RenderContext) -> str:
 
         if ctx.echo_directives:
             out.append(echo(block.end_lines, comment))
+
     return "".join(out)

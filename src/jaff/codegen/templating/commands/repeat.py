@@ -135,8 +135,10 @@ class Repeat(Command):
                 "CSE temporaries cannot use arithmetic on $idx$; use $idx$ in the $cse$ name"
             )
 
-        prefix = re.search(r"\w*$", line[:begin]).group()
-        suffix = re.match(r"\w*", line[end:]).group()
+        before = re.search(r"\w*$", line[:begin])
+        after = re.match(r"\w*", line[end:])
+        prefix = before.group() if before else ""
+        suffix = after.group() if after else ""
         if not re.fullmatch(r"[A-Za-z_]\w*", prefix):
             raise error(
                 "CSE temporary must be an identifier like cse$idx$ or tmp$idx$_value; "

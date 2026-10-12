@@ -21,6 +21,7 @@ def split_line(line: str) -> Tuple[str, str]:
     """
     text = line.rstrip("\r\n")
     content = text.lstrip(" \t")
+
     return text[: len(text) - len(content)], content
 
 
@@ -32,6 +33,7 @@ def arithmetic(value: Any, op: Optional[str], operand: int) -> Any:
     """
     if op and isinstance(value, int):
         return _OPS[op](value, operand)
+
     return value
 
 

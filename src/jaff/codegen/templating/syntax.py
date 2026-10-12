@@ -266,4 +266,6 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
     try:
         return Directive(command, _build_options(parts, line))
     except TemplateError as e:
-        raise error(str(e), e.nline - line + 1) from None
+        # Option errors always carry their absolute line; fall back to the header.
+        nline = e.nline if e.nline is not None else line
+        raise error(str(e), nline - line + 1) from None

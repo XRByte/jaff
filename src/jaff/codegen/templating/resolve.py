@@ -28,6 +28,7 @@ def _merge(target: Options, source: Options, line: Optional[int]) -> None:
     target.replace_lines.extend(
         [line] * len(source.replace) if line is not None else source.replace_lines
     )
+
     for name, settings in source.groups.items():
         target.groups.setdefault(name, {}).update(settings)
         target.group_lines[name] = line if line is not None else source.group_lines[name]
@@ -59,9 +60,10 @@ def layer(local: Optional[Options], defines: Mapping[str, Options]) -> Options:
             raise TemplateError(
                 f"USE of undefined option set {name} (DEFINE it above this block)", line
             )
-        _merge(result, defines[name], line)
 
+        _merge(result, defines[name], line)
     _merge(result, local, None)
+
     return result
 
 
@@ -109,13 +111,16 @@ def compile_replacements(options: Options) -> List[Tuple[Pattern[str], str]]:
             raise TemplateError(
                 f"Invalid REPLACE pattern {pattern!r}: {e}", line
             ) from None
+
         try:
             compiled_pattern.sub(replacement, "")  # validates group references
         except re.error as e:
             raise TemplateError(
                 f"Invalid REPLACE replacement {replacement!r}: {e}", line
             ) from None
+
         compiled.append((compiled_pattern, replacement))
+
     return compiled
 
 
@@ -123,4 +128,5 @@ def apply_replacements(text: str, compiled: List[Tuple[Pattern[str], str]]) -> s
     """Apply compiled REPLACE pairs to *text*, one after another."""
     for pattern, replacement in compiled:
         text = pattern.sub(replacement, text)
+
     return text
