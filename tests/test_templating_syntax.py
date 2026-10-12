@@ -11,6 +11,7 @@ from jaff.codegen.templating.syntax import (
     EndHeader,
     GetHeader,
     HasHeader,
+    IncompleteHeaderError,
     Options,
     ReduceHeader,
     RepeatHeader,
@@ -184,3 +185,18 @@ def test_directive_and_headers_are_immutable():
     with pytest.raises(FrozenInstanceError):
         directive.options = Options()
     assert isinstance(directive.header.tokens, tuple)
+
+
+@pytest.mark.parametrize("text", ["SUB x {", 'SUB x { REPLACE { "a" -> "b"'])
+def test_end_inside_open_block_is_incomplete(text):
+    with pytest.raises(IncompleteHeaderError):
+        parse(text)
+
+
+@pytest.mark.parametrize(
+    "text", ["REPEAT idx", "SUB x { SORT", 'SUB x { REPLACE { "a" ->', "SUB x { USE", ""]
+)
+def test_other_end_of_input_is_final_error(text):
+    with pytest.raises(ParserError) as err:
+        parse(text)
+    assert not isinstance(err.value, IncompleteHeaderError)

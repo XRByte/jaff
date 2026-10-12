@@ -4,7 +4,7 @@
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from lark import Lark, Token, Transformer, UnexpectedInput, UnexpectedToken
 
@@ -205,6 +205,10 @@ def _describe(e: UnexpectedInput) -> str:
     return message
 
 
+class IncompleteHeaderError(ParserError):
+    """The header ended inside an open option block; more lines may complete it."""
+
+
 def parse_header(text: str, line: int, file: Path) -> Directive:
     """Parse the header text that follows ``$$JAFF``.
 
@@ -217,16 +221,24 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
         The parsed directive.
 
     Raises:
+        IncompleteHeaderError: If the text ends inside an open option block.
         ParserError: On a syntax error or a repeated option group or key.
     """
     lines = text.splitlines() or [""]
 
-    def error(message: str, rel_line: int) -> ParserError:
+    def error(
+        message: str, rel_line: int, cls: Type[ParserError] = ParserError
+    ) -> ParserError:
         rel = rel_line if 0 < rel_line <= len(lines) else 1
-        return ParserError(message, lines[rel - 1], line + rel - 1, file)
+        return cls(message, lines[rel - 1], line + rel - 1, file)
 
     try:
         tree = _parser().parse(text)
+    except UnexpectedToken as e:
+        incomplete = e.token.type == "$END" and "RBRACE" in e.expected
+        cls = IncompleteHeaderError if incomplete else ParserError
+
+        raise error(_describe(e), e.line, cls) from None
     except UnexpectedInput as e:
         raise error(_describe(e), e.line) from None
 
