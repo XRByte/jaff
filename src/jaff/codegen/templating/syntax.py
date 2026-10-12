@@ -1,5 +1,5 @@
 # ABOUTME: Parses one $$JAFF directive header with Lark into a command and its options
-# ABOUTME: Syntax only: no network, codegen or registry knowledge lives here
+# ABOUTME: Builds commands from the COMMANDS registry; no network or codegen knowledge
 
 from dataclasses import dataclass
 from functools import cache
@@ -11,6 +11,7 @@ from lark.tree import Meta
 
 from ...errors import ParserError
 from .commands import COMMANDS, Command
+from .errors import TemplateError
 from .options import Options
 
 GRAMMAR = Path(__file__).with_name("grammar.lark")
@@ -94,14 +95,6 @@ def _parser() -> Lark:
     return Lark(GRAMMAR.read_text(), parser="lalr", propagate_positions=True)
 
 
-class _OptionError(ValueError):
-    """Option error carrying the 1-based line, relative to the header text."""
-
-    def __init__(self, message: str, rel_line: int) -> None:
-        super().__init__(message)
-        self.rel_line = rel_line
-
-
 def _add_group(
     options: Options, first: int, name: str, rel_line: int, settings: List[Any]
 ) -> None:
@@ -110,11 +103,11 @@ def _add_group(
     *first* is the template line of the header's first line.
     """
     if name in options.groups:
-        raise _OptionError(f"option group {name} given twice", rel_line)
+        raise TemplateError(f"option group {name} given twice", first + rel_line - 1)
     seen: Dict[str, int] = {}
     for key, _, key_line in settings:
         if key in seen:
-            raise _OptionError(f"{name} sets {key} more than once", key_line)
+            raise TemplateError(f"{name} sets {key} more than once", first + key_line - 1)
 
         seen[key] = key_line
     options.groups[name] = {key: value for key, value, _ in settings}
@@ -135,7 +128,7 @@ def _build_options(parts: List[_Part], first: int) -> Options:
         elif kind == "use":
             name, rel_line = value
             if name in options.use_lines:
-                raise _OptionError(f"USE {name} given twice", rel_line)
+                raise TemplateError(f"USE {name} given twice", first + rel_line - 1)
             options.uses.append(name)
             options.use_lines[name] = first + rel_line - 1
         else:
@@ -272,5 +265,5 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
         return Directive(command, None)
     try:
         return Directive(command, _build_options(parts, line))
-    except _OptionError as e:
-        raise error(str(e), e.rel_line) from None
+    except TemplateError as e:
+        raise error(str(e), e.nline - line + 1) from None

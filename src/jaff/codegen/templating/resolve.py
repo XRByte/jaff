@@ -4,15 +4,8 @@
 import re
 from typing import List, Mapping, Optional, Pattern, Set, Tuple
 
+from .errors import TemplateError
 from .options import Options
-
-
-class OptionError(ValueError):
-    """An option problem at a known template line."""
-
-    def __init__(self, message: str, nline: int) -> None:
-        super().__init__(message)
-        self.nline = nline
 
 
 def _merge(target: Options, source: Options, line: Optional[int]) -> None:
@@ -40,7 +33,7 @@ def layer(local: Optional[Options], defines: Mapping[str, Options]) -> Options:
         A new ``Options`` without ``uses``.
 
     Raises:
-        OptionError: If a USE names a set that has not been defined yet.
+        TemplateError: If a USE names a set that has not been defined yet.
     """
     result = Options()
     if local is None:
@@ -49,7 +42,7 @@ def layer(local: Optional[Options], defines: Mapping[str, Options]) -> Options:
     for name in local.uses:
         line = local.use_lines[name]
         if name not in defines:
-            raise OptionError(
+            raise TemplateError(
                 f"USE of undefined option set {name} (DEFINE it above this block)", line
             )
         _merge(result, defines[name], line)
@@ -69,18 +62,18 @@ def check_groups(
         accepted: Group name to the set of keys the command accepts.
 
     Raises:
-        OptionError: On an unknown group or key.
+        TemplateError: On an unknown group or key.
     """
     for name, settings in options.groups.items():
         line = options.group_lines[name]
         if name not in accepted:
             allowed = ", ".join(sorted(accepted)) or "none"
-            raise OptionError(
+            raise TemplateError(
                 f"{command} takes no option group {name} (accepted: {allowed})", line
             )
         unknown = sorted(set(settings) - accepted[name])
         if unknown:
-            raise OptionError(
+            raise TemplateError(
                 f"{name} has no setting {', '.join(unknown)} "
                 f"(accepted: {', '.join(sorted(accepted[name]))})",
                 line,
@@ -91,7 +84,7 @@ def compile_replacements(options: Options) -> List[Tuple[Pattern[str], str]]:
     """Compile the REPLACE patterns in order and check their replacements.
 
     Raises:
-        OptionError: If a pattern is not a valid regular expression, or a
+        TemplateError: If a pattern is not a valid regular expression, or a
             replacement refers to a group the pattern does not have.
     """
     compiled: List[Tuple[Pattern[str], str]] = []
@@ -99,11 +92,13 @@ def compile_replacements(options: Options) -> List[Tuple[Pattern[str], str]]:
         try:
             compiled_pattern = re.compile(pattern)
         except re.error as e:
-            raise OptionError(f"Invalid REPLACE pattern {pattern!r}: {e}", line) from None
+            raise TemplateError(
+                f"Invalid REPLACE pattern {pattern!r}: {e}", line
+            ) from None
         try:
             compiled_pattern.sub(replacement, "")  # validates group references
         except re.error as e:
-            raise OptionError(
+            raise TemplateError(
                 f"Invalid REPLACE replacement {replacement!r}: {e}", line
             ) from None
         compiled.append((compiled_pattern, replacement))

@@ -8,7 +8,7 @@ import pytest
 from jaff import Network
 from jaff.codegen.codegen import Codegen
 from jaff.codegen.templating.commands import Get, Has, Sub
-from jaff.codegen.templating.commands.base import CommandError
+from jaff.codegen.templating.errors import TemplateError
 from jaff.codegen.templating.context import RenderContext
 from jaff.codegen.templating.options import Options
 from jaff.codegen.templating.syntax import parse_header
@@ -56,7 +56,7 @@ def test_sub_filename_and_label(ctx):
 
 
 def test_sub_rejects_unknown_token(ctx):
-    with pytest.raises(CommandError, match="SUB has no token nspecs"):
+    with pytest.raises(TemplateError, match="SUB has no token nspecs"):
         Sub(("nspec", "nspecs")).validate(Options(), ctx)
 
 
@@ -74,7 +74,7 @@ def test_get_substitutes_entity_properties(ctx, props, entity, line, expected):
 
 
 def test_get_rejects_unknown_property(ctx):
-    with pytest.raises(CommandError, match="GET has no property mass"):
+    with pytest.raises(TemplateError, match="GET has no property mass"):
         Get(("mass",), "H").validate(Options(), ctx)
 
 
@@ -88,7 +88,7 @@ def test_has_substitutes_one_or_zero(ctx, kind, entity, expected):
 
 
 def test_has_rejects_unknown_kind(ctx):
-    with pytest.raises(CommandError, match="HAS has no kind species"):
+    with pytest.raises(TemplateError, match="HAS has no kind species"):
         Has("species", "H").validate(Options(), ctx)
 
 
@@ -109,7 +109,7 @@ def test_has_rejects_unknown_kind(ctx):
     ],
 )
 def test_get_rejects_entity_of_the_wrong_kind_or_unknown(ctx, prop, entity, message):
-    with pytest.raises(CommandError, match=message):
+    with pytest.raises(TemplateError, match=message):
         Get((prop,), entity).validate(Options(), ctx)
 
 

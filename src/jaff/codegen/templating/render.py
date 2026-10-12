@@ -6,10 +6,10 @@ from typing import Dict, List, Optional, Set
 from ...errors import ParserError
 from .blocks import Block, CommandBlock, TextBlock
 from .commands import COMMANDS, Define
-from .commands.base import CommandError
 from .context import RenderContext
+from .errors import TemplateError
 from .options import Options
-from .resolve import OptionError, check_groups, compile_replacements, layer
+from .resolve import check_groups, compile_replacements, layer
 
 
 def _all_groups() -> Dict[str, Set[str]]:
@@ -41,10 +41,8 @@ def _prepare(block: CommandBlock, ctx: RenderContext) -> Options:
         check_groups(command.keyword, options, accepted)
         compile_replacements(options)
         command.validate(options, ctx)
-    except OptionError as e:
+    except TemplateError as e:
         raise _error(block, str(e), e.nline, ctx) from None
-    except CommandError as e:
-        raise _error(block, str(e), None, ctx) from None
 
     if isinstance(command, Define):
         if command.name in ctx.defines:

@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple
 
 from ..placeholders import substitute
-from .base import Command, CommandError, check_names, entity_collections, render_each_line
+from ..errors import TemplateError
+from .base import Command, check_names, entity_collections, render_each_line
 
 if TYPE_CHECKING:
     from ..context import RenderContext
@@ -67,7 +68,7 @@ class Get(Command):
         for name in self.props:
             kind = _PROPERTIES[name][0]
             if not _has_entity(ctx, kind, self.entity):
-                raise CommandError(
+                raise TemplateError(
                     f"{self.keyword} {name} needs {_KIND_NAMES[kind]}; "
                     f"{self.entity} is not one in this network"
                 )

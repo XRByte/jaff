@@ -6,16 +6,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, List, Self, Sequence, Set
 
+from ..errors import TemplateError
 from ..placeholders import split_line
 from ..resolve import apply_replacements, compile_replacements
 
 if TYPE_CHECKING:
     from ..context import RenderContext
     from ..options import Options
-
-
-class CommandError(ValueError):
-    """A problem with a command's header, reported at the directive's line."""
 
 
 def entity_collections(ctx: RenderContext) -> Dict[str, Any]:
@@ -57,7 +54,7 @@ class Command:
         """Check the header against the network before anything is rendered.
 
         Raises:
-            CommandError: If the header names something the command cannot use.
+            TemplateError: If the header names something the command cannot use.
         """
 
     def render(self, body: List[str], options: Options, ctx: RenderContext) -> str:
@@ -97,11 +94,11 @@ def check_names(
     """Every name in *names* must be one of *known*.
 
     Raises:
-        CommandError: Listing the unknown names and the known ones.
+        TemplateError: Listing the unknown names and the known ones.
     """
     unknown = [name for name in names if name not in known]
     if unknown:
-        raise CommandError(
+        raise TemplateError(
             f"{keyword} has no {kind} {', '.join(unknown)} "
             f"(known: {', '.join(sorted(known))})"
         )

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from jaff.codegen.templating.errors import TemplateError
 from jaff.codegen.templating.resolve import (
-    OptionError,
     apply_replacements,
     check_groups,
     compile_replacements,
@@ -44,7 +44,7 @@ def test_local_keys_win_and_other_keys_merge():
 
 
 def test_undefined_use_reports_the_use_line():
-    with pytest.raises(OptionError, match="undefined option set m") as err:
+    with pytest.raises(TemplateError, match="undefined option set m") as err:
         layer(options("\n USE m\n", line=4), {})
     assert err.value.nline == 5
 
@@ -60,13 +60,13 @@ def test_check_groups_accepts_known_groups_and_keys():
 
 
 def test_check_groups_rejects_unknown_group_with_its_line():
-    with pytest.raises(OptionError, match="SUB takes no option group SORT") as err:
+    with pytest.raises(TemplateError, match="SUB takes no option group SORT") as err:
         check_groups("SUB", options("\n SORT { ENABLED -> True }\n", line=7), {})
     assert err.value.nline == 8
 
 
 def test_check_groups_rejects_unknown_key():
-    with pytest.raises(OptionError, match="SORT has no setting ON"):
+    with pytest.raises(TemplateError, match="SORT has no setting ON"):
         check_groups("REPEAT", options(" SORT { ON -> True } "), {"SORT": {"ENABLED"}})
 
 
@@ -81,13 +81,13 @@ def test_replacements_keep_regex_groups():
 
 
 def test_invalid_pattern_reports_its_line():
-    with pytest.raises(OptionError, match="Invalid REPLACE pattern") as err:
+    with pytest.raises(TemplateError, match="Invalid REPLACE pattern") as err:
         compile_replacements(options('\n REPLACE {\n "(" -> "x" } ', line=3))
     assert err.value.nline == 5
 
 
 def test_replacement_with_missing_group_reports_its_line():
-    with pytest.raises(OptionError, match="Invalid REPLACE replacement") as err:
+    with pytest.raises(TemplateError, match="Invalid REPLACE replacement") as err:
         compile_replacements(options(r' REPLACE { "tgas" -> "T\1" } ', line=2))
     assert err.value.nline == 2
 
@@ -96,7 +96,7 @@ def test_check_groups_rejects_group_from_use_at_the_use_line():
     defines = {"m": options(" RADIATION { ENABLED -> True } ", line=1)}
     result = layer(options("\n\n USE m\n", line=10), defines)
 
-    with pytest.raises(OptionError, match="takes no option group RADIATION") as err:
+    with pytest.raises(TemplateError, match="takes no option group RADIATION") as err:
         check_groups("SUB", result, {})
 
     assert err.value.nline == 12
