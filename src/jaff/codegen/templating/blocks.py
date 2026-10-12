@@ -1,5 +1,5 @@
 # ABOUTME: Block types produced by the template engine's single pass over a template
-# ABOUTME: TextBlock holds plain lines; CommandBlock holds one command, its options and body
+# ABOUTME: TextBlock holds plain lines; CommandBlock a command, its options and body
 
 from dataclasses import dataclass
 from typing import List, Optional, Union

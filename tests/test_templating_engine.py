@@ -1,4 +1,4 @@
-# ABOUTME: Tests for the template engine's single pass that splits text and directive blocks
+# ABOUTME: Tests for the template engine's single pass splitting text and directive blocks
 # ABOUTME: Pure string inputs: no network or codegen is involved
 
 from pathlib import Path
@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from jaff.codegen.templating.blocks import CommandBlock, TextBlock
-from jaff.codegen.templating.engine import split_blocks
 from jaff.codegen.templating.commands import Define, Repeat, Sub
+from jaff.codegen.templating.engine import split_blocks
 from jaff.errors import ParserError
 
 FILE = Path("template.cpp")

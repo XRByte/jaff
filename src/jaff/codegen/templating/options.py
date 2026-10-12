@@ -1,4 +1,4 @@
-# ABOUTME: Options attached to one $$JAFF directive block: REPLACE pairs, USE names, groups
+# ABOUTME: Options of one $$JAFF directive block: REPLACE pairs, USE names, groups
 # ABOUTME: Shared by the syntax layer and the command classes; holds data only
 
 from dataclasses import dataclass, field

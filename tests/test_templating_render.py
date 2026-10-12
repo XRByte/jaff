@@ -37,7 +37,10 @@ def test_sub_block_without_echo(net, tmp_path):
     "name, comment", [("t.py", "#"), ("t.cpp", "//"), ("t.f90", "!")]
 )
 def test_echo_comments_header_and_end_in_the_language(net, tmp_path, name, comment):
-    text = '  $$JAFF SUB nspec {\n      REPLACE { "5" -> "five" }\n  }\nn = $nspec$\n  $$JAFF END\n'
+    text = (
+        '  $$JAFF SUB nspec {\n      REPLACE { "5" -> "five" }\n  }\n'
+        "n = $nspec$\n  $$JAFF END\n"
+    )
     out = render(net, tmp_path, text, name=name, echo=True)
     assert out == (
         f"  {comment} $$JAFF SUB nspec {{\n"
@@ -123,6 +126,11 @@ def test_unknown_extension_needs_a_default_language(net, tmp_path):
     with pytest.raises(RuntimeError, match="xyz files are not yet supported"):
         render(net, tmp_path, "x\n", name="t.xyz")
     assert render(net, tmp_path, "x\n", name="t.xyz", default_lang="python") == "x\n"
+
+
+def test_file_without_extension_names_the_problem(net, tmp_path):
+    with pytest.raises(RuntimeError, match="^files without an extension are not yet"):
+        render(net, tmp_path, "x\n", name="template")
 
 
 def test_get_of_unknown_entity_is_a_parser_error_at_the_header(net, tmp_path):

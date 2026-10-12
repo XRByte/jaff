@@ -1,4 +1,4 @@
-# ABOUTME: Characterization snapshots of the $JAFF template engine: render fixture templates
+# ABOUTME: Characterization snapshots of the $JAFF template engine: render fixtures
 # ABOUTME: against small networks and compare the generated text with committed renders
 
 # Regression net for the template-parser rewrite.  Each template under

@@ -1,5 +1,5 @@
 # ABOUTME: Single pass over a template that splits it into text and directive blocks
-# ABOUTME: Lark decides where a header ends; the engine also collects the raw body up to $$JAFF END
+# ABOUTME: Lark decides where a header ends; the engine collects the body up to $$JAFF END
 
 from pathlib import Path
 from typing import List, Optional, Tuple

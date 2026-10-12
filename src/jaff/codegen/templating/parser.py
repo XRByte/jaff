@@ -46,11 +46,12 @@ class TemplateParser:
         self.file = Path(file)
         self.echo_directives = echo_directives
         ext = self.file.suffix[1:].lower()
-        found = Language.from_extension(self.file.suffix)
+        found = Language.from_extension(ext)
         lang = found.name if found is not None else default_lang
         if lang is None:
+            kind = f"{ext} files" if ext else "files without an extension"
             raise RuntimeError(
-                f"{ext} files are not yet supported\n"
+                f"{kind} are not yet supported\n"
                 "Please use the --lang option to specify a language for\n"
                 "unsupported files if you are using jaffgen"
             )
