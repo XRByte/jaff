@@ -14,6 +14,7 @@
 # and review the diff.
 
 import os
+import re
 from functools import cache
 from pathlib import Path
 from typing import Callable, Dict, List, Tuple
@@ -29,6 +30,26 @@ FIXTURES = Path(__file__).parent / "fixtures"
 TEMPLATES = FIXTURES / "templates" / "engine"
 SNAPSHOTS = Path(__file__).parent / "snapshots" / "template_engine"
 UPDATE = bool(os.environ.get("JAFF_UPDATE_SNAPSHOTS"))
+
+# Numeric literals (incl. Fortran's 1.0d0). Floats from numerical integration (the
+# photoionisation rates) differ in the last digit between platforms, so numbers are
+# compared with pytest.approx and the text around them exactly.
+NUMBER = re.compile(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eEdD][-+]?\d+)?")
+REL = 1e-12
+
+
+def _numbers(text: str) -> List[float]:
+    return [float(n.replace("d", "e").replace("D", "e")) for n in NUMBER.findall(text)]
+
+
+def assert_same_render(output: str, expected: str) -> None:
+    """Text identical outside numeric literals; numbers equal within ``REL``."""
+    if output == expected:
+        return
+
+    assert NUMBER.split(output) == NUMBER.split(expected)
+    assert _numbers(output) == pytest.approx(_numbers(expected), rel=REL)
+
 
 NETWORKS: Dict[str, Callable[[], Network]] = {
     # neutral H/D/He with an energy equation (dE/dt from the .jfunc)
@@ -80,7 +101,7 @@ def test_render_matches_snapshot(template: str, net: str) -> None:
         snapshot.write_text(output)
 
     assert snapshot.exists(), f"no snapshot {snapshot}; run JAFF_UPDATE_SNAPSHOTS=1"
-    assert output == snapshot.read_text()
+    assert_same_render(output, snapshot.read_text())
 
 
 def test_echo_off_leaves_no_directive_lines() -> None:
@@ -125,3 +146,12 @@ def test_snapshot_set_matches_cases() -> None:
 def test_every_template_has_cases() -> None:
     templates = {p.name for p in TEMPLATES.iterdir()}
     assert templates == set(CASES)
+
+
+def test_same_render_tolerates_last_digit_noise_only() -> None:
+    assert_same_render("k = 5.0572844545056314e-8*x;", "k = 5.0572844545056307e-8*x;")
+    assert_same_render("y = 1.0d0", "y = 1.0D0")
+    with pytest.raises(AssertionError):
+        assert_same_render("k = 5.06e-8*x;", "k = 5.05e-8*x;")
+    with pytest.raises(AssertionError):
+        assert_same_render("k = 5.0e-8*x;", "k = 5.0e-8*y;")
