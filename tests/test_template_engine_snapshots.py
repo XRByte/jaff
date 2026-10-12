@@ -118,6 +118,33 @@ def test_render_matches_snapshot(syntax: str, template: str, net: str) -> None:
     assert generated_text(output) == generated_text(snapshot.read_text())
 
 
+# Echo comment of each fixture's language, picked from its extension
+ECHO_COMMENTS: Dict[str, str] = {".py": "#", ".cpp": "//", ".f90": "!"}
+
+
+@pytest.mark.parametrize("template, net", _params())
+def test_echo_only_adds_commented_directive_lines(template: str, net: str) -> None:
+    path = TEMPLATES / "brace" / template
+    echoed = TemplateParser(network(net), path).parse_file().splitlines()
+    plain = render("brace", template, net).splitlines()
+
+    # The plain render must be a subsequence of the echoed one ...
+    extra = []
+    remaining = iter(plain)
+    expected = next(remaining, None)
+    for line in echoed:
+        if line == expected:
+            expected = next(remaining, None)
+        else:
+            extra.append(line)
+    assert expected is None, f"echoed render lost {expected!r}"
+
+    # ... and everything added is a directive line behind the language's comment.
+    comment = ECHO_COMMENTS[path.suffix]
+    assert extra
+    assert all(line.lstrip().startswith(f"{comment} ") for line in extra), extra
+
+
 def test_snapshot_set_matches_cases() -> None:
     expected = {(n, t) for t, nets in CASES.items() for n in nets}
     found = {(p.parent.name, p.name) for p in SNAPSHOTS.glob("*/*") if p.is_file()}
