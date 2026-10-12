@@ -14,7 +14,8 @@ from jaff.types import IndexedList
 
 
 def vertical(items, line, token="$x$", indent=""):
-    return expand_vertical(as_flattened(items), indent, line, token, 0)
+    lines = expand_vertical(as_flattened(items), line, token, 0)
+    return "".join(f"{indent}{text}\n" for text in lines)
 
 
 def test_vertical_writes_one_line_per_item_with_indent():
@@ -40,7 +41,7 @@ def test_vertical_matrix_needs_one_idx_per_dimension():
 
 def test_vertical_idx_count_mismatch_is_an_error_at_the_line():
     with pytest.raises(TemplateError, match="expected 2 \\$idx\\$ placeholders") as e:
-        expand_vertical(as_flattened([[1]]), "", "m[$idx$] = $x$", "$x$", 3)
+        expand_vertical(as_flattened([[1]]), "m[$idx$] = $x$", "$x$", 3)
     assert e.value.body_index == 3
 
 
@@ -85,7 +86,7 @@ def test_empty_items_expand_to_nothing_or_an_empty_list():
 
 def test_upper_idx_without_idx_tokens_is_the_first_index():
     items = [([3], "a")]
-    assert expand_vertical(items, "", "$IDX$ $x$", "$x$", 0) == "3 a\n"
+    assert expand_vertical(items, "$IDX$ $x$", "$x$", 0) == ["3 a"]
 
 
 def test_line_without_idx_skips_the_dimension_check():

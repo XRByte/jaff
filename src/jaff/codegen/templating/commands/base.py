@@ -107,20 +107,31 @@ class FileSetting(Command):
         return ""
 
 
+def finish_line(
+    indent: str, content: str, replacements: List[Tuple[Pattern[str], str]]
+) -> str:
+    """An output line: *indent*, then *content* after the REPLACE pairs, then ``\\n``.
+
+    REPLACE never sees the indentation, so every command treats lines alike. An
+    empty line gets no indentation.
+    """
+    text = apply_replacements(content, replacements)
+    return (indent + text if text else "") + "\n"
+
+
 def render_each_line(
     body: List[str],
     transform: Callable[[str], str],
     replacements: List[Tuple[Pattern[str], str]],
 ) -> str:
-    """Render line by line as the old engine did for SUB, GET and HAS.
+    """Render every body line: leading spaces kept, content through *transform*.
 
-    Each line keeps its leading spaces; its stripped content goes through
-    *transform* and then the block's compiled REPLACE pairs.
+    Used by SUB, GET and HAS; see :func:`finish_line` for REPLACE.
     """
     out = []
     for line in body:
         indent, content = split_line(line)
-        out.append(indent + apply_replacements(transform(content), replacements) + "\n")
+        out.append(finish_line(indent, transform(content), replacements))
 
     return "".join(out)
 

@@ -9,8 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from ..errors import TemplateError
 from ..placeholders import split_line
-from ..resolve import apply_replacements
-from .base import Command, check_names
+from .base import Command, check_names, finish_line
 
 if TYPE_CHECKING:
     from ..context import RenderContext
@@ -96,7 +95,7 @@ class Reduce(Command):
     def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
         """Expand the first ``$( ... )$`` of each line that uses a listed variable.
 
-        Other lines are copied unchanged, without REPLACE, as the old engine did.
+        Other lines are copied. REPLACE runs on the content of every line.
         """
         columns: Optional[Dict[str, List[Any]]] = None
         out = []
@@ -105,7 +104,7 @@ class Reduce(Command):
             indent, line = split_line(raw)
             match = _REDUCTION.search(line)
             if not (match and any(f"${var}$" in match.group(2) for var in self.vars)):
-                out.append(raw)
+                out.append(finish_line(indent, line, resolved.replacements))
                 continue
 
             if columns is None:
@@ -113,7 +112,7 @@ class Reduce(Command):
 
             expression = self._sum(match.group(2), columns, index)
             line = line.replace(match.group(1), expression)
-            out.append(indent + apply_replacements(line, resolved.replacements) + "\n")
+            out.append(finish_line(indent, line, resolved.replacements))
 
         return "".join(out)
 

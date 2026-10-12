@@ -5,12 +5,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Set, Tuple
 
 from ..errors import TemplateError
 from ..placeholders import split_line
-from ..resolve import apply_replacements
-from .base import Command, check_names
+from .base import Command, check_names, finish_line
 from .repeat_props import GROUPS, PROPERTIES, RepeatProp, option_kwargs
 from .repeat_render import as_flattened, expand_horizontal, expand_vertical, find_idx
 
@@ -46,7 +45,10 @@ class Repeat(Command):
         self._kwargs(body, resolved)
 
     def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
-        """Expand every body line that uses the property's variables."""
+        """Expand every line holding a placeholder; copy the others once.
+
+        REPLACE runs on the content of every output line, expanded or copied.
+        """
         prop = PROPERTIES[self.prop]
         # Recomputed rather than kept from validate: commands are immutable, and
         # the options and CSE scan are cheap next to codegen.
@@ -55,52 +57,32 @@ class Repeat(Command):
         out: List[str] = []
         for index, raw in enumerate(body):
             indent, line = split_line(raw)
-            if not _active(line, prop):
-                out.append(raw)
-                continue
+            contents = [line]
+            if _active(line, prop):
+                if items is None:
+                    items = prop.source(ctx, kwargs)
+                contents = self._expand(prop, items, line, index)
 
-            if items is None:
-                items = prop.source(ctx, kwargs)
-
-            expanded = self._expand(prop, items, indent, line, index, resolved)
-            out.append(raw if expanded is None else expanded)
+            out.extend(finish_line(indent, c, resolved.replacements) for c in contents)
 
         return "".join(out)
 
-    def _expand(
-        self,
-        prop: RepeatProp,
-        items: Any,
-        indent: str,
-        line: str,
-        index: int,
-        resolved: Resolved,
-    ) -> Optional[str]:
-        """One active line expanded, or ``None`` to copy it unchanged.
-
-        REPLACE runs where the old engine ran it: on the expanded lines with
-        their indentation in vertical mode, on the content in horizontal mode.
-        """
-        replacements = resolved.replacements
+    def _expand(self, prop: RepeatProp, items: Any, line: str, index: int) -> List[str]:
+        """The contents of the output lines for one line holding a placeholder."""
         extras: Dict[str, Any] = {}
         if prop.special:
             extras, items = items["extras"], items["expressions"]
 
         if "idx" not in self.vars:
             expanded = expand_horizontal(items, prop.item, line)
-            if expanded is None:
-                return None
-
-            return indent + apply_replacements(expanded, replacements) + "\n"
+            return [line if expanded is None else expanded]
 
         for var in prop.special:
             if f"${var}$" in line:
-                text = expand_vertical(extras[var], indent, line, f"${var}$", index)
-                # The old engine ended this block with an extra newline.
-                return apply_replacements(text, replacements) + "\n"
+                # The old engine ended this block with an extra empty line.
+                return expand_vertical(extras[var], line, f"${var}$", index) + [""]
 
-        text = expand_vertical(as_flattened(items), indent, line, f"${prop.item}$", index)
-        return apply_replacements(text, replacements)
+        return expand_vertical(as_flattened(items), line, f"${prop.item}$", index)
 
     def _kwargs(self, body: List[str], resolved: Resolved) -> Dict[str, Any]:
         """Keyword arguments for the property's source: options, then CSE naming."""

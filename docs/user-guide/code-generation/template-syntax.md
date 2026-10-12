@@ -625,7 +625,7 @@ ne = (((1 * xn[2])) + ((2 * xn[3])) + ((1 * xn[4])));
 
 Only the first `$( … )$` on a line is expanded (identical copies of it on the
 same line are replaced too). A line with no `$( … )$`, or whose `$( … )$` uses
-none of the listed variables, is copied unchanged and gets no `REPLACE`.
+none of the listed variables, is copied (with `REPLACE` applied).
 
 **Properties** (variable in brackets):
 
@@ -705,9 +705,9 @@ REPLACE {
   `\d`, `\+`, `\[` as in any regex.
 - Replacements may refer to capture groups with `\1`, `\2`, …. A reference to a
   group the pattern does not have is an error.
-- Pairs apply **in order**, once per generated line, to the line's content
-  after substitution (the indentation is never touched). A pattern cannot match
-  across lines.
+- Pairs apply **in order** to every output line of the block — expanded or
+  copied — on the line's content after substitution (the indentation is never
+  touched). A pattern cannot match across lines.
 - Patterns are compiled and checked before any rendering.
 
 ```cpp

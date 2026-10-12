@@ -47,10 +47,10 @@ def test_summand_template_is_repeated_per_value(ctx):
     assert out == "q = 2 * ((0 * 3) + (-1 * 3) + (1 * 3) + (2 * 3) + (1 * 3))\n"
 
 
-def test_lines_without_a_reduction_pass_through_raw(ctx):
+def test_lines_without_a_reduction_are_copied_with_replace(ctx):
     body = ["  x = $specie_charge$  \n", "\ty\n"]
     out = charges().render(body, resolved('"x" -> "X"'), ctx)
-    assert out == "  x = $specie_charge$  \n\ty\n"
+    assert out == "  X = $specie_charge$  \n\ty\n"
 
 
 def test_several_properties_are_zipped(ctx):
@@ -99,6 +99,7 @@ def test_only_the_first_reduction_is_expanded_and_its_copies_replaced(ctx):
     )
 
 
-def test_reduction_without_a_listed_variable_passes_through_raw(ctx):
+def test_reduction_without_a_listed_variable_is_copied_with_replace(ctx):
     body = ["  m = $($specie_mass$)$\n"]
-    assert charges().render(body, resolved('"m" -> "M"'), ctx) == body[0]
+    out = charges().render(body, resolved('"m =" -> "M ="'), ctx)
+    assert out == "  M = $($specie_mass$)$\n"

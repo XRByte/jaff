@@ -32,7 +32,7 @@ def as_nested(items: Any) -> IndexedList:
     return items if items.type() == "nested" else items.nested()
 
 
-def expand_vertical(items: Any, indent: str, line: str, token: str, index: int) -> str:
+def expand_vertical(items: Any, line: str, token: str, index: int) -> List[str]:
     """One output line per item: ``$idx±N$`` take its indices, *token* its value.
 
     ``$IDX$`` takes the first index plus the first ``$idx$``'s offset (none
@@ -40,13 +40,12 @@ def expand_vertical(items: Any, indent: str, line: str, token: str, index: int) 
 
     Args:
         items: Iterable of ``(indices, value)`` pairs, e.g. a flattened IndexedList.
-        indent: Leading spaces of the body line.
         line: The body line's stripped content.
         token: Placeholder for the value, e.g. ``"$specie$"``.
         index: Position of the line in the body, for errors.
 
     Returns:
-        The expanded lines, each with *indent* and ending in ``\\n``.
+        The content of each expanded line, without indentation or line end.
 
     Raises:
         TemplateError: If the line has ``$idx$`` placeholders, but not one per
@@ -69,9 +68,9 @@ def expand_vertical(items: Any, indent: str, line: str, token: str, index: int) 
         first = indices[0] + (spans[0][1] if spans else 0)
         text = text.replace("$IDX$", str(first))
 
-        out.append(f"{indent}{text}\n")
+        out.append(text)
 
-    return "".join(out)
+    return out
 
 
 def _horizontal_pattern(item: str) -> Pattern[str]:

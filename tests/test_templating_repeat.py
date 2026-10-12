@@ -72,16 +72,21 @@ def test_item_without_idx_is_repeated(net, tmp_path):
 
 def test_horizontal_line_without_a_bracketed_placeholder_is_copied(net, tmp_path):
     text = block('REPEAT specie IN species { REPLACE { "n" -> "N" } }', "  n = $specie$")
-    assert render(net, tmp_path, text) == "  n = $specie$\n"
+    assert render(net, tmp_path, text) == "  N = $specie$\n"
 
 
-def test_vertical_replace_sees_the_indentation(net, tmp_path):
+def test_replace_also_runs_on_copied_lines(net, tmp_path):
+    text = block('REPEAT idx, specie IN species { REPLACE { "x" -> "y" } }', "  x = 1")
+    assert render(net, tmp_path, text) == "  y = 1\n"
+
+
+def test_vertical_replace_does_not_see_the_indentation(net, tmp_path):
     text = block(
-        'REPEAT idx, specie IN species { REPLACE { "  s" -> "S" } }',
+        'REPEAT idx, specie IN species { REPLACE { "^s" -> "S" } }',
         "  s[$idx$] = $specie$",
     )
-    assert render(net, tmp_path, text) == (
-        "S[0] = H\nS[1] = e-\nS[2] = H+\nS[3] = He++\nS[4] = He+\n"
+    assert render(net, tmp_path, text) == "".join(
+        f"  S[{i}] = {name}\n" for i, name in enumerate(NAMES)
     )
 
 
