@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 
 from jaff.codegen.templating.commands import Define, End, Get, Has, Reduce, Repeat, Sub
-from jaff.codegen.templating.syntax import IncompleteHeaderError, Options, parse_header
+from jaff.codegen.templating.syntax import (
+    DirectiveSyntaxError,
+    IncompleteHeaderError,
+    Options,
+    parse_header,
+)
 from jaff.errors import ParserError
 
 FILE = Path("template.cpp")
@@ -211,3 +216,14 @@ def test_crlf_header_error_line_has_no_carriage_return():
     with pytest.raises(ParserError) as err:
         parse_header("$$JAFF SUB x {\r\n  SORT { K }\r\n}", 1, FILE)
     assert err.value.line == "  SORT { K }"
+
+
+def test_grammar_errors_are_directive_syntax_errors():
+    with pytest.raises(DirectiveSyntaxError):
+        parse("REPEAT idx rhses")
+
+
+def test_repeated_group_is_not_a_syntax_error():
+    with pytest.raises(ParserError) as err:
+        parse("SUB x { SORT { A -> 1 } SORT { A -> 2 } }")
+    assert not isinstance(err.value, DirectiveSyntaxError)

@@ -62,26 +62,33 @@ class _ToDirective(Transformer):
         return tuple(str(t) for t in items)
 
     def replacement(self, items: List[Any]) -> Tuple[str, str]:
+        """A REPLACE pair: raw regex pattern and unescaped replacement."""
         return (_text(items[0]), _unescape(items[1]))
 
     def setting(self, items: List[Any]) -> Tuple[str, str, int]:
+        """A group setting: key, unescaped value and the key's relative line."""
         return (str(items[0]), _unescape(items[1]), items[0].line)
 
     def replace(self, items: List[Any]) -> _Part:
+        """A REPLACE block's pairs."""
         return ("replace", items)
 
     def use(self, items: List[Any]) -> _Part:
+        """A USE of a named option set."""
         return ("use", str(items[0]))
 
     def group(self, items: List[Any]) -> _Part:
+        """A named group: name, its relative line and its settings."""
         return ("group", (str(items[0]), items[0].line, items[1:]))
 
     def options(self, items: List[Any]) -> List[_Part]:
+        """The block's option parts in written order."""
         return items
 
 
 @cache
 def _parser() -> Lark:
+    """The header parser, built once per process."""
     return Lark(GRAMMAR.read_text(), parser="lalr", propagate_positions=True)
 
 
@@ -94,6 +101,7 @@ class _OptionError(ValueError):
 
 
 def _add_group(options: Options, name: str, rel_line: int, settings: List[Any]) -> None:
+    """Add one group to *options*; a repeated group or key is an error."""
     if name in options.groups:
         raise _OptionError(f"option group {name} given twice", rel_line)
     seen: Dict[str, int] = {}
@@ -147,7 +155,11 @@ def _describe(e: UnexpectedInput) -> str:
     return message
 
 
-class IncompleteHeaderError(ParserError):
+class DirectiveSyntaxError(ParserError):
+    """The header text does not match the directive grammar."""
+
+
+class IncompleteHeaderError(DirectiveSyntaxError):
     """The header ended inside an open option block; more lines may complete it."""
 
 
@@ -179,7 +191,8 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
 
     Raises:
         IncompleteHeaderError: If the text ends inside an open option block.
-        ParserError: On a syntax error or a repeated option group or key.
+        DirectiveSyntaxError: If the text does not match the grammar.
+        ParserError: On a repeated option group or key.
     """
     lines = [part.rstrip("\r") for part in text.split("\n")]
 
@@ -191,17 +204,17 @@ def parse_header(text: str, line: int, file: Path) -> Directive:
 
     source = _blank_marker(text)
     if source is None:
-        raise error(f"Expected a space after {MARKER}", 1)
+        raise error(f"Expected a space after {MARKER}", 1, DirectiveSyntaxError)
 
     try:
         tree = _parser().parse(source)
     except UnexpectedToken as e:
         incomplete = e.token.type == "$END" and "RBRACE" in e.expected
-        cls = IncompleteHeaderError if incomplete else ParserError
+        cls = IncompleteHeaderError if incomplete else DirectiveSyntaxError
 
         raise error(_describe(e), e.line, cls) from None
     except UnexpectedInput as e:
-        raise error(_describe(e), e.line) from None
+        raise error(_describe(e), e.line, DirectiveSyntaxError) from None
 
     command, parts = _ToDirective().transform(tree)
     if parts is None:

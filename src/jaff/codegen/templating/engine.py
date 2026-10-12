@@ -8,7 +8,13 @@ from ...errors import ParserError
 from .blocks import Block, CommandBlock, TextBlock
 from .commands import Define, End
 from .options import Options
-from .syntax import MARKER, Directive, IncompleteHeaderError, parse_header
+from .syntax import (
+    MARKER,
+    Directive,
+    DirectiveSyntaxError,
+    IncompleteHeaderError,
+    parse_header,
+)
 
 
 def is_directive(line: str) -> bool:
@@ -54,9 +60,7 @@ def _read_header(lines: List[str], start: int, file: Path) -> Tuple[Directive, i
                 raise
 
             hint = f" (in directive opened at line {start + 1}"
-            hint += (
-                "; missing '}'?)" if e.message.startswith("Invalid directive") else ")"
-            )
+            hint += "; missing '}'?)" if isinstance(e, DirectiveSyntaxError) else ")"
 
             raise ParserError(e.message + hint, e.line, e.nline, e.fname) from None
 

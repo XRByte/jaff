@@ -213,3 +213,11 @@ def test_empty_define_block_is_allowed():
     (block,) = split("$$JAFF DEFINE micro { }\n")
     assert block.command == Define("micro")
     assert block.body_lines == []
+
+
+def test_malformed_nested_directive_reports_its_own_error():
+    # A nested $$JAFF line is parsed before the nesting check, so its own syntax
+    # error wins over "Nested $$JAFF directive"
+    with pytest.raises(ParserError, match="Invalid directive") as err:
+        split("$$JAFF SUB x\n$$JAFF SUB {\n$$JAFF END\n")
+    assert err.value.nline == 2
