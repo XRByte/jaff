@@ -1,5 +1,5 @@
-# ABOUTME: Brace-syntax copy of legacy/modifiers_thermal.py: THERMAL options, dedt/dtdt tokens
-# ABOUTME: Must render the same generated text as the legacy fixture's pinned snapshot
+# ABOUTME: Template-engine regression fixture: THERMAL options and the dedt/dtdt SUB tokens (energy network)
+# ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
 $$JAFF SUB dedt, dtdt
 dedt = $dedt$

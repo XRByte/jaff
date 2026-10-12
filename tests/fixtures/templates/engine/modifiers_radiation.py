@@ -1,5 +1,5 @@
-# ABOUTME: Brace-syntax copy of legacy/modifiers_radiation.py: radodes and RADIATION options
-# ABOUTME: Must render the same generated text as the legacy fixture's pinned snapshot
+# ABOUTME: Template-engine regression fixture: radodes and RADIATION options (radiation network)
+# ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
 $$JAFF REPEAT idx, radode IN radodes
 drad[$idx$] = $radode$

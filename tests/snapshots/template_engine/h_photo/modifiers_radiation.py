@@ -1,44 +1,53 @@
-# ABOUTME: Legacy-syntax template-engine regression fixture: radodes, RADIATION and RAD_ORDER modifiers (radiation network)
+# ABOUTME: Template-engine regression fixture: radodes and RADIATION options (radiation network)
 # ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
-# $JAFF REPEAT idx, radode IN radodes
+# $$JAFF REPEAT idx, radode IN radodes
 drad[0] = -5.05728445450563e-8*nden[0]*photden[0]
 drad[1] = -5.05728445450563e-8*nden[0]*rflux[0]
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, radode, cse IN radodes
+# $$JAFF REPEAT idx, radode, cse IN radodes
 r0 = 5.05728445450563e-8*nden[0]
 
 drad[0] = -r0*photden[0]
 drad[1] = -r0*rflux[0]
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, rhs IN rhses $[RADIATION True]$
+# $$JAFF REPEAT idx, rhs IN rhses { RADIATION { ENABLED -> True } }
 f_rad[0] = 1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] - 5.05728445450563e-8*nden[0]*photden[0]
 f_rad[1] = -1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] + 5.05728445450563e-8*nden[0]*photden[0]
 f_rad[2] = -1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] + 5.05728445450563e-8*nden[0]*photden[0]
 f_rad[3] = -2.29107354821899e-26*tgas**0.3*(0.684 - 0.0416*math.log(0.0001*tgas))*nden[1]*nden[2] + 3.2366620508836e-19*nden[0]*photden[0]
 f_rad[4] = -5.05728445450563e-8*nden[0]*photden[0]
 f_rad[5] = -5.05728445450563e-8*nden[0]*rflux[0]
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, rhs IN rhses $[RADIATION FALSE]$
+# $$JAFF REPEAT idx, rhs IN rhses { RADIATION { ENABLED -> FALSE } }
 f_norad[0] = 1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] - 5.05728445450563e-8*nden[0]*photden[0]
 f_norad[1] = -1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] + 5.05728445450563e-8*nden[0]*photden[0]
 f_norad[2] = -1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] + 5.05728445450563e-8*nden[0]*photden[0]
 f_norad[3] = -2.29107354821899e-26*tgas**0.3*(0.684 - 0.0416*math.log(0.0001*tgas))*nden[1]*nden[2] + 3.2366620508836e-19*nden[0]*photden[0]
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, rhs IN rhses $[RADIATION true RAD_ORDER 1]$
+# $$JAFF REPEAT idx, rhs IN rhses { RADIATION { ENABLED -> true  ORDER -> 1 } }
 f_rad1[0] = 1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] - 5.05728445450563e-8*nden[0]*photden[0]
 f_rad1[1] = -1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] + 5.05728445450563e-8*nden[0]*photden[0]
 f_rad1[2] = -1.65941781598291e-10*tgas**(-0.7)*nden[1]*nden[2] + 5.05728445450563e-8*nden[0]*photden[0]
 f_rad1[3] = -2.29107354821899e-26*tgas**0.3*(0.684 - 0.0416*math.log(0.0001*tgas))*nden[1]*nden[2] + 3.2366620508836e-19*nden[0]*photden[0]
 f_rad1[4] = -5.05728445450563e-8*nden[0]*rflux[0]
 f_rad1[5] = -5.05728445450563e-8*nden[0]*photden[0]
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, expr, cse IN jacobian $[REPLACE photden\[\s*(\d+)\s*\] rn[2*\1] REPLACE rflux\[\s*(\d+)\s*\] rn[2*\1+1] REPLACE nden\[\s*(\d+)\s*\] xn[\1] REPLACE tgas T REPLACE c_hat chat RADIATION True]$
+# $$JAFF REPEAT idx, expr, cse IN jacobian {
+    # REPLACE {
+        # "photden\[\s*(\d+)\s*\]" -> "rn[2*\1]"
+        # "rflux\[\s*(\d+)\s*\]" -> "rn[2*\1+1]"
+        # "nden\[\s*(\d+)\s*\]" -> "xn[\1]"
+        # "tgas" -> "T"
+        # "c_hat" -> "chat"
+    # }
+    # RADIATION { ENABLED -> True }
+# }
 c0 = 5.05728445450563e-8*rn[2*0]
 c1 = -c0
 c2 = 1.65941781598291e-10*T**(-0.7)
@@ -65,4 +74,4 @@ J[3, 0] = c1
 J[3, 3] = c6
 J[4, 0] = -5.05728445450563e-8*rn[2*0+1]
 J[4, 4] = c6
-# $JAFF END
+# $$JAFF END

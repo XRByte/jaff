@@ -1,5 +1,5 @@
-// ABOUTME: Brace-syntax copy of legacy/language.cpp: C++ smoke test, brace arrays, CSE, REPLACE
-// ABOUTME: Must render the same generated text as the legacy fixture's pinned snapshot
+// ABOUTME: Template-engine regression fixture: C++ smoke test: indented directives, brace arrays, CSE, REPLACE
+// ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
 // Plain C++ comment: passes through untouched.
 #include <array>

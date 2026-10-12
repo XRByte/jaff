@@ -1,20 +1,17 @@
-# ABOUTME: Characterization snapshots of the $JAFF template engine: render fixtures
-# ABOUTME: against small networks and compare the generated text with committed renders
+# ABOUTME: Snapshots of the $$JAFF template engine: render fixture templates against
+# ABOUTME: small networks and compare the whole output, echo included, with committed renders
 
-# Regression net for the template-parser rewrite.  Each template under
-# tests/fixtures/templates/engine/<syntax>/ is rendered with that syntax's engine for
-# the networks listed in CASES and compared with the committed render in
-# tests/snapshots/template_engine/<network>/.  Directive and ABOUTME lines are
-# dropped from both sides before comparing (see generated_text), so a template
-# rewritten in the brace syntax must reproduce the legacy render exactly.  The
-# legacy syntax renders with the old engine, the brace syntax with the new one
-# (directive echo off).
+# Regression net for the template engine.  Each template in
+# tests/fixtures/templates/engine/ is rendered for the networks listed in CASES and
+# compared line for line with the committed render in
+# tests/snapshots/template_engine/<network>/.  The snapshots were first produced by
+# the old engine; the rewrite reproduced them byte for byte.
 #
-# The snapshots pin current behaviour, quirks included (SORT TRUE is a no-op,
-# $IDX$ needs $idx$ on the same line, (/ ... /) is not a horizontal array).
+# They pin current behaviour, quirks included (SORT is a no-op, $IDX$ needs $idx$
+# on the same line, (/ ... /) is not a horizontal array; see parser_bugs.md).
 # After an intentional change refresh them with
 #   JAFF_UPDATE_SNAPSHOTS=1 uv run pytest tests/test_template_engine_snapshots.py
-# and review the diff.  Only the legacy syntax writes snapshots.
+# and review the diff.
 
 import os
 from functools import cache
@@ -24,8 +21,7 @@ from typing import Callable, Dict, List, Tuple
 import pytest
 
 from jaff import Network
-from jaff.codegen._template_engine import TemplateParser as LegacyParser
-from jaff.codegen.templating import TemplateParser
+from jaff.codegen import TemplateParser
 from jaff.physics.photo_reactions._radiation_props import RadiationProps
 
 REPO = Path(__file__).resolve().parent.parent
@@ -33,10 +29,6 @@ FIXTURES = Path(__file__).parent / "fixtures"
 TEMPLATES = FIXTURES / "templates" / "engine"
 SNAPSHOTS = Path(__file__).parent / "snapshots" / "template_engine"
 UPDATE = bool(os.environ.get("JAFF_UPDATE_SNAPSHOTS"))
-
-# Syntax variants of the same templates.  "legacy" is the reference.
-SYNTAXES: List[str] = ["legacy", "brace"]
-REFERENCE_SYNTAX = "legacy"
 
 NETWORKS: Dict[str, Callable[[], Network]] = {
     # neutral H/D/He with an energy equation (dE/dt from the .jfunc)
@@ -70,52 +62,32 @@ def network(name: str) -> Network:
     return NETWORKS[name]()
 
 
-def render(syntax: str, template: str, net: str) -> str:
-    path = TEMPLATES / syntax / template
-    if syntax == REFERENCE_SYNTAX:
-        return LegacyParser(network(net), path).parse_file()
-
-    return TemplateParser(network(net), path, echo_directives=False).parse_file()
-
-
-def generated_text(rendered: str) -> List[str]:
-    """Lines produced by the engine, without directive and ABOUTME lines.
-
-    Directive and END lines are echoed into the legacy output verbatim and each
-    fixture's ABOUTME header names its syntax, so those differ between syntaxes
-    while everything else must not.
-    """
-    return [
-        line
-        for line in rendered.splitlines()
-        if "$JAFF" not in line and "ABOUTME:" not in line
-    ]
+def render(template: str, net: str, echo: bool = True) -> str:
+    path = TEMPLATES / template
+    return TemplateParser(network(net), path, echo_directives=echo).parse_file()
 
 
 def _params() -> List[Tuple[str, str]]:
     return [(t, n) for t, nets in CASES.items() for n in nets]
 
 
-@pytest.mark.parametrize("syntax", SYNTAXES)
 @pytest.mark.parametrize("template, net", _params())
-def test_render_matches_snapshot(syntax: str, template: str, net: str) -> None:
-    template_path = TEMPLATES / syntax / template
-    if not template_path.exists():
-        pytest.skip(f"{syntax} has no {template} yet")
-
+def test_render_matches_snapshot(template: str, net: str) -> None:
     snapshot = SNAPSHOTS / net / template
-    output = render(syntax, template, net)
-    if UPDATE and syntax == REFERENCE_SYNTAX:
+    output = render(template, net)
+    if UPDATE:
         snapshot.parent.mkdir(parents=True, exist_ok=True)
         snapshot.write_text(output)
 
-    if syntax != REFERENCE_SYNTAX:
-        # Rendered with echo off, so no directive may leak into the output.
-        leaked = [line for line in output.splitlines() if "$JAFF" in line]
-        assert not leaked, f"directive lines in output: {leaked}"
-
     assert snapshot.exists(), f"no snapshot {snapshot}; run JAFF_UPDATE_SNAPSHOTS=1"
-    assert generated_text(output) == generated_text(snapshot.read_text())
+    assert output == snapshot.read_text()
+
+
+def test_echo_off_leaves_no_directive_lines() -> None:
+    for template, net in _params():
+        output = render(template, net, echo=False)
+        leaked = [line for line in output.splitlines() if "$JAFF" in line]
+        assert not leaked, f"{template}/{net}: directive lines in output: {leaked}"
 
 
 # Echo comment of each fixture's language, picked from its extension
@@ -124,9 +96,8 @@ ECHO_COMMENTS: Dict[str, str] = {".py": "#", ".cpp": "//", ".f90": "!"}
 
 @pytest.mark.parametrize("template, net", _params())
 def test_echo_only_adds_commented_directive_lines(template: str, net: str) -> None:
-    path = TEMPLATES / "brace" / template
-    echoed = TemplateParser(network(net), path).parse_file().splitlines()
-    plain = render("brace", template, net).splitlines()
+    echoed = render(template, net).splitlines()
+    plain = render(template, net, echo=False).splitlines()
 
     # The plain render must be a subsequence of the echoed one ...
     extra = []
@@ -140,7 +111,7 @@ def test_echo_only_adds_commented_directive_lines(template: str, net: str) -> No
     assert expected is None, f"echoed render lost {expected!r}"
 
     # ... and everything added is a directive line behind the language's comment.
-    comment = ECHO_COMMENTS[path.suffix]
+    comment = ECHO_COMMENTS[Path(template).suffix]
     assert extra
     assert all(line.lstrip().startswith(f"{comment} ") for line in extra), extra
 
@@ -151,12 +122,6 @@ def test_snapshot_set_matches_cases() -> None:
     assert found == expected, "stale or missing snapshots; run JAFF_UPDATE_SNAPSHOTS=1"
 
 
-def test_every_reference_template_has_cases() -> None:
-    templates = {p.name for p in (TEMPLATES / REFERENCE_SYNTAX).iterdir()}
+def test_every_template_has_cases() -> None:
+    templates = {p.name for p in TEMPLATES.iterdir()}
     assert templates == set(CASES)
-
-
-def test_other_syntaxes_only_hold_known_templates() -> None:
-    for syntax in SYNTAXES:
-        templates = {p.name for p in (TEMPLATES / syntax).iterdir()}
-        assert templates <= set(CASES), f"{syntax} has templates without CASES"

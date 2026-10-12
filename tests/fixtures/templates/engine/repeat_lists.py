@@ -1,5 +1,5 @@
-# ABOUTME: Brace-syntax copy of legacy/repeat_lists.py: REPEAT over lists, offsets, matrices
-# ABOUTME: Must render the same generated text as the legacy fixture's pinned snapshot
+# ABOUTME: Template-engine regression fixture: REPEAT over data lists: vertical/horizontal, offsets, matrices
+# ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
 # Vertical expansion: one output line per item.
 $$JAFF REPEAT idx, specie IN species

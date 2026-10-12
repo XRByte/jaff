@@ -1,46 +1,49 @@
-# ABOUTME: Legacy-syntax template-engine regression fixture: THERMAL and DEDT_TYPE modifiers and the dedt/dtdt SUB tokens (energy network)
+# ABOUTME: Template-engine regression fixture: THERMAL options and the dedt/dtdt SUB tokens (energy network)
 # ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
-# $JAFF SUB dedt, dtdt
+# $$JAFF SUB dedt, dtdt
 dedt = nden[0]**3*nden[1]
 dtdt = (2.0709734999999e-16*tgas*nden[0]**2*nden[1] + nden[0]**3*nden[1])/(2.0709734999999e-16*nden[0] + 2.0709734999999e-16*nden[1] + 2.0709734999999e-16*nden[2])
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, rhs IN rhses $[THERMAL none]$
+# $$JAFF REPEAT idx, rhs IN rhses { THERMAL { MODE -> none } }
 f_none[0] = -nden[0]**2*nden[1]
 f_none[1] = -nden[0]**2*nden[1]
 f_none[2] = nden[0]**2*nden[1]
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, rhs IN rhses $[THERMAL dedt]$
+# $$JAFF REPEAT idx, rhs IN rhses { THERMAL { MODE -> dedt } }
 f_dedt[0] = -nden[0]**2*nden[1]
 f_dedt[1] = -nden[0]**2*nden[1]
 f_dedt[2] = nden[0]**2*nden[1]
 f_dedt[3] = nden[0]**3*nden[1]
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, rhs IN rhses $[THERMAL dtdt]$
+# $$JAFF REPEAT idx, rhs IN rhses { THERMAL { MODE -> dtdt } }
 f_dtdt[0] = -nden[0]**2*nden[1]
 f_dtdt[1] = -nden[0]**2*nden[1]
 f_dtdt[2] = nden[0]**2*nden[1]
 f_dtdt[3] = (2.0709734999999e-16*tgas*nden[0]**2*nden[1] + nden[0]**3*nden[1])/(2.0709734999999e-16*nden[0] + 2.0709734999999e-16*nden[1] + 2.0709734999999e-16*nden[2])
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, rhs IN rhses $[DEDT_TYPE specific]$
+# $$JAFF REPEAT idx, rhs IN rhses { THERMAL { ENERGY -> specific } }
 f_specific[0] = -nden[0]**2*nden[1]
 f_specific[1] = -nden[0]**2*nden[1]
 f_specific[2] = nden[0]**2*nden[1]
 f_specific[3] = -2.44367099999988e-24*tgas*(1.380649e-16*nden[0] + 1.380649e-16*nden[1] + 1.380649e-16*nden[2])*nden[0]**2*nden[1]/(1.673773e-24*nden[0] + 3.343586e-24*nden[1] + 6.646473e-24*nden[2])**2 + nden[0]**3*nden[1]/(1.673773e-24*nden[0] + 3.343586e-24*nden[1] + 6.646473e-24*nden[2])
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, rhs IN rhses $[DEDT_TYPE per_particle]$
+# $$JAFF REPEAT idx, rhs IN rhses { THERMAL { ENERGY -> per_particle } }
 f_per_particle[0] = -nden[0]**2*nden[1]
 f_per_particle[1] = -nden[0]**2*nden[1]
 f_per_particle[2] = nden[0]**2*nden[1]
 f_per_particle[3] = 1.49999999999992*tgas*(1.380649e-16*nden[0] + 1.380649e-16*nden[1] + 1.380649e-16*nden[2])*nden[0]**2*nden[1]/(nden[0] + nden[1] + nden[2])**2 + nden[0]**3*nden[1]/(nden[0] + nden[1] + nden[2])
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, expr, cse IN jacobian $[THERMAL dtdt DEDT_TYPE specific REPLACE nden\[(\d+)\] y[\1]]$
+# $$JAFF REPEAT idx, expr, cse IN jacobian {
+    # REPLACE { "nden\[(\d+)\]" -> "y[\1]" }
+    # THERMAL { MODE -> dtdt  ENERGY -> specific }
+# }
 c0 = y[0]*y[1]
 c1 = 2*c0
 c2 = -c1
@@ -63,13 +66,13 @@ J[3, 0] = c10 + c7*(4.14194699999979e-16*c0*tgas + 3*c3*y[1])
 J[3, 1] = c10 + c7*(c8 + 2.0709734999999e-16*c9)
 J[3, 2] = c10
 J[3, 3] = c3*c5*c7
-# $JAFF END
+# $$JAFF END
 
-# $JAFF REPEAT idx, expr IN jacobian $[THERMAL none]$
+# $$JAFF REPEAT idx, expr IN jacobian { THERMAL { MODE -> none } }
 J_none[0, 0] = -2*nden[0]*nden[1]
 J_none[0, 1] = -nden[0]**2
 J_none[1, 0] = -2*nden[0]*nden[1]
 J_none[1, 1] = -nden[0]**2
 J_none[2, 0] = 2*nden[0]*nden[1]
 J_none[2, 1] = nden[0]**2
-# $JAFF END
+# $$JAFF END

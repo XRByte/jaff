@@ -1,5 +1,5 @@
-# ABOUTME: Brace-syntax copy of legacy/repeat_expressions.py: REPEAT over codegen expressions, CSE
-# ABOUTME: Must render the same generated text as the legacy fixture's pinned snapshot
+# ABOUTME: Template-engine regression fixture: REPEAT over codegen expressions (rates to Jacobian) with CSE
+# ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
 def rates():
     k = {}

@@ -1,5 +1,5 @@
-# ABOUTME: Brace-syntax copy of legacy/reduce.py: REDUCE expansions over species/reactions
-# ABOUTME: Must render the same generated text as the legacy fixture's pinned snapshot
+# ABOUTME: Template-engine regression fixture: REDUCE expansions over species and reaction properties
+# ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
 $$JAFF REDUCE specie_charge IN specie_charges
 total_charge = $($specie_charge$)$

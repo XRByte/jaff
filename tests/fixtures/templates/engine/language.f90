@@ -1,5 +1,5 @@
-! ABOUTME: Brace-syntax copy of legacy/language.f90: Fortran smoke test, 1-based indices, wrapping
-! ABOUTME: Must render the same generated text as the legacy fixture's pinned snapshot
+! ABOUTME: Template-engine regression fixture: Fortran smoke test: 1-based indices, wrap_fortran_source
+! ABOUTME: Rendered output is pinned in tests/snapshots/template_engine/
 
 ! Plain Fortran comment: passes through untouched.
 module jaff_test
