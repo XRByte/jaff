@@ -90,3 +90,19 @@ def test_replacement_with_missing_group_reports_its_line():
     with pytest.raises(OptionError, match="Invalid REPLACE replacement") as err:
         compile_replacements(options(r' REPLACE { "tgas" -> "T\1" } ', line=2))
     assert err.value.nline == 2
+
+
+def test_check_groups_rejects_group_from_use_at_the_use_line():
+    defines = {"m": options(" RADIATION { ENABLED -> True } ", line=1)}
+    result = layer(options("\n\n USE m\n", line=10), defines)
+
+    with pytest.raises(OptionError, match="takes no option group RADIATION") as err:
+        check_groups("SUB", result, {})
+
+    assert err.value.nline == 12
+
+
+def test_replace_pairs_from_use_report_the_use_line():
+    defines = {"m": options(' REPLACE { "a" -> "b"  "c" -> "d" } ', line=1)}
+    result = layer(options('\n USE m\n REPLACE { "e" -> "f" }\n', line=20), defines)
+    assert result.replace_lines == [21, 21, 22]
