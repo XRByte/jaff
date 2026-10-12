@@ -79,6 +79,7 @@ performs this resolution.
 | Argument   | Description                                                           |
 | ---------- | --------------------------------------------------------------------- |
 | `--outdir` | Output directory (created if absent; defaults to `<repo>/generated/`) |
+| `--echo`   | `--echo` / `--no-echo` — copy `$$JAFF` directives into the output as comments (default: on; overrides `echo` in `jaffgen.toml`) |
 
 ### Input sources
 

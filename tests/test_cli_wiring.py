@@ -378,3 +378,54 @@ class TestConfigRelativeNetworkPaths:
         cfg_dir, _ = dirs
         cfg = self._write_cfg(cfg_dir, 'funcfile = "net.jfunc"\n')
         assert "k[0] = 5" in self._generate(cfg, "--funcfile", "net.jfunc")
+
+
+class TestEchoWiring:
+    """[jaffgen] echo and --echo/--no-echo decide whether directives are echoed."""
+
+    NETWORK = TestFuncfileWiring.NETWORK
+    TEMPLATE = TestFuncfileWiring.TEMPLATE
+
+    def _generate(self, tmp_path, *extra, echo=None):
+        from typer.testing import CliRunner
+
+        from jaff.cli.jaffgen._engine import app
+
+        (tmp_path / "net.dat").write_text(self.NETWORK)
+        (tmp_path / "rates.py").write_text(self.TEMPLATE)
+        args = ["--network", str(tmp_path / "net.dat")]
+        args += ["--files", str(tmp_path / "rates.py")]
+        args += ["--outdir", str(tmp_path / "out"), *extra]
+        if echo is not None:
+            cfg = tmp_path / "jaffgen.toml"
+            cfg.write_text(f"[jaffgen]\necho = {echo}\n")
+            args += ["--config", str(cfg)]
+        result = CliRunner().invoke(app, args)
+        assert result.exit_code == 0, result.output
+        return (tmp_path / "out" / "rates.py").read_text()
+
+    def test_echo_is_on_by_default(self, tmp_path):
+        assert "# $$JAFF REPEAT" in self._generate(tmp_path)
+
+    def test_config_turns_echo_off(self, tmp_path):
+        out = self._generate(tmp_path, echo="false")
+        assert "$$JAFF" not in out and "k[0] = 1" in out
+
+    def test_cli_overrides_config(self, tmp_path):
+        assert "$$JAFF" not in self._generate(tmp_path, "--no-echo", echo="true")
+        assert "# $$JAFF" in self._generate(tmp_path, "--echo", echo="false")
+
+    def test_non_boolean_config_value_is_an_error(self, tmp_path):
+        from jaff.cli.jaffgen._engine import JaffGen
+        from jaff.cli.jaffgen._structs import ResolvedPath, State
+        from jaff.drivers import Toml
+        from jaff.errors import ParserError
+
+        cfg = tmp_path / "jaffgen.toml"
+        cfg.write_text('[jaffgen]\necho = "no"\n')
+        jg = JaffGen.__new__(JaffGen)
+        jg.state = State()
+        jg.state.config_dir = ResolvedPath(tmp_path, tmp_path)
+        jg.state.config_raw = Toml(cfg)
+        with pytest.raises(ParserError, match="echo must be true or false"):
+            jg.set_state_from_config()

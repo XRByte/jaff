@@ -944,9 +944,9 @@ the examples above show. Every line of a multi-line header is echoed, with its
 own indentation. Trailing whitespace is dropped, and a missing final newline is
 added.
 
-The echo can be switched off with the `echo_directives` flag of
-`TemplateParser`, a constructor argument. `jaffgen` does not set it, so its output always contains
-the echo.
+The echo can be switched off with the `echo_directives` argument of
+`TemplateParser`. `jaffgen` sets it from `echo` in
+[`jaffgen.toml`](jaffgen-toml.md) or the `--echo/--no-echo` flag (default on).
 
 In Fortran, wrapping of long lines leaves comment lines alone.
 

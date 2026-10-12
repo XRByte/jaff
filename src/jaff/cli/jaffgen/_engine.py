@@ -27,7 +27,7 @@ Usage
 ::
 
     jaffgen --network networks/GOW/GOW.jet [--outdir <dir>] [--indir <dir>]
-            [--files <a,b,c>] [--template <name>]
+            [--files <a,b,c>] [--template <name>] [--echo|--no-echo]
 """
 
 import logging
@@ -160,6 +160,9 @@ class JaffGen:
         self.set_network()
         self.set_output_dir()
         self.set_network_options()
+        # --echo/--no-echo beats [jaffgen] echo; in-process callers may omit it.
+        if (echo := getattr(self.args, "echo", None)) is not None:
+            self.state.echo = echo
         self.set_metadata()
 
         if not self.state.output_files:
@@ -237,6 +240,10 @@ class JaffGen:
             ss.output_dir = self.resolve_path(d, cdir)
         if (f := jgp.get("network_file")) is not None:
             ss.network_file = self.resolve_path(f, cdir)
+        if (echo := jgp.get("echo")) is not None:
+            if not isinstance(echo, bool):
+                raise ParserError(f"[jaffgen] echo must be true or false, got {echo!r}")
+            ss.echo = echo
 
         np = self.get_prop("network") or {}
         sn = ss.network_args
@@ -741,7 +748,8 @@ class JaffGen:
         result to ``output_dir / <relative_path>``, recreating any source
         sub-directories under the output directory.  Each template names its
         language with ``$$JAFF LANG`` or through its extension; files without
-        directives are copied unchanged.
+        directives are copied unchanged.  Directives are echoed as comments
+        unless :attr:`State.echo` is off.
 
         Returns
         -------
@@ -750,7 +758,9 @@ class JaffGen:
         for file in jaff_progress.track(
             self.state.output_files, description="Processing files"
         ):
-            fparser = TemplateParser(self.net, file.abspath)
+            fparser = TemplateParser(
+                self.net, file.abspath, echo_directives=self.state.echo
+            )
             lines: str = fparser.parse_file()
 
             outfile: Path = self.state.output_dir.abspath / file.relpath
@@ -847,6 +857,12 @@ def generate(
         metavar="NAME",
         help="Name of predefined template collection in jaff/templates/generator/",
     ),
+    echo: Optional[bool] = typer.Option(
+        None,
+        "--echo/--no-echo",
+        help="Echo $$JAFF directives as comments in the output (default: on; "
+        "overrides echo in jaffgen.toml)",
+    ),
 ):
     """
     Generate code for chemical reaction networks in multiple programming
@@ -890,6 +906,7 @@ def generate(
         indir=indir,
         files=file_list,
         template=template,
+        echo=echo,
     )
     JaffGen(args)
 

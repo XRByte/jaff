@@ -56,6 +56,9 @@ class State:
     output_files : list of ResolvedPath
         Every file to render, gathered from the template, ``--indir``,
         ``--files``, and the config file.
+    echo : bool
+        Whether ``$$JAFF`` directives are echoed as comments in the output
+        (``[jaffgen] echo``, overridden by ``--echo/--no-echo``).
     """
 
     template: str | None = None
@@ -70,3 +73,4 @@ class State:
         default_factory=lambda: ResolvedPath(DEFAULT_OUTPUT, Path())
     )
     output_files: list[ResolvedPath] = field(default_factory=list)
+    echo: bool = True
