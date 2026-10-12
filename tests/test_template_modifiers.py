@@ -1,4 +1,4 @@
-# ABOUTME: REPEAT $[...]$ modifier parsing: booleans are case-insensitive TRUE/FALSE,
+# ABOUTME: REPEAT option groups end to end: booleans are case-insensitive True/False,
 # ABOUTME: ints stay ints, strings stay strings, and anything else is a ParserError
 
 from pathlib import Path
@@ -7,16 +7,16 @@ from typing import List
 import pytest
 
 from jaff import Network
-from jaff.codegen._template_engine import TemplateParser
+from jaff.codegen import TemplateParser
 from jaff.errors import ParserError
 
 FIXTURES = Path(__file__).parent / "fixtures"
 TRUE_SPELLINGS = ["True", "TRUE", "true"]
 FALSE_SPELLINGS = ["False", "FALSE", "false"]
 
-# Boolean modifier -> REPEAT line and body exercising it.  All default to False.
+# Boolean option "GROUP KEY" -> REPEAT line and body exercising it.  All default to False.
 BOOL_CASES = {
-    "RADIATION": ("idx, rhs IN rhses", "f[$idx$] = $rhs$"),
+    "RADIATION ENABLED": ("idx, rhs IN rhses", "f[$idx$] = $rhs$"),
 }
 
 
@@ -31,10 +31,16 @@ def charged_net() -> Network:
     return Network(str(FIXTURES / "react_cie_hepp.jet"))
 
 
-def _render(net: Network, tmp_path: Path, repeat: str, body: str, mods: str) -> List[str]:
-    extras = f" $[{mods}]$" if mods else ""
+def _option(setting: str, value: str) -> str:
+    """Option group text for ``"GROUP KEY"`` set to *value*."""
+    group, key = setting.split()
+    return f"{group} {{ {key} -> {value} }}"
+
+
+def _render(net: Network, tmp_path: Path, repeat: str, body: str, opts: str) -> List[str]:
+    block = f" {{ {opts} }}" if opts else ""
     template = tmp_path / "t.py"
-    template.write_text(f"# $JAFF REPEAT {repeat}{extras}\n{body}\n# $JAFF END\n")
+    template.write_text(f"$$JAFF REPEAT {repeat}{block}\n{body}\n$$JAFF END\n")
     lines = TemplateParser(net, template).parse_file().splitlines()
     return [line for line in lines if line.startswith("f")]
 
@@ -46,16 +52,18 @@ def test_false_spellings_match_default(
 ) -> None:
     repeat, body = BOOL_CASES[modifier]
     default = _render(dedt_net, tmp_path, repeat, body, "")
-    assert _render(dedt_net, tmp_path, repeat, body, f"{modifier} {spelling}") == default
+    opts = _option(modifier, spelling)
+    assert _render(dedt_net, tmp_path, repeat, body, opts) == default
 
 
 @pytest.mark.parametrize("spelling", TRUE_SPELLINGS)
 def test_radiation_true_still_requires_radiation(
     dedt_net: Network, tmp_path: Path, spelling: str
 ) -> None:
-    repeat, body = BOOL_CASES["RADIATION"]
-    with pytest.raises(RuntimeError, match="No radiation bands"):
-        _render(dedt_net, tmp_path, repeat, body, f"RADIATION {spelling}")
+    repeat, body = BOOL_CASES["RADIATION ENABLED"]
+    with pytest.raises(ParserError, match="No radiation bands") as err:
+        _render(dedt_net, tmp_path, repeat, body, _option("RADIATION ENABLED", spelling))
+    assert isinstance(err.value.__cause__, RuntimeError)
 
 
 @pytest.mark.parametrize("value", ["1", "0", "yes", "None", "'True'"])
@@ -64,24 +72,27 @@ def test_non_boolean_values_rejected(
     dedt_net: Network, tmp_path: Path, modifier: str, value: str
 ) -> None:
     repeat, body = BOOL_CASES[modifier]
-    with pytest.raises(ParserError, match=f"{modifier} expects TRUE or FALSE"):
-        _render(dedt_net, tmp_path, repeat, body, f"{modifier} {value}")
+    with pytest.raises(ParserError, match=f"{modifier} expects True or False"):
+        _render(dedt_net, tmp_path, repeat, body, _option(modifier, value))
 
 
 def test_dedt_type_selects_energy_form(dedt_net: Network, tmp_path: Path) -> None:
     repeat, body = "idx, rhs IN rhses", "f[$idx$] = $rhs$"
     default = _render(dedt_net, tmp_path, repeat, body, "")
-    specific = _render(dedt_net, tmp_path, repeat, body, "DEDT_TYPE specific")
-    per_particle = _render(dedt_net, tmp_path, repeat, body, "DEDT_TYPE per_particle")
-    assert _render(dedt_net, tmp_path, repeat, body, "DEDT_TYPE volumetric") == default
+    specific = _render(dedt_net, tmp_path, repeat, body, "THERMAL { ENERGY -> specific }")
+    per_particle = _render(
+        dedt_net, tmp_path, repeat, body, "THERMAL { ENERGY -> per_particle }"
+    )
+    volumetric = "THERMAL { ENERGY -> volumetric }"
+    assert _render(dedt_net, tmp_path, repeat, body, volumetric) == default
     assert specific != default
     assert per_particle != specific
 
 
 def test_unknown_dedt_type_rejected(dedt_net: Network, tmp_path: Path) -> None:
     repeat, body = "idx, rhs IN rhses", "f[$idx$] = $rhs$"
-    with pytest.raises(ValueError, match="bogus"):
-        _render(dedt_net, tmp_path, repeat, body, "DEDT_TYPE bogus")
+    with pytest.raises(ParserError, match="THERMAL ENERGY expects one of .*'bogus'"):
+        _render(dedt_net, tmp_path, repeat, body, "THERMAL { ENERGY -> bogus }")
 
 
 @pytest.mark.parametrize("pos, expected", [("p", "idx_hep"), ("1", "idx_he1")])
@@ -93,7 +104,7 @@ def test_pos_neg_stay_strings(
         tmp_path,
         "idx, specie_with_normalized_sign IN species_with_normalized_sign",
         "f_idx_$specie_with_normalized_sign$ = $idx$",
-        f"POS {pos} NEG m",
+        f"SIGN {{ POS -> {pos}  NEG -> m }}",
     )
     assert any(line.startswith(f"f_{expected} =") for line in lines), lines
 
@@ -107,7 +118,7 @@ def test_thermal_modes_change_output(
     dedt_net: Network, tmp_path: Path, repeat: str, body: str
 ) -> None:
     out = {
-        mode: _render(dedt_net, tmp_path, repeat, body, f"THERMAL {mode}")
+        mode: _render(dedt_net, tmp_path, repeat, body, f"THERMAL {{ MODE -> {mode} }}")
         for mode in ("none", "dedt", "dtdt")
     }
     assert out["none"] != out["dedt"] != out["dtdt"]
@@ -115,17 +126,17 @@ def test_thermal_modes_change_output(
 
 def test_thermal_rejects_unknown_mode(dedt_net: Network, tmp_path: Path) -> None:
     with pytest.raises(ParserError, match="THERMAL"):
-        _render(dedt_net, tmp_path, *JAC, "THERMAL bogus")
+        _render(dedt_net, tmp_path, *JAC, "THERMAL { MODE -> bogus }")
 
 
 def test_use_dedt_is_gone(dedt_net: Network, tmp_path: Path) -> None:
-    # Unknown modifiers surface as a KeyError from the modifier table lookup
-    with pytest.raises(KeyError, match="USE_DEDT"):
-        _render(dedt_net, tmp_path, *JAC, "USE_DEDT True")
+    # Unknown option groups are template errors (bug 7: the old engine raised KeyError)
+    with pytest.raises(ParserError, match="takes no option group USE_DEDT"):
+        _render(dedt_net, tmp_path, *JAC, "USE_DEDT { ENABLED -> True }")
 
 
 def test_dtdt_token_renders(dedt_net: Network, tmp_path: Path) -> None:
     template = tmp_path / "t.py"
-    template.write_text("# $JAFF SUB dtdt\nx = $dtdt$\n# $JAFF END\n")
+    template.write_text("$$JAFF SUB dtdt\nx = $dtdt$\n$$JAFF END\n")
     out = TemplateParser(dedt_net, template).parse_file()
     assert "tgas" in out and "$dtdt$" not in out

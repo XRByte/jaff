@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from jaff import Network
-from jaff.codegen._template_engine import TemplateParser
+from jaff.codegen import TemplateParser
 
 NEUTRAL_LINES = [
     "H + H -> H2 [10,1000] 1e-10",
@@ -23,7 +23,7 @@ def neutral_net(make_network) -> Network:
 def _reduce_value(net: Network, tmp_path: Path, header: str, body: str) -> float:
     """Render a one-line REDUCE block as Python and evaluate the assigned value."""
     template = tmp_path / "t.py"
-    template.write_text(f"# $JAFF REDUCE {header}\nresult = {body}\n# $JAFF END\n")
+    template.write_text(f"$$JAFF REDUCE {header}\nresult = {body}\n$$JAFF END\n")
     rendered = TemplateParser(net, template).parse_file()
     namespace: dict = {}
     exec(rendered, namespace)

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from jaff import Network
-from jaff.codegen._template_engine import TemplateParser
+from jaff.codegen import TemplateParser
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -29,7 +29,7 @@ def test_get_element_idx(
     out = _render(
         charged_net,
         tmp_path,
-        f"# $JAFF GET element_idx FOR {symbol}\nx = $element_idx$\n# $JAFF END\n",
+        f"$$JAFF GET element_idx IN {symbol}\nx = $element_idx$\n$$JAFF END\n",
     )
     assert f"\nx = {index}\n" in out
 
@@ -38,8 +38,8 @@ def test_repeat_charge_truths(charged_net: Network, tmp_path: Path) -> None:
     out = _render(
         charged_net,
         tmp_path,
-        "# $JAFF REPEAT charge_truth IN charge_truths\n"
+        "$$JAFF REPEAT charge_truth IN charge_truths\n"
         "t = [$charge_truth$, ]\n"
-        "# $JAFF END\n",
+        "$$JAFF END\n",
     )
     assert "\nt = [0, 1, 1, 1, 1]\n" in out

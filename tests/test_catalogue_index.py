@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from jaff.codegen._template_engine import TemplateParser
+from jaff.codegen import TemplateParser
 
 # A network whose second row is a same-range duplicate of the first: it merges
 # into the first reaction under the default duplicate_policy, so the third row
@@ -26,7 +26,7 @@ def test_reaction_idx_template_emits_catalogue_position(make_network, tmp_path):
 
     template = tmp_path / "t.py"
     template.write_text(
-        "# $JAFF GET reaction_idx FOR H2__H.H\nidx = $reaction_idx$\n# $JAFF END\n"
+        "$$JAFF GET reaction_idx IN H2__H.H\nidx = $reaction_idx$\n$$JAFF END\n"
     )
     out = TemplateParser(net, Path(template)).parse_file()
 
