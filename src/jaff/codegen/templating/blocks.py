@@ -1,10 +1,11 @@
 # ABOUTME: Block types produced by the template engine's single pass over a template
-# ABOUTME: TextBlock holds plain lines; CommandBlock holds one parsed directive and its body
+# ABOUTME: TextBlock holds plain lines; CommandBlock holds one command, its options and body
 
 from dataclasses import dataclass
-from typing import List, Union
+from typing import List, Optional, Union
 
-from .syntax import Directive
+from .commands import Command
+from .options import Options
 
 
 @dataclass
@@ -17,9 +18,13 @@ class TextBlock:
 
 @dataclass
 class CommandBlock:
-    """One ``$$JAFF`` directive: its parsed header, raw header lines and body lines."""
+    """One ``$$JAFF`` directive: command, options, raw header lines and body lines.
 
-    directive: Directive
+    ``body_lines`` is empty for commands without a body (``DEFINE``).
+    """
+
+    command: Command
+    options: Optional[Options]
     header_lines: List[str]
     body_lines: List[str]
     line: int

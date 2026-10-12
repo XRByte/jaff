@@ -2,11 +2,12 @@
 # ABOUTME: Lark decides where a header ends; the engine also collects the raw body up to $$JAFF END
 
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from ...errors import ParserError
 from .blocks import Block, CommandBlock, TextBlock
 from .commands import Define, End
+from .options import Options
 from .syntax import Directive, IncompleteHeaderError, parse_header
 
 MARKER = "$$JAFF"
@@ -94,6 +95,15 @@ def _read_body(
     raise ParserError("Missing $$JAFF END", _src(lines[opened]), opened + 1, file)
 
 
+def _check_define(options: Optional[Options], line: str, nline: int, file: Path) -> None:
+    """A DEFINE needs an option block and cannot pull in other sets with USE."""
+    if options is None:
+        raise ParserError("DEFINE needs an option block { ... }", line, nline, file)
+
+    if options.uses:
+        raise ParserError("DEFINE cannot contain USE", line, nline, file)
+
+
 def split_blocks(text: str, file: Path) -> List[Block]:
     """Split a template into text and directive blocks in one pass.
 
@@ -122,17 +132,21 @@ def split_blocks(text: str, file: Path) -> List[Block]:
             continue
 
         directive, after = _read_header(lines, i, file)
-        if isinstance(directive.command, End):
+        command, options = directive.command, directive.options
+        if isinstance(command, End):
             raise ParserError(
                 "$$JAFF END without a directive", _src(lines[i]), i + 1, file
             )
 
+        if isinstance(command, Define):
+            _check_define(options, _src(lines[i]), i + 1, file)
+
         body: List[str] = []
         end = after
-        if not isinstance(directive.command, Define):
+        if command.has_body:
             body, end = _read_body(lines, i, after, file)
 
-        blocks.append(CommandBlock(directive, lines[i:after], body, i + 1))
+        blocks.append(CommandBlock(command, options, lines[i:after], body, i + 1))
         i = end
 
     return blocks

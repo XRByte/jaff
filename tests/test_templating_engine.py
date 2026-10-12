@@ -26,7 +26,7 @@ def test_single_line_directive_with_body():
     blocks = split("before\n$$JAFF SUB nspec\nn = $nspec$;\n$$JAFF END\nafter\n")
     assert [type(b) for b in blocks] == [TextBlock, CommandBlock, TextBlock]
     block = blocks[1]
-    assert block.directive.command == Sub(("nspec",))
+    assert block.command == Sub(("nspec",))
     assert block.header_lines == ["$$JAFF SUB nspec\n"]
     assert block.body_lines == ["n = $nspec$;\n"]
     assert block.line == 2
@@ -43,8 +43,8 @@ def test_multiline_header_and_indented_body():
         "  $$JAFF END\n"
     )
     (block,) = split(text)
-    assert block.directive.command == Repeat(("idx", "rhs"), "rhses")
-    assert block.directive.options.replace == [("tgas", "T")]
+    assert block.command == Repeat(("idx", "rhs"), "rhses")
+    assert block.options.replace == [("tgas", "T")]
     assert len(block.header_lines) == 3
     assert block.body_lines == ["  f[$idx$] = $rhs$;\n", "\n"]
 
@@ -52,13 +52,13 @@ def test_multiline_header_and_indented_body():
 def test_brace_on_header_line_only():
     # A { on the next line is body text, not an option block
     (block,) = split("$$JAFF SUB nspec\n{ $nspec$ }\n$$JAFF END\n")
-    assert block.directive.options is None
+    assert block.options is None
     assert block.body_lines == ["{ $nspec$ }\n"]
 
 
 def test_define_has_no_body():
     blocks = split("$$JAFF DEFINE micro {\n    RADIATION { ENABLED -> True }\n}\nx\n")
-    assert blocks[0].directive.command == Define("micro")
+    assert blocks[0].command == Define("micro")
     assert blocks[0].body_lines == []
     assert blocks[1] == TextBlock(["x\n"], 4)
 
@@ -134,7 +134,7 @@ def test_empty_template():
 
 def test_crlf_is_preserved():
     (block,) = split("$$JAFF SUB nspec\r\nx\r\n$$JAFF END\r\n")
-    assert block.directive.command == Sub(("nspec",))
+    assert block.command == Sub(("nspec",))
     assert block.header_lines == ["$$JAFF SUB nspec\r\n"]
     assert block.body_lines == ["x\r\n"]
 
@@ -143,7 +143,7 @@ def test_no_trailing_newline_after_end_and_define():
     (block,) = split("$$JAFF SUB x\nb\n$$JAFF END")
     assert block.body_lines == ["b\n"]
     blocks = split("$$JAFF DEFINE m {\n  RADIATION { ENABLED -> True }\n}")
-    assert blocks[0].directive.command == Define("m")
+    assert blocks[0].command == Define("m")
 
 
 def test_missing_end_reports_header_line_after_text():
@@ -181,7 +181,7 @@ def test_braces_in_strings_and_comments_across_lines():
     text = '$$JAFF SUB x {\n  REPLACE { "a{" -> "}b" }  # } {\n}\nbody\n$$JAFF END\n'
     (block,) = split(text)
     assert isinstance(block, CommandBlock)
-    assert list(block.directive.options.replace) == [("a{", "}b")]
+    assert list(block.options.replace) == [("a{", "}b")]
     assert block.body_lines == ["body\n"]
 
 
@@ -194,3 +194,22 @@ def test_duplicate_group_across_lines_hint_has_no_missing_brace():
         split(text)
     assert "opened at line 1" in str(err.value)
     assert "missing" not in str(err.value)
+
+
+@pytest.mark.parametrize(
+    "text, message",
+    [
+        ("$$JAFF DEFINE micro\n", "DEFINE needs an option block"),
+        ("$$JAFF DEFINE micro { USE other }\n", "DEFINE cannot contain USE"),
+    ],
+)
+def test_define_rules(text, message):
+    with pytest.raises(ParserError, match=message) as err:
+        split(text)
+    assert err.value.nline == 1
+
+
+def test_empty_define_block_is_allowed():
+    (block,) = split("$$JAFF DEFINE micro { }\n")
+    assert block.command == Define("micro")
+    assert block.body_lines == []
