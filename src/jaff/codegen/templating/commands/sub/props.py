@@ -1,39 +1,24 @@
-# ABOUTME: SUB's tokens: the names templates may substitute and how each value is computed
-# ABOUTME: Add a token to TOKENS and to token_values(); the SUB command reads both
+# ABOUTME: SUB's tokens: each name templates may substitute and how its value is computed
+# ABOUTME: Add a token as one entry; the SUB command validates and renders from this table
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict
 
 if TYPE_CHECKING:
     from ...context import RenderContext
 
-TOKENS: Tuple[str, ...] = (
-    "nspec",
-    "nelem",
-    "nreact",
-    "nbands",
-    "label",
-    "filename",
-    "filepath",
-    "dedt",
-    "dtdt",
-    "e_idx",
-)
-
-
-def token_values(ctx: RenderContext) -> Dict[str, Callable[[], Any]]:
-    """Token name to a callable computing its value for *ctx*."""
-    net, cg = ctx.net, ctx.cg
-    return {
-        "nspec": lambda: net.species.count,
-        "nelem": lambda: net.elements.count,
-        "nreact": lambda: net.reactions.count,
-        "nbands": lambda: net.radiation.nbands if net.radiation else 0,
-        "label": lambda: net.label,
-        "filename": lambda: ctx.file.name,
-        "filepath": lambda: ctx.file,
-        "dedt": cg.get_dedt,
-        "dtdt": cg.get_dtdt,
-        "e_idx": net.species.e_idx,
-    }
+# Token name -> getter of its value from the render context
+Getter = Callable[["RenderContext"], Any]
+TOKENS: Dict[str, Getter] = {
+    "nspec": lambda c: c.net.species.count,
+    "nelem": lambda c: c.net.elements.count,
+    "nreact": lambda c: c.net.reactions.count,
+    "nbands": lambda c: c.net.radiation.nbands if c.net.radiation else 0,
+    "label": lambda c: c.net.label,
+    "filename": lambda c: c.file.name,
+    "filepath": lambda c: c.file,
+    "dedt": lambda c: c.cg.get_dedt(),
+    "dtdt": lambda c: c.cg.get_dtdt(),
+    "e_idx": lambda c: c.net.species.e_idx(),
+}

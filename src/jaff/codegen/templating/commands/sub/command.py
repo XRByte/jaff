@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, List, Tuple
 
 from ...placeholders import substitute
 from ..base import Command, check_names, render_each_line
-from .props import TOKENS, token_values
+from .props import TOKENS
 
 if TYPE_CHECKING:
     from ...context import RenderContext
@@ -23,15 +23,11 @@ class Sub(Command):
 
     def validate(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> None:
         """Every listed token must be a known SUB token."""
-        check_names(self.keyword, "token", self.tokens, TOKENS)
+        check_names(self.keyword, "token", self.tokens, tuple(TOKENS))
 
     def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
         """Substitute the listed tokens on every body line."""
-        values = {
-            name: value
-            for name, value in token_values(ctx).items()
-            if name in self.tokens
-        }
+        values = {name: (lambda get=TOKENS[name]: get(ctx)) for name in self.tokens}
 
         return render_each_line(
             body, lambda text: substitute(text, values), resolved.replacements

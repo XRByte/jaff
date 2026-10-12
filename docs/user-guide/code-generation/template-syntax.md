@@ -64,6 +64,25 @@ state.rates[$idx$] = $rate$;
 $$JAFF END
 ```
 
+Comments are handy for switching options off without deleting them:
+
+```cpp
+$$JAFF REPEAT idx, rhs IN rhses {
+    REPLACE {
+        "nden\[(\d+)\]" -> "y[\1]"
+        # "tgas" -> "T"               # this pair is disabled
+    }
+    # THERMAL { MODE -> dtdt }        # so is this whole group
+}
+f[$idx$] = $rhs$;
+$$JAFF END
+```
+
+Header comments only exist inside the header and its option block. In the body a
+`#` is ordinary template text and is copied to the output. Commented-out header
+lines are still part of the directive, so with [echo](#echo) on they appear in
+the echoed header.
+
 Directive blocks **do not nest**: a `$$JAFF` line inside a body is an error.
 Indentation of the directive and of the body lines (spaces and tabs) is
 preserved in the output, so directives can sit inside a function body. Output

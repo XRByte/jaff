@@ -78,11 +78,11 @@ src/jaff/
 │       ├── errors.py           # TemplateError, turned into a ParserError with line info
 │       └── commands/           # One package per command: command.py + props.py tables
 │           ├── __init__.py     # COMMANDS registry
-│           ├── base.py         # Command base class and entity_collections
+│           ├── base.py         # Command base class and shared rendering helpers
 │           ├── repeat/         # REPEAT: command.py, props.py (PROPERTIES, option
 │           │                   #   settings), expand.py (vertical/horizontal expansion)
 │           ├── reduce/         # REDUCE: command.py, props.py (PROPERTIES)
-│           ├── sub/            # SUB: command.py, props.py (TOKENS, token_values)
+│           ├── sub/            # SUB: command.py, props.py (TOKENS)
 │           ├── get/            # GET: command.py, props.py (PROPERTIES)
 │           ├── has/            # HAS: command.py, props.py (KINDS)
 │           ├── define/         # DEFINE: named option sets for USE

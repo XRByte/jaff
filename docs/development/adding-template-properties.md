@@ -20,8 +20,8 @@ see the [template syntax reference](../user-guide/code-generation/template-synta
 | `REPEAT` | `PROPERTIES` in `commands/repeat/props.py`               | `name -> RepeatProp(vars, source, groups)` |
 | `REDUCE` | `PROPERTIES` in `commands/reduce/props.py`               | `name -> (variable, getter)`              |
 | `GET`    | `PROPERTIES` in `commands/get/props.py`                  | `name -> (entity kind, getter)`           |
-| `SUB`    | `TOKENS` and `token_values` in `commands/sub/props.py`   | token name, and a callable computing it   |
-| `HAS`    | `KINDS` in `commands/has/props.py`, `entity_collections` in `commands/base.py` | entity kind and its network collection |
+| `SUB`    | `TOKENS` in `commands/sub/props.py`                      | `name -> getter`                          |
+| `HAS`    | `KINDS` in `commands/has/props.py`                       | `kind -> collection getter`               |
 
 A getter is a function of the `RenderContext` (`c`): `c.net` is the `Network`,
 `c.cg` the `Codegen` for the template's language. `GET` getters take the entity
@@ -150,11 +150,11 @@ int total = ((1) + (2) + (2) + (4) + (3));
 - **`GET`**: add `name: (kind, getter)` to `PROPERTIES` in `commands/get/props.py`,
   where `kind` is `element`, `specie`, `reaction` or `aux` and the getter is
   `lambda c, entity: ...`. Used as `$$JAFF GET name IN H2`.
-- **`SUB`**: add the token to `TOKENS` and a `"token": lambda: value` entry to
-  the dictionary returned by `token_values` in `commands/sub/props.py`.
-- **`HAS`**: add the kind to `KINDS` in `commands/has/props.py` and to
-  `entity_collections` in `commands/base.py`; the collection must support
-  `entity in collection`.
+- **`SUB`**: add `"token": lambda c: value` to `TOKENS` in
+  `commands/sub/props.py`. Used as `$token$` in a `$$JAFF SUB token` block.
+- **`HAS`**: add `"kind": lambda c: collection` to `KINDS` in
+  `commands/has/props.py`; the collection must support `entity in collection`.
+  `GET` checks its entities against the same table.
 
 Cover each with a case in `tests/test_templating_simple_commands.py` and, where
 useful, a fixture block plus regenerated snapshots.

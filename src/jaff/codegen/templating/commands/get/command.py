@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, List, Tuple
 
 from ...placeholders import substitute
 from ...errors import TemplateError
-from ..base import Command, check_names, entity_collections, render_each_line
+from ..base import Command, check_names, render_each_line
+from ..has.props import KINDS
 from .props import PROPERTIES, PROPS
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ def _has_entity(ctx: RenderContext, kind: str, entity: str) -> bool:
     if kind == "aux":
         return entity in ctx.net.spec.aux_funcs
 
-    if entity not in entity_collections(ctx)[kind]:
+    if entity not in KINDS[kind](ctx):
         return False
 
     # A reaction name shared by several mechanisms gives a list, which has no tmin etc.
