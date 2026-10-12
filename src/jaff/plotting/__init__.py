@@ -1,13 +1,27 @@
-from ._api import plot_rates, plot_xsecs
-from ._theme import DEEP_PALETTE, LOGO_PALETTE, MUTED_PALETTE, apply_global_theme
-from .plotter import Plotter
+# ABOUTME: jaff.plotting public API: spec-driven matplotlib figures
+# ABOUTME: plot / plot_rates / plot_xsecs builders plus theme registries
+
+"""Spec-driven, publication-style plotting for JAFF.
+
+See :func:`plot` for the figure-spec format, and :func:`plot_rates` /
+:func:`plot_xsecs` for reaction plots.
+"""
+
+from .api import plot, plot_rates, plot_xsecs
+from .render import render
+from .spec import AxesSpec, FigureSpec, SeriesSpec
+from .themes import PALETTES, STYLES, register_palette, register_style
 
 __all__ = [
-    "Plotter",
+    "plot",
     "plot_rates",
     "plot_xsecs",
-    "apply_global_theme",
-    "MUTED_PALETTE",
-    "DEEP_PALETTE",
-    "LOGO_PALETTE",
+    "render",
+    "FigureSpec",
+    "AxesSpec",
+    "SeriesSpec",
+    "STYLES",
+    "PALETTES",
+    "register_style",
+    "register_palette",
 ]
