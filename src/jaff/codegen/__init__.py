@@ -1,5 +1,5 @@
 from ._languages import Language
-from ._typing import CommandProps, ExtrasDict, IdxSpanResult, IndexedReturn
+from ._typing import ExtrasDict, IndexedReturn
 from .builder import Builder
 from .codegen import Codegen
 from .preprocessor import Preprocessor
@@ -12,7 +12,5 @@ __all__ = [
     IndexedReturn,
     Preprocessor,
     TemplateParser,
-    CommandProps,
     ExtrasDict,
-    IdxSpanResult,
 ]

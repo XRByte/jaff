@@ -1,5 +1,5 @@
-# ABOUTME: New $$JAFF template engine: grammar, single-pass block engine and commands
-# ABOUTME: TemplateParser is the entry point; the old _template_engine.py stays active
+# ABOUTME: The $$JAFF template engine: grammar, single-pass block engine and commands
+# ABOUTME: TemplateParser is the entry point; jaff.codegen re-exports it
 
 from .parser import TemplateParser
 
