@@ -1,5 +1,5 @@
-# ABOUTME: REPEAT's properties: where each one's items come from, its variables and options
-# ABOUTME: Option groups map to keyword arguments of the source and are checked per property
+# ABOUTME: REPEAT's properties: where each one's items come from, its variables, options
+# ABOUTME: Option groups map to keyword arguments of the source, checked per property
 
 from __future__ import annotations
 
@@ -206,7 +206,8 @@ def option_kwargs(name: str, options: Options) -> Dict[str, Any]:
             try:
                 value = setting.parse(text)
             except ValueError as e:
-                raise TemplateError(f"{group} {key} {e}", options.group_lines[group])
+                line = options.group_lines[group]
+                raise TemplateError(f"{group} {key} {e}", line) from None
 
             if setting.kwarg is not None:
                 kwargs[setting.kwarg] = value

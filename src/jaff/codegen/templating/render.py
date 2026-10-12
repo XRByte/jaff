@@ -78,8 +78,10 @@ def render_blocks(blocks: List[Block], ctx: RenderContext) -> str:
         The generated text.
 
     Raises:
-        ParserError: On the first invalid block, before anything is rendered, or
-            on a body line that cannot be expanded.
+        ParserError: On the first invalid block, before anything is rendered; on
+            a body line that cannot be expanded; or at the directive whose
+            rendering failed in the network or codegen (the original exception
+            is the cause).
     """
     prepared = [
         _prepare(block, ctx) if isinstance(block, CommandBlock) else None
@@ -98,6 +100,13 @@ def render_blocks(blocks: List[Block], ctx: RenderContext) -> str:
             out.append(block.command.render(block.body_lines, resolved, ctx))
         except TemplateError as e:
             raise _error(block, e, ctx) from None
+        except Exception as e:
+            # Network or codegen failures (e.g. no radiation bands): report them at
+            # the directive, keeping the original exception as the cause.
+            keyword = block.command.keyword
+            error = TemplateError(f"{keyword} failed: {type(e).__name__}: {e}")
+            raise _error(block, error, ctx) from e
+
         if ctx.echo_directives:
             out.append(echo(block.end_lines, comment))
     return "".join(out)

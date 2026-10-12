@@ -188,3 +188,19 @@ def test_render_error_becomes_a_parser_error(net, tmp_path, monkeypatch):
     with pytest.raises(ParserError, match="cannot expand") as err:
         render(net, tmp_path, "$$JAFF SUB nspec\nn = $nspec$\n$$JAFF END\n")
     assert err.value.nline == 2
+
+
+def test_failure_inside_codegen_is_a_parser_error_at_the_directive(net, tmp_path):
+    text = "x\n$$JAFF REPEAT idx, rhs IN rhses { RADIATION { ENABLED -> True } }\n"
+    text += "f[$idx$] = $rhs$\n$$JAFF END\n"
+    with pytest.raises(ParserError, match="REPEAT failed: RuntimeError") as err:
+        render(net, tmp_path, text)
+
+    assert err.value.nline == 2
+    assert isinstance(err.value.__cause__, RuntimeError)
+
+
+def test_arithmetic_error_is_a_parser_error(net, tmp_path):
+    text = "$$JAFF SUB nspec\nn = $nspec/0$\n$$JAFF END\n"
+    with pytest.raises(ParserError, match="SUB failed: ZeroDivisionError"):
+        render(net, tmp_path, text)
