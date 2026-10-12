@@ -307,3 +307,10 @@ def test_options_record_template_lines_of_replace_pairs():
         'SUB x {\n  REPLACE {\n    "a" -> "b"\n    "c" -> "d"\n  }\n}', line=20
     ).options
     assert options.replace_lines == [22, 23]
+
+
+def test_repeated_use_reports_its_own_line():
+    text = "SUB x {\n  USE m\n  USE m\n}"
+    with pytest.raises(ParserError, match="USE m given twice") as err:
+        parse(text, line=10)
+    assert err.value.nline == 12

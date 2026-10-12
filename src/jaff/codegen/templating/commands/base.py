@@ -18,6 +18,12 @@ class CommandError(ValueError):
     """A problem with a command's header, reported at the directive's line."""
 
 
+def entity_collections(ctx: RenderContext) -> Dict[str, Any]:
+    """Entity kind (``specie``, ``reaction``, ``element``) to its network collection."""
+    net = ctx.net
+    return {"specie": net.species, "reaction": net.reactions, "element": net.elements}
+
+
 @dataclass(frozen=True)
 class Command:
     """A parsed ``$$JAFF`` command; subclasses add the header's fields.

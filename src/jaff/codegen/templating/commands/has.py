@@ -4,22 +4,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List
+from typing import TYPE_CHECKING, Callable, Dict, List
 
 from ..placeholders import substitute
-from .base import Command, check_names, render_each_line
+from .base import Command, check_names, entity_collections, render_each_line
 
 if TYPE_CHECKING:
     from ..context import RenderContext
     from ..options import Options
 
 KINDS = ("specie", "reaction", "element")
-
-
-def _collections(ctx: RenderContext) -> Dict[str, Any]:
-    """Entity kind to the network collection that holds it."""
-    net = ctx.net
-    return {"specie": net.species, "reaction": net.reactions, "element": net.elements}
 
 
 @dataclass(frozen=True)
@@ -35,7 +29,7 @@ class Has(Command):
 
     def render(self, body: List[str], options: Options, ctx: RenderContext) -> str:
         """Substitute ``$<kind>$`` with 1 or 0 on every body line."""
-        collection = _collections(ctx)[self.kind]
+        collection = entity_collections(ctx)[self.kind]
         values: Dict[str, Callable[[], int]] = {
             self.kind: lambda: int(self.entity in collection)
         }

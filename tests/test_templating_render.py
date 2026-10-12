@@ -123,3 +123,10 @@ def test_unknown_extension_needs_a_default_language(net, tmp_path):
     with pytest.raises(RuntimeError, match="xyz files are not yet supported"):
         render(net, tmp_path, "x\n", name="t.xyz")
     assert render(net, tmp_path, "x\n", name="t.xyz", default_lang="python") == "x\n"
+
+
+def test_get_of_unknown_entity_is_a_parser_error_at_the_header(net, tmp_path):
+    text = "x\n$$JAFF GET specie_idx IN Xyz\ni = $specie_idx$\n$$JAFF END\n"
+    with pytest.raises(ParserError, match="Xyz is not one") as err:
+        render(net, tmp_path, text)
+    assert err.value.nline == 2

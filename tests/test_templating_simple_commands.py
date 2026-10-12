@@ -90,3 +90,37 @@ def test_has_substitutes_one_or_zero(ctx, kind, entity, expected):
 def test_has_rejects_unknown_kind(ctx):
     with pytest.raises(CommandError, match="HAS has no kind species"):
         Has("species", "H").validate(Options(), ctx)
+
+
+@pytest.mark.parametrize(
+    "prop, entity, message",
+    [
+        ("specie_idx", "Xyz", "GET specie_idx needs a species; Xyz is not one"),
+        ("element_idx", "Xyz", "GET element_idx needs an element; Xyz is not one"),
+        (
+            "reaction_tmin",
+            "H -> H2",
+            "GET reaction_tmin needs a reaction; H -> H2 is not one",
+        ),
+        ("aux_func", "nope", "GET aux_func needs an auxiliary function; nope is not one"),
+        ("reaction_tmin", "H", "GET reaction_tmin needs a reaction; H is not one"),
+        ("specie_idx", "H + e- -> H+ + e- + e-", "needs a species"),
+        ("element_idx", "H+", "needs an element"),
+    ],
+)
+def test_get_rejects_entity_of_the_wrong_kind_or_unknown(ctx, prop, entity, message):
+    with pytest.raises(CommandError, match=message):
+        Get((prop,), entity).validate(Options(), ctx)
+
+
+@pytest.mark.parametrize(
+    "prop, entity",
+    [
+        ("specie_idx", "H+"),
+        ("element_idx", "He"),
+        ("reaction_tmin", "H+ + e- -> H"),
+        ("aux_func", "chemrate2"),
+    ],
+)
+def test_get_accepts_existing_entities(ctx, prop, entity):
+    Get((prop,), entity).validate(Options(), ctx)

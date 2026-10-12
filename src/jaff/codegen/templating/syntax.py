@@ -134,8 +134,10 @@ def _build_options(parts: List[_Part], first: int) -> Options:
                 options.replace_lines.append(first + rel_line - 1)
         elif kind == "use":
             name, rel_line = value
+            if name in options.use_lines:
+                raise _OptionError(f"USE {name} given twice", rel_line)
             options.uses.append(name)
-            options.use_lines.setdefault(name, first + rel_line - 1)
+            options.use_lines[name] = first + rel_line - 1
         else:
             _add_group(options, first, *value)
 
