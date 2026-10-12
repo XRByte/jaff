@@ -1491,7 +1491,7 @@ class TemplateParser:
                     },
                     # Returns: list[int] - 1 if charged, 0 if neutral
                     "charge_truths": {
-                        "func": lambda: self.net.species.charge_truths,
+                        "func": lambda: self.net.species.charge_truths(),
                         "vars": ["idx", "charge_truth"],
                     },
                     # Returns: list[float] - mass of each species excluding electrons
