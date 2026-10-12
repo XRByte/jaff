@@ -1,11 +1,11 @@
 # ABOUTME: Render context shared by every command while one template is rendered
-# ABOUTME: Network, code generator, template path, echo flag and the DEFINE registry
+# ABOUTME: Network, code generator, template path, echo settings and DEFINE registry
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Dict, Optional
 
 from .options import Options
 
@@ -23,6 +23,8 @@ class RenderContext:
         cg: Code generator for the template's language.
         file: Template path, for messages and the ``filename`` token.
         echo_directives: Whether directives are echoed as comments in the output.
+        comment: Comment token for the echo, from ``$$JAFF COMMENT``; ``None``
+            means the language's own comment.
         defines: Option sets registered by ``DEFINE``, by name.
     """
 
@@ -30,4 +32,5 @@ class RenderContext:
     cg: Codegen
     file: Path
     echo_directives: bool = True
+    comment: Optional[str] = None
     defines: Dict[str, Options] = field(default_factory=dict)

@@ -87,7 +87,7 @@ def render_blocks(blocks: List[Block], ctx: RenderContext) -> str:
         _prepare(block, ctx) if isinstance(block, CommandBlock) else None
         for block in blocks
     ]
-    comment = ctx.cg.lang.comment
+    comment = ctx.comment or ctx.cg.lang.comment
     out: List[str] = []
     for block, resolved in zip(blocks, prepared):
         if isinstance(block, TextBlock):

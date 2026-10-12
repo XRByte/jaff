@@ -197,7 +197,9 @@ def _fortran_code_gen(expr: Any, **kwargs: Any) -> str:
     return _fortran_free_wrap(sp.fcode(expr, standard=95, source_format="free", **kwargs))
 
 
-def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
+def wrap_fortran_source(
+    text: str, width: int = _FORTRAN_WIDTH, comment: str | None = None
+) -> str:
     """Re-wrap every over-long executable statement in a fixed-form source.
 
     :func:`_fortran_code_gen` only wraps expressions that pass through
@@ -217,6 +219,9 @@ def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
         Complete generated Fortran source.
     width : int, optional
         Significant column count.  Default 72.
+    comment : str or None, optional
+        Extra comment prefix whose lines are also left untouched, e.g. the
+        ``$$JAFF COMMENT`` token of a template.  ``!`` lines always are.
 
     Returns
     -------
@@ -243,7 +248,9 @@ def wrap_fortran_source(text: str, width: int = _FORTRAN_WIDTH) -> str:
 
         stripped = line.lstrip()
         leader = stripped.split("(", 1)[0].split()[0].lower() if stripped else ""
-        is_comment = stripped.startswith("!")
+        is_comment = stripped.startswith("!") or bool(
+            comment and stripped.startswith(comment)
+        )
         is_decl = "::" in line or leader in _FORTRAN_NOWRAP_LEADERS
 
         if is_comment or is_decl:

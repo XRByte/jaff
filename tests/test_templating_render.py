@@ -124,15 +124,41 @@ def test_get_and_has_render_through_the_facade(net, tmp_path):
     assert render(net, tmp_path, text) == "i = 2\nh = 0\n"
 
 
-def test_unknown_extension_needs_a_default_language(net, tmp_path):
-    with pytest.raises(RuntimeError, match="xyz files are not yet supported"):
+def test_unknown_extension_needs_a_lang_directive(net, tmp_path):
+    with pytest.raises(ParserError, match="add \\$\\$JAFF LANG") as err:
         render(net, tmp_path, "x\n", name="t.xyz")
-    assert render(net, tmp_path, "x\n", name="t.xyz", default_lang="python") == "x\n"
+    assert err.value.nline == 1
+    assert render(net, tmp_path, "$$JAFF LANG python\nx\n", name="t.xyz") == "x\n"
 
 
-def test_file_without_extension_names_the_problem(net, tmp_path):
-    with pytest.raises(RuntimeError, match="^files without an extension are not yet"):
+def test_file_without_extension_needs_a_lang_directive(net, tmp_path):
+    with pytest.raises(ParserError, match="No language for template"):
         render(net, tmp_path, "x\n", name="template")
+
+
+def test_lang_overrides_the_extension(net, tmp_path):
+    text = "$$JAFF LANG fortran\n$$JAFF SUB nspec\nn = $nspec$\n$$JAFF END\n"
+    assert render(net, tmp_path, text, name="t.py", echo=True) == (
+        "! $$JAFF LANG fortran\n! $$JAFF SUB nspec\nn = 5\n! $$JAFF END\n"
+    )
+
+
+def test_lang_accepts_aliases(net, tmp_path):
+    out = render(net, tmp_path, "$$JAFF LANG c++\nx\n", name="t.txt", echo=True)
+    assert out == "// $$JAFF LANG c++\nx\n"
+
+
+def test_unknown_lang_is_an_error_at_its_line(net, tmp_path):
+    with pytest.raises(ParserError, match="not a supported language") as err:
+        render(net, tmp_path, "x\n$$JAFF LANG cobol\n", name="t.txt")
+    assert err.value.nline == 2
+
+
+def test_comment_sets_the_echo_token(net, tmp_path):
+    text = '$$JAFF COMMENT "#"\n$$JAFF SUB nspec\nn = $nspec$\n$$JAFF END\n'
+    assert render(net, tmp_path, text, name="Config.cpp", echo=True) == (
+        '# $$JAFF COMMENT "#"\n# $$JAFF SUB nspec\nn = 5\n# $$JAFF END\n'
+    )
 
 
 def test_get_of_unknown_entity_is_a_parser_error_at_the_header(net, tmp_path):
@@ -204,3 +230,16 @@ def test_arithmetic_error_is_a_parser_error(net, tmp_path):
     text = "$$JAFF SUB nspec\nn = $nspec/0$\n$$JAFF END\n"
     with pytest.raises(ParserError, match="SUB failed: ZeroDivisionError"):
         render(net, tmp_path, text)
+
+
+def test_lang_is_case_insensitive(net, tmp_path):
+    out = render(net, tmp_path, "$$JAFF LANG Fortran\nx\n", name="t.txt", echo=True)
+    assert out == "! $$JAFF LANG Fortran\nx\n"
+
+
+def test_fortran_wrapping_leaves_echoed_comment_lines_alone(net, tmp_path):
+    pattern = "x" * 150
+    header = f'$$JAFF SUB nspec {{ REPLACE {{ "{pattern}" -> "y" }} }}'
+    text = f'$$JAFF LANG fortran\n$$JAFF COMMENT "#"\n{header}\nn = $nspec$\n$$JAFF END\n'
+    out = render(net, tmp_path, text, name="Config", echo=True)
+    assert f"# {header}\n" in out
