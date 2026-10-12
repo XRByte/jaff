@@ -54,7 +54,6 @@ input_dir    = "."                     # directory of template files
 input_files  = ["extra.cpp"]           # individual files (combined with input_dir)
 template     = "microphysics"          # built-in template collection name
 network      = "networks/GOW/GOW.jet"  # network file or built-in network name
-default_lang = "cxx"                   # fallback language for unknown extensions
 ```
 
 | Key            | Type        | Description                                                         |
@@ -64,7 +63,6 @@ default_lang = "cxx"                   # fallback language for unknown extension
 | `input_files`  | `list[str]` | Individual template files; combined with `input_dir` and `template` |
 | `template`     | `str`       | Built-in collection under `jaff/templates/generator/`               |
 | `network`      | `str`       | Network file path, or a built-in network name                       |
-| `default_lang` | `str`       | Fallback language for unrecognised extensions                       |
 
 ---
 
@@ -468,7 +466,6 @@ input_dir    = "."
 input_files  = ["../new.cpp", "test.cpp"]
 template     = "microphysics"
 network      = "networks/GOW/GOW.jet"
-default_lang = "cxx"
 
 [network]
 label      = "GOW-generator"

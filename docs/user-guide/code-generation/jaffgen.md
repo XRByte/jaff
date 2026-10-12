@@ -88,12 +88,6 @@ performs this resolution.
 | `--files`    | One or more individual template files (comma-separated: `a.txt,b.txt`) |
 | `--template` | Built-in template collection name                       |
 
-### Code generation
-
-| Argument | Description                                                                                                         |
-| -------- | ------------------------------------------------------------------------------------------------------------------- |
-| `--lang` | Fallback language for files with unrecognised extensions. Choices: `c`, `cxx`, `fortran`, `python`, `rust`, `julia` |
-
 ### Configuration file
 
 | Argument   | Description                                                                                                  |
@@ -136,16 +130,17 @@ jaffgen \
     --outdir  output/
 ```
 
-### Process specific files with a language hint
+### Process specific files
 
-`--lang` supplies a language for files whose extension JAFF doesn't map (here,
-`.txt`):
+The language of each file comes from the file itself: a `$$JAFF LANG <language>`
+line, or else its extension (see
+[Template syntax](template-syntax.md)). Files named here with an extension JAFF
+knows, such as `.cpp`, need nothing extra:
 
 ```bash
 jaffgen \
     --network networks/GOW/GOW.jet \
-    --files   rates.txt,odes.txt   \
-    --lang    rust                 \
+    --files   rates.cpp,odes.cpp   \
     --outdir  output/
 ```
 
@@ -155,17 +150,17 @@ jaffgen \
 jaffgen \
     --network  networks/GOW/GOW.jet \
     --template microphysics         \
-    --lang     cxx                  \
     --outdir   output/
 ```
 
 <!-- prettier-ignore -->
-!!! note "Templates that bundle build files need `--lang`"
+!!! note "Templates that bundle build files"
     The `microphysics` collection ships non-source files (e.g. `Make.package`
     and an extension-less `_parameters`) alongside its `.cpp`/`.H` templates.
-    `TemplateParser` infers the language from each file's extension and has no
-    fallback for unknown ones, so pass `--lang cxx` to give it one. Without it
-    the run aborts with *"files are not yet supported"*.
+    Files with no `$$JAFF` directives and no known extension (a `Makefile`,
+    `CMakeLists.txt`, a `.toml`) are copied unchanged. A file that does contain
+    directives names its language with a `$$JAFF LANG` line (and, if needed, a
+    `$$JAFF COMMENT` token for echoed directives), as `_parameters` does.
 
 ### Combine a template collection with custom files
 
@@ -174,7 +169,6 @@ jaffgen \
     --network  networks/GOW/GOW.jet \
     --template microphysics         \
     --files    custom_rhs.cpp       \
-    --lang     cxx                  \
     --outdir   output/
 ```
 

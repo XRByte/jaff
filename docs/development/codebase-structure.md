@@ -62,7 +62,33 @@ src/jaff/
 │   ├── codegen.py              # SymPy → C/C++/Fortran/Python/Rust/Julia/R
 │   ├── preprocessor.py         # Template marker substitution
 │   ├── builder.py              # Plugin-based orchestration
-│   └── _template_engine.py     # JAFF directive rendering
+│   └── templating/             # The $$JAFF template engine (TemplateParser)
+│       ├── __init__.py         # Package entry; jaff.codegen re-exports TemplateParser
+│       ├── parser.py           # TemplateParser: renders one file; language from LANG or extension
+│       ├── engine.py           # Single pass splitting a template into text and directive blocks
+│       ├── syntax.py           # Parses one directive header (Lark) into a command + options
+│       ├── grammar.lark        # Lark grammar of a directive header and its { } option block
+│       ├── blocks.py           # TextBlock / CommandBlock types produced by the engine
+│       ├── options.py          # Options of one block: REPLACE pairs, USE names, groups
+│       ├── resolve.py          # USE layering, per-command group checks, REPLACE compilation
+│       ├── render.py           # Validates then renders blocks; registers DEFINEs, echoes directives
+│       ├── context.py          # RenderContext: network, Codegen, file, echo settings, DEFINEs
+│       ├── placeholders.py     # $name$ / $name op N$ substitution and line splitting
+│       ├── values.py           # Parsers for option-group values
+│       ├── errors.py           # TemplateError, turned into a ParserError with line info
+│       └── commands/           # One module per command
+│           ├── base.py         # Command base class and entity_collections
+│           ├── repeat.py       # REPEAT: expand body per item
+│           ├── repeat_props.py # REPEAT's PROPERTIES table and option settings
+│           ├── repeat_render.py# Vertical / horizontal line expansion
+│           ├── reduce.py       # REDUCE: $( ... )$ sums
+│           ├── sub.py          # SUB: network-wide tokens
+│           ├── get.py          # GET: properties of a named entity
+│           ├── has.py          # HAS: 1/0 existence checks
+│           ├── define.py       # DEFINE: named option sets for USE
+│           ├── lang.py         # LANG: target language of the file
+│           ├── comment.py      # COMMENT: token used to echo directives
+│           └── end.py          # END: closes a directive body
 │
 ├── io/                         # Serialization and logging
 │   ├── _io.py                  # .jaff gzip-JSON read/write; data table export

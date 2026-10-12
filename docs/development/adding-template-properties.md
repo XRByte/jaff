@@ -6,266 +6,162 @@ icon: phosphor/squares-four
 
 # Adding New Template Properties
 
-JAFF's template engine (`TemplateParser` in `src/jaff/codegen/_template_engine.py`) exposes network data to template files through a single, centrally-defined command dictionary. Adding a new token that templates can reference requires only an entry in that dict — no new parsing logic, no new command types.
+Templates read network data through a handful of small tables inside the
+`$$JAFF` engine (`src/jaff/codegen/templating/`, see the
+[codebase structure](codebase-structure.md)). Adding a property means adding one
+entry to the table of the command that should offer it; the grammar, option
+handling and rendering need no change. For how templates use the properties,
+see the [template syntax reference](../user-guide/code-generation/template-syntax.md).
 
-## How the Template Engine Works
+## Where each command keeps its properties
 
-Template files are processed line-by-line. Lines that contain a `$JAFF` directive (prefixed with the language's comment token) activate a command. Subsequent non-directive lines are handed to that command's active `parse_function` until an `END` directive resets state.
+| Command  | Table                                                    | Entry                                     |
+| -------- | -------------------------------------------------------- | ----------------------------------------- |
+| `REPEAT` | `PROPERTIES` in `commands/repeat_props.py`               | `name -> RepeatProp(vars, source, groups)` |
+| `REDUCE` | `_PROPERTIES` in `commands/reduce.py`                    | `name -> (variable, getter)`              |
+| `GET`    | `_PROPERTIES` in `commands/get.py`                       | `name -> (entity kind, getter)`           |
+| `SUB`    | `TOKENS` and `_values` in `commands/sub.py`              | token name, and a callable computing it   |
+| `HAS`    | `KINDS` in `commands/has.py`, `entity_collections` in `commands/base.py` | entity kind and its network collection |
 
-```mermaid
-flowchart TD
-    Start([__init__: detect language,\nCodegen, build parser_dict]) --> ReadLine(Read next line)
-    ReadLine --> IsEOF{End of file?}
-    IsEOF -- Yes --> Done([Return expanded string])
-    IsEOF -- No --> IsJaff{JAFF directive?}
+A getter is a function of the `RenderContext` (`c`): `c.net` is the `Network`,
+`c.cg` the `Codegen` for the template's language. `GET` getters take the entity
+name as well: `lambda c, name: ...`.
 
-    %% Path 1: raw text or active block
-    IsJaff -- No --> Append(Run active parse_function\nor copy line as-is)
-    Append --> ReadLine
+---
 
-    %% Path 2: JAFF directive
-    IsJaff -- Yes --> CmdType{Command type?}
+## Adding a `REPEAT` property
 
-    %% Path 2a: scalar commands
-    CmdType -- "SUB / GET / HAS / REDUCE" --> CalcVal[Fetch values from network\nsubstitute tokens]
+Each entry of `PROPERTIES` describes where the items come from, which variables
+the template sees, and which [option groups](../user-guide/code-generation/template-syntax.md)
+the property accepts. Three constructors cover the usual cases:
 
-    %% Path 2b: block command
-    CmdType -- "REPEAT" --> LoopNet[Iterate network data\napply CSE, expand block]
+- `_items(item, getter)` for a plain list of network data. `SORT` is accepted.
+- `_expressions(item, codegen_method, groups)` for a `Codegen` method that
+  returns indexed expressions. It adds the `cse` variable, forwards the parsed
+  options to the method as keyword arguments, and accepts `SORT`.
+- `RepeatProp(vars, source, groups)` directly, when neither fits. `vars` starts
+  with `idx` and the item variable; `source(ctx, kwargs)` returns the items;
+  `groups` maps each group name to its keys, each a `Setting(kwarg, parser)`
+  using a parser from `templating/values.py` (`parse_bool`, `parse_int`,
+  `parse_text`, `parse_choice(...)`).
 
-    %% Merge
-    CalcVal --> Regex[Apply REPLACE regex]
-    LoopNet --> Regex
-    Regex --> Append
-```
-
-### The Command Dictionary
-
-Everything lives in `__get_parser_dict` (line 1274), a `@cached_property` that builds one dict for the lifetime of the parser:
+Example: a property giving the length of every species name.
 
 ```python
-{
-    "SUB":    {"func": self.__sub,    "props": { ... }},
-    "REPEAT": {"func": self.__repeat, "props": { ... }},
-    "REDUCE": {"func": self.__reduce, "props": { ... }},
-    "GET":    {"func": self.__get,    "props": { ... }},
-    "HAS":    {"func": self.__has,    "props": { ... }},
-    "END":    {"func": self.__end,    "props": {}},
+# src/jaff/codegen/templating/commands/repeat_props.py
+PROPERTIES: Dict[str, RepeatProp] = {
+    ...
+    "specie_name_lengths": _items(
+        "name_length", lambda c: [len(n) for n in c.net.species.names()]
+    ),
 }
 ```
 
-Each command's `"props"` dict maps **token names** (what template authors write between `$...$`) to a small config dict. The handler (the `"func"` at the command level) reads this dict at runtime. To expose new data, you add an entry to `"props"` — nothing else changes.
+`GROUPS`, the set of groups `DEFINE` accepts, is rebuilt from `PROPERTIES`, so a
+new group needs no other registration. The property is then available to
+templates:
 
----
-
-## Adding a Property to Each Command
-
-### `SUB` — scalar substitution
-
-`SUB` replaces `$token$` with a single value. The prop's `"func"` must be a zero-argument callable that returns the value.
-
-```python
-# Template usage:
-# // $JAFF SUB my_token
-# int N = $my_token$;
-# // $JAFF END
+```cpp
+$$JAFF REPEAT idx, name_length IN specie_name_lengths
+lengths[$idx$] = $name_length$;
+$$JAFF END
 ```
 
-Add to the `SUB` props dict:
+which, for a network with species `H`, `e-`, `H+`, `He++`, `He+`, renders as
 
-```python
-"my_token": {"func": lambda: self.net.my_property},
+```cpp
+// $$JAFF REPEAT idx, name_length IN specie_name_lengths
+lengths[0] = 1;
+lengths[1] = 2;
+lengths[2] = 2;
+lengths[3] = 4;
+lengths[4] = 3;
+// $$JAFF END
 ```
 
-The callable can be any zero-argument function — a lambda, a bound method on `self.net`, or a `Codegen` method:
+To give a property an option, add a group. A `Setting` with a `kwarg` passes
+the parsed value to the source; for `_expressions` that means a keyword argument
+of the `Codegen` method:
 
 ```python
-# Wrap a property
-"nspec":   {"func": lambda: self.net.species.count},
-
-# Bind a method directly (Codegen example)
-"dedt":    {"func": cg.get_dedt},
-"dtdt":    {"func": cg.get_dtdt},
-
-# Conditional value
-"nbands":  {"func": lambda: self.net.radiation.nbands if self.net.radiation else 0},
+_RADODES = {"RADIATION": {"ORDER": Setting("order", parse_int)}}
+"radodes": _expressions("radode", "get_indexed_radodes", _RADODES),
 ```
 
-`SUB` also supports arithmetic in the template (`$my_token+1$`) as long as the returned value is an `int`.
+**Tests**
 
----
+- `tests/test_templating_repeat_props.py` asserts the exact set of properties
+  (`OLD_PROPS`); add the new name there, and a check of its item variable if it
+  has one.
+- Add a block using the property to a fixture in
+  `tests/fixtures/templates/engine/` (for example `repeat_lists.py`), then
+  regenerate and review the snapshots:
 
-### `REPEAT` — iterate over a list
-
-`REPEAT` loops over a list or `IndexedList` and expands a template line for each item. The prop's `"func"` must return the list, and `"vars"` declares which template tokens are available.
-
-```python
-# Template usage (vertical — one line per item):
-# // $JAFF REPEAT idx, my_item IN my_property
-# array[$idx$] = $my_item$;
-# // $JAFF END
-
-# Template usage (horizontal — inline array):
-# // $JAFF REPEAT my_item IN my_property
-# int arr[] = {"$my_item$", };
-# // $JAFF END
-```
-
-Add to the `REPEAT` props dict:
-
-```python
-"my_property": {
-    "func": self.net.my_collection.my_method,   # returns list or IndexedList
-    "vars": ["idx", "my_item"],                  # vars[0] always "idx", vars[1] = token name
-},
-```
-
-The handler can be any callable returning a list-like object — an existing network method works directly:
-
-```python
-# Reuse existing network method
-"species":       {"func": self.net.species.names,    "vars": ["idx", "specie"]},
-
-# Wrap with lambda for arguments
-"neutral_indices": {
-    "func": lambda: self.net.species.neutral("index"),
-    "vars": ["idx", "neutral_index"],
-},
-
-# Codegen method returning IndexedList (rate expressions, ODEs, Jacobian, etc.)
-"rates": {
-    "func": lambda **kwargs: self.cg.get_indexed_rates(**kwargs),
-    "vars": ["idx", "rate", "cse"],              # "cse" is a special extra var
-},
-```
-
-<!-- prettier-ignore -->
-!!! note "Expression-generating props vs list props"
-    Props whose `func` returns a plain `list` (species names, charges, masses, etc.) work out of the box. Props whose `func` returns an `IndexedList` (rates, ODEs, Jacobian elements) carry index metadata and support the `$idx$` vertical expansion mode. Both shapes are handled automatically by `__do_iterative_repeat`.
-
----
-
-### `REDUCE` — aggregate into a sum expression
-
-`REDUCE` builds a sum over all values of a property. The prop's `"func"` returns the list and `"var"` names the single template token used inside the reduction expression `$(...)$`.
-
-```python
-# Template usage:
-# // $JAFF REDUCE my_var IN my_property
-# double total = $($my_var$)$;
-# // $JAFF END
-# →  double total = ((1.0) + (2.0) + (3.0));
-```
-
-Add to the `REDUCE` props dict:
-
-```python
-"my_property": {
-    "func": self.net.my_collection.my_method,  # returns list[float | int]
-    "var":  "my_var",                           # token name (singular, not "vars")
-},
-```
-
-Example:
-
-```python
-"specie_masses": {
-    "func": self.net.species.masses,
-    "var":  "specie_mass",
-},
+```bash
+JAFF_UPDATE_SNAPSHOTS=1 uv run pytest tests/test_template_engine_snapshots.py
+git diff tests/snapshots/template_engine
 ```
 
 ---
 
-### `GET` — look up a property for a named entity
+## Adding a `REDUCE` property
 
-`GET` substitutes `$token$` with a value fetched for a specific named entity (a species, reaction, or element). The prop's `"func"` receives the entity name as its only argument.
-
-```python
-# Template usage:
-# // $JAFF GET my_prop FOR H2
-# double val = $my_prop$;
-# // $JAFF END
-```
-
-Add to the `GET` props dict:
+An entry maps the property name to the variable templates use and a getter
+returning the list of values to sum:
 
 ```python
-"my_prop": {"func": lambda entity: self.net.species[entity].my_attribute},
+# src/jaff/codegen/templating/commands/reduce.py
+_PROPERTIES: Dict[str, Tuple[str, _Getter]] = {
+    ...
+    "specie_name_lengths": (
+        "name_length",
+        lambda c: [len(n) for n in c.net.species.names()],
+    ),
+}
 ```
 
-Examples:
+`PROPS`, the list the command validates against, is derived from `_PROPERTIES`.
+In a template:
 
-```python
-"specie_mass":   {"func": lambda s: self.net.species[s].mass},
-"specie_charge": {"func": lambda s: self.net.species[s].charge},
-"element_idx":   {"func": lambda e: self.net.elements[e].index},
+```cpp
+$$JAFF REDUCE name_length IN specie_name_lengths
+int total = $($name_length$)$;
+$$JAFF END
 ```
+
+```cpp
+// $$JAFF REDUCE name_length IN specie_name_lengths
+int total = ((1) + (2) + (2) + (4) + (3));
+// $$JAFF END
+```
+
+**Tests**
+
+- `tests/test_templating_reduce.py`: build the command with
+  `Reduce(("name_length",), ("specie_name_lengths",))` and assert the rendered
+  sum, in the style of the existing `charges()` tests.
+- Add a block to `tests/fixtures/templates/engine/reduce.py` and regenerate the
+  snapshots as above.
 
 ---
 
-### `HAS` — existence check
+## `GET`, `SUB` and `HAS`
 
-`HAS` substitutes `$token$` with `1` if the entity exists in the network, `0` otherwise. The prop's `"func"` receives the entity name and must return an `int`.
+- **`GET`**: add `name: (kind, getter)` to `_PROPERTIES` in `commands/get.py`,
+  where `kind` is `element`, `specie`, `reaction` or `aux` and the getter is
+  `lambda c, entity: ...`. Used as `$$JAFF GET name IN H2`.
+- **`SUB`**: add the token to `TOKENS` and a `"token": lambda: value` entry to
+  the dictionary returned by `_values` in `commands/sub.py`.
+- **`HAS`**: add the kind to `KINDS` in `commands/has.py` and to
+  `entity_collections` in `commands/base.py`; the collection must support
+  `entity in collection`.
 
-```python
-# Template usage:
-# // $JAFF HAS my_type CO
-# int has_co = $my_type$;
-# // $JAFF END
-```
-
-Add to the `HAS` props dict:
-
-```python
-"my_type": {"func": lambda entity: int(entity in self.net.my_collection)},
-```
-
-Examples:
-
-```python
-"specie":   {"func": lambda s: int(s in self.net.species)},
-"reaction": {"func": lambda r: int(r in self.net.reactions)},
-"element":  {"func": lambda e: int(e in self.net.elements)},
-```
-
----
-
-## Using an External Handler
-
-The callable can be any Python function — it does not need to live on `self.net` or `self.cg`. Pass a module-level function or a method from another object:
-
-```python
-from jaff.my_module import compute_my_value
-
-# In __get_parser_dict:
-"my_token": {"func": lambda: compute_my_value(self.net)},
-```
-
-For `REPEAT`, any function that returns a `list` or `IndexedList` works:
-
-```python
-"my_property": {
-    "func": lambda: my_external_list_fn(self.net),
-    "vars": ["idx", "my_item"],
-},
-```
-
----
-
-## Summary
-
-| Command  | `"func"` signature        | Extra key       | What templates get           |
-| -------- | ------------------------- | --------------- | ---------------------------- |
-| `SUB`    | `() → value`              | —               | `$token$`                    |
-| `REPEAT` | `(**kwargs) → list`       | `"vars": [...]` | `$idx$`, `$token$` per item  |
-| `REDUCE` | `() → list[float or int]` | `"var": str`    | `$($token$)$` sum expression |
-| `GET`    | `(entity: str) → value`   | —               | `$token$` for named entity   |
-| `HAS`    | `(entity: str) → int`     | —               | `$token$` → 0 or 1           |
-
-All existing network accessors (`self.net.species.*`, `self.net.reactions.*`, `self.net.elements.*`) and `Codegen` methods can be wired in directly or via a one-line lambda. No changes to parsing logic are needed.
+Cover each with a case in `tests/test_templating_simple_commands.py` and, where
+useful, a fixture block plus regenerated snapshots.
 
 ## See Also
 
-- [Adding a New Network Parser](adding-parsers.md)
 - [Template Syntax](../user-guide/code-generation/template-syntax.md)
+- [Codebase Structure](codebase-structure.md)
+- [Adding a New Network Parser](adding-parsers.md)
 - [Contributing Guide](contributing.md)

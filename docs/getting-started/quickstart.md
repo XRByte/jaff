@@ -81,7 +81,7 @@ covers lookup, filtering, elemental composition, conservation checks, and export
 ## Generate code
 
 Code generation is primarily **template-driven**: JAFF expands ordinary source files that
-contain `$JAFF` directives into network-specific code. The fastest way to see it
+contain `$$JAFF` directives into network-specific code. The fastest way to see it
 work is a **built-in template** — a ready-made collection you don't have to
 write — run through the [`jaffgen`](../user-guide/code-generation/jaffgen.md) CLI:
 
@@ -89,7 +89,6 @@ write — run through the [`jaffgen`](../user-guide/code-generation/jaffgen.md) 
 jaffgen \
     --network  networks/h_photoionization/h_photo.jet \
     --template fortran_dlsodes \
-    --lang     fortran \
     --outdir   generated/
 ```
 
@@ -105,12 +104,9 @@ commons.f90  fluxes.f90  ode.f90  reactions.f90  main.f90  Makefile
 opkda1.f     opkda2.f    opkdmain.f
 ```
 
-<!-- prettier-ignore -->
-!!! note "Why `--lang`?"
-    This collection bundles non-source files (a `Makefile`) whose language can't
-    be inferred from an extension. `--lang` supplies the fallback. See
-    [jaffgen](../user-guide/code-generation/jaffgen.md) for the other built-in
-    templates and input options.
+Each template names its own language with a `$$JAFF LANG` line or by its file
+extension; see [jaffgen](../user-guide/code-generation/jaffgen.md) for the other
+built-in templates and input options.
 
 From here the [Code Generation](../user-guide/code-generation/index.md) guide
 shows how to write your own templates with the
