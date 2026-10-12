@@ -79,8 +79,7 @@ class Repeat(Command):
 
         for var in prop.special:
             if f"${var}$" in line:
-                # The old engine ended this block with an extra empty line.
-                return expand_vertical(extras[var], line, f"${var}$", index) + [""]
+                return expand_vertical(extras[var], line, f"${var}$", index)
 
         return expand_vertical(as_flattened(items), line, f"${prop.item}$", index)
 

@@ -54,7 +54,6 @@ contains
     cse0 = 4.1207223003989d-10*tgas**(-0.8d0)*nden(1)*nden(2) - 5.85d-11*sqrt(tgas) *exp(-157809.10000000001d0/tgas)*&
           &nden(0)*nden(1)
     cse1 = nden(1)*nden(3)**2
-
     f(1) = cse0
     f(2) = -cse0 - cse1
     f(3) = -cse0

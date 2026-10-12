@@ -8,7 +8,6 @@ drad[1] = -5.05728445450563e-8*nden[0]*rflux[0]
 
 # $$JAFF REPEAT idx, radode, cse IN radodes
 r0 = 5.05728445450563e-8*nden[0]
-
 drad[0] = -r0*photden[0]
 drad[1] = -r0*rflux[0]
 # $$JAFF END
@@ -57,7 +56,6 @@ c5 = 5.05728445450563e-8*xn[0]
 c6 = -c5
 c7 = -c3
 c8 = -c4
-
 J[0, 0] = c1
 J[0, 1] = c3
 J[0, 2] = c4

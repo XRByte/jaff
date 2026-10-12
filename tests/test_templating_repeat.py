@@ -97,12 +97,17 @@ def test_horizontal_replace_sees_only_the_content(net, tmp_path):
     assert render(net, tmp_path, text) == "  N = [H, e-, H+, He++, He+]\n"
 
 
-def test_cse_block_names_temporaries_and_ends_with_a_blank_line(net, tmp_path):
+def test_cse_block_names_temporaries(net, tmp_path):
     odes = Codegen(network=net, lang="python").get_indexed_odes(cse_var="t")
     text = block("REPEAT idx, ode, cse IN odes", "t$idx$ = $cse$", "dy[$idx$] = $ode$")
     temporaries = "".join(f"t{i[0]} = {v}\n" for i, v in odes["extras"]["cse"])
     odes_lines = "".join(f"dy[{i[0]}] = {v}\n" for i, v in odes["expressions"])
-    assert render(net, tmp_path, text) == temporaries + "\n" + odes_lines
+    assert render(net, tmp_path, text) == temporaries + odes_lines
+
+
+def test_cse_line_without_shared_terms_produces_nothing(net, tmp_path):
+    text = block("REPEAT idx, rate, cse IN rates", "c$idx$ = $cse$", "k[$idx$] = $rate$")
+    assert render(net, tmp_path, text).startswith("k[0] = ")
 
 
 @pytest.mark.parametrize(

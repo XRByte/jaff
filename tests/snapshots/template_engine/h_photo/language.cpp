@@ -33,7 +33,6 @@ constexpr double TOTAL_CHARGE = ((0) + (1) + (-1));
 
 void rates(double *k, const double *nden, double tgas) {
     // $$JAFF REPEAT idx, rate, cse IN rates
-
     k[0] = 5.0572844545056314e-8*photden[0];
     k[1] = 1.6594178159829075e-10*std::pow(tgas, -0.69999999999999996);
     // $$JAFF END
@@ -49,7 +48,6 @@ void rhs(double *f, const double *nden, double tgas) {
     const amrex::Real cse0 = state.xn[1]*state.xn[2];
     const amrex::Real cse1 = 1.6594178159829075e-10*cse0*std::pow(state.T, -0.69999999999999996) - 5.0572844545056314e-8*state.xn[0]*photden[0];
     const amrex::Real cse2 = -cse1;
-
     ydot(1) = cse1;
     ydot(2) = cse2;
     ydot(3) = cse2;
@@ -65,7 +63,6 @@ void jacobian(double *J, const double *nden, double tgas) {
     const double cse3 = cse1*nden[1];
     const double cse4 = -cse2;
     const double cse5 = -cse3;
-
     J(1, 1) = -cse0;
     J(1, 2) = cse2;
     J(1, 3) = cse3;

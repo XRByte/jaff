@@ -49,7 +49,6 @@ contains
     ! $$JAFF REPEAT idx, rhs, cse IN rhses
     cse0 = nden(0)**2*nden(1)
     cse1 = -cse0
-
     f(1) = cse1
     f(2) = cse1
     f(3) = cse0

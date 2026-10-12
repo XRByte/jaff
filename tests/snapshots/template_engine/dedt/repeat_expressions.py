@@ -12,7 +12,6 @@ def rates():
 def rates_cse():
     k = {}
     # $$JAFF REPEAT idx, rate, cse IN rates
-
     k[0] = nden[0]
     # $$JAFF END
     return k
@@ -50,7 +49,6 @@ def odes_cse():
     # $$JAFF REPEAT idx, ode, cse IN odes
     tmp0_v = nden[0]**2*nden[1]
     tmp1_v = -tmp0_v
-
     dy[0] = tmp1_v
     dy[1] = tmp1_v
     dy[2] = tmp0_v
@@ -75,7 +73,6 @@ def rhs_cse_replace():
     # }
     x0 = y[0]**2*y[1]
     x1 = -x0
-
     f[1] = x1
     f[2] = x1
     f[3] = x0
@@ -100,7 +97,6 @@ def jacobian_cse():
     c1 = -c0
     c2 = nden[0]**2
     c3 = -c2
-
     J[0, 0] = c1
     J[0, 1] = c3
     J[1, 0] = c1

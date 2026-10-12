@@ -268,14 +268,13 @@ $$JAFF END
 ```
 
 Output (here two sub-expressions are shared, so the `$cse$` line expands to two
-temporaries and the ODE lines reference them; the blank line is the end of the
-temporaries block):
+temporaries and the ODE lines reference them; without shared sub-expressions
+the `$cse$` line produces nothing):
 
 ```cpp
 // $$JAFF REPEAT idx, ode, cse IN odes
 const double x0 = 4.1207223003988966e-10*std::pow(tgas, -0.80000000000000004)*nden[1]*nden[2] - 5.8500000000000005e-11*std::sqrt(tgas)*std::exp(-157809.10000000001/tgas)*nden[0]*nden[1];
 const double x1 = nden[1]*std::pow(nden[3], 2);
-
 dydt[0] = x0;
 dydt[1] = -x0 - x1;
 dydt[2] = -x0;

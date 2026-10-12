@@ -51,7 +51,6 @@ contains
     cse0 = nden(1)*nden(2)
     cse1 = 1.65941781598291d-10*cse0*tgas**(-0.7d0) - 5.05728445450563d-8*nden(0)* photden(0)
     cse2 = -cse1
-
     f(1) = cse1
     f(2) = cse2
     f(3) = cse2
