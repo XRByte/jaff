@@ -14,13 +14,14 @@ _OPS: Dict[str, Callable[[Any, Any], Any]] = {
 
 
 def split_line(line: str) -> Tuple[str, str]:
-    """Split a body line into its leading spaces and its stripped content.
+    """Split a body line into its indentation and the rest, without the line end.
 
-    Only spaces count as indentation (tabs and other whitespace are dropped with
-    the rest of the surrounding whitespace), matching the old engine's output.
+    Indentation is all leading spaces and tabs, kept as written (tabs matter in
+    Python and Makefiles); the rest keeps its trailing whitespace.
     """
-    indent = line[: len(line) - len(line.lstrip(" "))]
-    return indent, line.strip()
+    text = line.rstrip("\r\n")
+    content = text.lstrip(" \t")
+    return text[: len(text) - len(content)], content
 
 
 def substitute(text: str, values: Mapping[str, Callable[[], Any]]) -> str:

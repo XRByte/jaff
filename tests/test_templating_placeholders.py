@@ -52,10 +52,11 @@ def test_no_names_leaves_text_unchanged():
     "line, expected",
     [
         ("    x = 1;\n", ("    ", "x = 1;")),
-        ("x  \n", ("", "x")),
-        ("\tx\n", ("", "x")),
-        ("  \t x\r\n", ("  ", "x")),
+        ("x  \n", ("", "x  ")),
+        ("\tx\n", ("\t", "x")),
+        ("  \t x\r\n", ("  \t ", "x")),
         ("\n", ("", "")),
+        ("   \n", ("   ", "")),
     ],
 )
 def test_split_line(line, expected):

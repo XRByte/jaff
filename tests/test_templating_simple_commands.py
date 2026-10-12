@@ -44,10 +44,9 @@ def test_sub_leaves_unlisted_tokens(ctx):
     assert Sub(("nspec",)).render(["$nreact$\n"], resolved(), ctx) == "$nreact$\n"
 
 
-def test_sub_drops_tabs_and_trailing_space_like_the_old_engine(ctx):
-    assert Sub(("nspec",)).render(["\tx = $nspec$  \n", "\n"], resolved(), ctx) == (
-        "x = 5\n\n"
-    )
+def test_sub_keeps_tab_indentation_and_the_rest_of_the_line(ctx):
+    body = ["\tx = $nspec$  \n", "\t\tif x:\r\n", "\n"]
+    assert Sub(("nspec",)).render(body, resolved(), ctx) == "\tx = 5  \n\t\tif x:\n\n"
 
 
 def test_sub_applies_replace_after_substitution(ctx):

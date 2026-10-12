@@ -65,8 +65,8 @@ $$JAFF END
 ```
 
 Directive blocks **do not nest**: a `$$JAFF` line inside a body is an error.
-Indentation of the directive and of the body lines is preserved in the output,
-so directives can sit inside a function body.
+Indentation of the directive and of the body lines (spaces and tabs) is
+preserved in the output, so directives can sit inside a function body.
 
 ---
 
