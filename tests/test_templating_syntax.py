@@ -1,0 +1,186 @@
+# ABOUTME: Tests for the $$JAFF directive header grammar and its transformer
+# ABOUTME: Pure string inputs: no network or codegen is involved
+
+from dataclasses import FrozenInstanceError
+from pathlib import Path
+
+import pytest
+
+from jaff.codegen.templating.syntax import (
+    DefineHeader,
+    EndHeader,
+    GetHeader,
+    HasHeader,
+    Options,
+    ReduceHeader,
+    RepeatHeader,
+    SubHeader,
+    parse_header,
+)
+from jaff.errors import ParserError
+
+FILE = Path("template.cpp")
+
+
+def parse(text: str, line: int = 1):
+    return parse_header(text, line, FILE)
+
+
+@pytest.mark.parametrize(
+    "text, header",
+    [
+        ("REPEAT idx, rhs, cse IN rhses", RepeatHeader(("idx", "rhs", "cse"), "rhses")),
+        ("SUB nspec, label", SubHeader(("nspec", "label"))),
+        (
+            "GET specie_idx, specie_mass IN H+",
+            GetHeader(("specie_idx", "specie_mass"), "H+"),
+        ),
+        (
+            'GET reaction_idx IN "H + H -> H2"',
+            GetHeader(("reaction_idx",), "H + H -> H2"),
+        ),
+        ("HAS specie e-", HasHeader("specie", "e-")),
+        ("REDUCE a, b IN p, q", ReduceHeader(("a", "b"), ("p", "q"))),
+        ("DEFINE micro { }", DefineHeader("micro")),
+        ("END", EndHeader()),
+    ],
+)
+def test_headers(text, header):
+    assert parse(text).header == header
+
+
+def test_no_block_means_no_options():
+    assert parse("SUB nspec").options is None
+
+
+def test_empty_block_gives_empty_options():
+    assert parse("SUB nspec { }").options == Options()
+
+
+def test_prop_named_like_a_keyword_suffix():
+    # Old engine split on the substring "IN"; INF must stay one name (bug 5)
+    assert parse("REPEAT idx IN INF").header == RepeatHeader(("idx",), "INF")
+
+
+def test_replace_pairs_keep_regex_escapes():
+    options = parse(
+        r'REPEAT idx IN x { REPLACE { "nden\[\s*(\d+)\s*\]" -> "state.xn[\1]" } }'
+    ).options
+    assert options.replace == [(r"nden\[\s*(\d+)\s*\]", r"state.xn[\1]")]
+
+
+def test_escaped_quote_in_replacement_becomes_quote():
+    options = parse(r'SUB x { REPLACE { "a" -> "say \"hi\"" } }').options
+    assert options.replace == [("a", 'say "hi"')]
+
+
+def test_replace_blocks_concatenate_in_order():
+    options = parse('SUB x { REPLACE { "a" -> "b" } REPLACE { "c" -> "d" } }').options
+    assert options.replace == [("a", "b"), ("c", "d")]
+
+
+def test_groups_and_uses():
+    options = parse(
+        "REPEAT idx IN x {\n"
+        "    USE micro\n"
+        "    THERMAL { MODE -> dtdt  ENERGY -> specific }\n"
+        "    USE other\n"
+        "}"
+    ).options
+    assert options.uses == ["micro", "other"]
+    assert options.groups == {"THERMAL": {"MODE": "dtdt", "ENERGY": "specific"}}
+
+
+def test_quoted_setting_value_loses_quotes():
+    options = parse('SUB x { SIGN { POS -> "p" } }').options
+    assert options.groups == {"SIGN": {"POS": "p"}}
+
+
+def test_comments_are_ignored_but_not_inside_strings():
+    options = parse(
+        "SUB x {  # trailing\n"
+        "    REPLACE {\n"
+        '        # "tgas" -> "T"\n'
+        '        "a#b" -> "c"   # note\n'
+        "    }\n"
+        "}"
+    ).options
+    assert options.replace == [("a#b", "c")]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'SUB x { REPLACE { tgas -> "T" } }',  # unquoted pattern
+        "SUB x { REPLACE { 'a' -> 'b' } }",  # single quotes
+        "SUB x { RADIATION -> True }",  # top-level setting
+        'SUB x { DEDT { REPLACE { "a" -> "b" } } }',  # nested group
+        "SUB x { DEDT { ENABLED } }",  # setting without value
+        "REPEAT idx rhses",  # missing IN
+        "FOO bar",  # unknown command
+        'SUB x { REPLACE { "a -> "b" } }',  # unterminated string
+        "SUB x { SORT { ENABLED -> True }",  # missing closing brace
+        "",  # empty text
+    ],
+)
+def test_syntax_errors_raise_parser_error(text):
+    with pytest.raises(ParserError, match="Invalid directive"):
+        parse(text)
+
+
+def test_error_line_is_offset_into_template():
+    with pytest.raises(ParserError) as err:
+        parse("SUB x {\n    DEDT { ENABLED }\n}", line=10)
+    assert err.value.nline == 11
+
+
+def test_repeated_group_is_an_error():
+    with pytest.raises(ParserError, match="SORT given twice"):
+        parse("SUB x { SORT { ENABLED -> True } SORT { ENABLED -> False } }")
+
+
+def test_repeated_key_is_an_error():
+    with pytest.raises(ParserError, match="sets ENABLED more than once"):
+        parse("SUB x { SORT { ENABLED -> True ENABLED -> False } }")
+
+
+def test_repeated_group_reports_its_own_line():
+    text = "SUB x {\n  SORT { ENABLED -> True }\n  SORT { ENABLED -> False }\n}"
+    with pytest.raises(ParserError, match="SORT given twice") as err:
+        parse(text, line=10)
+    assert err.value.nline == 12
+    assert err.value.line.strip() == "SORT { ENABLED -> False }"
+
+
+def test_repeated_key_reports_its_own_line():
+    text = "SUB x {\n  SORT {\n    ENABLED -> True\n    ENABLED -> False\n  }\n}"
+    with pytest.raises(ParserError, match="more than once") as err:
+        parse(text, line=10)
+    assert err.value.nline == 13
+    assert err.value.line.strip() == "ENABLED -> False"
+
+
+def test_lark_error_message_is_clean():
+    with pytest.raises(ParserError) as err:
+        parse("SUB x {\n    DEDT { ENABLED }\n}", line=10)
+    message = str(err.value)
+    assert "column" in message
+    assert "Token(" not in message
+    assert "at line" not in message
+
+
+def test_unexpected_end_of_header_is_named():
+    with pytest.raises(ParserError, match="end of header"):
+        parse("SUB x {")
+
+
+def test_quoted_setting_value_unescapes_quotes():
+    options = parse(r'SUB x { SIGN { POS -> "v\"w" } }').options
+    assert options.groups == {"SIGN": {"POS": 'v"w'}}
+
+
+def test_directive_and_headers_are_immutable():
+    directive = parse("SUB a, b")
+    with pytest.raises(FrozenInstanceError):
+        directive.options = Options()
+    assert isinstance(directive.header.tokens, tuple)
