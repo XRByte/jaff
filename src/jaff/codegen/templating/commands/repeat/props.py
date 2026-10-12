@@ -6,13 +6,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Dict, Mapping, Optional, Set, Tuple
 
-from ..errors import TemplateError
-from ..resolve import check_groups
-from ..values import parse_bool, parse_choice, parse_int, parse_text
+from ...errors import TemplateError
+from ...resolve import check_groups
+from ...values import parse_bool, parse_choice, parse_int, parse_text
 
 if TYPE_CHECKING:
-    from ..context import RenderContext
-    from ..options import Options
+    from ...context import RenderContext
+    from ...options import Options
 
 
 @dataclass(frozen=True)

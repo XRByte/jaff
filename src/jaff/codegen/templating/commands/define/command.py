@@ -6,11 +6,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, List
 
-from .base import Command
+from ..base import Command
 
 if TYPE_CHECKING:
-    from ..context import RenderContext
-    from ..resolve import Resolved
+    from ...context import RenderContext
+    from ...resolve import Resolved
 
 
 @dataclass(frozen=True)

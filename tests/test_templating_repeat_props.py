@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from jaff.codegen.templating.commands.repeat_props import (
+from jaff.codegen.templating.commands.repeat.props import (
     GROUPS,
     PROPERTIES,
     option_kwargs,

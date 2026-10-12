@@ -4,36 +4,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple
+from typing import TYPE_CHECKING, List, Tuple
 
-from ..placeholders import substitute
-from ..errors import TemplateError
-from .base import Command, check_names, entity_collections, render_each_line
+from ...placeholders import substitute
+from ...errors import TemplateError
+from ..base import Command, check_names, entity_collections, render_each_line
+from .props import PROPERTIES, PROPS
 
 if TYPE_CHECKING:
-    from ..context import RenderContext
-    from ..resolve import Resolved
-
-# Property name -> (entity kind, getter taking the context and the entity)
-_Getter = Callable[["RenderContext", str], Any]
-_PROPERTIES: Dict[str, Tuple[str, _Getter]] = {
-    "element_idx": ("element", lambda c, e: c.net.elements.symbols().index(e)),
-    "specie_idx": ("specie", lambda c, s: c.net.species[s].index),
-    "reaction_idx": ("reaction", lambda c, r: c.net.reactions[r].catalogue_index),
-    "specie_mass": ("specie", lambda c, s: c.net.species[s].mass),
-    "specie_charge": ("specie", lambda c, s: c.net.species[s].charge),
-    "specie_latex": ("specie", lambda c, s: c.net.species[s].latex()),
-    "reaction_tmin": ("reaction", lambda c, r: c.net.reactions[r].tmin),
-    "reaction_tmax": ("reaction", lambda c, r: c.net.reactions[r].tmax),
-    "reaction_verbatim": ("reaction", lambda c, r: c.net.reactions[r].verbatim),
-    "aux_func": (
-        "aux",
-        lambda c, f: c.cg.lang.code_gen(
-            c.net.spec.aux_funcs[f]["def"], strict=False, allow_unknown_functions=True
-        ),
-    ),
-}
-PROPS: Tuple[str, ...] = tuple(_PROPERTIES)
+    from ...context import RenderContext
+    from ...resolve import Resolved
 
 _KIND_NAMES = {
     "element": "an element",
@@ -66,7 +46,7 @@ class Get(Command):
         """Every property must be known and the entity must exist as its kind."""
         check_names(self.keyword, "property", self.props, PROPS)
         for name in self.props:
-            kind = _PROPERTIES[name][0]
+            kind = PROPERTIES[name][0]
             if not _has_entity(ctx, kind, self.entity):
                 raise TemplateError(
                     f"{self.keyword} {name} needs {_KIND_NAMES[kind]}; "
@@ -76,7 +56,7 @@ class Get(Command):
     def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
         """Substitute the listed properties of the entity on every body line."""
         values = {
-            name: (lambda get=_PROPERTIES[name][1]: get(ctx, self.entity))
+            name: (lambda get=PROPERTIES[name][1]: get(ctx, self.entity))
             for name in self.props
         }
 

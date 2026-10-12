@@ -17,11 +17,11 @@ see the [template syntax reference](../user-guide/code-generation/template-synta
 
 | Command  | Table                                                    | Entry                                     |
 | -------- | -------------------------------------------------------- | ----------------------------------------- |
-| `REPEAT` | `PROPERTIES` in `commands/repeat_props.py`               | `name -> RepeatProp(vars, source, groups)` |
-| `REDUCE` | `_PROPERTIES` in `commands/reduce.py`                    | `name -> (variable, getter)`              |
-| `GET`    | `_PROPERTIES` in `commands/get.py`                       | `name -> (entity kind, getter)`           |
-| `SUB`    | `TOKENS` and `_values` in `commands/sub.py`              | token name, and a callable computing it   |
-| `HAS`    | `KINDS` in `commands/has.py`, `entity_collections` in `commands/base.py` | entity kind and its network collection |
+| `REPEAT` | `PROPERTIES` in `commands/repeat/props.py`               | `name -> RepeatProp(vars, source, groups)` |
+| `REDUCE` | `PROPERTIES` in `commands/reduce/props.py`               | `name -> (variable, getter)`              |
+| `GET`    | `PROPERTIES` in `commands/get/props.py`                  | `name -> (entity kind, getter)`           |
+| `SUB`    | `TOKENS` and `token_values` in `commands/sub/props.py`   | token name, and a callable computing it   |
+| `HAS`    | `KINDS` in `commands/has/props.py`, `entity_collections` in `commands/base.py` | entity kind and its network collection |
 
 A getter is a function of the `RenderContext` (`c`): `c.net` is the `Network`,
 `c.cg` the `Codegen` for the template's language. `GET` getters take the entity
@@ -48,7 +48,7 @@ the property accepts. Three constructors cover the usual cases:
 Example: a property giving the length of every species name.
 
 ```python
-# src/jaff/codegen/templating/commands/repeat_props.py
+# src/jaff/codegen/templating/commands/repeat/props.py
 PROPERTIES: Dict[str, RepeatProp] = {
     ...
     "specie_name_lengths": _items(
@@ -110,8 +110,8 @@ An entry maps the property name to the variable templates use and a getter
 returning the list of values to sum:
 
 ```python
-# src/jaff/codegen/templating/commands/reduce.py
-_PROPERTIES: Dict[str, Tuple[str, _Getter]] = {
+# src/jaff/codegen/templating/commands/reduce/props.py
+PROPERTIES: Dict[str, Tuple[str, _Getter]] = {
     ...
     "specie_name_lengths": (
         "name_length",
@@ -120,7 +120,7 @@ _PROPERTIES: Dict[str, Tuple[str, _Getter]] = {
 }
 ```
 
-`PROPS`, the list the command validates against, is derived from `_PROPERTIES`.
+`PROPS`, the list the command validates against, is derived from `PROPERTIES`.
 In a template:
 
 ```cpp
@@ -147,12 +147,12 @@ int total = ((1) + (2) + (2) + (4) + (3));
 
 ## `GET`, `SUB` and `HAS`
 
-- **`GET`**: add `name: (kind, getter)` to `_PROPERTIES` in `commands/get.py`,
+- **`GET`**: add `name: (kind, getter)` to `PROPERTIES` in `commands/get/props.py`,
   where `kind` is `element`, `specie`, `reaction` or `aux` and the getter is
   `lambda c, entity: ...`. Used as `$$JAFF GET name IN H2`.
 - **`SUB`**: add the token to `TOKENS` and a `"token": lambda: value` entry to
-  the dictionary returned by `_values` in `commands/sub.py`.
-- **`HAS`**: add the kind to `KINDS` in `commands/has.py` and to
+  the dictionary returned by `token_values` in `commands/sub/props.py`.
+- **`HAS`**: add the kind to `KINDS` in `commands/has/props.py` and to
   `entity_collections` in `commands/base.py`; the collection must support
   `entity in collection`.
 

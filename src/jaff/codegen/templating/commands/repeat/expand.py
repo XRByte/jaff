@@ -4,9 +4,9 @@
 import re
 from typing import Any, List, Optional, Pattern, Tuple
 
-from ....types import IndexedList
-from ..errors import TemplateError
-from ..placeholders import arithmetic
+from .....types import IndexedList
+from ...errors import TemplateError
+from ...placeholders import arithmetic
 
 # $idx$ or $idx op N$, written like any other placeholder
 _IDX = re.compile(r"\$idx(?:\s*([-+*/])\s*(\d+))?\s*\$")

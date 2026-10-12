@@ -6,14 +6,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Dict, List
 
-from ..placeholders import substitute
-from .base import Command, check_names, entity_collections, render_each_line
+from ...placeholders import substitute
+from ..base import Command, check_names, entity_collections, render_each_line
+from .props import KINDS
 
 if TYPE_CHECKING:
-    from ..context import RenderContext
-    from ..resolve import Resolved
-
-KINDS = ("specie", "reaction", "element")
+    from ...context import RenderContext
+    from ...resolve import Resolved
 
 
 @dataclass(frozen=True)

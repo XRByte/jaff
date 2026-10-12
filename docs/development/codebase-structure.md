@@ -76,19 +76,19 @@ src/jaff/
 │       ├── placeholders.py     # $name$ / $name op N$ substitution and line splitting
 │       ├── values.py           # Parsers for option-group values
 │       ├── errors.py           # TemplateError, turned into a ParserError with line info
-│       └── commands/           # One module per command
+│       └── commands/           # One package per command: command.py + props.py tables
+│           ├── __init__.py     # COMMANDS registry
 │           ├── base.py         # Command base class and entity_collections
-│           ├── repeat.py       # REPEAT: expand body per item
-│           ├── repeat_props.py # REPEAT's PROPERTIES table and option settings
-│           ├── repeat_render.py# Vertical / horizontal line expansion
-│           ├── reduce.py       # REDUCE: $( ... )$ sums
-│           ├── sub.py          # SUB: network-wide tokens
-│           ├── get.py          # GET: properties of a named entity
-│           ├── has.py          # HAS: 1/0 existence checks
-│           ├── define.py       # DEFINE: named option sets for USE
-│           ├── lang.py         # LANG: target language of the file
-│           ├── comment.py      # COMMENT: token used to echo directives
-│           └── end.py          # END: closes a directive body
+│           ├── repeat/         # REPEAT: command.py, props.py (PROPERTIES, option
+│           │                   #   settings), expand.py (vertical/horizontal expansion)
+│           ├── reduce/         # REDUCE: command.py, props.py (PROPERTIES)
+│           ├── sub/            # SUB: command.py, props.py (TOKENS, token_values)
+│           ├── get/            # GET: command.py, props.py (PROPERTIES)
+│           ├── has/            # HAS: command.py, props.py (KINDS)
+│           ├── define/         # DEFINE: named option sets for USE
+│           ├── lang/           # LANG: target language of the file
+│           ├── comment/        # COMMENT: token used to echo directives
+│           └── end/            # END: closes a directive body
 │
 ├── io/                         # Serialization and logging
 │   ├── _io.py                  # .jaff gzip-JSON read/write; data table export

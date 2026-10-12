@@ -4,7 +4,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from .base import Command
+from ..base import Command
 
 
 @dataclass(frozen=True)

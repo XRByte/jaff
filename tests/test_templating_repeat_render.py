@@ -3,7 +3,7 @@
 
 import pytest
 
-from jaff.codegen.templating.commands.repeat_render import (
+from jaff.codegen.templating.commands.repeat.expand import (
     as_flattened,
     expand_horizontal,
     expand_vertical,

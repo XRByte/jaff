@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass
 
-from .base import FileSetting
+from ..base import FileSetting
 
 
 @dataclass(frozen=True)

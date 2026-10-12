@@ -7,15 +7,15 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Set, Tuple
 
-from ..errors import TemplateError
-from ..placeholders import split_line
-from .base import Command, check_names, finish_line
-from .repeat_props import GROUPS, PROPERTIES, RepeatProp, option_kwargs
-from .repeat_render import as_flattened, expand_horizontal, expand_vertical, find_idx
+from ...errors import TemplateError
+from ...placeholders import split_line
+from ..base import Command, check_names, finish_line
+from .props import GROUPS, PROPERTIES, RepeatProp, option_kwargs
+from .expand import as_flattened, expand_horizontal, expand_vertical, find_idx
 
 if TYPE_CHECKING:
-    from ..context import RenderContext
-    from ..resolve import Resolved
+    from ...context import RenderContext
+    from ...resolve import Resolved
 
 
 def _active(line: str, names: Tuple[str, ...]) -> bool:

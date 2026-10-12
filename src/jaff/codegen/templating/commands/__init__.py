@@ -1,5 +1,5 @@
 # ABOUTME: Registry of $$JAFF commands keyed by the grammar's command aliases
-# ABOUTME: The syntax layer builds commands through it; one module per command
+# ABOUTME: The syntax layer builds commands through it; one package per command
 
 from typing import Dict, Type
 
