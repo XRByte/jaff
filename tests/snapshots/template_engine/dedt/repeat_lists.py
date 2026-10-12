@@ -12,7 +12,9 @@ species_1based[3] = "He"
 offset_down[-1] = "H"
 offset_down[0] = "D"
 offset_down[1] = "He"
-upper[$IDX$] = "$specie$"
+upper[0] = "H"
+upper[1] = "D"
+upper[2] = "He"
 line without placeholders stays once
 # $$JAFF END
 

@@ -35,7 +35,8 @@ def as_nested(items: Any) -> IndexedList:
 def expand_vertical(items: Any, indent: str, line: str, token: str, index: int) -> str:
     """One output line per item: ``$idx±N$`` take its indices, *token* its value.
 
-    ``$IDX$`` takes the first index plus the first ``$idx$``'s offset.
+    ``$IDX$`` takes the first index plus the first ``$idx$``'s offset (none
+    without one). A line without ``$idx$`` is repeated without indices.
 
     Args:
         items: Iterable of ``(indices, value)`` pairs, e.g. a flattened IndexedList.
@@ -48,13 +49,13 @@ def expand_vertical(items: Any, indent: str, line: str, token: str, index: int) 
         The expanded lines, each with *indent* and ending in ``\\n``.
 
     Raises:
-        TemplateError: If an item has more or fewer indices than the line has
-            ``$idx`` placeholders.
+        TemplateError: If the line has ``$idx$`` placeholders, but not one per
+            index of the items.
     """
     spans = find_idx(line)
     out = []
     for indices, value in items:
-        if len(indices) != line.count("$idx"):
+        if spans and len(indices) != len(spans):
             raise TemplateError(
                 f"expected {len(indices)} $idx$ placeholders on this line",
                 body_index=index,
@@ -65,8 +66,8 @@ def expand_vertical(items: Any, indent: str, line: str, token: str, index: int) 
             text = text[:begin] + str(position + offset) + text[end:]
 
         text = text.replace(token, str(value))
-        if spans:
-            text = text.replace("$IDX$", str(indices[0] + spans[0][1]))
+        first = indices[0] + (spans[0][1] if spans else 0)
+        text = text.replace("$IDX$", str(first))
 
         out.append(f"{indent}{text}\n")
 

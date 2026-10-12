@@ -7,8 +7,8 @@
 # tests/snapshots/template_engine/<network>/.  The snapshots were first produced by
 # the old engine; the rewrite reproduced them byte for byte.
 #
-# They pin current behaviour, quirks included (SORT is a no-op, $IDX$ needs $idx$
-# on the same line, (/ ... /) is not a horizontal array; see parser_bugs.md).
+# They pin current behaviour, including the remaining quirks listed in
+# parser_bugs.md.
 # After an intentional change refresh them with
 #   JAFF_UPDATE_SNAPSHOTS=1 uv run pytest tests/test_template_engine_snapshots.py
 # and review the diff.

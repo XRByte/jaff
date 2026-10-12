@@ -46,13 +46,28 @@ def test_horizontal_without_idx_builds_an_inline_list(net, tmp_path):
     assert out == 'n = ["H", "e-", "H+", "He++", "He+"]\n'
 
 
-def test_inactive_lines_and_lines_without_idx_are_copied_without_replace(net, tmp_path):
-    text = block(
-        'REPEAT idx, specie IN species { REPLACE { "u" -> "U" } }',
-        "  keep u  ",
-        "u[$IDX$] = $specie$",
-    )
-    assert render(net, tmp_path, text) == "  keep u  \nu[$IDX$] = $specie$\n"
+NAMES = ["H", "e-", "H+", "He++", "He+"]
+
+
+def test_line_naming_a_variable_without_a_placeholder_is_copied_once(net, tmp_path):
+    text = block("REPEAT idx, specie IN species", "# one line per specie", "x")
+    assert render(net, tmp_path, text) == "# one line per specie\nx\n"
+
+
+def test_upper_idx_alone_is_repeated(net, tmp_path):
+    text = block("REPEAT idx, specie IN species", "u[$IDX$] = $specie$")
+    expected = "".join(f"u[{i}] = {name}\n" for i, name in enumerate(NAMES))
+    assert render(net, tmp_path, text) == expected
+
+
+def test_idx_without_the_item_is_repeated(net, tmp_path):
+    text = block("REPEAT idx, specie IN species", "a[$idx$] = 0")
+    assert render(net, tmp_path, text) == "".join(f"a[{i}] = 0\n" for i in range(5))
+
+
+def test_item_without_idx_is_repeated(net, tmp_path):
+    text = block("REPEAT idx, specie IN species", "print($specie$)")
+    assert render(net, tmp_path, text) == "".join(f"print({n})\n" for n in NAMES)
 
 
 def test_horizontal_line_without_a_bracketed_placeholder_is_copied(net, tmp_path):

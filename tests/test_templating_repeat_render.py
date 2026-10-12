@@ -83,12 +83,13 @@ def test_empty_items_expand_to_nothing_or_an_empty_list():
     assert expand_horizontal([], "x", "a = [$x$, ]") == "a = []"
 
 
-def test_upper_idx_is_left_alone_when_no_idx_token_matches():
-    # "$idx*2$" counts as one $idx but is not a valid token, so there is no offset
-    items = [([0], "a")]
-    assert expand_vertical(items, "", "$idx*2$ $IDX$ $x$", "$x$", 0) == (
-        "$idx*2$ $IDX$ a\n"
-    )
+def test_upper_idx_without_idx_tokens_is_the_first_index():
+    items = [([3], "a")]
+    assert expand_vertical(items, "", "$IDX$ $x$", "$x$", 0) == "3 a\n"
+
+
+def test_line_without_idx_skips_the_dimension_check():
+    assert vertical([[1, 2]], "v = $x$") == "v = 1\nv = 2\n"
 
 
 def test_multi_digit_offsets():

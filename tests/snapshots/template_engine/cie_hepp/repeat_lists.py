@@ -18,7 +18,11 @@ offset_down[0] = "e-"
 offset_down[1] = "H+"
 offset_down[2] = "He++"
 offset_down[3] = "He+"
-upper[$IDX$] = "$specie$"
+upper[0] = "H"
+upper[1] = "e-"
+upper[2] = "H+"
+upper[3] = "He++"
+upper[4] = "He+"
 line without placeholders stays once
 # $$JAFF END
 

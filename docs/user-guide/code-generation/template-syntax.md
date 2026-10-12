@@ -160,9 +160,11 @@ per item (**vertical**); without it, the body's bracketed list is filled inline
 
 ### Vertical mode
 
-One output line per item. `$idx$` is the zero-based index; `$idx+N$` / `$idx-N$`
-offset it. The number of `$idx$` tokens on a line must match the collection's
-dimensionality (1 for lists, 2 for matrices).
+Every body line holding a placeholder of the REPEAT (`$idx…$`, `$IDX$`, the item
+variable or `$cse$`) is written once per item; other lines are copied once.
+`$idx$` is the zero-based index; `$idx+N$` / `$idx-N$` offset it. If a line has
+`$idx$` tokens, their number must match the collection's dimensionality (1 for
+lists, 2 for matrices).
 
 ```cpp
 $$JAFF REPEAT idx, specie IN species
@@ -662,9 +664,8 @@ Body lines are substituted as follows:
   `/` is true division, so `$nspec/2$` with five species gives `2.5`.
 - In `REPEAT`, `$idx$` is the item index and `$idx+N$` / `$idx-N$` shift it
   (only `+` and `-`, no spaces). **Every** `$idx…$` token on a line counts
-  towards the dimensionality check. `$IDX$` is a shortcut for the first index
-  (plus the offset of the line's first `$idx±N$`) and only works on a line that
-  also has an `$idx$` token.
+  towards the dimensionality check. `$IDX$` is the first index, plus the offset
+  of the line's first `$idx±N$` if it has one.
 - A `cse` variable's line `cse$idx$ = $cse$` must be the first line that
   expands (see [CSE](#cse-common-subexpression-elimination)).
 - In `REDUCE`, `$( … )$` marks the part repeated per item.

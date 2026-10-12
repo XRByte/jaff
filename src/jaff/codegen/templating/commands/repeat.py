@@ -20,12 +20,14 @@ if TYPE_CHECKING:
 
 
 def _active(line: str, prop: RepeatProp) -> bool:
-    """Whether a stripped body line mentions one of the property's variables.
+    """Whether a body line holds a placeholder of this REPEAT.
 
-    Like the old engine this is a plain substring test, so ``rate`` in a comment
-    counts; lines that fail it are copied unchanged.
+    Placeholders are ``$item$``, special variables such as ``$cse$``, ``$idx$``
+    with or without an offset, and ``$IDX$``. Other lines are copied unchanged.
     """
-    return any(var in line for var in prop.vars[1:])
+    names = "|".join(re.escape(var) for var in prop.vars[1:])
+    placeholder = re.search(rf"\$(?:{names})\$", line)
+    return bool(placeholder or find_idx(line) or "$IDX$" in line)
 
 
 @dataclass(frozen=True)
@@ -91,8 +93,6 @@ class Repeat(Command):
 
             return indent + apply_replacements(expanded, replacements) + "\n"
 
-        if "$idx" not in line:
-            return None
         for var in prop.special:
             if f"${var}$" in line:
                 text = expand_vertical(extras[var], indent, line, f"${var}$", index)
