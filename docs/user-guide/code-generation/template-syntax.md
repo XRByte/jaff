@@ -162,7 +162,8 @@ per item (**vertical**); without it, the body's bracketed list is filled inline
 
 Every body line holding a placeholder of the REPEAT (`$idx…$`, `$IDX$`, the item
 variable or `$cse$`) is written once per item; other lines are copied once.
-`$idx$` is the zero-based index; `$idx+N$` / `$idx-N$` offset it. If a line has
+`$idx$` is the zero-based index; `$idx+N$`, `$idx-N$`, `$idx*N$`, `$idx/N$`
+transform it. If a line has
 `$idx$` tokens, their number must match the collection's dimensionality (1 for
 lists, 2 for matrices).
 
@@ -661,10 +662,10 @@ Body lines are substituted as follows:
   integer literal `N` to an integer value (`$nspec+1$`, `$specie_idx*2$`).
   Spaces around the operator are allowed. This works in `SUB`, `GET` and `HAS`;
   `/` is integer (floor) division, so `$nspec/2$` with five species gives `2`.
-- In `REPEAT`, `$idx$` is the item index and `$idx+N$` / `$idx-N$` shift it
-  (only `+` and `-`, no spaces). **Every** `$idx…$` token on a line counts
-  towards the dimensionality check. `$IDX$` is the first index, plus the offset
-  of the line's first `$idx±N$` if it has one.
+- In `REPEAT`, `$idx$` is the item index and takes the same arithmetic
+  (`$idx+1$`, `$idx * 2$`, …). **Every** `$idx…$` token on a line counts
+  towards the dimensionality check. `$IDX$` is the first index, through the
+  arithmetic of the line's first `$idx…$` token if it has one.
 - A `cse` variable's line `cse$idx$ = $cse$` must be the first line that
   expands (see [CSE](#cse-common-subexpression-elimination)).
 - In `REDUCE`, `$( … )$` marks the part repeated per item.

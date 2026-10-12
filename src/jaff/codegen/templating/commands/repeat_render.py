@@ -6,14 +6,17 @@ from typing import Any, List, Optional, Pattern, Tuple
 
 from ....types import IndexedList
 from ..errors import TemplateError
+from ..placeholders import arithmetic
 
-# $idx$, $idx+N$ or $idx-N$
-_IDX = re.compile(r"\$idx([+-]\d+)?\$")
+# $idx$ or $idx op N$, written like any other placeholder
+_IDX = re.compile(r"\$idx(?:\s*([-+*/])\s*(\d+))?\s*\$")
+
+IdxToken = Tuple[Tuple[int, int], Optional[str], int]
 
 
-def find_idx(line: str) -> List[Tuple[Tuple[int, int], int]]:
-    """Span and offset of every ``$idx$``, ``$idx+N$`` or ``$idx-N$`` in *line*."""
-    return [(m.span(), int(m.group(1) or 0)) for m in _IDX.finditer(line)]
+def find_idx(line: str) -> List[IdxToken]:
+    """Span, operator and operand of every ``$idx$`` / ``$idx op N$`` in *line*."""
+    return [(m.span(), m.group(1), int(m.group(2) or 0)) for m in _IDX.finditer(line)]
 
 
 def as_flattened(items: Any) -> IndexedList:
@@ -35,8 +38,8 @@ def as_nested(items: Any) -> IndexedList:
 def expand_vertical(items: Any, line: str, token: str, index: int) -> List[str]:
     """One output line per item: ``$idx±N$`` take its indices, *token* its value.
 
-    ``$IDX$`` takes the first index plus the first ``$idx$``'s offset (none
-    without one). A line without ``$idx$`` is repeated without indices.
+    ``$IDX$`` takes the first index, through the first ``$idx$``'s arithmetic if
+    the line has one. A line without ``$idx$`` is repeated without indices.
 
     Args:
         items: Iterable of ``(indices, value)`` pairs, e.g. a flattened IndexedList.
@@ -61,11 +64,11 @@ def expand_vertical(items: Any, line: str, token: str, index: int) -> List[str]:
             )
 
         text = line
-        for ((begin, end), offset), position in reversed(list(zip(spans, indices))):
-            text = text[:begin] + str(position + offset) + text[end:]
+        for ((begin, end), op, operand), position in reversed(list(zip(spans, indices))):
+            text = text[:begin] + str(arithmetic(position, op, operand)) + text[end:]
 
         text = text.replace(token, str(value))
-        first = indices[0] + (spans[0][1] if spans else 0)
+        first = arithmetic(indices[0], *spans[0][1:]) if spans else indices[0]
         text = text.replace("$IDX$", str(first))
 
         out.append(text)

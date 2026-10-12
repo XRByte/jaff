@@ -22,7 +22,7 @@ def _active(line: str, prop: RepeatProp) -> bool:
     """Whether a body line holds a placeholder of this REPEAT.
 
     Placeholders are ``$item$``, special variables such as ``$cse$``, ``$idx$``
-    with or without an offset, and ``$IDX$``. Other lines are copied unchanged.
+    with or without arithmetic, and ``$IDX$``. Other lines are copied unchanged.
     """
     names = "|".join(re.escape(var) for var in prop.vars[1:])
     placeholder = re.search(rf"\$(?:{names})\$", line)
@@ -123,8 +123,8 @@ class Repeat(Command):
         spans = find_idx(line)
         if not spans:
             raise error("No valid idx variable detected")
-        (begin, end), offset = spans[0]
-        if offset:
+        (begin, end), op, _ = spans[0]
+        if op:
             raise error(
                 "CSE temporaries cannot use an offset index; use $idx$ in the $cse$ name"
             )

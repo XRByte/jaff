@@ -71,12 +71,20 @@ def test_horizontal_without_a_bracketed_placeholder_gives_none():
     assert expand_horizontal(["a"], "x", "n = $x$") is None
 
 
-def test_find_idx_gives_spans_and_offsets():
-    assert find_idx("a$idx$b$idx+2$$idx-1$") == [
-        ((1, 6), 0),
-        ((7, 14), 2),
-        ((14, 21), -1),
+def test_find_idx_gives_spans_and_arithmetic():
+    assert find_idx("a$idx$b$idx+2$$idx - 1$") == [
+        ((1, 6), None, 0),
+        ((7, 14), "+", 2),
+        ((14, 23), "-", 1),
     ]
+
+
+@pytest.mark.parametrize(
+    "line, expected",
+    [("$idx*2$", "4"), ("$idx / 2$", "1"), ("$idx + 1$", "3"), ("$IDX$ $idx*3$", "6 6")],
+)
+def test_idx_takes_the_same_arithmetic_as_other_placeholders(line, expected):
+    assert expand_vertical([([2], "a")], line, "$x$", 0) == [expected]
 
 
 def test_empty_items_expand_to_nothing_or_an_empty_list():

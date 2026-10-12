@@ -3,7 +3,7 @@
 
 import operator
 import re
-from typing import Any, Callable, Dict, Mapping, Tuple
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 
 _OPS: Dict[str, Callable[[Any, Any], Any]] = {
     "+": operator.add,
@@ -22,6 +22,17 @@ def split_line(line: str) -> Tuple[str, str]:
     text = line.rstrip("\r\n")
     content = text.lstrip(" \t")
     return text[: len(text) - len(content)], content
+
+
+def arithmetic(value: Any, op: Optional[str], operand: int) -> Any:
+    """``value op operand`` when *op* is given and *value* is an integer.
+
+    ``op`` is one of ``+ - * /`` (``/`` is floor division); anything else comes
+    back unchanged.
+    """
+    if op and isinstance(value, int):
+        return _OPS[op](value, operand)
+    return value
 
 
 def substitute(text: str, values: Mapping[str, Callable[[], Any]]) -> str:
@@ -46,10 +57,6 @@ def substitute(text: str, values: Mapping[str, Callable[[], Any]]) -> str:
 
     def replace(match: re.Match[str]) -> str:
         value = values[match.group(1)]()
-        op = match.group(2)
-        if op and isinstance(value, int):
-            return str(_OPS[op](value, int(match.group(3))))
-
-        return str(value)
+        return str(arithmetic(value, match.group(2), int(match.group(3) or 0)))
 
     return pattern.sub(replace, text)
