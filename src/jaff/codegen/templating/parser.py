@@ -24,7 +24,9 @@ class TemplateParser:
 
     The target language is the template's ``$$JAFF LANG`` or, without one, the
     language that claims the file extension. Echoed directives use the
-    template's ``$$JAFF COMMENT`` token, else the language's comment.
+    template's ``$$JAFF COMMENT`` token, else the language's comment. A file
+    without directives and without a known language (a Makefile, a TOML file)
+    is copied unchanged.
 
     Examples:
         >>> net = Network("networks/react_COthin")
@@ -53,6 +55,10 @@ class TemplateParser:
         """
         text = self.file.read_text(encoding="utf-8")
         blocks = split_blocks(text, self.file)
+        has_directives = any(isinstance(block, CommandBlock) for block in blocks)
+        if not has_directives and Language.from_extension(self.file.suffix) is None:
+            return text
+
         lang, comment = self._settings(blocks, text)
         cg = Codegen(network=self.net, lang=lang)
         ctx = RenderContext(self.net, cg, self.file, self.echo_directives, comment)

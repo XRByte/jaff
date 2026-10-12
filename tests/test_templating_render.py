@@ -124,16 +124,21 @@ def test_get_and_has_render_through_the_facade(net, tmp_path):
     assert render(net, tmp_path, text) == "i = 2\nh = 0\n"
 
 
+SUB_BLOCK = "$$JAFF SUB nspec\nn = $nspec$\n$$JAFF END\n"
+
+
 def test_unknown_extension_needs_a_lang_directive(net, tmp_path):
     with pytest.raises(ParserError, match="add \\$\\$JAFF LANG") as err:
-        render(net, tmp_path, "x\n", name="t.xyz")
+        render(net, tmp_path, "x\n" + SUB_BLOCK, name="t.xyz")
+
     assert err.value.nline == 1
-    assert render(net, tmp_path, "$$JAFF LANG python\nx\n", name="t.xyz") == "x\n"
+    text = "$$JAFF LANG python\n" + SUB_BLOCK
+    assert render(net, tmp_path, text, name="t.xyz") == "n = 5\n"
 
 
 def test_file_without_extension_needs_a_lang_directive(net, tmp_path):
     with pytest.raises(ParserError, match="No language for template"):
-        render(net, tmp_path, "x\n", name="template")
+        render(net, tmp_path, SUB_BLOCK, name="template")
 
 
 def test_lang_overrides_the_extension(net, tmp_path):
@@ -243,3 +248,9 @@ def test_fortran_wrapping_leaves_echoed_comment_lines_alone(net, tmp_path):
     text = f'$$JAFF LANG fortran\n$$JAFF COMMENT "#"\n{header}\nn = $nspec$\n$$JAFF END\n'
     out = render(net, tmp_path, text, name="Config", echo=True)
     assert f"# {header}\n" in out
+
+
+@pytest.mark.parametrize("name", ["Makefile", "CMakeLists.txt", "jaffgen.toml"])
+def test_file_without_directives_or_language_is_copied(net, tmp_path, name):
+    text = "all:\n\t$(CC) -o $nspec$ main.c\n"
+    assert render(net, tmp_path, text, name=name, echo=True) == text
