@@ -26,6 +26,7 @@ def test_single_line_directive_with_body():
     blocks = split("before\n$$JAFF SUB nspec\nn = $nspec$;\n$$JAFF END\nafter\n")
     assert [type(b) for b in blocks] == [TextBlock, CommandBlock, TextBlock]
     block = blocks[1]
+
     assert block.command == Sub(("nspec",))
     assert block.header_lines == ["$$JAFF SUB nspec\n"]
     assert block.body_lines == ["n = $nspec$;\n"]

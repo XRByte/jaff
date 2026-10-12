@@ -5,10 +5,10 @@ import math
 
 def aux_functions():
     out = {}
-    # $JAFF GET aux_func FOR deltae0
+    $$JAFF GET aux_func IN deltae0
     out["deltae0"] = $aux_func$
-    # $JAFF END
-    # $JAFF GET aux_func FOR deltae1
+    $$JAFF END
+    $$JAFF GET aux_func IN deltae1
     out["deltae1"] = $aux_func$
-    # $JAFF END
+    $$JAFF END
     return out

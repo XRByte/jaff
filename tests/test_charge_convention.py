@@ -6,13 +6,13 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "template,lang,outfile",
+    "template,outfile",
     [
-        ("fortran_dlsodes", "fortran", "commons.f90"),
-        ("kokkos_ode", "cxx", "chemistry_ode.hpp"),
+        ("fortran_dlsodes", "commons.f90"),
+        ("kokkos_ode", "chemistry_ode.hpp"),
     ],
 )
-def test_template_uses_jk_identifiers(tmp_path, template, lang, outfile):
+def test_template_uses_jk_identifiers(tmp_path, template, outfile):
     """Regression guard: species-index templates emit j/k identifiers, not p/n.
 
     Self-contained — writes its own minimal network with a doubly-charged
@@ -43,7 +43,6 @@ def test_template_uses_jk_identifiers(tmp_path, template, lang, outfile):
         indir=None,
         files=None,
         template=template,
-        lang=lang,
     )
     JaffGen(args)
     text = (outdir / outfile).read_text()

@@ -340,7 +340,6 @@ def _jaffgen(tmp_path, toml):
             indir=None,
             files=None,
             template="microphysics",
-            lang="cxx",
         )
     )
 

@@ -51,13 +51,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // $JAFF SUB nspec
+  $$JAFF SUB nspec
   std::cout << "Solving Chemistry ODE System (header-only integrators)\n";
   std::cout << "Number of species: " << mySys.neqs << "\n";
   std::cout << "Number of reactions: " << std::cout
             << "Number of reactions: " << $nspec$ << "\n";
   std::cout << "Time interval: [" << t_start << ", " << t_end << "] seconds\n";
-  // $JAFF END
+  $$JAFF END
 
   // Initial conditions
   ChemistryODE::state_type y0{};
@@ -142,18 +142,18 @@ int main(int argc, char *argv[]) {
   //   elem_matrix[n_elements][ChemistryODE::neqs] (int counts per species)
   // If not provided, we skip this report gracefully.
 #define JAFF_HAS_CONSERVERATION_METADATA 1
-  // $JAFF SUB nelem
+  $$JAFF SUB nelem
   constexpr int n_elements = $nelem$;
-  // $JAFF END
-  // $JAFF REPEAT element IN elements
+  $$JAFF END
+  $$JAFF REPEAT element IN elements
   constexpr char* element_names[n_elements] = {"$element$", };
-  // $JAFF END
-  // $JAFF REPEAT specie_charge IN specie_charges
+  $$JAFF END
+  $$JAFF REPEAT specie_charge IN specie_charges
   constexpr int species_charge[ChemistryODE::neqs] = {$specie_charge$, };
-  // $JAFF END
-  // $JAFF REPEAT element IN element_density_matrix
+  $$JAFF END
+  $$JAFF REPEAT element IN element_density_matrix
   constexpr int elem_matrix[n_elements][ChemistryODE::neqs] = {$element$, };
-  // $JAFF END
+  $$JAFF END
 
 #ifndef JAFF_HAS_CONSERVATION_METADATA
   constexpr bool JAFF_HAS_CONSERVATION_METADATA = false;

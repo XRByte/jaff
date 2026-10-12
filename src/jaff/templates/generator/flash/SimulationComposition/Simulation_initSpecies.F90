@@ -39,14 +39,16 @@ subroutine Simulation_initSpecies()
   call PhysicalConstants_get("proton mass", mp)
 
   ! Species names, network (jaffgen) order.
-  ! $JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign $[POS j NEG k]$
+  $$JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign {
+      SIGN { POS -> j  NEG -> k }
+  }
   names($idx+1$) = "$specie_with_normalized_sign$"
-  ! $JAFF END
+  $$JAFF END
 
   ! Species masses in grams, same order.
-  ! $JAFF REPEAT idx, specie_mass IN specie_masses
+  $$JAFF REPEAT idx, specie_mass IN specie_masses
   masses($idx+1$) = $specie_mass$
-  ! $JAFF END
+  $$JAFF END
 
   do n = 1, NSPECIES
     call Simulation_mapStrToInt(trim(names(n)), isotope, MAPBLOCK_UNK)

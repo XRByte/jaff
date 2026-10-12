@@ -26,7 +26,6 @@ def _bare_jaffgen(network_config=None, duplicate_policy=None, funcfile=None):
         errors=None,
         network_config=network_config,
         duplicate_policy=duplicate_policy,
-        lang=None,
     )
     return jg
 
@@ -229,7 +228,7 @@ class TestFuncfileWiring:
     # chemRate0 overrides reaction 0's rate of 1 with 9 when aux loading is on.
     NETWORK = "H + H -> H2 [10,1000] 1\nH2 -> H + H [10,1000] 1\n"
     JFUNC = "@function chemRate0(tgas)\n    @return 9\n"
-    TEMPLATE = "# $JAFF REPEAT idx, rate IN rates\nk[$idx$] = $rate$\n# $JAFF END\n"
+    TEMPLATE = "$$JAFF REPEAT idx, rate IN rates\nk[$idx$] = $rate$\n$$JAFF END\n"
 
     def _bare(self, cli_value=None, toml_value=None):
         jg = _bare_jaffgen(funcfile=cli_value)
@@ -276,8 +275,8 @@ class TestFuncfileWiring:
         aux.write_text(self.JFUNC)
         cfg = tmp_path / "jaffgen.toml"
         cfg.write_text(f'[network]\nfuncfile = "{aux.as_posix()}"\n')
-        # The config is rendered alongside the templates; .toml needs --lang.
-        with_cfg = ("--config", str(cfg), "--lang", "python")
+        # The config is rendered alongside the templates and copied unchanged.
+        with_cfg = ("--config", str(cfg))
         assert "k[0] = 9" in self._generate(tmp_path, *with_cfg)
         assert "k[0] = 1" in self._generate(tmp_path, *with_cfg, "--funcfile", "false")
 
@@ -311,7 +310,7 @@ class TestConfigRelativeNetworkPaths:
         cfg = cfg_dir / "jaffgen.toml"
         cfg.write_text(
             '[jaffgen]\nnetwork_file = "net.dat"\ninput_files = ["rates.py"]\n'
-            f'lang = "python"\n[network]\n{network_block}'
+            f"[network]\n{network_block}"
         )
         return cfg
 

@@ -10,22 +10,22 @@
 
 struct ChemistryODE {
   // Number of species in the chemical network
-  // $JAFF SUB nspec
+  $$JAFF SUB nspec
   static constexpr int neqs = $nspec$;
-  // $JAFF END
+  $$JAFF END
 
   using state_type = std::array<integrators::Real, neqs>;
   using rhs_type = std::array<integrators::Real, neqs>;
   using jacobian_type = std::array<std::array<integrators::Real, neqs>, neqs>;
 
   // Species indices and common constants
-  // $JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign
+  $$JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign
   static constexpr int idx_$specie_with_normalized_sign$ = $idx$;
-  // $JAFF END
-  // $JAFF SUB nspec,nreact
+  $$JAFF END
+  $$JAFF SUB nspec,nreact
   static constexpr int nspecs = $nspec$;
   static constexpr int nreactions = $nreact$;
-  // $JAFF END
+  $$JAFF END
 
   // Common chemistry variables used in rate expressions
   // These should typically be passed as parameters or computed from the state
@@ -48,19 +48,19 @@ struct ChemistryODE {
     const auto &nden = y;
 
     // Compute reaction rates
-    // $JAFF SUB nreact
+    $$JAFF SUB nreact
     double k[$nreact$];
-    // $JAFF END
+    $$JAFF END
 
-    // $JAFF REPEAT idx, rate IN rates
+    $$JAFF REPEAT idx, rate IN rates
     k[$idx$] = $rate$;
-    // $JAFF END
+    $$JAFF END
 
     // Compute derivatives for each species
-    // $JAFF REPEAT idx, ode, cse IN odes
+    $$JAFF REPEAT idx, ode, cse IN odes
     const double cse$idx$ = $cse$;
     f[$idx$] = $ode$;
-    // $JAFF END
+    $$JAFF END
   }
 
   // Evaluate the Jacobian matrix: J_ij = df_i/dy_j
@@ -84,19 +84,19 @@ struct ChemistryODE {
     }
 
     // Compute reaction rates (needed for Jacobian evaluation)
-    // $JAFF SUB nreact
+    $$JAFF SUB nreact
     double k[$nreact$];
-    // $JAFF END
+    $$JAFF END
 
-    // $JAFF REPEAT idx, rate IN rates
+    $$JAFF REPEAT idx, rate IN rates
     k[$idx$] = $rate$;
-    // $JAFF END
+    $$JAFF END
 
     // Compute analytical Jacobian
-    // $JAFF REPEAT idx, expr, cse IN jacobian
+    $$JAFF REPEAT idx, expr, cse IN jacobian
     const double cse$idx$ = $cse$;
     J[$idx$][$idx$] = $expr$;
-    // $JAFF END
+    $$JAFF END
   }
 };
 

@@ -27,11 +27,10 @@ Usage
 ::
 
     jaffgen --network networks/GOW/GOW.jet [--outdir <dir>] [--indir <dir>]
-            [--files <a,b,c>] [--template <name>] [--lang <lang>]
+            [--files <a,b,c>] [--template <name>]
 """
 
 import logging
-from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Optional
@@ -83,7 +82,7 @@ class JaffGen:
         Parsed command-line arguments, one attribute per CLI option
         (``network``, ``config``, ``label``, ``funcfile``, ``expand_nuclei``,
         ``errors``, ``network_config``, ``outdir``, ``indir``, ``files``,
-        ``template``, ``lang``).
+        ``template``).
 
     Attributes
     ----------
@@ -215,7 +214,7 @@ class JaffGen:
         Populate :attr:`state` from the parsed ``jaffgen.toml``.
 
         Reads the ``[jaffgen]`` section (template, input/output paths, network
-        file, lang) and the ``[network]`` section (label, errors, funcfile,
+        file) and the ``[network]`` section (label, errors, funcfile,
         expand_nuclei, and the ``[network.radiation]`` block).  Paths are resolved
         relative to the config file's directory.  These values are later
         overridden by any explicit CLI argument.
@@ -238,7 +237,6 @@ class JaffGen:
             ss.output_dir = self.resolve_path(d, cdir)
         if (f := jgp.get("network_file")) is not None:
             ss.network_file = self.resolve_path(f, cdir)
-        ss.lang = jgp.get("lang") or ss.lang
 
         np = self.get_prop("network") or {}
         sn = ss.network_args
@@ -496,7 +494,7 @@ class JaffGen:
         Apply scalar CLI network options over any config values.
 
         Handles ``--label``, ``--funcfile``, ``--expand-nuclei``, ``--errors``,
-        ``--network-config``, and ``--lang``.  Each is applied only when the
+        and ``--network-config``.  Each is applied only when the
         corresponding CLI flag was supplied (i.e. not ``None``).
 
         Raises
@@ -508,7 +506,6 @@ class JaffGen:
         sn = self.state.network_args
 
         sn.label = a.label or sn.label
-        self.state.lang = a.lang or self.state.lang
 
         if a.funcfile is not None:
             sn.funcfile = a.funcfile
@@ -742,7 +739,9 @@ class JaffGen:
 
         Runs :class:`~jaff.codegen.TemplateParser` on each file and writes the
         result to ``output_dir / <relative_path>``, recreating any source
-        sub-directories under the output directory.
+        sub-directories under the output directory.  Each template names its
+        language with ``$$JAFF LANG`` or through its extension; files without
+        directives are copied unchanged.
 
         Returns
         -------
@@ -751,7 +750,7 @@ class JaffGen:
         for file in jaff_progress.track(
             self.state.output_files, description="Processing files"
         ):
-            fparser = TemplateParser(self.net, file.abspath, self.state.lang)
+            fparser = TemplateParser(self.net, file.abspath)
             lines: str = fparser.parse_file()
 
             outfile: Path = self.state.output_dir.abspath / file.relpath
@@ -766,17 +765,6 @@ class JaffGen:
         self.logger.info(
             f"Generated files can be found at {self.state.output_dir.abspath}"
         )
-
-
-class Lang(str, Enum):
-    """Supported ``--lang`` values for default code generation."""
-
-    c = "c"
-    cxx = "cxx"
-    fortran = "fortran"
-    python = "python"
-    rust = "rust"
-    julia = "julia"
 
 
 app = typer.Typer(
@@ -859,12 +847,6 @@ def generate(
         metavar="NAME",
         help="Name of predefined template collection in jaff/templates/generator/",
     ),
-    lang: Optional[Lang] = typer.Option(
-        None,
-        "--lang",
-        metavar="LANGUAGE",
-        help="Default programming language for unsupported files",
-    ),
 ):
     """
     Generate code for chemical reaction networks in multiple programming
@@ -878,14 +860,15 @@ def generate(
       # Use a predefined template collection
       jaffgen --network GOW --template microphysics --outdir output/
 
-      # Process specific files (comma-separated) with Rust
-      jaffgen --network networks/test.dat --files rates.txt,odes.txt --lang rust --outdir output/
+      # Process specific files (comma-separated)
+      jaffgen --network networks/test.dat --files rates.rs,odes.rs --outdir output/
 
       # Combine template and custom files
       jaffgen --network networks/test.dat --template base --files custom.cpp --outdir output/
 
-    Supported Languages: c, cxx (c++, cpp), fortran (f90), python (py),
-    rust (rs), julia (jl), r
+    Each template's language comes from its `$$JAFF LANG` line or its file
+    extension. Supported languages: c, cxx (c++, cpp), fortran (f90),
+    python (py), rust (rs), julia (jl), r
     """
     # --files is a single comma-separated token (typer/click options cannot be
     # variadic); split it into a list of file paths.
@@ -907,7 +890,6 @@ def generate(
         indir=indir,
         files=file_list,
         template=template,
-        lang=lang.value if lang is not None else None,
     )
     JaffGen(args)
 

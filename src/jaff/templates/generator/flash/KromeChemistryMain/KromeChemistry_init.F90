@@ -44,9 +44,11 @@ subroutine KromeChemistry_init()
    common_av    = krome_av
 
    ! Species names in network (jaffgen) order. Index n here == idx_* == n.
-   ! $JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign $[POS j NEG k]$
+   $$JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign {
+       SIGN { POS -> j  NEG -> k }
+   }
    network_species_names($idx+1$) = "$specie_with_normalized_sign$"
-   ! $JAFF END
+   $$JAFF END
 
    do n = 1, NSPECIES
      call Simulation_mapStrToInt(trim(network_species_names(n)), specieMap(n), MAPBLOCK_UNK)

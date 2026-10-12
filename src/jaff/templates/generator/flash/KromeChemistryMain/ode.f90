@@ -30,16 +30,16 @@ module ode
 
         flux = get_fluxes(y, tgas, crate, av)
 
-        ! $JAFF REPEAT idx, ode_expression IN ode_expressions
+        $$JAFF REPEAT idx, ode_expression IN ode_expressions
         dn($idx+1$) = $ode_expression$
-        ! $JAFF END
+        $$JAFF END
 
         ! Gas-temperature time-derivative dT/dt, generated from the network's
         ! EOS (heating/cooling plus the composition term from reactions that
         ! change the particle number). Densities appear as nden(i) (zero-based).
-        ! $JAFF SUB dtdt
+        $$JAFF SUB dtdt
         dn(idx_tgas) = $dtdt$
-        ! $JAFF END
+        $$JAFF END
 
     end subroutine fex
 

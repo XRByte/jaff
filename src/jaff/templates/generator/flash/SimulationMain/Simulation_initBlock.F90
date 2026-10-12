@@ -31,9 +31,11 @@ subroutine Simulation_initBlock(blockID)
            ! Initial mass fractions, one line per species, resolved by name
            ! (FLASH orders SPECIES alphabetically, not in network order).
            ! Fix the values by hand.
-           ! $JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign $[POS j NEG k]$
+           $$JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign {
+               SIGN { POS -> j  NEG -> k }
+           }
            solnData(spidx("$specie_with_normalized_sign$"),i,j,k) = 0.0   ! $idx$
-           ! $JAFF END
+           $$JAFF END
 
         enddo
      enddo

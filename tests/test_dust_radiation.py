@@ -49,7 +49,6 @@ def _args(config, outdir):
         indir=None,
         files=None,
         template="microphysics",
-        lang="cxx",
     )
 
 

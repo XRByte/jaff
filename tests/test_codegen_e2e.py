@@ -9,11 +9,11 @@ import pytest
 from jaff.cli import JaffGen
 
 
-def _jaffgen(network_path, template, outdir, lang="cxx"):
+def _jaffgen(network_path, template, outdir):
     """Drive the ``jaffgen`` engine in-process (same path as the CLI).
 
     All CLI options default to ``None`` except the ones supplied here, matching
-    ``jaffgen --network <net> --template <name> --outdir <dir> --lang <lang>``.
+    ``jaffgen --network <net> --template <name> --outdir <dir>``.
     """
     args = SimpleNamespace(
         network=str(network_path),
@@ -28,7 +28,6 @@ def _jaffgen(network_path, template, outdir, lang="cxx"):
         indir=None,
         files=None,
         template=template,
-        lang=lang,
     )
     JaffGen(args)
 
@@ -36,13 +35,8 @@ def _jaffgen(network_path, template, outdir, lang="cxx"):
 REPO = Path(__file__).resolve().parent.parent
 FIXTURE_CONFIG = Path(__file__).parent / "fixtures" / "jaffgen.toml"
 GOW = REPO / "networks" / "GOW" / "GOW.jet"
-# Default language per template (needed for extensionless files like _parameters).
-ALL_TEMPLATES = {
-    "python_solve_ivp": "python",
-    "microphysics": "cxx",
-    "fortran_dlsodes": "fortran",
-    "kokkos_ode": "cxx",
-}
+# Built-in template collections; each file names its language ($$JAFF LANG or extension).
+ALL_TEMPLATES = ["python_solve_ivp", "microphysics", "fortran_dlsodes", "kokkos_ode"]
 
 
 # --------------------------------------------------------------------------- #
@@ -50,10 +44,10 @@ ALL_TEMPLATES = {
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("template", list(ALL_TEMPLATES))
+@pytest.mark.parametrize("template", ALL_TEMPLATES)
 def test_gow_generates_for_all_templates(template, tmp_path):
     """The GOW network builds without error and emits non-empty files."""
-    _jaffgen(GOW, template=template, outdir=tmp_path, lang=ALL_TEMPLATES[template])
+    _jaffgen(GOW, template=template, outdir=tmp_path)
     files = [p for p in tmp_path.iterdir() if p.is_file()]
     assert files, f"template {template} produced no files"
     assert all(p.stat().st_size > 0 for p in files), f"empty output file for {template}"

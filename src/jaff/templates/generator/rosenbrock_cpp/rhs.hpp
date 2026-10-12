@@ -10,10 +10,12 @@
 
 template <typename StateT>
 inline void rhs(const StateT &state, std::vector<double> &ydot) {
-  // $JAFF REPEAT idx, rhs, cse IN rhses $[REPLACE nden\[\s*(\d+)\s*\] state.rho[\1] REPLACE tgas state.get_T()]$
+  $$JAFF REPEAT idx, rhs, cse IN rhses {
+      REPLACE { "nden\[\s*(\d+)\s*\]" -> "state.rho[\1]"  "tgas" -> "state.get_T()" }
+  }
   const double cse$idx$ = $cse$;
   ydot[$idx$] = $rhs$;
-  // $JAFF END
+  $$JAFF END
 }
 
 inline void rhs_init() {}

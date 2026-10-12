@@ -52,14 +52,18 @@ dtmax  = 1.0e12
 
 basenm     = "jaff_"
 
-# $JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign $[POS j NEG k]$
+$$JAFF LANG fortran
+$$JAFF COMMENT "#"
+$$JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign {
+    SIGN { POS -> j  NEG -> k }
+}
 plot_var_$idx+1$ = "$specie_with_normalized_sign$"
-# $JAFF END
+$$JAFF END
 
-# $JAFF SUB nspec
+$$JAFF SUB nspec
 plot_var_$nspec+1$ = "temp"
 plot_var_$nspec+2$ = "dens"
-# $JAFF END
+$$JAFF END
 
 plotFileIntervalTime       = 1.0e13
 checkpointFileIntervalTime = 5.0e13

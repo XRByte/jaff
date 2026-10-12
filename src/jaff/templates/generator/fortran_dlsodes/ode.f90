@@ -14,11 +14,11 @@ module ode
 
         flux = get_fluxes(y, tgas, common_crate, common_av)
 
-        ! $JAFF REPEAT idx,ode_expression IN ode_expressions
+        $$JAFF REPEAT idx,ode_expression IN ode_expressions
 
         dn($idx+1$) = $ode_expression$
 
-        ! $JAFF END
+        $$JAFF END
 
     end subroutine fex
 

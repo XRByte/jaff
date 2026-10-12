@@ -1,15 +1,15 @@
 module commons
     implicit none
-    ! $JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign
+    $$JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign
 
     integer,parameter::idx_$specie_with_normalized_sign$ = $idx+1$
 
-    ! JAFF END
+    $$JAFF END
 
-    ! $JAFF SUB nspec, nreact
+    $$JAFF SUB nspec, nreact
     integer,parameter::nspecs = $nspec$
     integer,parameter::nreactions = $nreact$
-    ! JAFF END
+    $$JAFF END
 
     real*8::common_crate, common_av
     integer,parameter::idx_tgas = nspecs + 1

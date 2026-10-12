@@ -11,11 +11,11 @@ module fluxes
 
         k = get_reactions(tgas, crate, av)
 
-        ! $JAFF REPEAT idx, flux_expression IN flux_expressions
+        $$JAFF REPEAT idx, flux_expression IN flux_expressions
 
         flux($idx+1$) = $flux_expression$
 
-        ! $JAFF END
+        $$JAFF END
 
     end function get_fluxes
 

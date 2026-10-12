@@ -3,17 +3,17 @@
 
 namespace params {
 
-// $JAFF SUB nspec
+$$JAFF SUB nspec
 constexpr int NumSpec = $nspec$;
 constexpr int IE = $nspec$;
-// $JAFF END
+$$JAFF END
 
 constexpr double T_init = 1.0e6; // Initial temperature
 
 inline constexpr double n_init[NumSpec] = {
-    // $JAFF REPEAT idx, specie IN species
+    $$JAFF REPEAT idx, specie IN species
     0.0, // [$idx$] $specie$
-    // $JAFF END
+    $$JAFF END
 };
 
 } // namespace params

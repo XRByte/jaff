@@ -10,9 +10,9 @@ def get_rates(tgas, crate, av):
     k = np.zeros(nreactions)
     kphoto = np.zeros(nreactions)
 
-    # $JAFF REPEAT idx, rate IN  rates
+    $$JAFF REPEAT idx, rate IN  rates
 
     k[$idx$] = $rate$
 
-    # $JAFF END
+    $$JAFF END
     return k

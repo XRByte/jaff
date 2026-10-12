@@ -88,7 +88,7 @@ def test_aux_template_covers_every_aux_function(name: str) -> None:
         _metadata={},
     )
     template = (TEMPLATES / f"aux_{name}.py").read_text()
-    covered = set(re.findall(r"GET aux_func FOR (\w+)", template))
+    covered = set(re.findall(r"GET aux_func IN (\w+)", template))
     assert covered == set(spec.aux_funcs), (
         f"aux_{name}.py is out of sync with the network's .jfunc: "
         f"missing {sorted(set(spec.aux_funcs) - covered)}, "

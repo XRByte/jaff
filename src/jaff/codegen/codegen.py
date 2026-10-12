@@ -335,7 +335,7 @@ class Codegen:
         The ``$IDX$`` placeholder is left literal here and replaced with the
         concrete reaction index when the expressions are rendered to a string
         by :meth:`get_flux_expressions_str` or
-        :meth:`~jaff.codegen._template_engine.TemplateParser`.
+        :class:`~jaff.codegen.TemplateParser`.
 
         Returns
         -------

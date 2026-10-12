@@ -68,7 +68,6 @@ def render(network: Path, files: Sequence[Path], outdir: Path) -> None:
             indir=None,
             files=[str(f) for f in files],
             template=None,
-            lang="python",
         )
     )
 
