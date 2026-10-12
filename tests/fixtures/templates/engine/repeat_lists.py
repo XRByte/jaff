@@ -98,11 +98,6 @@ $$JAFF REPEAT idx, specie_with_normalized_sign IN species_with_normalized_sign {
 idx_$specie_with_normalized_sign$ = $idx$
 $$JAFF END
 
-# SORT is parsed but currently has no effect (known bug); pinned as-is.
-$$JAFF REPEAT idx, specie IN species { SORT { ENABLED -> TRUE } }
-sorted_species[$idx$] = "$specie$"
-$$JAFF END
-
 # REPLACE applies to every generated line, in order.
 $$JAFF REPEAT idx, specie IN species {
     REPLACE {

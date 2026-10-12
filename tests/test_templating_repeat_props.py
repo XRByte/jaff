@@ -49,7 +49,6 @@ def test_item_variable():
 
 def test_groups_are_the_union_over_properties():
     assert GROUPS == {
-        "SORT": {"ENABLED"},
         "THERMAL": {"MODE", "ENERGY"},
         "RADIATION": {"ENABLED", "ORDER"},
         "SIGN": {"POS", "NEG"},
@@ -81,8 +80,11 @@ def test_sign_becomes_normalized_name_kwargs():
     }
 
 
-def test_sort_is_accepted_but_not_passed_on():
-    assert option_kwargs("species", options(" SORT { ENABLED -> True } ")) == {}
+def test_plain_lists_take_no_option_groups():
+    with pytest.raises(
+        TemplateError, match="REPEAT IN species takes no option group SORT"
+    ):
+        option_kwargs("species", options(" SORT { ENABLED -> True } "))
 
 
 def test_group_a_property_does_not_take_is_an_error_at_its_line():

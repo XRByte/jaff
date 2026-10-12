@@ -115,13 +115,6 @@ idx_d = 1
 idx_he = 2
 # $$JAFF END
 
-# SORT is parsed but currently has no effect (known bug); pinned as-is.
-# $$JAFF REPEAT idx, specie IN species { SORT { ENABLED -> TRUE } }
-sorted_species[0] = "H"
-sorted_species[1] = "D"
-sorted_species[2] = "He"
-# $$JAFF END
-
 # REPLACE applies to every generated line, in order.
 # $$JAFF REPEAT idx, specie IN species {
     # REPLACE {

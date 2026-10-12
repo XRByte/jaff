@@ -35,10 +35,10 @@ Each entry of `PROPERTIES` describes where the items come from, which variables
 the template sees, and which [option groups](../user-guide/code-generation/template-syntax.md)
 the property accepts. Three constructors cover the usual cases:
 
-- `_items(item, getter)` for a plain list of network data. `SORT` is accepted.
+- `_items(item, getter)` for a plain list of network data; it takes no option groups.
 - `_expressions(item, codegen_method, groups)` for a `Codegen` method that
   returns indexed expressions. It adds the `cse` variable, forwards the parsed
-  options to the method as keyword arguments, and accepts `SORT`.
+  options to the method as keyword arguments, and accepts the groups you pass.
 - `RepeatProp(vars, source, groups)` directly, when neither fits. `vars` starts
   with `idx` and the item variable; `source(ctx, kwargs)` returns the items;
   `groups` maps each group name to its keys, each a `Setting(kwarg, parser)`

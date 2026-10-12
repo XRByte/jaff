@@ -58,7 +58,7 @@ A multi-line header looks like this:
 ```cpp
 $$JAFF REPEAT idx, rate IN rates {
     REPLACE { "tgas" -> "T" }      # rename the temperature symbol
-    SORT { ENABLED -> False }
+    REPLACE { "nden" -> "n" }
 }
 state.rates[$idx$] = $rate$;
 $$JAFF END
@@ -302,36 +302,36 @@ with a `cse` variable support CSE.
 
 | Property           | Variables              | Description                      | Option groups                               |
 | ------------------ | ---------------------- | -------------------------------- | ------------------------------------------- |
-| `rates`            | `idx, rate, cse`       | Rate-coefficient expressions     | `SORT`                                      |
-| `odes`             | `idx, ode, cse`        | Full ODE expressions (dy/dt)     | `SORT`                                      |
-| `rhses`            | `idx, rhs, cse`        | RHS including the thermal row    | `SORT`, `THERMAL`, `RADIATION`              |
-| `jacobian`         | `idx, expr, cse`       | Jacobian matrix elements (2D)    | `SORT`, `THERMAL`, `RADIATION`              |
-| `radodes`          | `idx, radode, cse`     | Radiation moment ODEs            | `SORT`, `RADIATION` (`ORDER` only)          |
-| `flux_expressions` | `idx, flux_expression` | Flux = rate × reactant densities | `SORT`                                      |
-| `ode_expressions`  | `idx, ode_expression`  | ODE terms without assignment     | `SORT`                                      |
+| `rates`            | `idx, rate, cse`       | Rate-coefficient expressions     | —                                           |
+| `odes`             | `idx, ode, cse`        | Full ODE expressions (dy/dt)     | —                                           |
+| `rhses`            | `idx, rhs, cse`        | RHS including the thermal row    | `THERMAL`, `RADIATION`              |
+| `jacobian`         | `idx, expr, cse`       | Jacobian matrix elements (2D)    | `THERMAL`, `RADIATION`              |
+| `radodes`          | `idx, radode, cse`     | Radiation moment ODEs            | `RADIATION` (`ORDER` only)          |
+| `flux_expressions` | `idx, flux_expression` | Flux = rate × reactant densities | —                                           |
+| `ode_expressions`  | `idx, ode_expression`  | ODE terms without assignment     | —                                           |
 
 #### Species
 
 | Property                       | Variables                                  | Option groups  |
 | ------------------------------ | ------------------------------------------ | -------------- |
-| `species`                      | `idx, specie`                              | `SORT`         |
-| `species_with_normalized_sign` | `idx, specie_with_normalized_sign`         | `SORT`, `SIGN` |
-| `specie_masses`                | `idx, specie_mass`                         | `SORT`         |
-| `specie_charges`               | `idx, specie_charge`                       | `SORT`         |
-| `specie_masses_ne`             | `idx, specie_mass_ne`                      | `SORT`         |
-| `specie_charges_ne`            | `idx, specie_charge_ne`                    | `SORT`         |
-| `neutral_species`              | `idx, neutral_specie`                      | `SORT`         |
-| `charged_species`              | `idx, charged_specie`                      | `SORT`         |
-| `neutral_specie_indices`       | `idx, neutral_specie_index`                | `SORT`         |
-| `neutral_indices`              | `idx, neutral_index`                       | `SORT`         |
-| `charged_specie_indices`       | `idx, charged_specie_index`                | `SORT`         |
-| `charged_indices`              | `idx, charge_index`                        | `SORT`         |
-| `charged_specie_indices_ne`    | `idx, charged_specie_index_ne`             | `SORT`         |
-| `neutral_specie_masses`        | `idx, neutral_specie_mass`                 | `SORT`         |
-| `charged_specie_masses`        | `idx, charged_specie_mass`                 | `SORT`         |
-| `charged_specie_masses_ne`     | `idx, charged_specie_mass_ne`              | `SORT`         |
-| `charge_truths`                | `idx, charge_truth`                        | `SORT`         |
-| `charge_truths_ne`             | `idx, charge_truth_ne`                     | `SORT`         |
+| `species`                      | `idx, specie`                              | —              |
+| `species_with_normalized_sign` | `idx, specie_with_normalized_sign`         | `SIGN` |
+| `specie_masses`                | `idx, specie_mass`                         | —              |
+| `specie_charges`               | `idx, specie_charge`                       | —              |
+| `specie_masses_ne`             | `idx, specie_mass_ne`                      | —              |
+| `specie_charges_ne`            | `idx, specie_charge_ne`                    | —              |
+| `neutral_species`              | `idx, neutral_specie`                      | —              |
+| `charged_species`              | `idx, charged_specie`                      | —              |
+| `neutral_specie_indices`       | `idx, neutral_specie_index`                | —              |
+| `neutral_indices`              | `idx, neutral_index`                       | —              |
+| `charged_specie_indices`       | `idx, charged_specie_index`                | —              |
+| `charged_indices`              | `idx, charge_index`                        | —              |
+| `charged_specie_indices_ne`    | `idx, charged_specie_index_ne`             | —              |
+| `neutral_specie_masses`        | `idx, neutral_specie_mass`                 | —              |
+| `charged_specie_masses`        | `idx, charged_specie_mass`                 | —              |
+| `charged_specie_masses_ne`     | `idx, charged_specie_mass_ne`              | —              |
+| `charge_truths`                | `idx, charge_truth`                        | —              |
+| `charge_truths_ne`             | `idx, charge_truth_ne`                     | —              |
 
 The `_ne` variants exclude the electron. `neutral_indices` and `charged_indices`
 list the same values as `neutral_specie_indices` and `charged_specie_indices`
@@ -341,23 +341,23 @@ under shorter variable names.
 
 | Property                 | Variables                      | Description                                  | Option groups |
 | ------------------------ | ------------------------------ | -------------------------------------------- | ------------- |
-| `reactions`              | `idx, reaction`                | Verbatim reaction strings                    | `SORT`        |
-| `reactants`              | `idx, reactant`                | Reactant names, one row per reaction (2D)    | `SORT`        |
-| `products`               | `idx, product`                 | Product names, one row per reaction (2D)     | `SORT`        |
-| `photo_reactions`        | `idx, photo_reaction`          | Photo-reaction strings                       | `SORT`        |
-| `photo_reaction_indices` | `idx, photo_reaction_index`    | Indices of the photo reactions               | `SORT`        |
-| `photo_reaction_truths`  | `idx, photo_reaction_truth`    | Per reaction: is it a photo reaction         | `SORT`        |
-| `tmins`                  | `idx, tmin`                    | Minimum temperature of each reaction         | `SORT`        |
-| `tmaxes`                 | `idx, tmax`                    | Maximum temperature of each reaction         | `SORT`        |
+| `reactions`              | `idx, reaction`                | Verbatim reaction strings                    | —             |
+| `reactants`              | `idx, reactant`                | Reactant names, one row per reaction (2D)    | —             |
+| `products`               | `idx, product`                 | Product names, one row per reaction (2D)     | —             |
+| `photo_reactions`        | `idx, photo_reaction`          | Photo-reaction strings                       | —             |
+| `photo_reaction_indices` | `idx, photo_reaction_index`    | Indices of the photo reactions               | —             |
+| `photo_reaction_truths`  | `idx, photo_reaction_truth`    | Per reaction: is it a photo reaction         | —             |
+| `tmins`                  | `idx, tmin`                    | Minimum temperature of each reaction         | —             |
+| `tmaxes`                 | `idx, tmax`                    | Maximum temperature of each reaction         | —             |
 
 #### Elements and radiation
 
 | Property                 | Variables                      | Description                                        | Option groups |
 | ------------------------ | ------------------------------ | -------------------------------------------------- | ------------- |
-| `elements`               | `idx, element`                 | Element symbols                                    | `SORT`        |
-| `element_density_matrix` | `idx, element`                 | Element content of each species (2D)               | `SORT`        |
-| `element_truth_matrix`   | `idx, element`                 | Whether each species contains each element (2D)    | `SORT`        |
-| `radiation_boundaries`   | `idx, radiation_boundary`      | Band edges, length `nbands + 1`; empty without radiation | `SORT`  |
+| `elements`               | `idx, element`                 | Element symbols                                    | —             |
+| `element_density_matrix` | `idx, element`                 | Element content of each species (2D)               | —             |
+| `element_truth_matrix`   | `idx, element`                 | Whether each species contains each element (2D)    | —             |
+| `radiation_boundaries`   | `idx, radiation_boundary`      | Band edges, length `nbands + 1`; empty without radiation | —       |
 
 ### REPEAT option groups
 
@@ -367,7 +367,6 @@ everywhere; see [Options](#options) for their general rules.
 
 | Group       | Key       | Values                                       | Description                                                                                       |
 | ----------- | --------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `SORT`      | `ENABLED` | `True`/`False`                               | Sort items before expansion. Accepted by every property but **currently has no effect**.          |
 | `THERMAL`   | `MODE`    | `none`, `dedt`, `dtdt`                       | Thermal ODE row: none, `dE/dt` or `dT/dt`. Default `dedt` for `rhses`, `none` for `jacobian`.     |
 | `THERMAL`   | `ENERGY`  | `volumetric`, `specific`, `per_particle`, `molar` | Internal-energy form used when `MODE` is `dedt` (default `volumetric`).                      |
 | `RADIATION` | `ENABLED` | `True`/`False`                               | Include radiation ODE / Jacobian terms (`rhses`, `jacobian`).                                     |
@@ -681,7 +680,7 @@ Options go inside `{ … }` after the header. Each option is either
 
 - `REPLACE { "regex" -> "replacement" … }` — one or more pairs;
 - `USE name` — pull in a `DEFINE`d set; or
-- `NAME { KEY -> value … }` — a group of settings (`SORT`, `THERMAL`, …).
+- `NAME { KEY -> value … }` — a group of settings (`THERMAL`, `SIGN`, …).
 
 Groups do not nest, and keys are written inside their group — there is no
 top-level `KEY -> value`. Values are bare words (no spaces, braces, commas or
@@ -938,7 +937,7 @@ line number and the line text, for example:
 ParserError: File: err1.cpp
 Line number: 1
 Line: $$JAFF REPEAT idx, rate IN rates { THERMAL { MODE -> dedt } }
-REPEAT IN rates takes no option group THERMAL (accepted: SORT)
+REPEAT IN rates takes no option group THERMAL (accepted: none)
 ```
 
 The whole file is **validated before anything renders**, so a typo in the last

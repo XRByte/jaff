@@ -20,12 +20,11 @@ class Setting:
     """One key of an option group.
 
     Attributes:
-        kwarg: Keyword argument of the property's source that receives the value,
-            or ``None`` when the setting is accepted but not passed on.
+        kwarg: Keyword argument of the property's source that receives the value.
         parse: Turns the raw text into the value, raising ``ValueError``.
     """
 
-    kwarg: Optional[str]
+    kwarg: str
     parse: Callable[[str], Any]
 
 
@@ -58,8 +57,6 @@ class RepeatProp:
         return self.vars[2:]
 
 
-# SORT is accepted everywhere and, like the old engine, has no effect yet (bug 3).
-_SORT = {"SORT": {"ENABLED": Setting(None, parse_bool)}}
 _THERMAL = {
     "THERMAL": {
         "MODE": Setting("thermal", parse_choice("none", "dedt", "dtdt")),
@@ -78,7 +75,7 @@ _SIGN = {"SIGN": {"POS": Setting("pos", parse_text), "NEG": Setting("neg", parse
 
 def _items(item: str, getter: Callable[[RenderContext], Any]) -> RepeatProp:
     """A property listing network data; its source takes no keyword arguments."""
-    return RepeatProp(("idx", item), lambda c, kw: getter(c), _SORT)
+    return RepeatProp(("idx", item), lambda c, kw: getter(c))
 
 
 def _expressions(
@@ -88,7 +85,7 @@ def _expressions(
     return RepeatProp(
         ("idx", item, "cse"),
         lambda c, kw: getattr(c.cg, method)(**kw),
-        {**_SORT, **(groups or {})},
+        groups or {},
     )
 
 
@@ -109,7 +106,7 @@ PROPERTIES: Dict[str, RepeatProp] = {
     "species_with_normalized_sign": RepeatProp(
         ("idx", "specie_with_normalized_sign"),
         lambda c, kw: c.net.species.normalized_names(**kw),
-        {**_SORT, **_SIGN},
+        _SIGN,
     ),
     "elements": _items("element", lambda c: c.net.elements.symbols()),
     "specie_masses": _items("specie_mass", lambda c: c.net.species.masses()),
@@ -189,7 +186,7 @@ def option_kwargs(name: str, options: Options) -> Dict[str, Any]:
         options: Layered options of the block.
 
     Returns:
-        Parsed values by keyword argument; settings without one are left out.
+        Parsed values by keyword argument.
 
     Raises:
         TemplateError: At the group's line for a group or key the property does
@@ -209,7 +206,6 @@ def option_kwargs(name: str, options: Options) -> Dict[str, Any]:
                 line = options.group_lines[group]
                 raise TemplateError(f"{group} {key} {e}", line) from None
 
-            if setting.kwarg is not None:
-                kwargs[setting.kwarg] = value
+            kwargs[setting.kwarg] = value
 
     return kwargs
