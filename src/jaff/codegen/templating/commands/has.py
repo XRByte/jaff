@@ -11,7 +11,7 @@ from .base import Command, check_names, entity_collections, render_each_line
 
 if TYPE_CHECKING:
     from ..context import RenderContext
-    from ..options import Options
+    from ..resolve import Resolved
 
 KINDS = ("specie", "reaction", "element")
 
@@ -23,15 +23,17 @@ class Has(Command):
     kind: str
     entity: str
 
-    def validate(self, options: Options, ctx: RenderContext) -> None:
+    def validate(self, resolved: Resolved, ctx: RenderContext) -> None:
         """The kind must be ``specie``, ``reaction`` or ``element``."""
         check_names(self.keyword, "kind", (self.kind,), KINDS)
 
-    def render(self, body: List[str], options: Options, ctx: RenderContext) -> str:
+    def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
         """Substitute ``$<kind>$`` with 1 or 0 on every body line."""
         collection = entity_collections(ctx)[self.kind]
         values: Dict[str, Callable[[], int]] = {
             self.kind: lambda: int(self.entity in collection)
         }
 
-        return render_each_line(body, lambda text: substitute(text, values), options)
+        return render_each_line(
+            body, lambda text: substitute(text, values), resolved.replacements
+        )

@@ -2,10 +2,24 @@
 # ABOUTME: Pure functions over Options; errors carry the template line they belong to
 
 import re
+from dataclasses import dataclass
 from typing import List, Mapping, Optional, Pattern, Set, Tuple
 
 from .errors import TemplateError
 from .options import Options
+
+
+@dataclass(frozen=True)
+class Resolved:
+    """A block's options after USE layering, with REPLACE compiled once.
+
+    Attributes:
+        options: Layered options of the block.
+        replacements: Compiled REPLACE pairs of *options*, in order.
+    """
+
+    options: Options
+    replacements: List[Tuple[Pattern[str], str]]
 
 
 def _merge(target: Options, source: Options, line: Optional[int]) -> None:

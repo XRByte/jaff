@@ -12,7 +12,7 @@ from .base import Command, check_names, entity_collections, render_each_line
 
 if TYPE_CHECKING:
     from ..context import RenderContext
-    from ..options import Options
+    from ..resolve import Resolved
 
 # Property name -> (entity kind, getter taking the context and the entity)
 _Getter = Callable[["RenderContext", str], Any]
@@ -62,7 +62,7 @@ class Get(Command):
     props: Tuple[str, ...]
     entity: str
 
-    def validate(self, options: Options, ctx: RenderContext) -> None:
+    def validate(self, resolved: Resolved, ctx: RenderContext) -> None:
         """Every property must be known and the entity must exist as its kind."""
         check_names(self.keyword, "property", self.props, PROPS)
         for name in self.props:
@@ -73,11 +73,13 @@ class Get(Command):
                     f"{self.entity} is not one in this network"
                 )
 
-    def render(self, body: List[str], options: Options, ctx: RenderContext) -> str:
+    def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
         """Substitute the listed properties of the entity on every body line."""
         values = {
             name: (lambda get=_PROPERTIES[name][1]: get(ctx, self.entity))
             for name in self.props
         }
 
-        return render_each_line(body, lambda text: substitute(text, values), options)
+        return render_each_line(
+            body, lambda text: substitute(text, values), resolved.replacements
+        )

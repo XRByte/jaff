@@ -130,3 +130,22 @@ def test_get_of_unknown_entity_is_a_parser_error_at_the_header(net, tmp_path):
     with pytest.raises(ParserError, match="Xyz is not one") as err:
         render(net, tmp_path, text)
     assert err.value.nline == 2
+
+
+def test_replace_patterns_are_compiled_once_per_block(net, tmp_path, monkeypatch):
+    import jaff.codegen.templating.commands.base as base
+    import jaff.codegen.templating.render as render_mod
+
+    calls = []
+    original = render_mod.compile_replacements
+
+    def counting(options):
+        calls.append(options)
+        return original(options)
+
+    monkeypatch.setattr(render_mod, "compile_replacements", counting)
+    monkeypatch.setattr(base, "compile_replacements", counting, raising=False)
+
+    text = '$$JAFF SUB nspec { REPLACE { "5" -> "five" } }\nn = $nspec$\n$$JAFF END\n'
+    assert render(net, tmp_path, text) == "n = five\n"
+    assert len(calls) == 1

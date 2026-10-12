@@ -4,15 +4,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Dict, List, Self, Sequence, Set
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    List,
+    Pattern,
+    Self,
+    Sequence,
+    Set,
+    Tuple,
+)
 
 from ..errors import TemplateError
 from ..placeholders import split_line
-from ..resolve import apply_replacements, compile_replacements
+from ..resolve import apply_replacements
 
 if TYPE_CHECKING:
     from ..context import RenderContext
-    from ..options import Options
+    from ..resolve import Resolved
 
 
 def entity_collections(ctx: RenderContext) -> Dict[str, Any]:
@@ -50,19 +62,23 @@ class Command:
         """The command's keyword as written in templates, e.g. ``SUB``."""
         return type(self).__name__.upper()
 
-    def validate(self, options: Options, ctx: RenderContext) -> None:
+    def validate(self, resolved: Resolved, ctx: RenderContext) -> None:
         """Check the header against the network before anything is rendered.
+
+        Args:
+            resolved: Layered options and compiled REPLACE of the block.
+            ctx: Render context.
 
         Raises:
             TemplateError: If the header names something the command cannot use.
         """
 
-    def render(self, body: List[str], options: Options, ctx: RenderContext) -> str:
+    def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
         """Render the body lines into output text.
 
         Args:
             body: Raw body lines, with their line endings.
-            options: Layered options of the block.
+            resolved: Layered options and compiled REPLACE of the block.
             ctx: Render context.
 
         Returns:
@@ -72,14 +88,15 @@ class Command:
 
 
 def render_each_line(
-    body: List[str], transform: Callable[[str], str], options: Options
+    body: List[str],
+    transform: Callable[[str], str],
+    replacements: List[Tuple[Pattern[str], str]],
 ) -> str:
     """Render line by line as the old engine did for SUB, GET and HAS.
 
     Each line keeps its leading spaces; its stripped content goes through
-    *transform* and then the block's REPLACE pairs.
+    *transform* and then the block's compiled REPLACE pairs.
     """
-    replacements = compile_replacements(options)
     out = []
     for line in body:
         indent, content = split_line(line)

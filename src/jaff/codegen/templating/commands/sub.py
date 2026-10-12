@@ -11,7 +11,7 @@ from .base import Command, check_names, render_each_line
 
 if TYPE_CHECKING:
     from ..context import RenderContext
-    from ..options import Options
+    from ..resolve import Resolved
 
 TOKENS: Tuple[str, ...] = (
     "nspec",
@@ -50,14 +50,16 @@ class Sub(Command):
 
     tokens: Tuple[str, ...]
 
-    def validate(self, options: Options, ctx: RenderContext) -> None:
+    def validate(self, resolved: Resolved, ctx: RenderContext) -> None:
         """Every listed token must be a known SUB token."""
         check_names(self.keyword, "token", self.tokens, TOKENS)
 
-    def render(self, body: List[str], options: Options, ctx: RenderContext) -> str:
+    def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
         """Substitute the listed tokens on every body line."""
         values = {
             name: value for name, value in _values(ctx).items() if name in self.tokens
         }
 
-        return render_each_line(body, lambda text: substitute(text, values), options)
+        return render_each_line(
+            body, lambda text: substitute(text, values), resolved.replacements
+        )

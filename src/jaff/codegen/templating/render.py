@@ -8,8 +8,7 @@ from .blocks import Block, CommandBlock, TextBlock
 from .commands import COMMANDS, Define
 from .context import RenderContext
 from .errors import TemplateError
-from .options import Options
-from .resolve import check_groups, compile_replacements, layer
+from .resolve import Resolved, check_groups, compile_replacements, layer
 
 
 def _all_groups() -> Dict[str, Set[str]]:
@@ -32,15 +31,15 @@ def _error(
     return ParserError(message, text.rstrip("\r\n"), nline, ctx.file)
 
 
-def _prepare(block: CommandBlock, ctx: RenderContext) -> Options:
-    """Validate one block and return its layered options; register DEFINEs."""
+def _prepare(block: CommandBlock, ctx: RenderContext) -> Resolved:
+    """Validate one block and return its resolved options; register DEFINEs."""
     command = block.command
     try:
         options = layer(block.options, ctx.defines)
         accepted = _all_groups() if isinstance(command, Define) else command.groups
         check_groups(command.keyword, options, accepted)
-        compile_replacements(options)
-        command.validate(options, ctx)
+        resolved = Resolved(options, compile_replacements(options))
+        command.validate(resolved, ctx)
     except TemplateError as e:
         raise _error(block, str(e), e.nline, ctx) from None
 
@@ -48,7 +47,7 @@ def _prepare(block: CommandBlock, ctx: RenderContext) -> Options:
         if command.name in ctx.defines:
             raise _error(block, f"DEFINE {command.name} given twice", None, ctx)
         ctx.defines[command.name] = options
-    return options
+    return resolved
 
 
 def echo(lines: List[str], comment: str) -> str:
@@ -81,14 +80,14 @@ def render_blocks(blocks: List[Block], ctx: RenderContext) -> str:
     ]
     comment = ctx.cg.lang.comment
     out: List[str] = []
-    for block, options in zip(blocks, prepared):
+    for block, resolved in zip(blocks, prepared):
         if isinstance(block, TextBlock):
             out.extend(block.lines)
             continue
 
         if ctx.echo_directives:
             out.append(echo(block.header_lines, comment))
-        out.append(block.command.render(block.body_lines, options, ctx))
+        out.append(block.command.render(block.body_lines, resolved, ctx))
         if ctx.echo_directives:
             out.append(echo(block.end_lines, comment))
     return "".join(out)

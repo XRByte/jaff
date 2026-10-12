@@ -10,7 +10,7 @@ from .base import Command
 
 if TYPE_CHECKING:
     from ..context import RenderContext
-    from ..options import Options
+    from ..resolve import Resolved
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,6 @@ class Define(Command):
     has_body: ClassVar[bool] = False
     name: str
 
-    def render(self, body: List[str], options: Options, ctx: RenderContext) -> str:
+    def render(self, body: List[str], resolved: Resolved, ctx: RenderContext) -> str:
         """A DEFINE produces no output."""
         return ""
