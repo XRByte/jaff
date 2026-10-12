@@ -233,8 +233,8 @@ double charges[] = {0, -1, 1, 2, 1};
 // $$JAFF END
 ```
 
-The recognised brackets are `(`, `{`, `<` and `[` with the matching closers `)`,
-`}`, `>` and `]`. Between the opening bracket and the variable only whitespace
+The recognised brackets are `(`, `{`, `<`, `[` and Fortran's `(/` with the
+matching closers `)`, `}`, `>`, `]` and `/)`. Between the opening bracket and the variable only whitespace
 and an optional quote (`'` or `"`, matching the one after the variable) are
 allowed, and the quote is preserved. The separator is what follows the variable
 before the closing bracket (`{$x$, }` joins with `", "`; it may consist of `,`,

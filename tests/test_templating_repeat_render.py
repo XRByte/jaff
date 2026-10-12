@@ -57,6 +57,7 @@ def test_vertical_accepts_indexed_lists():
         ("n = ('$x$', )", "n = ('a', 'b')"),
         ("n = {$x$; }", "n = {a; b}"),
         ("n = [$x$]", "n = [a, b]"),
+        ("n = (/ $x$, /)", "n = (/a, b/)"),
     ],
 )
 def test_horizontal_takes_brackets_quotes_and_separator_from_the_line(line, expected):

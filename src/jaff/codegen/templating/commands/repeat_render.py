@@ -77,17 +77,20 @@ def expand_vertical(items: Any, line: str, token: str, index: int) -> List[str]:
 
 
 def _horizontal_pattern(item: str) -> Pattern[str]:
-    """``<bracket> <quote>$item$<quote> <separator> <bracket>``, e.g. ``["$x$", ]``."""
+    """``<bracket> <quote>$item$<quote> <separator> <bracket>``, e.g. ``["$x$", ]``.
+
+    Brackets are ``( { < [`` and Fortran's ``(/``, closed by ``) } > ]`` or ``/)``.
+    """
     return re.compile(
         rf"""
-        ([\(\{{<\[])
+        (\(/|[\(\{{<\[])
         \s*
         (["']?)
         \${re.escape(item)}\$
         \2
         ([,\;\:\s]*)
         \s*
-        ([\)\}}>\]])
+        (/\)|[\)\}}>\]])
         """,
         re.VERBOSE,
     )

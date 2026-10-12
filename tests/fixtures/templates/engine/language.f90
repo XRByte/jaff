@@ -22,7 +22,7 @@ module jaff_test
   $$JAFF END
 
   $$JAFF REPEAT specie_mass IN specie_masses
-  ! (/ ... /) is not recognised as a horizontal array: left verbatim
+  ! Fortran array constructors (/ ... /) and [ ... ] both expand
   real(8), parameter :: masses(nspec) = (/$specie_mass$, /)
   real(8), parameter :: masses2(nspec) = [$specie_mass$, ]
   $$JAFF END
