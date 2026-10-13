@@ -6,31 +6,26 @@ tags:
 
 # Reaction.plot_rate_coefficient
 
-`#!python plot_rate_coefficient(fig=None, ax=None, title=None, grid=True, show=True, save=False, filename="")`
+`#!python plot_rate_coefficient(**kwargs)`
 
-Plots the rate coefficient as a function of gas temperature on a log-log scale. A thin wrapper around the [`jaff.plotting.plot_rates`](../../plotting/plot_rates.md) free function (call that directly to overlay several reactions on shared axes). The temperature axis spans \[`tmin`, `tmax`\]; when either is `None`, defaults of 2.73 K and 1e6 K are used respectively.
-
-**Parameters**
-
-**fig, ax** : _matplotlib.figure.Figure / matplotlib.axes.Axes or None, optional_
-: Existing figure/axes to draw on. Both are created if `None`.
-
-**title** : _str or None, optional_
-: Plot title. Defaults to the LaTeX reaction equation.
-
-**grid** : _bool, optional_
-: Draw a grid. Default `True`.
-
-**show** : _bool, optional_
-: Display the figure. Default `True`.
-
-**save** : _bool, optional_
-: Save to `filename` (format inferred from the extension). Default `False`.
-
-**filename** : _str, optional_
-: Output path. Defaults to `"<reaction>_rate.png"`.
+Plots the rate coefficient against gas temperature. Forwards to
+[`jaff.plotting.plot_rates`](../../plotting/plot_rates.md) with this reaction
+as the only item, so every `plot_rates` keyword (`tmin`, `tmax`, `xscale`,
+`style`, `palette`, `save`, `show`, `close`, ...) is accepted. The panel is titled with
+the reaction equation (inside the panel in the `"paper"` style, or above it
+when too long). The temperature axis spans \[`tmin`, `tmax`\],
+defaulting to the reaction's bounds and then 2.73 K / 1e6 K.
 
 **Returns**
 
-_tuple\[matplotlib.figure.Figure, matplotlib.axes.Axes\] or None_
-: The figure and axes drawn on, or `None` if the rate cannot be evaluated numerically (e.g. a photo reaction, whose rate carries the symbolic radiation-density variable).
+_tuple\[matplotlib.figure.Figure, numpy.ndarray\] or None_
+: `(fig, axes)`, or `None` if the rate cannot be evaluated numerically (e.g.
+  a photo reaction, whose rate carries the symbolic radiation-density
+  variable).
+
+**Example**
+
+```python
+fig, axes = net.reactions[0].plot_rate_coefficient(tmin=10, tmax=1e4,
+                                                   save="rate.pdf", show=False)
+```

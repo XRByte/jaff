@@ -6,71 +6,59 @@ tags:
 
 # plot_xsecs
 
-`#!python plot_xsecs(reactions, *, processes="all", layout="overlay", energy_unit="eV", xsec_unit="Mb", energy_log=True, xsecs_log=True, trim=True, shade=False, show_bands=False, palette=None, title=None, fig=None, ax=None, grid=True, show=True, save=False, filename="")`
+`#!python plot_xsecs(reactions, *, grid=None, processes="all", energy_unit="eV", xsec_unit="Mb", xscale="log", yscale="log", bands=False, style=None, palette=None, sharex=False, sharey=False, legend="auto", title=None, save=None, show=True, close=True)`
 
-Plots photo cross sections for one or more reactions on shared axes. Handles
-unit conversion, log scaling, axis trimming, optional shading, and optional
-band-averaged bars. Reactions without cross-section data are skipped with a log
-message; returns `None` if nothing can be drawn.
+Plot photo cross sections against photon energy (or wavelength).
 
 **Parameters**
 
-**reactions** : _reaction-like or list of reaction-like_
-: A single reaction (anything exposing `xsecs_dict` and `band_xsecs`) or a list of them. Their cross sections are overlaid.
+**reactions** : _reaction-like or list_
+: Anything exposing `xsecs_dict` (and optionally `band_xsecs` / `get_latex`).
+  Nesting and `grid` work as in [`plot_rates`](plot_rates.md), including the
+  automatic split past `legend_max` curves; the split keeps all curves of one
+  reaction on the same panel.
 
-**processes** : _str or list\[str\] or None, optional_
-: Which processes to draw. `"all"` (default) or `None` plots every process with data; a single key or list selects a subset. Valid keys: `"photo_absorption"`, `"photodecay"`. An invalid key raises `KeyError`.
-
-**layout** : _str, optional_
-: `"overlay"` (default) draws all curves on one axes; `"subplots"` gives each curve its own stacked panel.
+**processes** : _str, list\[str\] or None, optional_
+: `"all"` (default), `"photo_absorption"`, `"photodecay"`, or a list. An
+  unknown key raises `KeyError`.
 
 **energy_unit** : _str, optional_
-: Horizontal-axis unit: `"eV"` (default), `"erg"`, `"nm"`, or `"um"`.
+: `"eV"` (default), `"erg"`, `"nm"` or `"um"`.
 
 **xsec_unit** : _str, optional_
-: Cross-section unit: `"Mb"` (default), `"cm^2"`, or `"barn"`.
+: `"Mb"` (default), `"barn"` or `"cm^2"`.
 
-**energy_log, xsecs_log** : _bool, optional_
-: Log-scale the energy / cross-section axis. Default `True`.
+**xscale, yscale** : _str or list\[str\], optional_
+: Per figure or per panel.
 
-**trim** : _bool, optional_
-: Tighten the energy axis to the positive data span. Default `True`.
+**bands** : _bool, optional_
+: Overlay band-average cross sections (from `Reaction.band_xsecs`) as
+  horizontal bars; reactions without bands add nothing. An open band stays
+  open in any unit: in wavelength units the open ionising band extends to the
+  short-wavelength edge of the axes.
 
-**shade** : _bool or float, optional_
-: Shade the area under each curve. `True` uses a default alpha; a float sets the alpha explicitly. Default `False`.
-
-**show_bands** : _bool, optional_
-: Overlay the band-averaged cross section as bars for every reaction that has them (see [`Reaction.band_xsecs`](../core/reaction/band_xsecs.md)). Default `False`.
-
-**palette** : _list\[str\] or None, optional_
-: Colour-cycle override.
-
-**title** : _str or None, optional_
-: Plot title. Defaults to the LaTeX equation for a single reaction, else empty.
-
-**fig, ax** : _matplotlib.figure.Figure / matplotlib.axes.Axes or None, optional_
-: Existing figure/axes to draw on (overlay only). Created if `None`.
-
-**grid, show, save, filename** : _optional_
-: Standard rendering controls.
+**style, palette, sharex, sharey, legend, title, save, show, close** : _optional_
+: As in [`plot_rates`](plot_rates.md).
 
 **Returns**
 
-_tuple\[matplotlib.figure.Figure, matplotlib.axes.Axes\] or None_
-: The figure and axes (overlay) or array of axes (subplots); `None` when no reaction has cross-section data.
+_tuple\[Figure, numpy.ndarray\] or None_
+: `None` when no reaction has cross-section data.
 
-!!! note
-    With a single reaction the legend uses the process names; with several it
-    prefixes each with the reaction so curves stay distinguishable.
+**Notes**
 
-**Examples**
+A panel holding one reaction is titled with its equation (inside the panel,
+or above it when too long) and its curves are labelled by process. Several
+reactions on one panel are labelled `equation — process`. One shared legend
+keys all panels, with one colour per process across the figure.
+
+**Example**
 
 ```python
 from jaff.plotting import plot_xsecs
 
-photo = net.reactions.photo_reactions()[0]
-plot_xsecs(photo)                                   # one reaction, all processes
-plot_xsecs(photo, shade=True, show_bands=True)      # shading + band bars
-plot_xsecs(photo, energy_unit="nm", xsec_unit="cm^2")
-plot_xsecs(net.reactions.photo_reactions())         # overlay several reactions
+photo = [p for p in net.reactions.photo_reactions() if p.xsecs_dict]
+plot_xsecs(photo[0], bands=True)
+plot_xsecs(photo[:4], grid=(2, 2), processes="photodecay", energy_unit="nm",
+           xscale="linear")
 ```

@@ -452,16 +452,18 @@ class Reactions(Catalogue[Reaction]):
     def plot_rates(self, **kwargs: Any) -> tuple[plt.Figure, Any] | None:
         """Plot the rate coefficients of every reaction in the catalogue.
 
-        Thin wrapper over :func:`jaff.plotting.plot_rates` that passes all
-        reactions in this catalogue as one overlay.  Accepts the same keyword
-        arguments (``tmin``, ``tmax``, ``shade``, ``save``, ``filename`` ...).
+        Forwards to :func:`jaff.plotting.plot_rates` with all reactions as a
+        flat list: one shared axes by default, one panel per reaction with
+        ``grid=(rows, cols)``.  Accepts every ``plot_rates`` keyword
+        (``tmin``, ``tmax``, ``xscale``, ``yscale``, ``labels``, ``style``,
+        ``palette``, ``save``, ``show`` ...).
 
         Reactions whose rate cannot be evaluated numerically (e.g. photo
         reactions) are skipped with a warning.
 
         Returns
         -------
-        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
+        tuple[matplotlib.figure.Figure, numpy.ndarray] or None
         """
         from ...plotting import plot_rates
 
@@ -470,13 +472,14 @@ class Reactions(Catalogue[Reaction]):
     def plot_xsecs(self, **kwargs: Any) -> tuple[plt.Figure, Any] | None:
         """Plot the photo cross sections of the catalogue's reactions.
 
-        Thin wrapper over :func:`jaff.plotting.plot_xsecs`.  Reactions without
-        cross-section data are skipped.  Accepts the same keyword arguments
-        (``processes``, ``energy_unit``, ``shade``, ``show_bands`` ...).
+        Forwards to :func:`jaff.plotting.plot_xsecs` with all reactions as a
+        flat list.  Reactions without cross-section data are skipped.  Accepts
+        every ``plot_xsecs`` keyword (``grid``, ``processes``, ``bands``,
+        ``style``, ``palette``, ``save``, ``show`` ...).
 
         Returns
         -------
-        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes] or None
+        tuple[matplotlib.figure.Figure, numpy.ndarray] or None
         """
         from ...plotting import plot_xsecs
 

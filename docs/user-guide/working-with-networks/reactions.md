@@ -485,49 +485,67 @@ rec.get_flux_expression(idx=1, rate_variable="k",
 
 ### Plotting
 
-The `Reaction` plot methods are thin wrappers over the
-[`jaff.plotting`](../../api/plotting/index.md) free functions `plot_rates` and
-`plot_xsecs`, applying the house style. They return the `(fig, ax)` they drew
-on, so plots can be composed or saved.
+The `Reaction` plot methods forward to the
+[`jaff.plotting`](../../api/plotting/index.md) functions `plot_rates` and
+`plot_xsecs`. They return `(fig, axes)` (a 2-D array of axes), so plots can be
+edited further or saved. The figure is closed in pyplot once it has been
+saved / shown (`fig.savefig(...)` still works); pass `close=False` to keep it
+open.
 
 ```python
-rec.plot_rate_coefficient()         # rate vs temperature (log–log)
+rec.plot_rate_coefficient()         # κ vs temperature (log–log), navy curve
 
-photo = net.reactions[0]
-photo.plot_xsecs()                              # all processes, overlay, eV vs Mb
-photo.plot_xsecs(processes="photodecay")        # one process only
-photo.plot_xsecs(layout="subplots")             # one stacked panel per process
-photo.plot_xsecs(energy_unit="nm", xsec_unit="cm^2")  # wavelength + cm² axes
-photo.plot_xsecs(shade=True, show_bands=True)         # shade + band-averaged bars
-photo.plot_xsecs(save=True, filename="h_xsec.pdf")    # write to disk
+photo = net.reactions.photo_reactions()[0]
+photo.plot_xsecs()                                     # all processes, eV vs Mb
+photo.plot_xsecs(processes="photodecay")               # one process only
+photo.plot_xsecs(energy_unit="nm", xsec_unit="cm^2")   # wavelength + cm² axes
+photo.plot_xsecs(bands=True)                           # band-averaged bars
+photo.plot_xsecs(save="h_xsec.pdf", show=False)        # write to disk
 ```
 
 `plot_rate_coefficient` spans `[tmin, tmax]`, defaulting to `2.73 K` and `1e6 K`
-when a bound is `None`. `plot_xsecs` is a no-op (returns `None`) for non-photo
-reactions (those with `xsecs_dict is None`) or when no requested process has
-data. `plot_rate_coefficient` returns `None` for photo reactions, whose rate
-carries a symbolic radiation-density variable that cannot be evaluated against
+when a bound is `None`. `plot_xsecs` returns `None` for non-photo reactions
+(those with `xsecs_dict is None`) or when no requested process has data.
+`plot_rate_coefficient` returns `None` for photo reactions, whose rate carries a
+symbolic radiation-density variable that cannot be evaluated against
 temperature.
 
 #### Comparing several reactions
 
-To overlay multiple reactions on one axes, call the free functions (or the
-`Reactions` catalogue methods) with a list:
+Pass a list to the free functions (or call the `Reactions` catalogue methods).
+Without `grid` everything shares one axes; with `grid` each top-level item is
+a panel and a nested list is overlaid on one panel:
 
 ```python
 from jaff.plotting import plot_rates, plot_xsecs
 
-plot_rates(list(net.reactions))                 # every rate on shared axes
-net.reactions.plot_rates()                      # equivalent, via the catalogue
+r = list(net.reactions)
+plot_rates(r[:5])                                # five curves, one axes
+plot_rates([r[0], [r[1], r[2]]], grid=(1, 2))    # two panels
+plot_rates(r[:12], grid=(3, 4))                  # one panel per reaction (12 cells)
+plot_rates(r[:30])                               # auto grid (1, 3): 12 + 12 + 6 curves
 
-# The free functions accept any list of reactions (photo_reactions() returns one).
-plot_xsecs(net.reactions.photo_reactions(), show_bands=True)
-net.reactions.plot_xsecs()                      # all reactions; non-photo skipped
+photo = [p for p in net.reactions.photo_reactions() if p.xsecs_dict]
+plot_xsecs(photo[:4], grid=(2, 2), bands=True)
 ```
 
-Each curve gets a distinct line width (thinner in front) and a legend entry.
-See the [`jaff.plotting`](../../api/plotting/index.md) reference for the full
-options, palettes, and theming.
+Without `grid`, more curves than the style's `legend_max` (default 12) are
+split in order over an automatic grid so every legend stays readable; raise the
+cap with `style={"legend_max": 20}` or pass an explicit `grid`. The split
+panels get one legend group each in the right margin (`legend="axes"`, headed
+`(a)`, `(b)`, …); otherwise one shared legend keys the whole figure, in a free
+bottom-right grid cell or the right margin. Panels sit on a tight grid with
+y tick labels and panel titles inside (`"paper"` style); axis labels common to
+every panel are drawn once for the whole figure. Rates that cannot be
+evaluated against temperature are skipped with one summary warning.
+
+```python
+net.reactions.plot_rates(legend="axes", save="catalogue.pdf")   # whole catalogue
+```
+
+Curves are coloured first, then given new line styles once the colours run
+out. See the [`jaff.plotting`](../../api/plotting/index.md) reference for the
+figure-spec format, themes and legends.
 
 ---
 

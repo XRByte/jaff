@@ -362,8 +362,12 @@ class Specie:
 
         # --- Build LaTeX representation ---
         latex = self.name.strip()
-        for i in range(0, 10):
-            latex = latex.replace(str(i), "_{" + str(i) + "}")
+        latex = re.sub(r"\d+", lambda m: "_{" + m.group() + "}", latex)
+        # Trailing proxy marker "x" (CHx, OHx; see
+        # Reaction.normalized_proxy_reaction_str) is a subscript, placed
+        # before any charge; after a count it joins that subscript (C2x -> C_{2x}).
+        latex = re.sub(r"_\{(\d+)\}x(?=[+-]*$)", r"_{\1x}", latex)
+        latex = re.sub(r"(?<=[A-Za-z])x(?=[+-]*$)", "_{x}", latex)
         latex = re.sub(
             r"\++",
             lambda m: f"^{{{len(m.group()) if len(m.group()) > 1 else ''}+}}",
@@ -384,6 +388,12 @@ class Specie:
             latex = latex.replace("_DUST", "") + "ice"
 
         latex = latex.replace("_GRAIN", "g")
+        # Any remaining underscore (pseudo-species such as _PHOTON, suffixes
+        # such as _BULK) is literal text, not a mathtext subscript.
+        latex = re.sub(r"_(?!\{)", r"\\_", latex)
+
+        if self.name.strip() == "_PHOTON":
+            latex = "\\gamma"
 
         self.__latex = f"{{\\rm {latex}}}"
 

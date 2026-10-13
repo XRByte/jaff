@@ -50,13 +50,16 @@ src/jaff/
 │   ├── _typing/                # TypedDicts (Numeric, ...)
 │   └── constants.py            # Physical constants (astropy Quantities)
 │
-├── plotting/                   # Publication-style seaborn plotting
-│   ├── _api.py                 # plot_rates / plot_xsecs — free functions (reactions, exprs, arrays)
-│   ├── plotter.py              # Plotter.render_series — seaborn-objects renderer
-│   ├── _theme.py               # seaborn theme, palettes, scoped/global application
-│   ├── _frames.py              # tidy DataFrame builders
+├── plotting/                   # Spec-driven matplotlib plotting
+│   ├── api.py                  # plot / plot_rates / plot_xsecs builders
+│   ├── spec.py                 # FigureSpec / AxesSpec / SeriesSpec (dict validation)
+│   ├── themes.py               # Style + Palette registries, cycling
+│   ├── render.py               # FigureSpec -> (fig, axes)
+│   ├── _legend.py              # tags, axes legends, shared figure legend
+│   ├── _marks.py               # hollow markers by arc length
+│   ├── _ticks.py               # exponent-labelled log axes
 │   ├── _units.py               # energy/xsec unit conversion + axis labels
-│   └── _xsec.py                # trim / dynamic-scale helpers
+│   └── adapters/               # reactions -> series (rates.py, xsecs.py)
 │
 ├── codegen/                    # Code generation pipeline
 │   ├── codegen.py              # SymPy → C/C++/Fortran/Python/Rust/Julia/R

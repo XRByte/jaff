@@ -296,5 +296,5 @@ N2         CR                     N          N                                  
 
 # KROME format (custom)
 @format:R,R,P,P,rate
-CO,N2+,N2,CO+,4.3e-13
+N2+,E,N,N,1.7e-7*(Tgas/3e2)**(-0.3)
 ```
