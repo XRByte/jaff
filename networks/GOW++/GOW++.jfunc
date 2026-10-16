@@ -650,7 +650,7 @@
     # here is equation 6.43 of Hollenbach & McKee (1979), but with ncrH2
     # updated using the model of Visser+ (2018)
 
-    f = 1 / (1 + ncrH2(tgas, n_H_nuc, n_H, n_H2, rc_14) / n_H_nuc)
+    f = 1 / (1 + ncrH2(tgas, n_H_nuc, n_H, n_H2, rc_13) / n_H_nuc)
 
     @return (0.2 + 4.2*f) * eV
 
