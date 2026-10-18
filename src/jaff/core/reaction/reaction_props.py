@@ -21,17 +21,19 @@ class PhotoReactionProps:
     ----------
     xsec : XsecProps or None
         Cross sections of the reaction's single decay channel, or ``None``
-        when no database has an entry.
+        when no database has an entry.  ``xsec.total`` holds the cross
+        section averaged over the whole radiation spectrum (cm²).
     pi_database : str or None
         Per-reaction photoionization database override (``"norad"``,
         ``"verner"`` or ``"leiden"``); ``None`` uses the global
         :attr:`RadiationProps.pi_database`.
-    groups : list[RadiationGroup]
-        Radiation bands this reaction contributes to, populated when a
-        radiation field is configured.  See :attr:`Reaction.band_xsecs`.
     custom_rad_rate : bool
         ``True`` when the rate comes from a ``.jfunc`` aux function rather
         than from the cross sections.
+    rgrouped : list[GroupedPhotoReactionProps] or None
+        One entry per radiation band, in ``net.radiation.groups`` order, set
+        when a radiation field is configured; ``None`` otherwise.  See
+        :attr:`Reaction.band_xsecs`.
     shielding : ShieldingProps or None
         Shielding applied to the photo rate, or ``None`` when the reaction is
         not shielded.
@@ -45,13 +47,7 @@ class PhotoReactionProps:
         rgrouped: List[GroupedPhotoReactionProps] | None = None,
         shielding: ShieldingProps | None = None,
     ):
-        """Store the photo-reaction state; see the class attributes.
-
-        Parameters
-        ----------
-        groups : list[RadiationGroup] or None, optional
-            Initial bands; ``None`` (default) starts with an empty list.
-        """
+        """Store the photo-reaction state; see the class attributes."""
         self.xsec: XsecProps | None = xsec
         self.pi_database: str | None = pi_database
         self.custom_rad_rate: bool = custom_rad_rate
@@ -60,7 +56,26 @@ class PhotoReactionProps:
 
 
 class GroupedPhotoReactionProps:
+    """One photo reaction's data for one radiation band.
+
+    Attributes
+    ----------
+    k : Expr
+        Band rate coefficient (s⁻¹, or cm³ s⁻¹ for two-body reactions),
+        including the radiation density ``den[i]`` and any shielding.
+    xsec : float or None
+        Photon-number-weighted band-average cross section (cm²), or ``None``
+        for a custom-rate reaction.
+    xsec_frac : float
+        Fraction of the total cross section (or of the total ``dRad``, for a
+        custom rate) attributed to this band.
+    delta_rad : float
+        ``dRad`` integrated over the band: the radiation energy added to the
+        band per reaction event (erg).
+    """
+
     def __init__(self, k: Expr, xsec: float | None, xsec_frac: float, delta_rad: float):
+        """Store the band data; see the class attributes."""
         self.k: Expr = k
         self.xsec: float | None = xsec
         self.xsec_frac: float = xsec_frac

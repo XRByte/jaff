@@ -65,17 +65,14 @@ import numpy as np
 import sympy as sp
 from astropy import units as u
 
-from jaff.core.reaction.reaction_props import GroupedPhotoReactionProps
-
 from ...common._integrators import smart_integrate
-from .._typing import RadiationGroupReactionProps
+from ...core.reaction.reaction_props import GroupedPhotoReactionProps
 from ._photochemistry import Photochemistry, XsecProps
 from .background_field import BackgroundField
 
 if TYPE_CHECKING:
     from ...core.network import Network
     from ...core.reaction import Reaction
-    from ...core.reaction.reaction_props import GroupedPhotoReactionProps
     from ...physics import RadiationProps
 
 
@@ -83,10 +80,10 @@ class RadiationGroup:
     """
     A single frequency band in the radiation field discretisation.
 
-    Each group spans the photon-energy interval ``[lower, upper]`` (in eV)
-    and accumulates per-reaction rate-coefficient data populated by
-    :meth:`Radiation.set_reaction_rate_coefficient` and
-    :meth:`Radiation.set_custom_rate`.
+    Each group spans the photon-energy interval ``[lower, upper]`` (in eV).
+    Per-reaction band data is not stored here: each photo reaction holds one
+    :class:`~jaff.core.reaction.reaction_props.GroupedPhotoReactionProps` per
+    band in ``reaction.photo.rgrouped``.
 
     Parameters
     ----------
@@ -120,20 +117,6 @@ class RadiationGroup:
         ``(lower, upper)`` convenience pair.
     dE : float or sympy.Basic
         Band width ``upper - lower`` in eV.
-    props : dict
-        Mapping from :class:`~jaff.core.reaction.Reaction` objects to a
-        :class:`~jaff.physics._typing.RadiationGroupReactionProps` dict with
-        keys:
-
-        - ``"k"``         : symbolic rate coefficient (SymPy ``Expr``) for
-          this band.
-        - ``"xsec"``      : photon-number-weighted band-average cross section
-          (cm²), or ``None`` for custom-rate reactions.
-        - ``"xsec_frac"`` : fraction of the total cross section (or total
-          ``dRad``) attributed to this band (dimensionless).
-        - ``"delta_rad"`` : integrated ``dRad`` over the band -- the radiation
-          energy added to the band per reaction event (erg).
-
     profile_idx : float
         Spectral index *α* of this band.
     nph_profile : sympy.Expr
@@ -196,7 +179,6 @@ class RadiationGroup:
             if all(isinstance(val, (int, float)) for val in [self.upper, self.lower])
             else None
         )
-        self.props: dict[Reaction, RadiationGroupReactionProps] = {}
         self.profile_idx: float = profile_idx
         self.nph_profile: sp.Expr = self.E_sym ** (self.profile_idx - 2)
         self.energy_profile: sp.Expr = self.E_sym * self.nph_profile
@@ -373,7 +355,7 @@ class Radiation:
 
     def get_reaction_rate_props(
         self, reaction: Reaction
-    ) -> Tuple[sp.Expr, float, List["GroupedPhotoReactionProps"]]:
+    ) -> Tuple[sp.Expr, float, List[GroupedPhotoReactionProps]]:
         """
         Compute and store symbolic band-averaged rate coefficients for a reaction.
 
@@ -387,9 +369,9 @@ class Radiation:
         3. Assembles the symbolic rate coefficient
            ``k_i = c * den[i] * <σ>_i`` (photon-density mode) or
            ``k_i = c * den[i] * <σ>_i / <E>_i`` (energy-density mode).
-        4. Stores ``k_i``, the integrated cross section, the cross-section
-           fraction, and the integrated ``dRad`` in
-           ``self.groups[i].props[reaction]``.
+        4. Collects ``k_i``, the band-average cross section, the
+           cross-section fraction, and the integrated ``dRad`` into one
+           :class:`GroupedPhotoReactionProps` per band.
 
         After iterating over all bands the total symbolic rate coefficient
         (sum over bands, in units of s⁻¹ or cm³ s⁻¹ depending on reaction
@@ -430,12 +412,10 @@ class Radiation:
         ``E n(E)`` and ``reaction.rad.dRad`` use the same function, which falls
         back to numerical quadrature when SymPy cannot find a closed form.
         """
-        from ...core.reaction.reaction_props import GroupedPhotoReactionProps
-
         photo = reaction.photo
         if photo is None or photo.xsec is None:
             raise ValueError(
-                f"photo or xsec_props deteced as None for photoreaction: {reaction}"
+                f"Photo reaction {reaction} has no cross section (photo.xsec is None)"
             )
 
         xsec: XsecProps = photo.xsec
@@ -539,7 +519,7 @@ class Radiation:
 
     def get_reaction_custom_rate_props(
         self, reaction: Reaction
-    ) -> List["GroupedPhotoReactionProps"]:
+    ) -> List[GroupedPhotoReactionProps]:
         """
         Partition a user-supplied reaction rate across frequency bands.
 
@@ -572,10 +552,8 @@ class Radiation:
         reaction has no radiation coupling), all band fractions are set to
         zero to avoid division by zero.
         """
-        from ...core.reaction.reaction_props import GroupedPhotoReactionProps
-
         photo = reaction.photo
-        assert photo is not None, f"set_custom_rate needs a photo reaction: {reaction}"
+        assert photo is not None, f"{reaction} is not a photo reaction"
 
         # E is the photon energy symbol used in dRad expressions.
         E = sp.Symbol("E")

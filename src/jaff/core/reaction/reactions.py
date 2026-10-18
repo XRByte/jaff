@@ -359,14 +359,23 @@ class Reactions(Catalogue[Reaction]):
         """
         return Vector([r.products for r in self])
 
-    def rates(self) -> Vector[Basic]:
-        """Return a ``Vector`` of rate SymPy expressions.
+    def rate_coefficients(self) -> Vector[Basic]:
+        """Return a ``Vector`` of rate-coefficient SymPy expressions.
 
         Returns
         -------
         Vector[Basic]
         """
         return Vector([r.rate_coefficient for r in self])
+
+    def rates(self) -> Vector[Basic]:
+        """Return a ``Vector`` of reaction rates, ``rate_coefficient · Π nden``.
+
+        Returns
+        -------
+        Vector[Basic]
+        """
+        return Vector([r.rate for r in self])
 
     def tmins(self) -> Vector[float | None]:
         """Return a ``Vector`` of lower temperature bounds (K or ``None``).

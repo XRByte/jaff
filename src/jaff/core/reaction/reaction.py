@@ -136,10 +136,10 @@ class Reaction:
         Photo-reaction state, ``None`` for non-photo reactions: ``xsec``
         (cross sections of the single decay channel, an
         :class:`~jaff.physics.XsecProps`), ``pi_database`` (per-reaction
-        photoionization database override), ``groups`` (radiation bands the
-        reaction contributes to; see :attr:`band_xsecs`), ``custom_rad_rate``
-        (rate supplied by a ``.jfunc`` aux function); the spectrum-averaged
-        cross section is ``xsec.total`` (cm²).
+        photoionization database override), ``custom_rad_rate`` (rate
+        supplied by a ``.jfunc`` aux function), ``rgrouped`` (per-band data;
+        see :attr:`band_xsecs`) and ``shielding``; the spectrum-averaged cross
+        section is ``xsec.total`` (cm²).
     """
 
     def __init__(
@@ -162,6 +162,9 @@ class Reaction:
 
         Parameters
         ----------
+        net : Network
+            Network the reaction belongs to; supplies the auxiliary functions,
+            radiation field, cross-section lookup and conservation-check mode.
         reactants : list[Specie]
             Reactant species (may contain duplicates for three-body reactions).
         products : list[Specie]
@@ -172,14 +175,15 @@ class Reaction:
             Lower temperature bound in Kelvin, or ``None``.
         tmax : float or None
             Upper temperature bound in Kelvin, or ``None``.
-        dE : Basic
-            Energy change per event (erg), as a SymPy expression.
         original_string : str
             The raw network-file line that produced this reaction.
         index : int
             File-side source number (``source_index``): the file-order row
             number of this reaction, gapped when rows merge.  Not an array
             subscript; see the ``index`` / ``catalogue_index`` attributes.
+        dE : Expr or None, optional
+            Energy change per event (erg).  A ``.jfunc`` ``deltae`` function
+            takes precedence; ``None`` (default) without one means zero.
         t_cutoff : str, optional
             Out-of-range behaviour for the initial rate segment (``"clip"`` by
             default); see the :attr:`t_cutoff` attribute.
@@ -188,20 +192,19 @@ class Reaction:
             ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``, or a
             grain surface-mechanism type).  Stored verbatim on the ``type``
             attribute; defaults to ``"unknown"``.
-        errors : bool, optional
-            If ``True``, terminate the process on mass or charge conservation
-            violations instead of merely logging a warning, by default
-            ``False``.
+        rad : ReactionRadiationProps or None, optional
+            Radiation coupling.  ``None`` (default) builds one whose ``dRad``
+            comes from the ``.jfunc`` ``deltarad`` function, or zero.
         photo : PhotoReactionProps or None, optional
             Photo-reaction state; pass one for photo reactions, ``None``
             (default) otherwise.
-        rad : ReactionRadiationProps or None, optional
-            Radiation coupling; ``None`` (default) gives a zero ``dRad``.
 
         Raises
         ------
         SystemExit
-            When *errors* is ``True`` and mass or charge is not conserved.
+            When ``net.spec.errors`` is set and mass or charge is not conserved.
+        ParserError
+            For invalid photo-reaction or shielding configuration.
         """
         self.logger = JaffLogger().get_logger()
         self.net: "Network" = net

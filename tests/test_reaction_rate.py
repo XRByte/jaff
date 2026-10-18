@@ -40,3 +40,17 @@ def test_fluxes_use_rate(make_network):
     net = make_network(NETWORK, name="r.jet")
 
     assert net.sfluxes() == [rxn.rate for rxn in net.reactions]
+
+
+def test_catalogue_rates_are_reaction_rates(make_network):
+    net = make_network(NETWORK, name="r.jet")
+
+    assert list(net.reactions.rates()) == [rxn.rate for rxn in net.reactions]
+
+
+def test_catalogue_rate_coefficients_are_coefficients(make_network):
+    net = make_network(NETWORK, name="r.jet")
+
+    assert list(net.reactions.rate_coefficients()) == [
+        rxn.rate_coefficient for rxn in net.reactions
+    ]
