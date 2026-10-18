@@ -143,10 +143,10 @@ class Reaction:
         tmax: float | None,
         original_string: str,
         index: int,
-        rad: ReactionRadiationProps,
         dE: Expr | None = None,
         t_cutoff: str = "clip",
         type: str = "unknown",
+        rad: ReactionRadiationProps | None = None,
         photo: PhotoReactionProps | None = None,
     ):
         """Construct a ``Reaction`` and validate mass/charge conservation.
@@ -196,6 +196,7 @@ class Reaction:
         """
         self.logger = JaffLogger().get_logger()
         self.net: "Network" = net
+        self.index: int = index
         self.aux_funcs: AuxFunctions = self.__get_aux_funcs()
         self.reactants: Species = Species(reactants, check_length=False)
         self.products: Species = Species(products, check_length=False)
@@ -212,11 +213,18 @@ class Reaction:
             else (dE if dE is not None else Float(0.0))
         )
         self.photo: PhotoReactionProps | None = photo
-        self.rad: ReactionRadiationProps = rad
+        self.rad: ReactionRadiationProps = (
+            ReactionRadiationProps(
+                dRad=cast(Expr, self.aux_funcs.deltarad.expr)
+                if self.aux_funcs.deltarad is not None
+                else Float(0.0)
+            )
+            if rad is None
+            else rad
+        )
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
         self.verbatim: str = self.get_verbatim()
-        self.index: int = index
         self.catalogue_index: int = -1
 
         self.check(self.net.spec.errors)
@@ -323,7 +331,7 @@ class Reaction:
         assert self.net.radiation is not None
         assert self.photo is not None
 
-        if self.aux_funcs.chemrate is not None:
+        if self.aux_funcs.chemrate is None:
             k_tot, xsec_tot, grouped = self.net.radiation.get_reaction_rate_props(self)
             self.rate = k_tot
             self.photo.xsec_tot = xsec_tot

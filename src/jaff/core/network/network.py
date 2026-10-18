@@ -24,7 +24,7 @@ import sys
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from sympy import (
@@ -312,7 +312,7 @@ class Network:
             eos_props if eos_props is not None else EosProps("ideal")
         )
         self._use_proxy_photoreaction: bool = use_proxy_photoreaction
-        self.__photochemistry: None | Photochemistry = None
+        self._photochemistry: None | Photochemistry = None
         self.dust: Dust | None = (
             Dust(self, dust_props) if dust_props is not None else None
         )
@@ -484,7 +484,6 @@ class Network:
                 type=rtype,
                 t_cutoff=local_tcutoff,
                 photo=PhotoReactionProps() if rtype == "photo" else None,
-                rad=ReactionRadiationProps(dRad=deltaRad),
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
@@ -503,18 +502,18 @@ class Network:
                 rea.photo.pi_database = validate_pi_database(pi_db)
 
             if rea.photo is not None:
-                if self.__photochemistry is None:
-                    self.__photochemistry = Photochemistry(self)
+                if self._photochemistry is None:
+                    self._photochemistry = Photochemistry(self)
 
                 # A cross section is mandatory only when radiation sets the rate.
-                rea.photo.xsec_props = self.__photochemistry.get_xsec(
+                rea.photo.xsec_props = self._photochemistry.get_xsec(
                     rea,
                     required=self.radiation is not None
                     and aux_chem_rate not in aux_funcs,
                 )
 
-        if self.__photochemistry is not None:
-            self.__photochemistry.log_fallback_summary()
+        if self._photochemistry is not None:
+            self._photochemistry.log_fallback_summary()
 
         self.logger.info(f"Loaded {self.reactions.count} reactions")
         self.logger.info(f"Loaded {n_photo} photo-chemistry reactions")
@@ -561,9 +560,9 @@ class Network:
             self.reactions.add(rea)
 
             if rea.photo is not None:
-                if self.__photochemistry is None:
-                    self.__photochemistry = Photochemistry(self)
-                rea.photo.xsec_props = self.__photochemistry.get_xsec(
+                if self._photochemistry is None:
+                    self._photochemistry = Photochemistry(self)
+                rea.photo.xsec_props = self._photochemistry.get_xsec(
                     rea,
                     required=self.radiation is not None and not rea.photo.custom_rad_rate,
                 ) or reaction.get("xsec_props")
@@ -575,8 +574,8 @@ class Network:
 
                 self.radiation.get_reaction_rate_props(rea)
 
-        if self.__photochemistry is not None:
-            self.__photochemistry.log_fallback_summary()
+        if self._photochemistry is not None:
+            self._photochemistry.log_fallback_summary()
 
     def __normalize_network_extras(self, loaded_from_jaff: bool = False):
         """Standardize convenience symbols in all rate and auxiliary expressions.
