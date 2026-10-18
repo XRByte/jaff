@@ -374,14 +374,14 @@ class Reaction:
             self.net._photochemistry = Photochemistry(self.net)
 
         # A cross section is mandatory only when radiation sets the rate.
-        self.photo.xsec_props = (
+        self.photo.xsec = (
             self.net._photochemistry.get_xsec(
                 self,
                 required=self.net.radiation is not None
                 and self.aux_funcs.chemrate is None
                 and not self.photo.custom_rad_rate,
             )
-            or self.photo.xsec_props
+            or self.photo.xsec
         )
 
     def __set_photo_reaction_props(self):
@@ -392,8 +392,8 @@ class Reaction:
             k_tot, xsec_tot, grouped = self.net.radiation.get_reaction_rate_props(self)
             self.rate = k_tot
 
-            assert self.photo.xsec_props is not None
-            self.photo.xsec_props.total = xsec_tot
+            assert self.photo.xsec is not None
+            self.photo.xsec.total = xsec_tot
 
         elif self.aux_funcs.chemrate is not None and self.aux_funcs.deltarad:
             grouped = self.net.radiation.get_reaction_custom_rate_props(self)

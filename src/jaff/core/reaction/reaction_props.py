@@ -52,7 +52,7 @@ class PhotoReactionProps:
         groups : list[RadiationGroup] or None, optional
             Initial bands; ``None`` (default) starts with an empty list.
         """
-        self.xsec_props: XsecProps | None = xsec
+        self.xsec: XsecProps | None = xsec
         self.pi_database: str | None = pi_database
         self.custom_rad_rate: bool = custom_rad_rate
         self.rgrouped: List[GroupedPhotoReactionProps] | None = rgrouped

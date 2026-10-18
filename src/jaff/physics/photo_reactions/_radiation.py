@@ -432,12 +432,12 @@ class Radiation:
         from ...core.reaction.reaction_props import GroupedPhotoReactionProps
 
         photo = reaction.photo
-        if photo is None or photo.xsec_props is None:
+        if photo is None or photo.xsec is None:
             raise ValueError(
                 f"photo or xsec_props deteced as None for photoreaction: {reaction}"
             )
 
-        xsec: XsecProps = photo.xsec_props
+        xsec: XsecProps = photo.xsec
 
         # Each reaction carries a single decay-channel cross section, either as
         # tabulated arrays (NORAD / Leiden) or as a SymPy expression (Verner).
