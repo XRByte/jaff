@@ -7,6 +7,7 @@ from ...config import NETWORKS_DIR, predefined_networks
 from ...drivers import Toml
 from ...errors import ParserError
 from ..parsers import AuxiliaryFunctionParser
+from ..parsers.auxiliary_func import AuxiliaryFunctionProps
 
 
 class NetworkSpec:
@@ -42,8 +43,9 @@ class NetworkSpec:
     funcfile : bool | Path
         ``True`` to scan the network directory, ``False`` to skip, or the
         resolved path of the ``.jfunc`` file actually used.
-    aux_funcs : dict
-        Parsed auxiliary functions from the ``.jfunc`` file (``{}`` when none).
+    aux_funcs : dict[str, AuxiliaryFunctionProps]
+        Parsed auxiliary functions from the ``.jfunc`` file, keyed by lower-cased
+        name (``{}`` when none).
         Exposed for inspection/debugging.
     duplicate_policy : str
         How to resolve two rate coefficients sharing a reaction, mechanism, and
@@ -102,12 +104,12 @@ class NetworkSpec:
             )
         self.duplicate_policy: str = resolved_policy
         # Resolves funcfile to the actual .jfunc path (when True) and parses it.
-        self.aux_funcs: dict = self._load_aux_funcs()
+        self.aux_funcs: dict[str, AuxiliaryFunctionProps] = self._load_aux_funcs()
         self.expand_nuclei: bool = expand_nuclei
         self._from_cli: bool = _from_cli
         self._metadata: dict[str, Any] = _metadata
 
-    def _load_aux_funcs(self) -> dict:
+    def _load_aux_funcs(self) -> dict[str, AuxiliaryFunctionProps]:
         """Detect and parse the auxiliary ``.jfunc`` file into a dict.
 
         When :attr:`funcfile` is ``True``, scans next to the network file for
@@ -116,7 +118,7 @@ class NetworkSpec:
 
         Returns
         -------
-        dict
+        dict[str, AuxiliaryFunctionProps]
             Parsed auxiliary functions, or ``{}`` when there is no ``.jfunc``.
 
         Raises

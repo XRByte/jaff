@@ -27,7 +27,7 @@ from ..errors import ParserError
 
 if TYPE_CHECKING:
     from ..core._typing import ElementProps
-    from ..core.parsers.auxiliary_func._typing import AuxiliaryFunctionsDict
+    from ..core.parsers.auxiliary_func import AuxiliaryFunctionProps
 
 # ---------------------------------------------------------------------------
 # File-extension groups used by parsers and code generators
@@ -242,7 +242,7 @@ def float_piecewise_branches(expr: Basic) -> Basic:
 def resolve_dependencies(
     expr: Basic,
     subs_dict: dict[Basic, Basic] | None = None,
-    aux_funcs: dict[str, AuxiliaryFunctionsDict] | None = None,
+    aux_funcs: dict[str, AuxiliaryFunctionProps] | None = None,
 ) -> Expr:
     """
     Resolve undefined SymPy function calls inside a single expression.
@@ -264,9 +264,9 @@ def resolve_dependencies(
     subs_dict : dict[sympy.Basic, sympy.Basic] or None, optional
         Pre-populated substitution table.  Modified in-place as new
         substitutions are discovered.  Defaults to an empty dict.
-    aux_funcs : dict[str, AuxiliaryFunctionsDict] or None, optional
+    aux_funcs : dict[str, AuxiliaryFunctionProps] or None, optional
         Auxiliary function definitions keyed by lowercase function name.
-        Each entry must have ``"def"`` (the body expression) and ``"args"``
+        Each entry supplies ``expr`` (the body expression) and ``args``
         (the ordered parameter list).  Defaults to an empty dict.
 
     Returns
@@ -306,8 +306,8 @@ def resolve_dependencies(
 
         # User-defined auxiliary function: inline-expand with argument mapping
         elif name in aux_funcs:
-            func_def = aux_funcs[name]["def"]
-            func_args = aux_funcs[name]["args"]
+            func_def = aux_funcs[name].expr
+            func_args = aux_funcs[name].args
 
             arg_map = dict(
                 zip(

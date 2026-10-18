@@ -133,7 +133,7 @@ class AuxiliaryFunctionParser:
         self.__dict__.clear()
         self.og_line = self.line = self.cline = ""
 
-    def get_dict(self):
+    def get_dict(self) -> dict[str, AuxiliaryFunctionProps]:
         """Return the parsed function dictionary.
 
         Returns

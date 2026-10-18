@@ -24,7 +24,7 @@ import sys
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from sympy import (
@@ -68,7 +68,7 @@ from ._symbols import NetworkSymbols
 
 if TYPE_CHECKING:
     from .._typing import ElementProps
-    from ..parsers.auxiliary_func._typing import AuxiliaryFunctionsDict
+    from ..parsers.auxiliary_func import AuxiliaryFunctionProps
 
 
 @lru_cache(maxsize=200000)
@@ -478,13 +478,13 @@ class Network:
             # per reaction added to the moment-0 equations at codegen time
             deltaRad: Expr = Float(0.0)
             if aux_delta_rad in aux_funcs:
-                deltaRad = aux_funcs[aux_delta_rad]["def"]
+                deltaRad = cast(Expr, aux_funcs[aux_delta_rad].expr)
 
             # deltae{si}: chemical energy change per reaction, accumulates into
             # thermodynamics.dEdt_chemical
             deltaE: Basic = Float(0.0)
             if aux_delta_e in aux_funcs:
-                deltaE = aux_funcs[aux_delta_e]["def"]
+                deltaE = aux_funcs[aux_delta_e].expr
 
             rea = Reaction(
                 reactants=rr,
@@ -646,7 +646,7 @@ class Network:
     def __parse_rate(
         aux_chem_rate: str,
         rate: str,
-        aux_funcs: dict[str, AuxiliaryFunctionsDict],
+        aux_funcs: dict[str, AuxiliaryFunctionProps],
         global_vars: dict[str, Expr],
         n_photo: int,
     ) -> tuple[Expr, int]:
@@ -665,8 +665,8 @@ class Network:
             Key for the optional custom-rate auxiliary function (e.g. ``"chemrate0"``).
         rate : str
             Raw rate string from the network file.
-        aux_funcs : dict[str, AuxiliaryFunctionsDict]
-            Parsed auxiliary functions dictionary.
+        aux_funcs : dict[str, AuxiliaryFunctionProps]
+            Parsed auxiliary functions, keyed by name.
         global_vars : dict[str, Basic]
             Resolved global variable map from the network file.
         n_photo : int
@@ -679,7 +679,7 @@ class Network:
             incremented by 1 for photo-reactions.
         """
         if aux_chem_rate in aux_funcs:
-            rate_expr = aux_funcs[aux_chem_rate]["def"]
+            rate_expr = aux_funcs[aux_chem_rate].expr
         elif rate in global_vars:
             rate_expr = symbols(rate)
         elif "photo" in rate.lower():

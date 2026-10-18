@@ -149,7 +149,7 @@ class Thermodynamics:
         dEdt = Float(0.0)
         if "heatingcoolingrate" in self.net.spec.aux_funcs:
             dEdt = self.net.symbols.standardize(
-                self.net.spec.aux_funcs["heatingcoolingrate"]["def"]
+                self.net.spec.aux_funcs["heatingcoolingrate"].expr
             )
 
         return DEDt(dEdt, self.net)
