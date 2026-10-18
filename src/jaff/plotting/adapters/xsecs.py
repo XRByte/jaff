@@ -3,7 +3,7 @@
 
 """Photo cross sections as plotting series.
 
-Duck-typed: a reaction is anything with ``xsec_props`` (and optionally
+Duck-typed: a reaction is anything with ``photo.xsec`` (and optionally
 ``band_xsecs`` / ``get_latex``).
 """
 
@@ -113,7 +113,7 @@ def xsec_series(
     Parameters
     ----------
     reaction
-        Reaction-like object exposing ``xsec_props``.
+        Reaction-like object exposing ``photo.xsec``.
     processes : str, list[str] or None
         ``"all"`` (default), one key, or a list of keys.
     energy_unit, xsec_unit : str
@@ -132,7 +132,8 @@ def xsec_series(
     """
     procs = normalize_processes(processes)
     logger = JaffLogger().get_logger()
-    xsecs: XsecProps | None = getattr(reaction, "xsec_props", None)
+    photo = getattr(reaction, "photo", None)
+    xsecs: XsecProps | None = photo.xsec if photo is not None else None
 
     if xsecs is None:
         logger.info(f"No cross sections available for: {reaction}")

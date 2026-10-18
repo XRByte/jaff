@@ -50,6 +50,7 @@ from astropy import units as u
 from sympy import (
     Basic,
     Expr,
+    Float,
     sympify,
 )
 
@@ -57,7 +58,7 @@ from ...io import JaffLogger
 from ..elements import Elements
 from ..species import Specie, Species
 from ._helper import to_float_or_none
-from .photo_reaction_props import PhotoReactionProps
+from .reaction_props import PhotoReactionProps, ReactionRadiationProps
 from .types import RateSegment, RateSegments
 
 if TYPE_CHECKING:
@@ -93,10 +94,10 @@ class Reaction:
         collapsed into :attr:`rate` via ``evaluate_equivalent_rate``.
     dE : Basic
         SymPy expression for the energy released per reaction event (erg).
-    dRad: Basic
-        SymPy expression (in the photon-energy symbol ``E``, eV) for the
-        radiation energy this reaction adds to the field per unit photon
-        energy, in erg/eV.
+    rad : ReactionRadiationProps
+        Radiation coupling: ``dRad``, the SymPy expression (in the
+        photon-energy symbol ``E``, eV) for the radiation energy this reaction
+        adds to the field per unit photon energy, in erg/eV.
     verbatim : str
         Human-readable string ``"R1 + R2 -> P1 + P2"``.
     index : int
@@ -119,24 +120,14 @@ class Reaction:
     serialized_exploded : str
         Like ``serialized`` but built from the atom-level serialized forms of
         each species (isomer-insensitive comparison).
-    custom_rad_rate : bool
-        ``True`` when the radiation rate was supplied via a ``.jfunc`` aux
-        function rather than computed from cross-sections.
-    xsec_props : XsecProps or None
-        Photo cross-section data for the reaction's single decay channel:
-        ``photon_energy`` (eV), optional ``photo_absorption`` and the
-        ``photodecay`` array (cm²), ``database`` (source used: ``"norad"``,
-        ``"verner"`` or ``"leiden"``), ``photodecay_expr`` (Verner SymPy
-        expression in ``E`` (eV), else ``None``; the arrays are ``None`` for
-        Verner), plus ``process`` metadata.  ``None`` for non-photo reactions.
-    pi_database : str or None
-        Per-reaction photoionization database override (``"norad"``,
-        ``"verner"`` or ``"leiden"``); ``None`` uses the global
-        :attr:`RadiationProps.pi_database`.
-    rad_groups : list[RadiationGroup]
-        Back-references to the radiation bands this reaction contributes to,
-        populated when a radiation field is configured.  Empty otherwise.  See
-        the :attr:`band_xsecs` property for the band-averaged cross sections.
+    photo : PhotoReactionProps or None
+        Photo-reaction state, ``None`` for non-photo reactions: ``xsec``
+        (cross sections of the single decay channel, an
+        :class:`~jaff.physics.XsecProps`), ``pi_database`` (per-reaction
+        photoionization database override), ``groups`` (radiation bands the
+        reaction contributes to; see :attr:`band_xsecs`), ``custom_rad_rate``
+        (rate supplied by a ``.jfunc`` aux function) and ``xsec_tot``
+        (spectrum-averaged cross section, cm²).
     """
 
     def __init__(
@@ -152,7 +143,8 @@ class Reaction:
         t_cutoff: str = "clip",
         type: str = "unknown",
         errors: bool = False,
-        radiation_props: PhotoReactionProps | None = None,
+        photo: PhotoReactionProps | None = None,
+        rad: ReactionRadiationProps = ReactionRadiationProps(),
     ):
         """Construct a ``Reaction`` and validate mass/charge conservation.
 
@@ -170,9 +162,6 @@ class Reaction:
             Upper temperature bound in Kelvin, or ``None``.
         dE : Basic
             Energy change per event (erg), as a SymPy expression.
-        dRad : Basic
-            Radiation energy added to the field per unit photon energy
-            (erg/eV), as a SymPy expression in ``E`` (eV).
         original_string : str
             The raw network-file line that produced this reaction.
         index : int
@@ -191,6 +180,11 @@ class Reaction:
             If ``True``, terminate the process on mass or charge conservation
             violations instead of merely logging a warning, by default
             ``False``.
+        photo : PhotoReactionProps or None, optional
+            Photo-reaction state; pass one for photo reactions, ``None``
+            (default) otherwise.
+        rad : ReactionRadiationProps or None, optional
+            Radiation coupling; ``None`` (default) gives a zero ``dRad``.
 
         Raises
         ------
@@ -208,7 +202,8 @@ class Reaction:
             [RateSegment(rate, tmin, tmax)], t_cutoff
         )
         self.dE: Basic = dE
-        self.rad: PhotoReactionProps | None = radiation_props
+        self.photo: PhotoReactionProps | None = photo
+        self.rad: ReactionRadiationProps = rad
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
         self.verbatim: str = self.get_verbatim()
@@ -661,7 +656,7 @@ class Reaction:
         """Band-averaged cross sections for this reaction, one row per band.
 
         Assembles a tidy table from the :class:`~jaff.physics.photo_reactions._radiation.RadiationGroup`
-        back-references in :attr:`rad_groups` (populated when a radiation field
+        back-references in ``photo.groups`` (populated when a radiation field
         is configured).  Intended as the data source for band bar plots.
 
         Returns
@@ -685,7 +680,7 @@ class Reaction:
         Notes
         -----
         The rows are ordered by ascending band index, matching
-        :attr:`rad_groups`.
+        ``photo.groups``.
         """
         import pandas as pd
 
@@ -702,7 +697,7 @@ class Reaction:
                 "xsec": to_float_or_none(group.props.get(self, {}).get("xsec")),
                 "xsec_frac": to_float_or_none(group.props.get(self, {}).get("xsec_frac")),
             }
-            for group in self.rad_groups
+            for group in (self.photo.groups if self.photo is not None else [])
         ]
 
         return pd.DataFrame(rows, columns=columns)
@@ -745,7 +740,7 @@ class Reaction:
         -------
         tuple[matplotlib.figure.Figure, numpy.ndarray] or None
             ``(fig, axes)``, or ``None`` (with a log message) if
-            ``self.xsec_props`` is ``None`` or no requested process has data.
+            ``self.photo`` or its ``xsec`` is ``None`` or no requested process has data.
         """
         from ...plotting import plot_xsecs
 

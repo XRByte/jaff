@@ -152,10 +152,18 @@ class Photochemistry:
 
         return "e-" in key.partition("__")[2].split(".")
 
+    @staticmethod
+    def _pi_override(reaction: Reaction) -> str | None:
+        """The reaction's own ``pi_database``, or ``None`` when it has none."""
+
+        return reaction.photo.pi_database if reaction.photo is not None else None
+
     def _pi_order(self, reaction: Reaction) -> list[str]:
         """Databases to try: the chosen one, then :data:`PI_DATABASES` order."""
         rad = self.net.radiation
-        chosen = reaction.pi_database or (rad.pi_database if rad is not None else "norad")
+        chosen = self._pi_override(reaction) or (
+            rad.pi_database if rad is not None else "norad"
+        )
 
         return list(dict.fromkeys([chosen, *PI_DATABASES]))
 
@@ -207,7 +215,7 @@ class Photochemistry:
         Resolve the cross sections for a photo-reaction.
 
         Photodissociation comes from Leiden.  Photoionisation tries, in order,
-        ``reaction.pi_database`` (or the global
+        ``reaction.photo.pi_database`` (or the global
         :attr:`RadiationProps.pi_database`, ``"norad"`` without radiation),
         then ``norad``, ``verner``, ``leiden`` (duplicates removed).  Fallbacks to
         a later database are recorded and reported once by
@@ -238,14 +246,14 @@ class Photochemistry:
         Raises
         ------
         ParserError
-            If ``reaction.pi_database`` is set on a non-photoionisation
+            If ``reaction.photo.pi_database`` is set on a non-photoionisation
             reaction, or *required* and no database has the reaction.
         """
         key = self._lookup_key(reaction)
         row = self._tabulated_row(key)
 
         if not self._is_ionization(key, row):
-            if reaction.pi_database is not None:
+            if self._pi_override(reaction) is not None:
                 raise ParserError(
                     f"pi_database is only valid for photoionization reactions: {key}"
                 )

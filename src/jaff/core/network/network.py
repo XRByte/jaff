@@ -54,7 +54,14 @@ from ...physics import (
 from ...physics.photo_reactions._radiation_props import validate_pi_database
 from ..elements import Elements
 from ..parsers import NetworkParser
-from ..reaction import RateSegment, RateSegments, Reaction, Reactions
+from ..reaction import (
+    PhotoReactionProps,
+    RateSegment,
+    RateSegments,
+    Reaction,
+    ReactionRadiationProps,
+    Reactions,
+)
 from ..species import Specie, Species
 from ._spec import NetworkSpec
 from ._symbols import NetworkSymbols
@@ -469,7 +476,7 @@ class Network:
 
             # deltarad{si}: radiation energy emission per photon energy (eV)
             # per reaction added to the moment-0 equations at codegen time
-            deltaRad: Basic = Float(0.0)
+            deltaRad: Expr = Float(0.0)
             if aux_delta_rad in aux_funcs:
                 deltaRad = aux_funcs[aux_delta_rad]["def"]
 
@@ -486,12 +493,13 @@ class Network:
                 tmin=tmin,
                 tmax=tmax,
                 dE=deltaE,
-                dRad=deltaRad,
                 original_string=reaction["string"],
                 index=si,
                 type=rtype,
                 t_cutoff=local_tcutoff,
                 errors=self.spec.errors,
+                photo=PhotoReactionProps() if rtype == "photo" else None,
+                rad=ReactionRadiationProps(dRad=deltaRad),
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
@@ -503,28 +511,28 @@ class Network:
             if pi_db is None:
                 pi_db = reactions_config.get(srxn, {}).get("pi_database")
             if pi_db is not None:
-                if rea.type != "photo":
+                if rea.photo is None:
                     raise ParserError(
                         f"pi_database is only valid for photo reactions: {srxn}"
                     )
-                rea.pi_database = validate_pi_database(pi_db)
+                rea.photo.pi_database = validate_pi_database(pi_db)
 
-            if rea.type == "photo":
+            if rea.photo is not None:
                 if self.__photochemistry is None:
                     self.__photochemistry = Photochemistry(self)
 
                 # A cross section is mandatory only when radiation sets the rate.
-                rea.xsec_props = self.__photochemistry.get_xsec(
+                rea.photo.xsec = self.__photochemistry.get_xsec(
                     rea,
                     required=self.radiation is not None
                     and aux_chem_rate not in aux_funcs,
                 )
 
-            if rea.type == "photo" and self.radiation is not None:
+            if rea.photo is not None and self.radiation is not None:
                 if aux_chem_rate not in aux_funcs:
                     self.radiation.set_reaction_rate_coefficient(rea)
                 elif aux_chem_rate in aux_funcs and aux_delta_rad:
-                    rea.custom_rad_rate = True
+                    rea.photo.custom_rad_rate = True
                     self.radiation.set_custom_rate(rea)
                 else:
                     raise ParserError(
@@ -552,22 +560,27 @@ class Network:
         self.species = jaff_props["species"]
 
         for i, reaction in enumerate(jaff_props["reactions"]):
+            rtype = reaction.get("reaction_type", "unknown")
             rea = Reaction(
                 reactants=reaction["reactants"],
                 products=reaction["products"],
                 rate=reaction["rate"],
                 dE=reaction["dE"],
-                dRad=reaction["dRad"],
                 tmin=reaction["tmin"],
                 tmax=reaction["tmax"],
                 t_cutoff=reaction.get("t_cutoff", "clip"),
                 original_string=reaction["original_string"],
                 index=i,
-                type=reaction.get("reaction_type", "unknown"),
+                type=rtype,
                 errors=self.spec.errors,
+                photo=PhotoReactionProps(
+                    pi_database=reaction.get("pi_database"),
+                    custom_rad_rate=bool(reaction.get("custom_rad_rate")),
+                )
+                if rtype == "photo"
+                else None,
+                rad=ReactionRadiationProps(dRad=reaction["dRad"]),
             )
-            rea.custom_rad_rate = bool(reaction.get("custom_rad_rate"))
-            rea.pi_database = reaction.get("pi_database")
             segments = reaction.get("rate_segments")
             if segments:
                 rea.rate_segments = RateSegments(
@@ -576,16 +589,16 @@ class Network:
                 )
             self.reactions.add(rea)
 
-            if rea.type == "photo":
+            if rea.photo is not None:
                 if self.__photochemistry is None:
                     self.__photochemistry = Photochemistry(self)
-                rea.xsec_props = self.__photochemistry.get_xsec(
+                rea.photo.xsec = self.__photochemistry.get_xsec(
                     rea,
-                    required=self.radiation is not None and not rea.custom_rad_rate,
+                    required=self.radiation is not None and not rea.photo.custom_rad_rate,
                 ) or reaction.get("xsec_props")
 
-            if rea.type == "photo" and self.radiation is not None:
-                if rea.custom_rad_rate:
+            if rea.photo is not None and self.radiation is not None:
+                if rea.photo.custom_rad_rate:
                     self.radiation.set_custom_rate(rea)
                     continue
 
@@ -623,7 +636,7 @@ class Network:
                 r.rate = r.rate_segments.sort().evaluate_equivalent_rate(r)
 
             r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
-            dRad_dt = r.dRad * r.rate
+            dRad_dt = r.rad.dRad * r.rate
             for s in r.reactants.core:
                 dRad_dt *= nden[self.species[s.name].index]
             self.dRad_dt_extra += dRad_dt

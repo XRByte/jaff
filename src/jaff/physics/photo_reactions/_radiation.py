@@ -285,7 +285,7 @@ class Radiation:
     photden_tot : sympy.Expr or float
         Integral of ``nph_profile`` over the full band range (the sum of the
         per-band ``grp.photden``), used to normalise the full-spectrum
-        cross section ``reaction.rad_xsecs``.
+        cross section ``reaction.photo.xsec_tot``.
     """
 
     def __init__(
@@ -372,7 +372,7 @@ class Radiation:
         Compute and store symbolic band-averaged rate coefficients for a reaction.
 
         Reads the tabulated photo cross section σ(E) from
-        ``reaction.xsec_props``, then for each frequency band:
+        ``reaction.photo.xsec``, then for each frequency band:
 
         1. Computes the photon-number-weighted band-average cross section
            ``<σ>_i = ∫ σ n dE / ∫ n dE``.
@@ -389,13 +389,13 @@ class Radiation:
         (sum over bands, in units of s⁻¹ or cm³ s⁻¹ depending on reaction
         type) is written to ``reaction.rate``.
 
-        If the reaction has no cross section (no ``xsec_props``, or no
+        If the reaction has no cross section (no ``photo.xsec``, or no
         ``photodecay`` array / ``photodecay_expr``) the method returns silently (no-op).
 
         Parameters
         ----------
         reaction : Reaction
-            The photochemical reaction to process.  ``reaction.dRad`` must
+            The photochemical reaction to process.  ``reaction.rad.dRad`` must
             be a SymPy expression in the symbol ``E`` (photon energy in eV)
             describing the radiation energy the reaction adds to the field per
             unit photon energy (erg/eV); integrated over each band it gives the
@@ -404,8 +404,8 @@ class Radiation:
         Returns
         -------
         None
-            Results are stored in ``reaction.rate``, ``reaction.rad_xsecs``,
-            ``self.groups[i].props[reaction]``, and ``reaction.rad_groups``
+            Results are stored in ``reaction.rate``, ``reaction.photo.xsec_tot``,
+            ``self.groups[i].props[reaction]``, and ``reaction.photo.groups``
             (back-references to the bands this reaction contributes to)
             in-place.
 
@@ -420,12 +420,14 @@ class Radiation:
         :func:`~jaff.common._integrators.smart_integrate`: tabulated ``(E, σ)``
         arrays go through ``arr_integrate`` and Verner expressions through
         ``sym_integrate``.  The remaining analytic integrals over ``n(E)``,
-        ``E n(E)`` and ``reaction.dRad`` use the same function, which falls
+        ``E n(E)`` and ``reaction.rad.dRad`` use the same function, which falls
         back to numerical quadrature when SymPy cannot find a closed form.
         """
-        xsec: XsecProps | None = reaction.xsec_props
-        if xsec is None:
+        photo = reaction.photo
+        if photo is None or photo.xsec is None:
             return
+
+        xsec: XsecProps = photo.xsec
 
         # Each reaction carries a single decay-channel cross section, either as
         # tabulated arrays (NORAD / Leiden) or as a SymPy expression (Verner).
@@ -458,10 +460,10 @@ class Radiation:
             smart_integrate(pr_weighted, E, (self.bands[0], self.bands[-1]))
             / self.photden_tot
         )
-        reaction.rad_xsecs = xsec_tot
+        photo.xsec_tot = xsec_tot
 
         # Reset any back-references from a previous run before repopulating.
-        reaction.rad_groups = []
+        photo.groups = []
 
         for grp in self.groups:
             # Photon-number-weighted average cross section in the band:
@@ -478,7 +480,7 @@ class Radiation:
             # Integral of the user-supplied dRad (radiation energy per photon
             # energy, erg/eV) over the band -> energy per reaction event (erg).
             delta_rad_band = smart_integrate(
-                reaction.dRad, self.E_sym, (grp.lower, grp.upper)
+                reaction.rad.dRad, self.E_sym, (grp.lower, grp.upper)
             )
 
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
@@ -498,7 +500,7 @@ class Radiation:
                 else 0.0,  # fraction of total cross section
                 "delta_rad": delta_rad_band,
             }
-            reaction.rad_groups.append(grp)
+            photo.groups.append(grp)
 
             # In energy-density mode, convert from "per eV" to "per photon"
             # by dividing by the band-average energy <E>_i.
@@ -529,14 +531,14 @@ class Radiation:
         ----------
         reaction : Reaction
             Reaction with a pre-assigned ``reaction.rate`` (total rate
-            coefficient) and ``reaction.dRad`` as a SymPy expression in
+            coefficient) and ``reaction.rad.dRad`` as a SymPy expression in
             the symbol ``E`` (photon energy in eV).
 
         Returns
         -------
         None
             Results are stored in ``self.groups[i].props[reaction]`` and
-            ``reaction.rad_groups`` in-place.
+            ``reaction.photo.groups`` in-place.
 
         Notes
         -----
@@ -547,21 +549,24 @@ class Radiation:
         reaction has no radiation coupling), all band fractions are set to
         zero to avoid division by zero.
         """
+        photo = reaction.photo
+        assert photo is not None, f"set_custom_rate needs a photo reaction: {reaction}"
+
         # E is the photon energy symbol used in dRad expressions.
         E = sp.Symbol("E")
         # Integrate dRad over the full spectrum to use as denominator.
         delta_rad_total = smart_integrate(
-            reaction.dRad, E, (self.bands[0], self.bands[-1])
+            reaction.rad.dRad, E, (self.bands[0], self.bands[-1])
         )
         # Guard against zero-denominator case (no radiation coupling).
         delta_rad_total_is_zero = delta_rad_total == 0.0
 
         # Reset any back-references from a previous run before repopulating.
-        reaction.rad_groups = []
+        photo.groups = []
 
         for grp in self.groups:
             # Band-integrated dRad (numerator of the fraction).
-            delta_rad_band = smart_integrate(reaction.dRad, E, (grp.lower, grp.upper))
+            delta_rad_band = smart_integrate(reaction.rad.dRad, E, (grp.lower, grp.upper))
             # Fraction of the total radiation coupling attributed to this band.
             xsec_frac = (
                 0.0 if delta_rad_total_is_zero else delta_rad_band / delta_rad_total
@@ -575,7 +580,7 @@ class Radiation:
                 "xsec_frac": xsec_frac,
                 "delta_rad": delta_rad_band,
             }
-            reaction.rad_groups.append(grp)
+            photo.groups.append(grp)
 
     def ordered_index(self, idx: int, order: int) -> tuple[int, int]:
         """

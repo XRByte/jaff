@@ -208,11 +208,11 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                     for s in r.rate_segments
                 ],
                 "dE": encode_maybe_sympy(r.dE),
-                "dRad": encode_maybe_sympy(r.dRad),
-                "custom_rad_rate": r.custom_rad_rate,
+                "dRad": encode_maybe_sympy(r.rad.dRad),
+                "custom_rad_rate": r.photo is not None and r.photo.custom_rad_rate,
                 "original_string": r.original_string,
                 "type": r.type,
-                "pi_database": r.pi_database,
+                "pi_database": r.photo.pi_database if r.photo is not None else None,
             }
             for r in net.reactions
         ],

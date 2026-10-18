@@ -402,7 +402,7 @@ class Reactions(Catalogue[Reaction]):
         -------
         Vector[Basic]
         """
-        return Vector([r.dRad for r in self])
+        return Vector([r.rad.dRad for r in self])
 
     def serialized(self) -> Vector[str]:
         """Return a ``Vector`` of name-level serialized reaction strings.

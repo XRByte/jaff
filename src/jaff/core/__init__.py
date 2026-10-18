@@ -4,7 +4,7 @@ from . import elements, network, reaction, species
 from ._typing import ElementProps
 from .elements import Element, Elements
 from .network import Network, NetworkArgs, NetworkSpec, NetworkSymbols
-from .reaction import PhotoReactionProps, Reaction, Reactions
+from .reaction import PhotoReactionProps, Reaction, ReactionRadiationProps, Reactions
 from .species import Specie, Species
 
 __all__ = [
@@ -25,4 +25,5 @@ __all__ = [
     ReactionProps,
     NetworkSymbols,
     PhotoReactionProps,
+    ReactionRadiationProps,
 ]
