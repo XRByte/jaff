@@ -572,7 +572,6 @@ class Network:
             wrap the already-collapsed rate in a second piecewise, so the stored
             rate is used as-is instead.
         """
-        nden = self.symbols.ndens
         for r in self.reactions:
             if loaded_from_jaff:
                 r.rate_coefficient = self.symbols.standardize(r.rate_coefficient)
@@ -585,10 +584,7 @@ class Network:
                 r.rate_coefficient = r.rate_segments.sort().evaluate_equivalent_rate(r)
 
             r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
-            dRad_dt = r.rad.dRad * r.rate_coefficient
-            for s in r.reactants.core:
-                dRad_dt *= nden[self.species[s.name].index]
-            self.dRad_dt_extra += dRad_dt
+            self.dRad_dt_extra += r.rad.dRad * r.rate
         self.dRad_dt_extra = self.symbols.standardize(self.dRad_dt_extra)
 
     @staticmethod

@@ -86,6 +86,10 @@ class Reaction:
     rate_coefficient : Basic
         SymPy expression for the reaction rate coefficient (units depend on
         the reaction order; typically cm³ s⁻¹ for two-body reactions).
+        Reassigning it refreshes :attr:`rate`.
+    rate : Expr
+        ``rate_coefficient`` times the core reactants' number densities, the
+        reaction rate per unit volume used by every equation builder.
     tmin : float or None
         Minimum gas temperature at which the rate is valid (Kelvin).
         ``None`` means no lower bound.
@@ -99,7 +103,7 @@ class Reaction:
     rate_segments : RateSegments
         Per-temperature-range rate pieces.  A single-range reaction holds one
         segment; reactions merged across disjoint ranges accumulate several,
-        collapsed into :attr:`rate` via ``evaluate_equivalent_rate``.
+        collapsed into :attr:`rate_coefficient` via ``evaluate_equivalent_rate``.
     dE : Basic
         SymPy expression for the energy released per reaction event (erg).
     rad : ReactionRadiationProps
@@ -205,7 +209,7 @@ class Reaction:
         self.aux_funcs: AuxFunctions = self.__get_aux_funcs()
         self.reactants: Species = Species(reactants, check_length=False)
         self.products: Species = Species(products, check_length=False)
-        self.rate_coefficient: Expr = rate_coefficient
+        self.rate_coefficient = rate_coefficient
         self.tmin: float | None = tmin
         self.tmax: float | None = tmax
         self.t_cutoff: str = t_cutoff
@@ -411,6 +415,34 @@ class Reaction:
             grouped = self.net.radiation.get_reaction_custom_rate_props(self)
 
         self.photo.rgrouped = grouped
+
+    @property
+    def rate_coefficient(self) -> Expr:
+        """SymPy rate coefficient; see the class attributes."""
+        return self._rate_coefficient
+
+    @rate_coefficient.setter
+    def rate_coefficient(self, value: Expr) -> None:
+        self._rate_coefficient: Expr = value
+        # Drop the cached rate so the next read recomputes it from the new value.
+        self.__dict__.pop("rate", None)
+
+    @cached_property
+    def rate(self) -> Expr:
+        """Reaction rate per unit volume, ``rate_coefficient · Π nden[reactants]``.
+
+        Recomputed after :attr:`rate_coefficient` is reassigned.
+
+        Returns
+        -------
+        Expr
+        """
+        nden = self.net.symbols.ndens
+        rate = self.rate_coefficient
+        for s in self.reactants.core:
+            rate *= nden[self.net.species[s.name].index]
+
+        return rate
 
     @cached_property
     def species(self) -> Species:

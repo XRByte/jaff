@@ -75,11 +75,7 @@ def get_sfluxes(
     fluxes: list[Expr] = [Float(0.0) for _ in range(reactions.count)]
 
     for i, reaction in enumerate(reactions):
-        flux = reaction.rate_coefficient
-        for reactant in reaction.reactants.core:
-            flux *= nden[species[str(reactant)].index]
-
-        fluxes[i] = flux
+        fluxes[i] = reaction.rate
 
     return fluxes
 
