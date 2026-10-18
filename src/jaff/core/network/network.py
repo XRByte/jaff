@@ -514,7 +514,7 @@ class Network:
                     self.__photochemistry = Photochemistry(self)
 
                 # A cross section is mandatory only when radiation sets the rate.
-                rea.xsecs_dict = self.__photochemistry.get_xsec(
+                rea.xsec_props = self.__photochemistry.get_xsec(
                     rea,
                     required=self.radiation is not None
                     and aux_chem_rate not in aux_funcs,
@@ -579,7 +579,7 @@ class Network:
             if rea.type == "photo":
                 if self.__photochemistry is None:
                     self.__photochemistry = Photochemistry(self)
-                rea.xsecs_dict = self.__photochemistry.get_xsec(
+                rea.xsec_props = self.__photochemistry.get_xsec(
                     rea,
                     required=self.radiation is not None and not rea.custom_rad_rate,
                 ) or reaction.get("xsecs_dict")

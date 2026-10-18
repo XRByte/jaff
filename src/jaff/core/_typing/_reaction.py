@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, NotRequired, TypedDict
 from sympy import Basic, Expr
 
 if TYPE_CHECKING:
-    from ...physics.photo_reactions._photochemistry import XsecsProps
+    from ...physics import XsecProps
     from .. import Network, Reaction, Specie, Species
 else:
     Specie = "Specie"
@@ -38,6 +38,6 @@ ReactionProps = TypedDict(
         "rate_segments": NotRequired[list["RateSegmentProps"]],
         "original_string": str,
         "pi_database": NotRequired[str | None],
-        "xsecs_dict": "XsecsProps",
+        "xsec_props": "XsecProps",
     },
 )

@@ -19,8 +19,10 @@ reaction's ``pi_database`` override, then the global
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal
 
+import numpy as np
 from sympy import Basic, Expr, sympify
 
 from ...config import JAFF_DIR
@@ -32,12 +34,34 @@ from ...drivers.pooch import (
 from ...errors import ParserError
 from ...io import JaffLogger
 from ._radiation_props import PI_DATABASES
-from ._typing import XsecsProps
 from .shielding import _get_shielding_function
 
 if TYPE_CHECKING:
     from ...core import Reaction
     from ...core.network import Network
+
+
+@dataclass
+class Units:
+    photon_energy: str
+    cross_section: str
+
+
+@dataclass
+class Equations:
+    pa: bool
+    decay_type: Literal["dissociation", "ionization"]
+
+
+@dataclass
+class XsecProps:
+    units: Units
+    _equations: Equations
+    database: Literal["norad", "verner", "leiden"]
+    photon_energy: np.ndarray | None
+    photo_absorption: np.ndarray | None
+    photodecay: np.ndarray | None
+    photodecay_expr: Expr | None
 
 
 class Photochemistry:
@@ -105,10 +129,11 @@ class Photochemistry:
         return self._verner_expr(self._lookup_key(reaction))
 
     @staticmethod
-    def _verner_expr(key: str) -> Basic | None:
+    def _verner_expr(key: str) -> Expr | None:
         with JaffDb() as jdb:
             table = jdb.table("verner_cross_sections")
             rows: list = table.rows(conditions=f"reaction = '{key}'")
+
         return sympify(rows[0]["xsecs"]) if rows else None
 
     @staticmethod
@@ -116,6 +141,7 @@ class Photochemistry:
         with JaffDb() as jdb:
             table = jdb.table("photo_reaction_cross_sections")
             rows: list = table.rows(conditions=f"reaction = '{key}'")
+
         return rows[0] if rows else None
 
     @staticmethod
@@ -123,53 +149,59 @@ class Photochemistry:
         """Decay type from the table row, else from an ``e-`` product."""
         if row is not None:
             return row["decay_type"] == "ionization"
+
         return "e-" in key.partition("__")[2].split(".")
 
     def _pi_order(self, reaction: Reaction) -> list[str]:
         """Databases to try: the chosen one, then :data:`PI_DATABASES` order."""
         rad = self.net.radiation
         chosen = reaction.pi_database or (rad.pi_database if rad is not None else "norad")
+
         return list(dict.fromkeys([chosen, *PI_DATABASES]))
 
     @staticmethod
-    def _tabulated_xsec(db: str, loc: str, row: dict[str, Any]) -> XsecsProps:
+    def _tabulated_xsec(db: str, loc: str, row: dict[str, Any]) -> XsecProps:
         """Read one tabulated (Leiden / NORAD) HDF5 group into an XsecsProps."""
         pr_xsec = HDF5().to_dict(str(JAFF_DIR.resolve() / loc))
         photo_absorption = pr_xsec.get("photoabsorption", {}).get("_data", None)
-        return {
-            "units": {"photon_energy": "eV", "cross_section": "cm^2"},
-            "_equations": {
-                # Absorption weighting only when this group carries the data.
-                "pa": bool(row["photo_absorption"]) and photo_absorption is not None,
-                "decay_type": row["decay_type"],
-            },
-            "database": db,  # type: ignore[typeddict-item]
-            "photon_energy": pr_xsec.get("photon_energy", {}).get("_data", None),
-            "photo_absorption": photo_absorption,
-            "photodecay": pr_xsec.get("photodecay", {}).get("_data", None),
-            "photodecay_expr": None,
-        }
 
-    def _load(self, db: str, key: str, row: dict[str, Any] | None) -> XsecsProps | None:
+        return XsecProps(
+            units=Units(photon_energy="eV", cross_section="cm^2"),
+            _equations=Equations(
+                pa=bool(row["photo_absorption"]) and photo_absorption is not None,
+                decay_type=row["decay_type"],
+            ),
+            database=db,  # type: ignore
+            photon_energy=pr_xsec.get("photon_energy", {}).get("_data", None),
+            photo_absorption=photo_absorption,
+            photodecay=pr_xsec.get("photodecay", {}).get("_data", None),
+            photodecay_expr=None,
+        )
+
+    def _load(self, db: str, key: str, row: dict[str, Any] | None) -> XsecProps | None:
         """Cross sections for *key* from database *db*, or ``None`` if absent."""
         if db == "verner":
             expr = self._verner_expr(key)
+
             if expr is None:
                 return None
-            return {
-                "units": {"photon_energy": "eV", "cross_section": "cm^2"},
-                "_equations": {"pa": False, "decay_type": "ionization"},
-                "database": "verner",
-                "photon_energy": None,
-                "photo_absorption": None,
-                "photodecay": None,
-                "photodecay_expr": expr,
-            }
+
+            return XsecProps(
+                units=Units(photon_energy="eV", cross_section="cm^2"),
+                _equations=Equations(pa=False, decay_type="ionization"),
+                database="verner",
+                photon_energy=None,
+                photo_absorption=None,
+                photodecay=None,
+                photodecay_expr=expr,
+            )
+
         if row is None or not row[db]:
             return None
+
         return self._tabulated_xsec(db, row[db], row)
 
-    def get_xsec(self, reaction: Reaction, required: bool = False) -> XsecsProps | None:
+    def get_xsec(self, reaction: Reaction, required: bool = False) -> XsecProps | None:
         """
         Resolve the cross sections for a photo-reaction.
 
@@ -216,6 +248,7 @@ class Photochemistry:
                 raise ParserError(
                     f"pi_database is only valid for photoionization reactions: {key}"
                 )
+
             return self._load("leiden", key, row)
 
         order = self._pi_order(reaction)
@@ -223,8 +256,10 @@ class Photochemistry:
             xsecs = self._load(db, key, row)
             if xsecs is None:
                 continue
+
             if db != order[0]:
                 self.fallbacks.append((key, order[0], db))
+
             return xsecs
 
         if required:
@@ -232,6 +267,7 @@ class Photochemistry:
                 f"No photoionization cross section for {key} in any database "
                 f"(tried {', '.join(order)})"
             )
+
         return None
 
     def log_fallback_summary(self) -> None:
@@ -242,9 +278,11 @@ class Photochemistry:
         """
         if not self.fallbacks:
             return
+
         groups: dict[tuple[str, str], list[str]] = {}
         for key, requested, used in self.fallbacks:
             groups.setdefault((requested, used), []).append(key)
+
         lines = [
             f"{req} -> {used}: {', '.join(keys)}" for (req, used), keys in groups.items()
         ]
@@ -252,6 +290,7 @@ class Photochemistry:
             "Photoionization cross sections taken from a fallback database:\n"
             + "\n".join(lines)
         )
+
         self.fallbacks.clear()
 
     @staticmethod

@@ -67,8 +67,7 @@ from astropy import units as u
 
 from ...common._integrators import smart_integrate
 from .._typing import RadiationGroupReactionProps
-from ._photochemistry import Photochemistry
-from ._typing._photochemistry import XsecsProps
+from ._photochemistry import Photochemistry, XsecProps
 from .background_field import BackgroundField
 
 if TYPE_CHECKING:
@@ -424,7 +423,7 @@ class Radiation:
         ``E n(E)`` and ``reaction.dRad`` use the same function, which falls
         back to numerical quadrature when SymPy cannot find a closed form.
         """
-        xsec: XsecsProps | None = reaction.xsecs_dict
+        xsec: XsecProps | None = reaction.xsec_props
         if xsec is None:
             return
 

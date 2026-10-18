@@ -54,7 +54,7 @@ from sympy import (
 )
 
 from ...io import JaffLogger
-from ...physics.photo_reactions._typing import XsecsProps
+from ...physics import XsecProps
 from ..elements import Elements
 from ..species import Specie, Species
 from ._helper import to_float_or_none
@@ -214,7 +214,7 @@ class Reaction:
         self.custom_rad_rate: bool = False
         self.rad_xsecs: float | None = None
         self.rad_groups: list[RadiationGroup] = []
-        self.xsecs_dict: XsecsProps | None = None
+        self.xsec_props: XsecProps | None = None
         self.pi_database: str | None = None
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
