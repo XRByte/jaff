@@ -34,7 +34,7 @@ src/jaff/
 │   │   │       └── kida/       # parser.py + reaction.py handler
 │   │   └── auxiliary_func/     # .jfunc auxiliary function parser
 │   │       ├── _engine.py      # AuxiliaryFunctionParser
-│   │       └── _typing/        # AuxiliaryFunctionsDict
+│   │       └── function_props.py # AuxiliaryFunctionProps (one parsed function)
 │   └── _typing/                # Shared core TypedDicts (Network/Element/Reaction)
 │
 ├── physics/                    # Symbolic ODE/flux generation + physics helpers

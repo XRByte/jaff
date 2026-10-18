@@ -42,4 +42,4 @@ def test_valid_return_no_trailing_newline(tmp_path: Path) -> None:
     path = _write(tmp_path, "@function foo(x)\n@return 2*x")  # no newline at EOF
     funcs = AuxiliaryFunctionParser(path).get_dict()
     x = sp.Symbol("x")
-    assert sp.simplify(funcs["foo"]["def"] - 2 * x) == 0
+    assert sp.simplify(funcs["foo"].expr - 2 * x) == 0

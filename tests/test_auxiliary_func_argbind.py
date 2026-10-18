@@ -31,7 +31,7 @@ def test_swapped_arguments(tmp_path: Path) -> None:
     )
     funcs = AuxiliaryFunctionParser(path).get_dict()
     x, y = sp.symbols("x y")
-    assert sp.simplify(funcs["swapped"]["def"] - (y - x)) == 0
+    assert sp.simplify(funcs["swapped"].expr - (y - x)) == 0
 
 
 def test_actual_arg_contains_other_formal(tmp_path: Path) -> None:
@@ -46,7 +46,7 @@ def test_actual_arg_contains_other_formal(tmp_path: Path) -> None:
     funcs = AuxiliaryFunctionParser(path).get_dict()
     a, b = sp.symbols("a b")
     # subtract(a+b, b) = (a+b) - b = a
-    assert sp.simplify(funcs["combine"]["def"] - a) == 0
+    assert sp.simplify(funcs["combine"].expr - a) == 0
 
 
 def test_too_few_arguments(tmp_path: Path) -> None:
