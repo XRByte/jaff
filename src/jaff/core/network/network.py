@@ -396,8 +396,6 @@ class Network:
             rate: str = reaction["rate"]
             si = reaction["source_index"]
             aux_chem_rate = f"chemrate{si}"
-            aux_delta_rad = f"deltarad{si}"
-            aux_delta_e = f"deltae{si}"
 
             for s in reactants + products:
                 if s in specie_names:
@@ -474,32 +472,19 @@ class Network:
                 rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
                 continue
 
-            # deltarad{si}: radiation energy emission per photon energy (eV)
-            # per reaction added to the moment-0 equations at codegen time
-            deltaRad: Expr = Float(0.0)
-            if aux_delta_rad in aux_funcs:
-                deltaRad = cast(Expr, aux_funcs[aux_delta_rad].expr)
-
-            # deltae{si}: chemical energy change per reaction, accumulates into
-            # thermodynamics.dEdt_chemical
-            deltaE: Basic = Float(0.0)
-            if aux_delta_e in aux_funcs:
-                deltaE = aux_funcs[aux_delta_e].expr
-
             rea = Reaction(
+                self,
                 reactants=rr,
                 products=pp,
                 rate=rate_expr,
                 tmin=tmin,
                 tmax=tmax,
-                dE=deltaE,
                 original_string=reaction["string"],
                 index=si,
                 type=rtype,
                 t_cutoff=local_tcutoff,
-                errors=self.spec.errors,
                 photo=PhotoReactionProps() if rtype == "photo" else None,
-                rad=ReactionRadiationProps(bool(self.radiation), dRad=deltaRad),
+                rad=ReactionRadiationProps(dRad=deltaRad),
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
@@ -522,25 +507,11 @@ class Network:
                     self.__photochemistry = Photochemistry(self)
 
                 # A cross section is mandatory only when radiation sets the rate.
-                rea.photo.xsec = self.__photochemistry.get_xsec(
+                rea.photo.xsec_props = self.__photochemistry.get_xsec(
                     rea,
                     required=self.radiation is not None
                     and aux_chem_rate not in aux_funcs,
                 )
-
-            if rea.photo is not None and self.radiation is not None:
-                if aux_chem_rate not in aux_funcs:
-                    self.radiation.set_reaction_rate_coefficient(rea)
-                elif aux_chem_rate in aux_funcs and aux_delta_rad:
-                    rea.photo.custom_rad_rate = True
-                    self.radiation.set_custom_rate(rea)
-                else:
-                    raise ParserError(
-                        "If radiation is enabled and a custom rate is supplied\n"
-                        "for a photo reaction, the auxilary deltaRad function is\n"
-                        "necessary to weigh the first moment radiation equations\n"
-                        f"Please add a custom deltaRad function for reaction {si}"
-                    )
 
         if self.__photochemistry is not None:
             self.__photochemistry.log_fallback_summary()
@@ -562,6 +533,7 @@ class Network:
         for i, reaction in enumerate(jaff_props["reactions"]):
             rtype = reaction.get("reaction_type", "unknown")
             rea = Reaction(
+                self,
                 reactants=reaction["reactants"],
                 products=reaction["products"],
                 rate=reaction["rate"],
@@ -572,14 +544,13 @@ class Network:
                 original_string=reaction["original_string"],
                 index=i,
                 type=rtype,
-                errors=self.spec.errors,
                 photo=PhotoReactionProps(
                     pi_database=reaction.get("pi_database"),
                     custom_rad_rate=bool(reaction.get("custom_rad_rate")),
                 )
                 if rtype == "photo"
                 else None,
-                rad=ReactionRadiationProps(bool(self.radiation), dRad=reaction["dRad"]),
+                rad=ReactionRadiationProps(dRad=reaction["dRad"]),
             )
             segments = reaction.get("rate_segments")
             if segments:
@@ -592,17 +563,17 @@ class Network:
             if rea.photo is not None:
                 if self.__photochemistry is None:
                     self.__photochemistry = Photochemistry(self)
-                rea.photo.xsec = self.__photochemistry.get_xsec(
+                rea.photo.xsec_props = self.__photochemistry.get_xsec(
                     rea,
                     required=self.radiation is not None and not rea.photo.custom_rad_rate,
                 ) or reaction.get("xsec_props")
 
             if rea.photo is not None and self.radiation is not None:
                 if rea.photo.custom_rad_rate:
-                    self.radiation.set_custom_rate(rea)
+                    self.radiation.get_reaction_custom_rate_props(rea)
                     continue
 
-                self.radiation.set_reaction_rate_coefficient(rea)
+                self.radiation.get_reaction_rate_props(rea)
 
         if self.__photochemistry is not None:
             self.__photochemistry.log_fallback_summary()

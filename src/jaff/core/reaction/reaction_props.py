@@ -3,12 +3,15 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, List
 
 from sympy import Expr, Float
 
+from ...core.parsers import AuxiliaryFunctionProps
+
 if TYPE_CHECKING:
-    from ...physics import RadiationGroup, XsecProps
+    from ...physics import XsecProps
 
 
 class PhotoReactionProps:
@@ -38,9 +41,9 @@ class PhotoReactionProps:
         self,
         xsec: XsecProps | None = None,
         pi_database: str | None = None,
-        groups: List[RadiationGroup] | None = None,
         custom_rad_rate: bool = False,
         xsec_tot: float | None = None,
+        rgrouped: List[GroupedPhotoReactionProps] | None = None,
     ):
         """Store the photo-reaction state; see the class attributes.
 
@@ -49,11 +52,19 @@ class PhotoReactionProps:
         groups : list[RadiationGroup] or None, optional
             Initial bands; ``None`` (default) starts with an empty list.
         """
-        self.xsec: XsecProps | None = xsec
+        self.xsec_props: XsecProps | None = xsec
         self.pi_database: str | None = pi_database
-        self.groups: List[RadiationGroup] = groups if groups is not None else []
         self.custom_rad_rate: bool = custom_rad_rate
         self.xsec_tot: float | None = xsec_tot
+        self.rgrouped: List[GroupedPhotoReactionProps] | None = rgrouped
+
+
+class GroupedPhotoReactionProps:
+    def __init__(self, k: Expr, xsec: float | None, xsec_frac: float, delta_rad: float):
+        self.k: Expr = k
+        self.xsec: float | None = xsec
+        self.xsec_frac: float = xsec_frac
+        self.detla_rad: float = delta_rad
 
 
 class ReactionRadiationProps:
@@ -66,7 +77,13 @@ class ReactionRadiationProps:
         (erg/eV), as a SymPy expression in ``E`` (eV).  Zero by default.
     """
 
-    def __init__(self, explicit: bool, dRad: Expr | None = None):
+    def __init__(self, dRad: Expr | None = None):
         """Store the radiation coupling; ``dRad=None`` (default) means zero."""
         self.dRad: Expr = dRad if dRad is not None else Float(0.0)
-        self.explicit: bool = explicit
+
+
+@dataclass
+class AuxFunctions:
+    chemrate: AuxiliaryFunctionProps | None = None
+    deltae: AuxiliaryFunctionProps | None = None
+    deltarad: AuxiliaryFunctionProps | None = None

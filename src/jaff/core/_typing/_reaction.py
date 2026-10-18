@@ -28,7 +28,7 @@ ReactionProps = TypedDict(
         "reactants": list["Specie"],
         "products": list["Specie"],
         "rate": Expr,
-        "dE": Basic,
+        "dE": Expr,
         "dRad": Expr,
         "custom_rad_rate": bool,
         "reaction_type": str,

@@ -307,7 +307,7 @@ class Reactions(Catalogue[Reaction]):
         if type is None or rea.type == type:
             return rea
 
-    def with_type(self, type: str):
+    def with_type(self, type: str) -> Vector[Reaction]:
         """Return all reactions matching the given reaction type.
 
         Parameters

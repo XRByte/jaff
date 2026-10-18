@@ -43,26 +43,30 @@ from __future__ import annotations
 
 import sys
 from functools import cache, cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from astropy import units as u
 from sympy import (
     Basic,
     Expr,
+    Float,
     sympify,
 )
 
+from ...errors import ParserError
 from ...io import JaffLogger
 from ..elements import Elements
 from ..species import Specie, Species
 from ._helper import to_float_or_none
-from .reaction_props import PhotoReactionProps, ReactionRadiationProps
+from .reaction_props import AuxFunctions, PhotoReactionProps, ReactionRadiationProps
 from .types import RateSegment, RateSegments
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
     import pandas as pd
+
+    from ...core import Network
 
 
 class Reaction:
@@ -131,18 +135,18 @@ class Reaction:
 
     def __init__(
         self,
+        net: "Network",
         reactants: list[Specie],
         products: list[Specie],
         rate: Expr,
         tmin: float | None,
         tmax: float | None,
-        dE: Basic,
         original_string: str,
         index: int,
         rad: ReactionRadiationProps,
+        dE: Expr | None = None,
         t_cutoff: str = "clip",
         type: str = "unknown",
-        errors: bool = False,
         photo: PhotoReactionProps | None = None,
     ):
         """Construct a ``Reaction`` and validate mass/charge conservation.
@@ -191,6 +195,8 @@ class Reaction:
             When *errors* is ``True`` and mass or charge is not conserved.
         """
         self.logger = JaffLogger().get_logger()
+        self.net: "Network" = net
+        self.aux_funcs: AuxFunctions = self.__get_aux_funcs()
         self.reactants: Species = Species(reactants, check_length=False)
         self.products: Species = Species(products, check_length=False)
         self.rate: Expr = rate
@@ -200,7 +206,11 @@ class Reaction:
         self.rate_segments: RateSegments = RateSegments(
             [RateSegment(rate, tmin, tmax)], t_cutoff
         )
-        self.dE: Basic = dE
+        self.dE: Expr = (
+            cast(Expr, self.aux_funcs.deltae.expr)
+            if self.aux_funcs.deltae is not None
+            else (dE if dE is not None else Float(0.0))
+        )
         self.photo: PhotoReactionProps | None = photo
         self.rad: ReactionRadiationProps = rad
         self.original_string = original_string
@@ -209,7 +219,7 @@ class Reaction:
         self.index: int = index
         self.catalogue_index: int = -1
 
-        self.check(errors)
+        self.check(self.net.spec.errors)
         self.serialized_exploded: str = self.serialize_exploded()
         self.serialized: str = self.serialize(self.reactants, self.products)
         # The reaction type is concluded by the parser and supplied here, not
@@ -218,6 +228,10 @@ class Reaction:
         # Private key/value store for parser- and physics-supplied extras
         # (e.g. shielding model props). Not part of the public API.
         self._metadata: dict = {}
+
+        if self.net.radiation is not None:
+            if self.photo is not None:
+                self.__set_photo_reaction_props()
 
     def __repr__(self):
         """Return detailed string representation of this reaction.
@@ -295,6 +309,36 @@ class Reaction:
             )
 
         return self.serialized < other.serialized
+
+    def __get_aux_funcs(self) -> AuxFunctions:
+        af = self.net.spec.aux_funcs
+
+        return AuxFunctions(
+            chemrate=af.get(f"chemrate{self.index}", None),
+            deltae=af.get(f"deltae{self.index}", None),
+            deltarad=af.get(f"deltarad{self.index}", None),
+        )
+
+    def __set_photo_reaction_props(self):
+        assert self.net.radiation is not None
+        assert self.photo is not None
+
+        if self.aux_funcs.chemrate is not None:
+            k_tot, xsec_tot, grouped = self.net.radiation.get_reaction_rate_props(self)
+            self.rate = k_tot
+            self.photo.xsec_tot = xsec_tot
+
+        elif self.aux_funcs.chemrate is not None and self.aux_funcs.deltarad:
+            grouped = self.net.radiation.get_reaction_custom_rate_props(self)
+        else:
+            raise ParserError(
+                "If radiation is enabled and a custom rate is supplied\n"
+                "for a photo reaction, the auxilary deltaRad function is\n"
+                "necessary to weigh the first moment radiation equations\n"
+                f"Please add a custom deltaRad function for reaction {self.index}"
+            )
+
+        self.photo.rgrouped = grouped
 
     @cached_property
     def species(self) -> Species:

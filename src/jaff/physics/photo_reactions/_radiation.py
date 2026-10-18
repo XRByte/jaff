@@ -59,11 +59,13 @@ field is therefore an energy density in erg/cm³.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
 import sympy as sp
 from astropy import units as u
+
+from jaff.core.reaction.reaction_props import GroupedPhotoReactionProps
 
 from ...common._integrators import smart_integrate
 from .._typing import RadiationGroupReactionProps
@@ -73,6 +75,7 @@ from .background_field import BackgroundField
 if TYPE_CHECKING:
     from ...core.network import Network
     from ...core.reaction import Reaction
+    from ...core.reaction.reaction_props import GroupedPhotoReactionProps
     from ...physics import RadiationProps
 
 
@@ -309,6 +312,7 @@ class Radiation:
             density), ``c`` (speed of light in cm/s, or a string converted to a
             symbol), and ``background_field``.
         """
+
         self.network: Network = network
         self.bands: list[int | float | sp.Basic] = props.bands
         self.mode: str = props.mode
@@ -367,7 +371,9 @@ class Radiation:
 
         return sp.Piecewise(*pieces)
 
-    def set_reaction_rate_coefficient(self, reaction: Reaction) -> None:
+    def get_reaction_rate_props(
+        self, reaction: Reaction
+    ) -> Tuple[sp.Expr, float, List["GroupedPhotoReactionProps"]]:
         """
         Compute and store symbolic band-averaged rate coefficients for a reaction.
 
@@ -423,11 +429,15 @@ class Radiation:
         ``E n(E)`` and ``reaction.rad.dRad`` use the same function, which falls
         back to numerical quadrature when SymPy cannot find a closed form.
         """
-        photo = reaction.photo
-        if photo is None or photo.xsec is None:
-            return
+        from ...core.reaction.reaction_props import GroupedPhotoReactionProps
 
-        xsec: XsecProps = photo.xsec
+        photo = reaction.photo
+        if photo is None or photo.xsec_props is None:
+            raise ValueError(
+                f"photo or xsec_props deteced as None for photoreaction: {reaction}"
+            )
+
+        xsec: XsecProps = photo.xsec_props
 
         # Each reaction carries a single decay-channel cross section, either as
         # tabulated arrays (NORAD / Leiden) or as a SymPy expression (Verner).
@@ -442,7 +452,9 @@ class Radiation:
             pr_weighted: np.ndarray | sp.Expr = pr_expr * self.nph_profile
         else:
             if xsec.photodecay is None:
-                return
+                raise ValueError(
+                    f"Photodecay cross-section cannot be None for reaction: {reaction}"
+                )
 
             assert isinstance(xsec.photon_energy, np.ndarray)
             E = xsec.photon_energy  # photon energy array in eV
@@ -452,26 +464,27 @@ class Radiation:
             if xsec.process.absorption_weighted:
                 pa_weighted = xsec.photo_absorption * ph_profile
 
-        k_tot = sp.Float(0.0)  # Accumulates total rate coefficient over all bands
+        k_tot: sp.Expr = sp.Float(
+            0.0
+        )  # Accumulates total rate coefficient over all bands
 
         # Total cross section integrated over the full spectrum (cm²),
         # stored on the reaction for later reference
-        xsec_tot = (
+        xsec_tot: float = (
             smart_integrate(pr_weighted, E, (self.bands[0], self.bands[-1]))
             / self.photden_tot
         )
-        photo.xsec_tot = xsec_tot
 
         # Reset any back-references from a previous run before repopulating.
-        photo.groups = []
+        grouped: List[GroupedPhotoReactionProps] = []
 
         for grp in self.groups:
             # Photon-number-weighted average cross section in the band:
             # <σ>_i = ∫ σ(E) n(E) dE / ∫ n(E) dE
-            pr_xsec_avg = (
+            pr_xsec_avg: float = (
                 smart_integrate(pr_weighted, E, (grp.lower, grp.upper)) / grp.photden
             )
-            rad_xsec_avg = (
+            rad_xsec_avg: float = (
                 smart_integrate(pa_weighted, E, (grp.lower, grp.upper)) / grp.photden
                 if pa_weighted is not None
                 else pr_xsec_avg
@@ -485,22 +498,22 @@ class Radiation:
 
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
             # (units: s⁻¹ for photon-density mode, cm³ s⁻¹ for two-body)
-            k = self.c * self.den[grp.index] * rad_xsec_avg
+            k: sp.Expr = self.c * self.den[grp.index] * rad_xsec_avg
             if "shielding" in reaction._metadata:
                 if "value" in reaction._metadata["shielding"]:
                     k *= reaction._metadata["shielding"]["value"]
                 else:
                     k *= Photochemistry.shielding(reaction, self.network)
 
-            grp.props[reaction] = {
-                "k": k,
-                "xsec": rad_xsec_avg,
-                "xsec_frac": rad_xsec_avg / xsec_tot
+            rgroup: GroupedPhotoReactionProps = GroupedPhotoReactionProps(
+                k=k,
+                xsec=rad_xsec_avg,
+                xsec_frac=rad_xsec_avg / xsec_tot
                 if xsec_tot != 0.0
                 else 0.0,  # fraction of total cross section
-                "delta_rad": delta_rad_band,
-            }
-            photo.groups.append(grp)
+                delta_rad=delta_rad_band,
+            )
+            grouped.append(rgroup)
 
             # In energy-density mode, convert from "per eV" to "per photon"
             # by dividing by the band-average energy <E>_i.
@@ -514,9 +527,11 @@ class Radiation:
                 / (grp.eavg if self.mode == "u" else 1)
             )
 
-        reaction.rate = k_tot
+        return k_tot, xsec_tot, grouped
 
-    def set_custom_rate(self, reaction: Reaction) -> None:
+    def get_reaction_custom_rate_props(
+        self, reaction: Reaction
+    ) -> List["GroupedPhotoReactionProps"]:
         """
         Partition a user-supplied reaction rate across frequency bands.
 
@@ -549,6 +564,8 @@ class Radiation:
         reaction has no radiation coupling), all band fractions are set to
         zero to avoid division by zero.
         """
+        from ...core.reaction.reaction_props import GroupedPhotoReactionProps
+
         photo = reaction.photo
         assert photo is not None, f"set_custom_rate needs a photo reaction: {reaction}"
 
@@ -562,7 +579,7 @@ class Radiation:
         delta_rad_total_is_zero = delta_rad_total == 0.0
 
         # Reset any back-references from a previous run before repopulating.
-        photo.groups = []
+        grouped: List[GroupedPhotoReactionProps] = []
 
         for grp in self.groups:
             # Band-integrated dRad (numerator of the fraction).
@@ -574,13 +591,15 @@ class Radiation:
             # Scale the total user-supplied rate by the band fraction.
             k = reaction.rate * xsec_frac
 
-            grp.props[reaction] = {
-                "k": k,
-                "xsec": None,  # No tabulated cross section for custom reactions
-                "xsec_frac": xsec_frac,
-                "delta_rad": delta_rad_band,
-            }
-            photo.groups.append(grp)
+            rgroup = GroupedPhotoReactionProps(
+                k=k,
+                xsec=None,  # No tabulated cross section for custom reactions
+                xsec_frac=xsec_frac,
+                delta_rad=delta_rad_band,
+            )
+            grouped.append(rgroup)
+
+        return grouped
 
     def ordered_index(self, idx: int, order: int) -> tuple[int, int]:
         """
