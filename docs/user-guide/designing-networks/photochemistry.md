@@ -411,14 +411,15 @@ print(net.sradodes())
 ```
 
 Cross-section lookup is also exposed directly via the
-`jaff.physics.Photochemistry` class. Constructing it downloads the cross-section
-and line-shielding data files on first use (cached thereafter), so instantiate
-once and reuse:
+`jaff.physics.Photochemistry` class. It takes the network the reactions belong
+to (for the look-up key and the global `pi_database`). Constructing it downloads
+the cross-section and line-shielding data files on first use (cached
+thereafter), so instantiate once and reuse:
 
 ```python
 from jaff.physics import Photochemistry
 
-photo = Photochemistry()
+photo = Photochemistry(net)
 photo.get_xsec(rxn)         # XsecProps from the tabulated databases
 photo.get_verner_xsec(rxn)  # analytic Verner σ(E) (sympy) or None
 ```

@@ -27,14 +27,16 @@ Physical constants and photochemical cross-section lookup for astrochemical calc
 ## Photochemistry methods
 
 `jaff.physics.Photochemistry` resolves a reaction's cross sections and
-shielding factors from `jaff.db`. Constructing it downloads the cross-section
+shielding factors from `jaff.db`. It takes the owning `Network`, whose
+proxy-photoreaction setting picks the look-up key and whose radiation field
+supplies the global `pi_database`. Constructing it downloads the cross-section
 and line-shielding data files on first use (cached thereafter), so instantiate
 once and reuse:
 
 ```python
 from jaff.physics import Photochemistry
 
-photo = Photochemistry()
+photo = Photochemistry(net)
 photo.get_xsec(rxn)              # XsecProps from the tabulated databases
 photo.get_verner_xsec(rxn)       # analytic Verner σ(E) (sympy) or None
 Photochemistry.shielding(rxn, net)  # symbolic shielding factor (sympy)
@@ -43,8 +45,9 @@ Photochemistry.shielding(rxn, net)  # symbolic shielding factor (sympy)
 | Method                          | Returns               | Description                                                                                                              |
 | ------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `get_xsec(reaction, required=False)` | `XsecProps or None` | Tabulated (Leiden / NORAD: `photon_energy` in eV, `photo_absorption` / `photodecay` in cm²) or Verner symbolic (`photodecay_expr`) cross sections, per `pi_database`; carries `database` |
-| `get_verner_xsec(reaction)`     | `sympy.Basic or None` | Analytic Verner (1996) σ(E) expression (symbol `E` in eV, σ in cm²)                                                     |
+| `get_verner_xsec(reaction)`     | `sympy.Expr or None`  | Analytic Verner (1996) σ(E) expression (symbol `E` in eV, σ in cm²)                                                     |
 | `shielding(reaction, network)`  | `sympy.Expr`          | Dimensionless line-shielding factor; dispatches to the global/local shielding function named by the reaction metadata   |
+| `log_fallback_summary()`        | `None`                | Logs one warning listing the photoionizations `get_xsec` resolved from a fallback database (recorded in `fallbacks` as `(key, requested, used)`), then clears them |
 
 ## XsecProps
 

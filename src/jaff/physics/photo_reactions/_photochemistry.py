@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
-from sympy import Basic, Expr, sympify
+from sympy import Expr, sympify
 
 from ...config import JAFF_DIR
 from ...drivers import HDF5, JaffDb
@@ -97,7 +97,7 @@ class Photochemistry:
 
         return reaction.serialized
 
-    def get_verner_xsec(self, reaction: Reaction) -> Basic | None:
+    def get_verner_xsec(self, reaction: Reaction) -> Expr | None:
         """
         Query the JAFF database for the Verner photoionisation cross section.
 
@@ -112,7 +112,7 @@ class Photochemistry:
 
         Returns
         -------
-        sympy.Basic or None
+        sympy.Expr or None
             The SymPy expression for σ(E) if the reaction is found, or
             ``None`` if no entry exists.
 
