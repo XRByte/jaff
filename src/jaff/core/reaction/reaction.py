@@ -54,17 +54,15 @@ from sympy import (
 )
 
 from ...io import JaffLogger
-from ...physics import XsecProps
 from ..elements import Elements
 from ..species import Specie, Species
 from ._helper import to_float_or_none
+from .photo_reaction_props import PhotoReactionProps
 from .types import RateSegment, RateSegments
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
     import pandas as pd
-
-    from ...physics import RadiationGroup
 
 
 class Reaction:
@@ -149,12 +147,12 @@ class Reaction:
         tmin: float | None,
         tmax: float | None,
         dE: Basic,
-        dRad: Basic,
         original_string: str,
         index: int,
         t_cutoff: str = "clip",
         type: str = "unknown",
         errors: bool = False,
+        radiation_props: PhotoReactionProps | None = None,
     ):
         """Construct a ``Reaction`` and validate mass/charge conservation.
 
@@ -210,12 +208,7 @@ class Reaction:
             [RateSegment(rate, tmin, tmax)], t_cutoff
         )
         self.dE: Basic = dE
-        self.dRad: Basic = dRad
-        self.custom_rad_rate: bool = False
-        self.rad_xsecs: float | None = None
-        self.rad_groups: list[RadiationGroup] = []
-        self.xsec_props: XsecProps | None = None
-        self.pi_database: str | None = None
+        self.rad: PhotoReactionProps | None = radiation_props
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
         self.verbatim: str = self.get_verbatim()
