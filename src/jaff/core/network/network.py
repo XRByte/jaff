@@ -61,6 +61,7 @@ from ..reaction import (
     Reaction,
     ReactionRadiationProps,
     Reactions,
+    ShieldingProps,
 )
 from ..species import Specie, Species
 from ._spec import NetworkSpec
@@ -519,6 +520,8 @@ class Network:
 
         for i, reaction in enumerate(jaff_props["reactions"]):
             rtype = reaction.get("reaction_type", "unknown")
+            shielding = reaction.get("shielding")
+
             rea = Reaction(
                 self,
                 reactants=reaction["reactants"],
@@ -535,11 +538,13 @@ class Network:
                     xsec=reaction.get("xsec_props"),
                     pi_database=reaction.get("pi_database"),
                     custom_rad_rate=bool(reaction.get("custom_rad_rate")),
+                    shielding=ShieldingProps(**shielding) if shielding else None,
                 )
                 if rtype == "photo"
                 else None,
                 rad=ReactionRadiationProps(dRad=reaction["dRad"]),
             )
+
             segments = reaction.get("rate_segments")
             if segments:
                 rea.rate_segments = RateSegments(

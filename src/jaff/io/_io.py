@@ -214,6 +214,11 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 "index": r.index,
                 "type": r.type,
                 "pi_database": r.photo.pi_database if r.photo is not None else None,
+                "shielding": (
+                    {"type": r.photo.shielding.type, "props": r.photo.shielding.props}
+                    if r.photo is not None and r.photo.shielding is not None
+                    else None
+                ),
             }
             for r in net.reactions
         ],
@@ -484,6 +489,7 @@ def from_jaff_file(filename: str | Path, errors=False):
         original_string = rj.get("original_string") or ""
         reaction_type = rj.get("type") or "unknown"
         pi_database = rj.get("pi_database")
+        shielding = rj.get("shielding")
         xsecs = rj.get("xsecs")
         xsec_props = (
             _decode_xsec_props(xsecs, decode_maybe_sympy)
@@ -509,6 +515,7 @@ def from_jaff_file(filename: str | Path, errors=False):
                     **({"index": rj["index"]} if "index" in rj else {}),
                     "reaction_type": reaction_type,
                     "pi_database": pi_database,
+                    "shielding": shielding,
                     "xsec_props": xsec_props,
                 },
             )

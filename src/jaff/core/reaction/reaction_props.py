@@ -90,8 +90,9 @@ class ShieldingProps:
     type : str
         Shielding model (e.g. ``"leiden"``, ``"db1996"``).
     props : dict[str, Any]
-        Model-specific settings (e.g. ``shielded_by``, ``min_ncol``).  A
-        ``value`` entry fixes the factor; the computed factor is cached there.
+        Model-specific settings (e.g. ``shielded_by``, ``min_ncol``) as given
+        by the user; a ``value`` entry fixes the factor instead of evaluating
+        the model.
     """
 
     def __init__(self, type: str, props: Dict[str, Any] | None = None):

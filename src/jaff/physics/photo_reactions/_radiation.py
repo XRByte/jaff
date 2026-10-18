@@ -476,6 +476,16 @@ class Radiation:
             / self.photden_tot
         )
 
+        # Shielding factor, the same for every band: a user-fixed "value", or
+        # the shielding model evaluated once (it may write per-reaction tables).
+        shielding: sp.Expr | float | None = None
+        if photo.shielding is not None:
+            shielding = (
+                photo.shielding.props["value"]
+                if "value" in photo.shielding.props
+                else Photochemistry.shielding(reaction, self.network)
+            )
+
         # Reset any back-references from a previous run before repopulating.
         grouped: List[GroupedPhotoReactionProps] = []
 
@@ -500,11 +510,8 @@ class Radiation:
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
             # (units: s⁻¹ for photon-density mode, cm³ s⁻¹ for two-body)
             k: sp.Expr = self.c * self.den[grp.index] * rad_xsec_avg
-            if photo.shielding is not None:
-                if "value" in photo.shielding.props:
-                    k *= photo.shielding.props["value"]
-                else:
-                    k *= Photochemistry.shielding(reaction, self.network)
+            if shielding is not None:
+                k *= shielding
 
             rgroup: GroupedPhotoReactionProps = GroupedPhotoReactionProps(
                 k=k,

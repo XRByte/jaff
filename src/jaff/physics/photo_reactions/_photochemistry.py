@@ -327,8 +327,9 @@ class Photochemistry:
         :class:`~jaff.physics.photo_reactions.shielding._base.ShieldingFunction`
         instance's ``get_shielding(reaction, network)`` produces the factor.
 
-        The result is cached on ``reaction.photo.shielding.props["value"]`` so
-        repeated calls (e.g. once per radiation band) reuse it.
+        The result is not cached: ``photo.shielding.props`` holds only the
+        user's settings (a ``value`` entry there fixes the factor instead), so
+        callers evaluate it once per reaction.
 
         Parameters
         ----------
@@ -354,7 +355,5 @@ class Photochemistry:
         assert shielding is not None, f"{reaction} is not shielded"
 
         shielding_fn = _get_shielding_function(shielding.type, reaction.serialized)
-        shielding_expr = shielding_fn.get_shielding(reaction, network)
-        shielding.props["value"] = shielding_expr
 
-        return shielding_expr
+        return shielding_fn.get_shielding(reaction, network)

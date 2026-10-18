@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from sympy import Expr
 
@@ -39,6 +39,7 @@ ReactionProps = TypedDict(
         "original_string": str,
         "index": NotRequired[int],
         "pi_database": NotRequired[str | None],
+        "shielding": NotRequired[dict[str, Any] | None],
         "xsec_props": NotRequired["XsecProps | None"],
     },
 )
