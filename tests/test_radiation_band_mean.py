@@ -11,6 +11,7 @@ import sympy as sp
 
 from jaff.physics import RadiationProps
 from jaff.physics.photo_reactions._radiation import Radiation
+from tests.xsec_props import make_xsec_props
 
 EV2ERG = u.eV.to(u.erg)
 
@@ -74,12 +75,7 @@ class _FakeReaction:
     def __init__(self):
         E = np.linspace(1.0, 3.0, 201)
         sigma = np.full_like(E, 1.0e-18)  # flat 1e-18 cm^2
-        self.xsecs_dict = {
-            "_equations": {"pa": False},
-            "photon_energy": E,
-            "photo_absorption": None,
-            "photodecay": sigma,
-        }
+        self.xsec_props = make_xsec_props(photon_energy=E, photodecay=sigma)
         self.dRad = sp.Float(0.0)
         self._metadata = {}
         self.rad_groups = []

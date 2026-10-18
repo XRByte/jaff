@@ -10,6 +10,7 @@ import sympy
 from matplotlib.collections import LineCollection
 
 from jaff.plotting.adapters import normalize_processes, rate_series, xsec_series
+from tests.xsec_props import make_xsec_props
 
 TGAS = sympy.Symbol("tgas")
 
@@ -22,11 +23,11 @@ def _reaction(rate, tmin=None, tmax=None):
 
 def _photo(processes=("photodecay",), band_xsecs=None):
     energy = np.linspace(10.0, 20.0, 11)
-    xs = {"photon_energy": energy, "photo_absorption": None, "photodecay": None}
-    for p in processes:
-        xs[p] = np.full(11, 1e-18)
+    xs = make_xsec_props(
+        photon_energy=energy, **{p: np.full(11, 1e-18) for p in processes}
+    )
     return SimpleNamespace(
-        xsecs_dict=xs,
+        xsec_props=xs,
         band_xsecs=band_xsecs
         if band_xsecs is not None
         else pd.DataFrame(columns=["lower", "upper", "eavg", "xsec", "xsec_frac"]),
@@ -96,7 +97,7 @@ class TestXsecSeries:
         assert s["label"] == "$C \\to C^+$ — Photodecay"
 
     def test_no_xsecs(self):
-        assert xsec_series(SimpleNamespace(xsecs_dict=None)) == []
+        assert xsec_series(SimpleNamespace(xsec_props=None)) == []
 
     def test_empty_band_xsecs_adds_nothing(self):
         out = xsec_series(_photo(), bands=True)
@@ -184,11 +185,7 @@ class TestXsecExtras:
         E = sympy.Symbol("E")
         expr = sympy.Piecewise((0, E < 10), (1e-18 * (10 / E) ** 3, E < 100), (0, True))
         r = SimpleNamespace(
-            xsecs_dict={
-                "photon_energy": None,
-                "photodecay": None,
-                "photodecay_expr": expr,
-            },
+            xsec_props=make_xsec_props(photodecay_expr=expr, database="verner"),
             get_latex=lambda: "x",
         )
         (s,) = xsec_series(r, energy_unit="nm")
@@ -200,7 +197,7 @@ class TestXsecExtras:
         assert xsec_series(_photo(("photodecay",)), processes=["photo_absorption"]) == []
 
     def test_no_energy_returns_empty(self):
-        r = SimpleNamespace(xsecs_dict={"photon_energy": None, "photodecay": None})
+        r = SimpleNamespace(xsec_props=make_xsec_props())
         assert xsec_series(r) == []
 
 

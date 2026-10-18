@@ -1,6 +1,7 @@
 # ABOUTME: Tests for photoionization database selection (pi_database): props,
 # ABOUTME: resolution/fallback in Photochemistry, network wiring, Verner integration.
 import logging
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -14,7 +15,7 @@ from jaff.common._integrators import get_bounds
 from jaff.cli import JaffGen
 from jaff.errors import ParserError
 from jaff.physics import RadiationProps
-from jaff.physics.photo_reactions._photochemistry import Photochemistry
+from jaff.physics.photo_reactions._photochemistry import Photochemistry, XsecProcess
 from jaff.physics.photo_reactions._radiation import Radiation
 from jaff.plotting.adapters.xsecs import _sampled_xsecs
 
@@ -78,34 +79,36 @@ class TestResolution:
     def test_default_norad_without_radiation(self, pc_and_warn):
         make, warn = pc_and_warn
         x = make(_net()).get_xsec(_rxn("He._PHOTON__He+.e-"))
-        assert x["database"] == "norad"
-        assert x["photodecay"] is not None and x["photodecay_expr"] is None
+        assert x.database == "norad"
+        assert x.photodecay is not None and x.photodecay_expr is None
         warn.assert_not_called()
 
     @pytest.mark.parametrize("db", ["norad", "verner", "leiden"])
     def test_global_choice(self, pc_and_warn, db):
         make, warn = pc_and_warn
         x = make(_net(db)).get_xsec(_rxn("C._PHOTON__C+.e-"))
-        assert x["database"] == db
+        assert x.database == db
         warn.assert_not_called()
 
     def test_verner_dict_is_symbolic(self, pc_and_warn):
         make, _ = pc_and_warn
         x = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-"))
-        assert isinstance(x["photodecay_expr"], sp.Basic)
-        assert x["photon_energy"] is None and x["photodecay"] is None
-        assert x["_equations"] == {"pa": False, "decay_type": "ionization"}
+        assert isinstance(x.photodecay_expr, sp.Basic)
+        assert x.photon_energy is None and x.photodecay is None
+        assert x.process == XsecProcess(
+            absorption_weighted=False, decay_type="ionization"
+        )
 
     def test_per_reaction_override_beats_global(self, pc_and_warn):
         make, _ = pc_and_warn
         x = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-", "leiden"))
-        assert x["database"] == "leiden"
+        assert x.database == "leiden"
 
     def test_leiden_missing_falls_back_to_norad(self, pc_and_warn):
         make, warn = pc_and_warn
         pc = make(_net("leiden"))
         x = pc.get_xsec(_rxn("P+._PHOTON__P++.e-"))
-        assert x["database"] == "norad"
+        assert x.database == "norad"
         warn.assert_not_called()
         assert pc.fallbacks == [("P+._PHOTON__P++.e-", "leiden", "norad")]
 
@@ -113,7 +116,7 @@ class TestResolution:
         make, warn = pc_and_warn
         pc = make(_net())
         x = pc.get_xsec(_rxn("Ca+++++._PHOTON__Ca++++++.e-"))
-        assert x["database"] == "verner"
+        assert x.database == "verner"
         warn.assert_not_called()
         assert pc.fallbacks == [("Ca+++++._PHOTON__Ca++++++.e-", "norad", "verner")]
 
@@ -121,14 +124,14 @@ class TestResolution:
         make, warn = pc_and_warn
         pc = make(_net())
         x = pc.get_xsec(_rxn("CO._PHOTON__CO+.e-"))
-        assert x["database"] == "leiden"
+        assert x.database == "leiden"
         warn.assert_not_called()
         assert pc.fallbacks == [("CO._PHOTON__CO+.e-", "norad", "leiden")]
 
     def test_norad_never_reports_leiden_absorption(self, pc_and_warn):
         make, _ = pc_and_warn
         x = make(_net("norad")).get_xsec(_rxn("C._PHOTON__C+.e-"))
-        assert x["_equations"]["pa"] is False and x["photo_absorption"] is None
+        assert x.process.absorption_weighted is False and x.photo_absorption is None
 
     def test_missing_everywhere_returns_none_when_not_required(self, pc_and_warn):
         make, _ = pc_and_warn
@@ -142,8 +145,8 @@ class TestResolution:
     def test_dissociation_ignores_pi_database(self, pc_and_warn):
         make, warn = pc_and_warn
         x = make(_net("verner")).get_xsec(_rxn("CO._PHOTON__C.O"))
-        assert x["database"] == "leiden"
-        assert x["_equations"]["decay_type"] == "dissociation"
+        assert x.database == "leiden"
+        assert x.process.decay_type == "dissociation"
         warn.assert_not_called()
 
     def test_override_on_dissociation_raises(self, pc_and_warn):
@@ -156,7 +159,7 @@ class _FakeReaction:
     """Hashable stand-in for the Reaction attributes Radiation touches."""
 
     def __init__(self, xsecs):
-        self.xsecs_dict = xsecs
+        self.xsec_props = xsecs
         self.dRad = sp.Float(0.0)
         self._metadata = {}
         self.rad_groups = []
@@ -182,17 +185,16 @@ class TestVernerIntegration:
         sym = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-"))
         E = sp.Symbol("E")
         # The fit is zero above E_max, so a dense grid up to E_max suffices.
-        e_max = float(get_bounds(sym["photodecay_expr"], E)[-1])
+        e_max = float(get_bounds(sym.photodecay_expr, E)[-1])
         grid = np.geomspace(11.0, e_max, 400_000)
-        tab = {
-            **sym,
-            "database": "verner",
-            "photon_energy": grid,
-            "photodecay": np.asarray(
-                sp.lambdify(E, sym["photodecay_expr"], "numpy")(grid), dtype=float
+        tab = replace(
+            sym,
+            photon_energy=grid,
+            photodecay=np.asarray(
+                sp.lambdify(E, sym.photodecay_expr, "numpy")(grid), dtype=float
             ),
-            "photodecay_expr": None,
-        }
+            photodecay_expr=None,
+        )
         rad = self._rad(bands)
         r_sym, r_tab = self._reaction(sym), self._reaction(tab)
         rad.set_reaction_rate_coefficient(r_sym)
@@ -222,8 +224,8 @@ class TestNetworkWiring:
             radiation_props=RadiationProps(bands=BANDS, pi_database="verner"),
         )
         r = _by_key(net)
-        assert r["C._PHOTON__C+.e-"].xsecs_dict["database"] == "verner"
-        assert r["CO._PHOTON__C.O"].xsecs_dict["database"] == "leiden"
+        assert r["C._PHOTON__C+.e-"].xsec_props.database == "verner"
+        assert r["CO._PHOTON__C.O"].xsec_props.database == "leiden"
 
     def test_jaff_toml_per_reaction_override(self, make_network, tmp_path):
         cfg = tmp_path / "jaff.toml"
@@ -236,7 +238,7 @@ class TestNetworkWiring:
         )
         rxn = _by_key(net)["C._PHOTON__C+.e-"]
         assert rxn.pi_database == "leiden"
-        assert rxn.xsecs_dict["database"] == "leiden"
+        assert rxn.xsec_props.database == "leiden"
 
     def test_override_on_non_photo_reaction_raises(self, make_network, tmp_path):
         cfg = tmp_path / "jaff.toml"
@@ -269,12 +271,12 @@ class TestNetworkWiring:
             radiation_props=RadiationProps(bands=BANDS),
         )
         rxn = _by_key(net)["Cx._PHOTON__C+.e-"]
-        assert rxn.xsecs_dict["database"] == "verner"
+        assert rxn.xsec_props.database == "verner"
 
     def test_missing_xsec_raises_only_with_radiation(self, make_network):
         line = "C9H9 -> C9H9+ + E  []  PHOTO, 9\n"
         net = make_network(line, name="a.jet")  # no radiation: fine
-        assert _by_key(net)["C9H9._PHOTON__C9H9+.e-"].xsecs_dict is None
+        assert _by_key(net)["C9H9._PHOTON__C9H9+.e-"].xsec_props is None
         with pytest.raises(ParserError, match="C9H9"):
             make_network(line, name="b.jet", radiation_props=RadiationProps(bands=BANDS))
 
@@ -351,7 +353,7 @@ class TestJaffgenWiring:
         gen = _jaffgen(tmp_path, self.RAD + 'pi_database = "verner"\n')
         assert gen.net.radiation.pi_database == "verner"
         (rxn,) = [r for r in gen.net.reactions if r.type == "photo"]
-        assert rxn.xsecs_dict["database"] == "verner"
+        assert rxn.xsec_props.database == "verner"
 
     def test_per_reaction_pi_database(self, tmp_path):
         gen = _jaffgen(
@@ -361,7 +363,7 @@ class TestJaffgenWiring:
         )
         (rxn,) = [r for r in gen.net.reactions if r.type == "photo"]
         assert rxn.pi_database == "leiden"
-        assert rxn.xsecs_dict["database"] == "leiden"
+        assert rxn.xsec_props.database == "leiden"
 
 
 class TestJaffRoundTrip:
@@ -377,7 +379,7 @@ class TestJaffRoundTrip:
         back = Network(str(out), radiation_props=props)
         rxn = _by_key(back)["C._PHOTON__C+.e-"]
         assert rxn.pi_database == "verner"
-        assert rxn.xsecs_dict["database"] == "verner"
+        assert rxn.xsec_props.database == "verner"
         assert _by_key(back)["Ca+++++._PHOTON__Ca++++++.e-"].pi_database is None
 
 
@@ -386,9 +388,9 @@ class TestPlotSampling:
         make, _ = pc_and_warn
         x = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-"))
         s = _sampled_xsecs(x)
-        E = s["photon_energy"]
+        E = s.photon_energy
         assert E[0] == pytest.approx(11.26, rel=1e-3)
-        assert np.all(np.diff(E) > 0) and np.all(s["photodecay"] > 0)
+        assert np.all(np.diff(E) > 0) and np.all(s.photodecay > 0)
 
     def test_tabulated_passthrough(self, pc_and_warn):
         make, _ = pc_and_warn
@@ -402,6 +404,6 @@ class TestPlotSampling:
 
         make, _ = pc_and_warn
         x = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-"))
-        (s,) = xsec_series(SimpleNamespace(xsecs_dict=x), processes="photodecay")
+        (s,) = xsec_series(SimpleNamespace(xsec_props=x), processes="photodecay")
         assert s["x"][0] == pytest.approx(11.26, rel=1e-3)
         assert np.all(s["y"] > 0)

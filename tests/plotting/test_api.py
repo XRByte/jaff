@@ -1,6 +1,7 @@
 # ABOUTME: Tests for jaff.plotting.api builders and Reaction/Reactions wrappers
 # ABOUTME: Nesting -> panels, per-panel scales, save by suffix, None on nothing
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import warnings
@@ -12,6 +13,7 @@ import pytest
 import sympy
 
 from jaff.plotting import plot, plot_rates, plot_xsecs
+from tests.xsec_props import make_xsec_props
 
 TGAS = sympy.Symbol("tgas")
 
@@ -25,11 +27,11 @@ def _r(k):
 def _photo(name):
     energy = np.linspace(10.0, 20.0, 11)
     return SimpleNamespace(
-        xsecs_dict={
-            "photon_energy": energy,
-            "photodecay": np.full(11, 1e-18),
-            "photo_absorption": np.full(11, 2e-18),
-        },
+        xsec_props=make_xsec_props(
+            photon_energy=energy,
+            photodecay=np.full(11, 1e-18),
+            photo_absorption=np.full(11, 2e-18),
+        ),
         get_latex=lambda: name,
     )
 
@@ -120,7 +122,7 @@ class TestPlotXsecs:
         assert [a.get_title() for a in axes.ravel()] == ["$C$", "$O$"]
 
     def test_nothing_returns_none(self):
-        assert plot_xsecs(SimpleNamespace(xsecs_dict=None), show=False) is None
+        assert plot_xsecs(SimpleNamespace(xsec_props=None), show=False) is None
 
 
 class TestReactionWrappers:
@@ -212,7 +214,7 @@ class TestMisc:
             plot_rates([_r(1), _r(2)], grid=(1, 1), show=False)
 
     def test_prefix_counts_contributing_reactions(self):
-        none = SimpleNamespace(xsecs_dict=None, get_latex=lambda: "N")
+        none = SimpleNamespace(xsec_props=None, get_latex=lambda: "N")
         _, axes = plot_xsecs([none, _photo("$C$")], show=False)
         ax = axes[0, 0]
         assert ax.get_title() == "$C$"
@@ -350,9 +352,10 @@ class TestUnplottableSeries:
 
     def test_zero_xsec_reaction_dropped_before_chunking(self):
         zero = _photo("$Z$")
-        zero.xsecs_dict = {
-            k: v * 0 if k != "photon_energy" else v for k, v in zero.xsecs_dict.items()
-        }
+        xs = zero.xsec_props
+        zero.xsec_props = replace(
+            xs, photodecay=xs.photodecay * 0, photo_absorption=xs.photo_absorption * 0
+        )
         photos = [zero] + [_photo(f"$P_{k}$") for k in range(6)]
         _, axes = plot_xsecs(photos, show=False)
         assert axes.shape == (1, 1) and len(_labels(axes[0, 0])) == 12
@@ -423,6 +426,6 @@ def test_grid_with_unevaluable_panels_warns_once_per_cause(jaff_warnings):
 
 def test_reactions_plot_xsecs_grid_no_per_panel_spam(jaff_warnings):
     plot_xsecs(
-        [SimpleNamespace(xsecs_dict=None)] * 4 + [_photo("$C$")], grid=(3, 3), show=False
+        [SimpleNamespace(xsec_props=None)] * 4 + [_photo("$C$")], grid=(3, 3), show=False
     )
     assert not any("has nothing to plot" in m for m in jaff_warnings)

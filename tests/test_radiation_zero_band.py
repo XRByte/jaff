@@ -9,6 +9,7 @@ import sympy as sp
 
 from jaff.physics import RadiationProps
 from jaff.physics.photo_reactions._radiation import Radiation
+from tests.xsec_props import make_xsec_props
 
 
 class _Reaction:
@@ -16,12 +17,12 @@ class _Reaction:
 
     def __init__(self, energies, absorption, decay):
         E = np.array(energies, dtype=float)
-        self.xsecs_dict = {
-            "_equations": {"pa": True},
-            "photon_energy": E,
-            "photo_absorption": np.array(absorption, dtype=float),
-            "photodecay": np.array(decay, dtype=float),
-        }
+        self.xsec_props = make_xsec_props(
+            absorption_weighted=True,
+            photon_energy=E,
+            photo_absorption=np.array(absorption, dtype=float),
+            photodecay=np.array(decay, dtype=float),
+        )
         self.dRad = sp.Float(0.0)
         self._metadata = {}
         self.rad_groups = []

@@ -12,10 +12,10 @@ class TestUseProxyPhotoreaction:
     def test_network_default_resolves_proxy_xsecs(self, make_network):
         net = make_network(OHX_PHOTO, name="proxy.jet")
         rxn = next(iter(net.reactions))
-        assert rxn.xsecs_dict is not None
-        assert rxn.xsecs_dict["database"] == "leiden"
+        assert rxn.xsec_props is not None
+        assert rxn.xsec_props.database == "leiden"
 
     def test_disabled_skips_proxy_lookup(self, make_network):
         net = make_network(OHX_PHOTO, name="noproxy.jet", use_proxy_photoreaction=False)
         rxn = next(iter(net.reactions))
-        assert rxn.xsecs_dict is None
+        assert rxn.xsec_props is None
