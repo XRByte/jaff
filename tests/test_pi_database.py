@@ -161,13 +161,11 @@ class TestResolution:
 
 
 class _FakeReaction:
-    """Hashable stand-in for the Reaction attributes Radiation touches."""
+    """Stand-in for the Reaction attributes Radiation touches."""
 
     def __init__(self, xsecs):
         self.photo = PhotoReactionProps(xsec=xsecs)
-        self.rad = ReactionRadiationProps(True)
-        self._metadata = {}
-        self.rate = None
+        self.rad = ReactionRadiationProps()
 
 
 class TestVernerIntegration:
@@ -200,14 +198,12 @@ class TestVernerIntegration:
         )
         rad = self._rad(bands)
         r_sym, r_tab = self._reaction(sym), self._reaction(tab)
-        rad.set_reaction_rate_coefficient(r_sym)
-        rad.set_reaction_rate_coefficient(r_tab)
-        for g in rad.groups:
-            a, b = float(g.props[r_sym]["xsec"]), float(g.props[r_tab]["xsec"])
+        _, tot_sym, grouped_sym = rad.get_reaction_rate_props(r_sym)
+        _, tot_tab, grouped_tab = rad.get_reaction_rate_props(r_tab)
+        for g_sym, g_tab in zip(grouped_sym, grouped_tab, strict=True):
+            a, b = float(g_sym.xsec), float(g_tab.xsec)
             assert a == pytest.approx(b, rel=1e-4, abs=1e-30)
-        assert float(r_sym.photo.xsec_tot) == pytest.approx(
-            float(r_tab.photo.xsec_tot), rel=1e-4
-        )
+        assert float(tot_sym) == pytest.approx(float(tot_tab), rel=1e-4)
 
 
 PHOTO_JET = (
