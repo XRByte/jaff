@@ -13,7 +13,7 @@ Plot photo cross sections against photon energy (or wavelength).
 **Parameters**
 
 **reactions** : _reaction-like or list_
-: Anything exposing `xsecs_dict` (and optionally `band_xsecs` / `get_latex`).
+: Anything exposing `xsec_props` (and optionally `band_xsecs` / `get_latex`).
   Nesting and `grid` work as in [`plot_rates`](plot_rates.md), including the
   automatic split past `legend_max` curves; the split keeps all curves of one
   reaction on the same panel.
@@ -57,7 +57,7 @@ keys all panels, with one colour per process across the figure.
 ```python
 from jaff.plotting import plot_xsecs
 
-photo = [p for p in net.reactions.photo_reactions() if p.xsecs_dict]
+photo = [p for p in net.reactions.photo_reactions() if p.xsec_props]
 plot_xsecs(photo[0], bands=True)
 plot_xsecs(photo[:4], grid=(2, 2), processes="photodecay", energy_unit="nm",
            xscale="linear")

@@ -33,7 +33,7 @@ plot_rates(r[:3])                                 # one axes, three curves
 plot_rates([r[0], [r[1], r[2]]], grid=(1, 2))      # nested list = overlay
 plot_rates(r[:4], grid=(2, 2), style="talk", palette="sunset")
 
-photo = [p for p in net.reactions.photo_reactions() if p.xsecs_dict]
+photo = [p for p in net.reactions.photo_reactions() if p.xsec_props]
 plot_xsecs(photo[:4], grid=(2, 2), bands=True, save="xsecs.pdf")
 ```
 

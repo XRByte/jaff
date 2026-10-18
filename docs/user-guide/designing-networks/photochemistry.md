@@ -137,7 +137,7 @@ serialized reaction key (`Reactant1.Reactant2__Product1.Product2`, the
 [serialized form of the reaction](../../api/core/reaction/index.md); photo
 reactions carry the `_PHOTON` agent, e.g. `H._PHOTON__H+.e-`) is looked
 up in `jaff.db`, and the cross-section arrays are attached to the reaction's
-[`xsecs_dict`](../working-with-networks/reactions.md).
+[`xsec_props`](../working-with-networks/reactions.md).
 
 | Source                                                                                         | Processes                                           | Notes                        |
 | ---------------------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------- |
@@ -181,17 +181,17 @@ lookup order is the chosen database, then NORAD, then Verner, then Leiden
 (duplicates skipped); any fallback is logged once as a summary after loading.
 Photodissociation always uses Leiden.
 
-For tabulated sources (Leiden / NORAD), `reaction.xsecs_dict` is an
-`XsecsProps` dict carrying the `photon_energy` grid (eV) plus `photo_absorption`
+For tabulated sources (Leiden / NORAD), `reaction.xsec_props` is an
+`XsecProps` object carrying the `photon_energy` grid (eV) plus `photo_absorption`
 and the single `photodecay` channel (cm² arrays, or `None`);
-`_equations["decay_type"]` records whether that channel is ionization or
+`process.decay_type` records whether that channel is ionization or
 dissociation. The radiation integrator integrates these arrays numerically over
 each band.
 
-Verner fits are kept **symbolic**: the dict then carries the SymPy `Piecewise`
-in `xsecs_dict["photodecay_expr"]` (symbol `E`, eV, σ in cm²) and the arrays are
+Verner fits are kept **symbolic**: the object then carries the SymPy `Piecewise`
+in `xsec_props.photodecay_expr` (symbol `E`, eV, σ in cm²) and the arrays are
 `None`; the integrator integrates the expression analytically per band. The
-database actually used is recorded in `xsecs_dict["database"]`
+database actually used is recorded in `xsec_props.database`
 (`"norad"`, `"verner"` or `"leiden"`).
 
 <!-- prettier-ignore -->
@@ -402,8 +402,8 @@ for rxn in photo:
 
 # Cross sections are attached at load time
 rxn = photo[0]
-rxn.xsecs_dict["photon_energy"]     # eV grid
-rxn.xsecs_dict["photodecay"]        # cm² array (or None)
+rxn.xsec_props.photon_energy       # eV grid
+rxn.xsec_props.photodecay          # cm² array (or None)
 rxn.plot_xsecs()                    # visualise σ(E)
 
 # Symbolic radiation ODEs
@@ -419,6 +419,6 @@ once and reuse:
 from jaff.physics import Photochemistry
 
 photo = Photochemistry()
-photo.get_xsec(rxn)         # XsecsProps from the tabulated databases
+photo.get_xsec(rxn)         # XsecProps from the tabulated databases
 photo.get_verner_xsec(rxn)  # analytic Verner σ(E) (sympy) or None
 ```

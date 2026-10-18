@@ -13,6 +13,7 @@ Physical constants and photochemical cross-section lookup for astrochemical calc
 | Class            | Description                                                       |
 | ---------------- | ----------------------------------------------------------------- |
 | `Photochemistry` | Photo cross-section lookup from the bundled databases (see below) |
+| `XsecProps` | One reaction's photo cross sections (dataclass, see below); what `get_xsec` returns and `Reaction.xsec_props` holds |
 | [`RadiationProps`](radiation/index.md#radiationprops) | Radiation-field configuration (bands, per-band spectral index, mode, speed of light) |
 | [`Radiation`](radiation/index.md#radiation_1) | Band collection built by `Network` (`net.radiation`); piecewise spectral profiles |
 | [`RadiationGroup`](radiation/index.md#radiationgroup) | One band: edges, `profile_idx`, `photden`, `eavg`, per-reaction rate data |
@@ -34,16 +35,32 @@ once and reuse:
 from jaff.physics import Photochemistry
 
 photo = Photochemistry()
-photo.get_xsec(rxn)              # XsecsProps from the tabulated databases
+photo.get_xsec(rxn)              # XsecProps from the tabulated databases
 photo.get_verner_xsec(rxn)       # analytic Verner σ(E) (sympy) or None
 Photochemistry.shielding(rxn, net)  # symbolic shielding factor (sympy)
 ```
 
 | Method                          | Returns               | Description                                                                                                              |
 | ------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `get_xsec(reaction, required=False)` | `XsecsProps or None` | Tabulated (Leiden / NORAD: `photon_energy` in eV, `photo_absorption` / `photodecay` in cm²) or Verner symbolic (`photodecay_expr`) cross sections, per `pi_database`; carries `database` |
+| `get_xsec(reaction, required=False)` | `XsecProps or None` | Tabulated (Leiden / NORAD: `photon_energy` in eV, `photo_absorption` / `photodecay` in cm²) or Verner symbolic (`photodecay_expr`) cross sections, per `pi_database`; carries `database` |
 | `get_verner_xsec(reaction)`     | `sympy.Basic or None` | Analytic Verner (1996) σ(E) expression (symbol `E` in eV, σ in cm²)                                                     |
 | `shielding(reaction, network)`  | `sympy.Expr`          | Dimensionless line-shielding factor; dispatches to the global/local shielding function named by the reaction metadata   |
+
+## XsecProps
+
+`XsecProps` is a dataclass holding one photo-reaction's cross sections for its
+single decay channel. Instances do not define equality (`eq=False`), since they
+carry numpy arrays.
+
+| Attribute          | Type                                  | Description                                                                                       |
+| ------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `units`            | `XsecUnits`                           | `photon_energy` (`"eV"`) and `cross_section` (`"cm^2"`) unit labels                               |
+| `process`          | `XsecProcess`                         | `absorption_weighted` (weight the rate by `photo_absorption`) and `decay_type` (`"ionization"` / `"dissociation"`) |
+| `database`         | `str`                                 | Source used: `"norad"`, `"verner"` or `"leiden"`                                                  |
+| `photon_energy`    | `numpy.ndarray or None`               | Tabulated energy grid (eV); `None` for Verner                                                     |
+| `photo_absorption` | `numpy.ndarray or None`               | Photo-absorption cross section (cm²), or `None` where absent                                      |
+| `photodecay`       | `numpy.ndarray or None`               | Photodecay cross section (cm²); `None` for Verner                                                 |
+| `photodecay_expr`  | `sympy.Expr or None`                  | Verner σ(E) expression (symbol `E` in eV, σ in cm²); `None` for tabulated sources                 |
 
 ## Unit systems
 

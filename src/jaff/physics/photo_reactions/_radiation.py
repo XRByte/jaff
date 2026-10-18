@@ -372,7 +372,7 @@ class Radiation:
         Compute and store symbolic band-averaged rate coefficients for a reaction.
 
         Reads the tabulated photo cross section σ(E) from
-        ``reaction.xsecs_dict``, then for each frequency band:
+        ``reaction.xsec_props``, then for each frequency band:
 
         1. Computes the photon-number-weighted band-average cross section
            ``<σ>_i = ∫ σ n dE / ∫ n dE``.
@@ -389,7 +389,7 @@ class Radiation:
         (sum over bands, in units of s⁻¹ or cm³ s⁻¹ depending on reaction
         type) is written to ``reaction.rate``.
 
-        If the reaction has no cross section (no ``xsecs_dict``, or no
+        If the reaction has no cross section (no ``xsec_props``, or no
         ``photodecay`` array / ``photodecay_expr``) the method returns silently (no-op).
 
         Parameters

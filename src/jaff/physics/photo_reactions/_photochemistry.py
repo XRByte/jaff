@@ -161,7 +161,7 @@ class Photochemistry:
 
     @staticmethod
     def _tabulated_xsec(db: str, loc: str, row: dict[str, Any]) -> XsecProps:
-        """Read one tabulated (Leiden / NORAD) HDF5 group into an XsecsProps."""
+        """Read one tabulated (Leiden / NORAD) HDF5 group into an XsecProps."""
         pr_xsec = HDF5().to_dict(str(JAFF_DIR.resolve() / loc))
         photo_absorption = pr_xsec.get("photoabsorption", {}).get("_data", None)
 

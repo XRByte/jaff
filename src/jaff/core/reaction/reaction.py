@@ -752,7 +752,7 @@ class Reaction:
         -------
         tuple[matplotlib.figure.Figure, numpy.ndarray] or None
             ``(fig, axes)``, or ``None`` (with a log message) if
-            ``self.xsecs_dict`` is ``None`` or no requested process has data.
+            ``self.xsec_props`` is ``None`` or no requested process has data.
         """
         from ...plotting import plot_xsecs
 

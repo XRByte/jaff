@@ -40,9 +40,8 @@ src/jaff/
 ├── physics/                    # Symbolic ODE/flux generation + physics helpers
 │   ├── _equations.py           # get_sfluxes, get_sodes, get_sradodes
 │   ├── photo_reactions/        # Photochemistry: cross sections, radiation, shielding
-│   │   ├── _photochemistry.py  # get_xsec / get_verner_xsec / shielding — lookups
+│   │   ├── _photochemistry.py  # XsecProps; get_xsec / get_verner_xsec / shielding — lookups
 │   │   ├── _radiation.py       # Radiation moment equations
-│   │   ├── _typing/            # TypedDicts (XsecsProps, ...)
 │   │   └── shielding/          # Shielding-function registry (@_register, by reaction metadata)
 │   │       ├── _base.py        # ShieldingFunction ABC (name, reaction attrs)
 │   │       ├── global_/        # Global models, reaction=None (e.g. leiden.py)
