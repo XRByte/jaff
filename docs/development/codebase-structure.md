@@ -17,6 +17,7 @@ src/jaff/
 │   │   ├── _spec.py            # NetworkSpec — normalized Network params
 │   │   └── _args.py            # NetworkArgs — raw CLI arg accumulator
 │   ├── reaction/               # reaction.py (Reaction) · reactions.py (Reactions)
+│   │                           #   reaction_props.py (PhotoReactionProps, ReactionRadiationProps)
 │   ├── species/                # specie.py (Specie) · species.py (Species)
 │   ├── elements/               # element.py (Element) · elements.py (Elements)
 │   ├── parsers/                # File parsers (network + auxiliary)

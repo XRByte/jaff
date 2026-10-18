@@ -9,7 +9,7 @@ tags:
 `#!python band_xsecs` _(property)_
 
 Band-averaged cross sections for this reaction, one row per radiation band, as a
-tidy `pandas.DataFrame`. Assembled from the `rad_groups` back-references, which
+tidy `pandas.DataFrame`. Assembled from the `photo.groups` back-references, which
 are populated when a radiation field is configured on the network (via the
 `radiation_props` argument to `Network`). Intended as the data source for band bar
 plots (see the `bands` option of [`plot_xsecs`](plot_xsecs.md)).

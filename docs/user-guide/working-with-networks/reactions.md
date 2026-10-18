@@ -113,15 +113,14 @@ net.reactions[0].rate       # photorates(1, 13.6, 1.0e+99)
 | `tmin`                | `float or None` | Lower temperature bound of rate validity (K); `None` = unbounded          |
 | `tmax`                | `float or None` | Upper temperature bound of rate validity (K); `None` = unbounded          |
 | `dE`                  | `sympy.Basic`   | Energy released per reaction event (erg), from a `.jfunc` aux function    |
-| `dRad`                | `sympy.Basic`   | Radiation energy emission per photon energy (eV) per event                |
+| `rad`                 | `ReactionRadiationProps` | Radiation coupling on every reaction: `rad.dRad`, the radiation energy emitted per photon energy (eV) per event |
 | `verbatim`            | `str`           | Human-readable equation `"R1 + R2 -> P1 + P2"`                            |
 | `index`               | `int`           | File-side source number (`source_index`): file-order row number, **gapped** when rows merge. Not an array subscript |
 | `catalogue_index`     | `int`           | Dense `0..count-1` position inside `net.reactions`; the array subscript used by generated code |
 | `serialized`          | `str`           | Canonical **name-level** identity (isomer-sensitive)                      |
 | `serialized_exploded` | `str`           | Canonical **atom-level** identity (isomer-insensitive)                    |
 | `type`                | `str`           | Reaction type concluded by the parser (verbatim): gas-phase `"photo"`/`"cosmic_ray"`/`"3_body"`/`"unknown"`, or a grain surface-mechanism type — see [Reaction types](#reaction-types) |
-| `custom_rad_rate`     | `bool`          | `True` when the radiation rate came from a `.jfunc`, not cross-sections   |
-| `xsec_props`          | `XsecProps or None` | Photo cross-section data for the reaction's single decay channel: `photon_energy` (eV) plus `photo_absorption` and `photodecay` (cm²), `database` (source used) and `photodecay_expr` (Verner symbolic σ(E), else `None`); else `None` |
+| `photo`               | `PhotoReactionProps or None` | Photo-reaction state, `None` for non-photo reactions: `xsec` (cross sections), `pi_database`, `groups` (radiation bands), `custom_rad_rate` (rate from a `.jfunc`, not cross-sections) and `xsec_tot` — see [Photo-reactions](#photo-reactions-a-special-citizen) |
 
 <!-- prettier-ignore -->
 !!! tip "`reactants` and `products` are `Species` Catalogues"
@@ -302,23 +301,25 @@ in the catalogue like any other, but special-cased throughout. A photo-reaction
 carries a cross-section table instead of an analytic rate:
 
 ```python
-photo = net.reactions[0]
+rxn = net.reactions[0]
 
-photo.rate                              # photorates(1, 13.6, 1.0e+99)
-photo.xsec_props                        # XsecProps: units, process, photon_energy,
+rxn.rate                                # photorates(1, 13.6, 1.0e+99)
+rxn.photo.xsec                          # XsecProps: units, process, photon_energy,
                                         #   photo_absorption, photodecay,
                                         #   database, photodecay_expr
-len(photo.xsec_props.photon_energy)     # number of grid points (energies in eV)
-photo.xsec_props.photodecay             # cross sections in cm^2 (or None)
+len(rxn.photo.xsec.photon_energy)       # number of grid points (energies in eV)
+rxn.photo.xsec.photodecay               # cross sections in cm^2 (or None)
+rxn.photo.pi_database                   # per-reaction PI database override (or None)
+rxn.rad.dRad                            # radiation energy added per event (erg/eV)
 ```
 
 The `photon_energy` grid is in eV and each process array is in cm² (or `None`
 when that process has no data for the reaction). The `process` attribute
 carries the boolean `absorption_weighted` flag and `decay_type`
 (`"ionization"` or `"dissociation"`), identifying the single decay channel held
-in `photodecay`. `xsec_props.database` names the source (`"norad"`,
+in `photodecay`. `photo.xsec.database` names the source (`"norad"`,
 `"verner"` or `"leiden"`); for Verner, `photon_energy` / `photodecay` are
-`None` and the symbolic σ(E) (eV, cm²) is in `xsec_props.photodecay_expr`.
+`None` and the symbolic σ(E) (eV, cm²) is in `photo.xsec.photodecay_expr`.
 
 The catalogue gives you dedicated ways to pick them out:
 
@@ -505,7 +506,7 @@ photo.plot_xsecs(save="h_xsec.pdf", show=False)        # write to disk
 
 `plot_rate_coefficient` spans `[tmin, tmax]`, defaulting to `2.73 K` and `1e6 K`
 when a bound is `None`. `plot_xsecs` returns `None` for non-photo reactions
-(those with `xsec_props is None`) or when no requested process has data.
+(those with `photo` or `photo.xsec` set to `None`) or when no requested process has data.
 `plot_rate_coefficient` returns `None` for photo reactions, whose rate carries a
 symbolic radiation-density variable that cannot be evaluated against
 temperature.
@@ -525,7 +526,7 @@ plot_rates([r[0], [r[1], r[2]]], grid=(1, 2))    # two panels
 plot_rates(r[:12], grid=(3, 4))                  # one panel per reaction (12 cells)
 plot_rates(r[:30])                               # auto grid (1, 3): 12 + 12 + 6 curves
 
-photo = [p for p in net.reactions.photo_reactions() if p.xsec_props]
+photo = [p for p in net.reactions.photo_reactions() if p.photo.xsec]
 plot_xsecs(photo[:4], grid=(2, 2), bands=True)
 ```
 

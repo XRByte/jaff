@@ -19,7 +19,7 @@ legend in the right margin.
 **Returns**
 
 _tuple\[matplotlib.figure.Figure, numpy.ndarray\] or None_
-: `(fig, axes)`, or `None` (with a log message) when `xsec_props` is `None`
+: `(fig, axes)`, or `None` (with a log message) when `photo` (or its `xsec`) is `None`
   or no requested process has data.
 
 **Example**

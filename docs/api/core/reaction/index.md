@@ -12,7 +12,7 @@ The `Reaction` class represents a single chemical reaction, holding its reactant
 
 ## Constructor
 
-`#!python Reaction(reactants, products, rate, tmin, tmax, dE, dRad, original_string, index, t_cutoff="clip", type="unknown", errors=False)`
+`#!python Reaction(reactants, products, rate, tmin, tmax, dE, original_string, index, t_cutoff="clip", type="unknown", errors=False, photo=None, rad=None)`
 
 **Parameters**
 
@@ -34,9 +34,6 @@ The `Reaction` class represents a single chemical reaction, holding its reactant
 **dE** : _sympy.Basic_
 : SymPy expression for the internal energy released or absorbed per reaction event (erg).
 
-**dRad** : _sympy.Basic_
-: Extra radiation energy density per unit energy (eV) that may be produced/absorbed by the reaction. The energy symbol must be `E` for the quantity to be integrated during cross-section calculation
-
 **original_string** : _str_
 : Raw reaction string from the network file.
 
@@ -52,6 +49,12 @@ The `Reaction` class represents a single chemical reaction, holding its reactant
 **errors** : _bool, optional_
 : If `True`, terminate the process on mass or charge conservation violations instead of merely logging a warning. Default `False`.
 
+**photo** : _PhotoReactionProps or None, optional_
+: Photo-reaction state (see the `photo` attribute). `Network` passes one for every photo reaction. Default `None`.
+
+**rad** : _ReactionRadiationProps or None, optional_
+: Radiation coupling (see the `rad` attribute). Default `None`, which gives a zero `dRad`.
+
 ## Attributes
 
 | Attribute             | Type            | Description                                                                                                                                      |
@@ -64,13 +67,11 @@ The `Reaction` class represents a single chemical reaction, holding its reactant
 | `t_cutoff`            | `str`           | Out-of-range behaviour (`"clip"` / `"extrapolate"`) for the rate segment(s)                                                                       |
 | `rate_segments`       | `RateSegments`  | Per-temperature-range rate pieces; one segment for a single-range reaction, several when merged across disjoint ranges, collapsed into `rate`     |
 | `dE`                  | `sympy.Basic`   | SymPy expression for the energy released per reaction event (erg)                                                                                |
-| `dRad`                | `sympy.Basic`   | SymPy expression for the extra photon absorption/emission rate contribution to the radiation moment equations                                    |
+| `rad`                 | `ReactionRadiationProps` | Radiation coupling, present on every reaction: `dRad`, the radiation energy the reaction adds to the field per unit photon energy (erg/eV), as a SymPy expression in `E` (eV); zero unless a `.jfunc` `deltaRad` function sets it. The energy symbol must be `E` for it to be integrated over the bands |
 | `verbatim`            | `str`           | Human-readable `"R1 + R2 -> P1 + P2"` form                                                                                                       |
 | `serialized`          | `str`           | Canonical name-level form `"<sorted_reactants>__<sorted_products>"`                                                                              |
 | `serialized_exploded` | `str`           | Like `serialized` but built from atom-level serialized forms of each species (isomer-insensitive)                                                |
 | `index`               | `int`           | File-side source number (`source_index`): the file-order row number. Stable per parsed row but **gapped** when rows merge (`duplicate_policy` or a temperature-range merge), so it is **not** a valid array subscript. Used for aux lookups (`chemRateN`) and `Reactions.by_source_index()` |
 | `catalogue_index`     | `int`           | Dense `0..count-1` position in the parent `Reactions` catalogue, assigned by `Reactions.add()`. Safe as an array subscript in generated code (what the `reaction_idx` template property emits). `-1` until catalogued |
 | `type`                | `str`           | Reaction type concluded by the parser (verbatim): gas-phase `"photo"`/`"cosmic_ray"`/`"3_body"`/`"unknown"`, or a grain surface-mechanism type (`"freeze"`, `"desorption_*"`, `"eley_rideal*"`, `"langmuir_hinshelwood*"`, `"h2_formation"`, `"bulk_swap"`, `"surface_swap"`) |
-| `custom_rad_rate`     | `bool`          | `True` when the radiation rate was supplied via a `.jfunc` aux function rather than computed from cross-sections                                 |
-| `xsec_props`          | `XsecProps or None` | Photo cross-section data for the reaction's single decay channel. Holds `units`, `process` (`absorption_weighted` flag and `decay_type`, either `"ionization"` or `"dissociation"`), `photon_energy` (eV), the `photo_absorption` / `photodecay` arrays (cm², or `None` where absent; both `None` for Verner), `database` (`"norad"` / `"verner"` / `"leiden"`: the source used) and `photodecay_expr` (Verner SymPy expression in `E`, eV; else `None`). `None` for non-photo reactions |
-| `rad_groups`          | `list[RadiationGroup]` | Back-references to the radiation bands this reaction contributes to, populated when a radiation field is configured (empty otherwise). See the [`band_xsecs`](band_xsecs.md) property for the band-averaged cross sections |
+| `photo`               | `PhotoReactionProps or None` | Photo-reaction state; `None` for non-photo reactions. Holds `xsec` (the reaction's [`XsecProps`](../../physics/index.md#xsecprops) cross sections, or `None` when no database has an entry), `pi_database` (per-reaction photoionization database override), `groups` (radiation bands the reaction contributes to, populated when a radiation field is configured; see [`band_xsecs`](band_xsecs.md)), `custom_rad_rate` (`True` when the rate came from a `.jfunc` aux function rather than the cross sections) and `xsec_tot` (cross section averaged over the whole spectrum, cm²) |

@@ -134,7 +134,7 @@ One band, `[lower, upper]` in eV.
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `k`         | Symbolic rate coefficient for this band                                                                                                                                                                       |
 | `xsec`      | Photon-number-weighted band-average cross section $\langle\sigma\rangle_i$ (cm²); `None` for custom-rate reactions                                                                                            |
-| `xsec_frac` | Tabulated reactions: $\langle\sigma\rangle_i$ divided by the full-spectrum average (`reaction.rad_xsecs`), so values need not sum to 1. Custom-rate reactions: this band's share of the total `dRad` integral |
+| `xsec_frac` | Tabulated reactions: $\langle\sigma\rangle_i$ divided by the full-spectrum average (`reaction.photo.xsec_tot`), so values need not sum to 1. Custom-rate reactions: this band's share of the total `dRad` integral |
 | `delta_rad` | Band integral of `dRad`, the radiation energy added per reaction event (erg)                                                                                                                                  |
 
 The same values per reaction are available as a table through
