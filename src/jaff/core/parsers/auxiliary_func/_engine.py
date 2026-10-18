@@ -14,8 +14,8 @@ that augment a reaction network.  The format uses two directives:
 
 Continuation lines end with ``\\``.  Inline comments start with ``#``.
 
-The parsed results are stored as a ``AuxiliaryFunctionsDict`` mapping function names
-to their symbolic definitions, argument lists, and argument comments.  Global
+The parsed results are stored as :class:`AuxiliaryFunctionProps` objects keyed by
+function name, holding their symbolic definitions, argument lists, and argument comments.  Global
 variables are resolved into the function bodies so that callers receive
 fully-substituted SymPy expressions.
 
@@ -33,7 +33,7 @@ from sympy.core.function import AppliedUndef
 
 from ....common import float_piecewise_branches, resolve_symbolic_dependencies
 from ....errors import ParserError
-from ._typing import AuxiliaryFunctionsDict
+from .function_props import AuxiliaryFunctionProps
 
 
 class AuxiliaryFunctionParser:
@@ -49,11 +49,11 @@ class AuxiliaryFunctionParser:
         Absolute path to the parsed ``.jfunc`` file.
     globals : dict[str, sp.Basic]
         Global symbolic constants defined with ``@var``, keyed by name.
-    func_dict : dict[str, AuxiliaryFunctionsDict]
+    func_dict : dict[str, AuxiliaryFunctionProps]
         Parsed functions, keyed by lower-cased function name.  Each entry
-        is a ``AuxiliaryFunctionsDict`` with keys ``"def"`` (SymPy expression),
-        ``"args"`` (list of SymPy symbols), and ``"argcomments"`` (dict of
-        argument doc strings).
+        is an :class:`AuxiliaryFunctionProps` with ``expr`` (SymPy
+        expression), ``args`` (list of SymPy symbols), and ``arg_comments``
+        (dict of argument doc strings).
 
     Examples
     --------
@@ -97,7 +97,7 @@ class AuxiliaryFunctionParser:
         self.nline: int = 0  # current 1-based line number (for error messages)
         self.globals: dict[str, sp.Basic] = {}
         self.globals_parsed: bool = False  # True once global vars are resolved
-        self.func_dict: dict[str, AuxiliaryFunctionsDict] = {}
+        self.func_dict: dict[str, AuxiliaryFunctionProps] = {}
         self.scope: str = "global"  # "global" | "function"
         self.current_func: str = ""  # name of the function block being parsed
 
@@ -138,7 +138,7 @@ class AuxiliaryFunctionParser:
 
         Returns
         -------
-        dict[str, AuxiliaryFunctionsDict]
+        dict[str, AuxiliaryFunctionProps]
             Maps lower-cased function names to their symbolic definitions,
             argument lists, and argument documentation strings.
         """
@@ -175,7 +175,7 @@ class AuxiliaryFunctionParser:
             )
 
         # A function block that never saw a ``@return`` leaves the scope open;
-        # its ``def`` would stay 0.0 with unresolved locals.
+        # its ``expr`` would stay 0.0 with unresolved locals.
         if self.scope == "function":
             raise ParserError(
                 f"Unterminated function block '{self.current_func}': "
@@ -308,13 +308,7 @@ class AuxiliaryFunctionParser:
         ]
 
         self.current_func = name
-        self.func_dict[name] = {
-            "def": sp.Float(0.0),
-            "args": [],
-            "argcomments": {},
-            "locals": {},
-        }
-        self.func_dict[name]["args"] = args
+        self.func_dict[name] = AuxiliaryFunctionProps(expr=sp.Float(0.0), args=args)
 
     def __parse_function(self):
         """Dispatch a line inside a function body to the correct sub-handler.
@@ -348,7 +342,7 @@ class AuxiliaryFunctionParser:
 
         var, expr = splitline[0].strip(), splitline[1].strip()
         try:
-            self.func_dict[self.current_func]["locals"][str(var)] = sp.parse_expr(expr)
+            self.func_dict[self.current_func]._locals[str(var)] = sp.parse_expr(expr)
         except (SyntaxError, TokenError, TypeError, sp.SympifyError) as e:
             raise ParserError(
                 f"Invalid expression encountered: {e}",
@@ -361,7 +355,7 @@ class AuxiliaryFunctionParser:
         """Attach an argument documentation comment to the current function.
 
         A comment of the form ``# argname doc text`` inside a function block
-        is stored as ``func_dict[name]["argcomments"][argname] = doc text``
+        is stored as ``func_dict[name].arg_comments[argname] = doc text``
         when *argname* is a declared argument of the current function.
         """
         line = self.line[1:].strip()
@@ -371,15 +365,17 @@ class AuxiliaryFunctionParser:
             return
 
         arg, comment = split_line[0], split_line[1]
-        if sp.Symbol(arg) in self.func_dict[self.current_func]["args"]:
-            self.func_dict[self.current_func]["argcomments"][arg] = comment.strip()
+        func = self.func_dict[self.current_func]
+        if sp.Symbol(arg) in func.args:
+            func.arg_comments[arg] = comment.strip()
 
     def __handle_function_return(self) -> None:
         """Parse the ``@return`` statement, resolve locals, and close the function scope.
 
         Resolves local variable dependencies, substitutes them into the return
         expression, and stores the fully-expanded SymPy expression in
-        ``func_dict[name]["def"]``.  Resets the scope to ``"global"``
+        ``func_dict[name].expr`` and clears its ``_locals``.  Resets the scope
+        to ``"global"``
         afterwards.
 
         Raises
@@ -389,8 +385,9 @@ class AuxiliaryFunctionParser:
         """
         line = self.line
         line, _ = self.__strip_trailing_comment(line)
-        self.func_dict[self.current_func]["locals"] = resolve_symbolic_dependencies(
-            self.func_dict[self.current_func]["locals"],
+        func = self.func_dict[self.current_func]
+        func._locals = resolve_symbolic_dependencies(
+            func._locals,
             external_refs=self.globals,
             fname=self.file,
         )
@@ -400,7 +397,7 @@ class AuxiliaryFunctionParser:
                 line.removeprefix("@return").strip(),
                 local_dict={
                     **self.globals,
-                    **self.func_dict[self.current_func]["locals"],
+                    **func._locals,
                 },
             )
 
@@ -423,8 +420,9 @@ class AuxiliaryFunctionParser:
 
         funcdef = float_piecewise_branches(funcdef)
 
-        self.func_dict[self.current_func]["def"] = funcdef
-        self.func_dict[self.current_func].pop("locals")
+        func.expr = funcdef
+        # Locals are already substituted into the body; drop them.
+        func._locals = {}
         self.current_func = ""
         self.__set_scope("global")
 
@@ -455,8 +453,7 @@ class AuxiliaryFunctionParser:
 
             visiting.add(name)
 
-            f_data = self.func_dict[name]
-            expr = f_data["def"]
+            expr = self.func_dict[name].expr
 
             while True:
                 calls = sorted(
@@ -474,7 +471,8 @@ class AuxiliaryFunctionParser:
                 for func in calls:
                     func_name = func.func.__name__.lower()
                     nested_f_def = dfs_resolve_func(func_name)
-                    nested_f_args = self.func_dict[func_name]["args"]
+                    nested_f_args = self.func_dict[func_name].args
+
                     if len(func.args) != len(nested_f_args):
                         raise ParserError(
                             f"Function '{func_name}' called with "
@@ -493,7 +491,7 @@ class AuxiliaryFunctionParser:
             return expr
 
         for func_name in self.func_dict:
-            self.func_dict[func_name]["def"] = dfs_resolve_func(func_name)
+            self.func_dict[func_name].expr = dfs_resolve_func(func_name)
 
     @staticmethod
     def __strip_trailing_comment(line: str) -> tuple[str, str]:
