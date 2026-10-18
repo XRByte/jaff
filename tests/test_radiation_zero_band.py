@@ -26,7 +26,7 @@ class _Reaction:
                 photodecay=np.array(decay, dtype=float),
             )
         )
-        self.rad = ReactionRadiationProps()
+        self.rad = ReactionRadiationProps(True)
         self._metadata = {}
         self.rate = None
 

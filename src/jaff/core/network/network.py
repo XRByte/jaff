@@ -579,7 +579,7 @@ class Network:
                 )
                 if rtype == "photo"
                 else None,
-                rad=ReactionRadiationProps(dRad=reaction["dRad"]),
+                rad=ReactionRadiationProps(bool(self.radiation), dRad=reaction["dRad"]),
             )
             segments = reaction.get("rate_segments")
             if segments:

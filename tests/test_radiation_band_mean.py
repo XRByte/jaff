@@ -79,7 +79,7 @@ class _FakeReaction:
         self.photo = PhotoReactionProps(
             xsec=make_xsec_props(photon_energy=E, photodecay=sigma)
         )
-        self.rad = ReactionRadiationProps()
+        self.rad = ReactionRadiationProps(True)
         self._metadata = {}
         self.rate = None
 

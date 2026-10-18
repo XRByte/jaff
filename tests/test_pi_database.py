@@ -165,7 +165,7 @@ class _FakeReaction:
 
     def __init__(self, xsecs):
         self.photo = PhotoReactionProps(xsec=xsecs)
-        self.rad = ReactionRadiationProps()
+        self.rad = ReactionRadiationProps(True)
         self._metadata = {}
         self.rate = None
 
