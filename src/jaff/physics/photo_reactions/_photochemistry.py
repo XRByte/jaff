@@ -306,8 +306,8 @@ class Photochemistry:
     def shielding(reaction: Reaction, network: Network) -> Expr:
         """Build the symbolic shielding factor for a photo-reaction.
 
-        The shielding function named by
-        ``reaction._metadata["shielding"]["type"]`` is resolved from the
+        The shielding function named by ``reaction.photo.shielding.type`` is
+        resolved from the
         shielding registry via
         :func:`~jaff.physics.photo_reactions.shielding._get_shielding_function`.
         Lookup is keyed by ``(type, reaction.serialized)`` and prefers a
@@ -316,13 +316,13 @@ class Photochemistry:
         :class:`~jaff.physics.photo_reactions.shielding._base.ShieldingFunction`
         instance's ``get_shielding(reaction, network)`` produces the factor.
 
-        The result is cached on ``reaction._metadata["shielding"]["value"]`` so
+        The result is cached on ``reaction.photo.shielding.props["value"]`` so
         repeated calls (e.g. once per radiation band) reuse it.
 
         Parameters
         ----------
         reaction : Reaction
-            Reaction to shield; its ``metadata["shielding"]["type"]`` selects
+            Reaction to shield; its ``photo.shielding.type`` selects
             the shielding function.
         network : Network
             Network the reaction belongs to, forwarded to the shielding
@@ -339,10 +339,11 @@ class Photochemistry:
             If no shielding function is registered for ``type`` either locally
             (for this reaction) or as a global fallback.
         """
-        sprops = reaction._metadata["shielding"]
+        shielding = reaction.photo.shielding if reaction.photo is not None else None
+        assert shielding is not None, f"{reaction} is not shielded"
 
-        shielding_fn = _get_shielding_function(sprops["type"], reaction.serialized)
+        shielding_fn = _get_shielding_function(shielding.type, reaction.serialized)
         shielding_expr = shielding_fn.get_shielding(reaction, network)
-        reaction._metadata["shielding"]["value"] = shielding_expr
+        shielding.props["value"] = shielding_expr
 
         return shielding_expr

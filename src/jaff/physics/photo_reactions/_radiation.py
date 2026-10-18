@@ -499,9 +499,9 @@ class Radiation:
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
             # (units: s⁻¹ for photon-density mode, cm³ s⁻¹ for two-body)
             k: sp.Expr = self.c * self.den[grp.index] * rad_xsec_avg
-            if "shielding" in reaction._metadata:
-                if "value" in reaction._metadata["shielding"]:
-                    k *= reaction._metadata["shielding"]["value"]
+            if photo.shielding is not None:
+                if "value" in photo.shielding.props:
+                    k *= photo.shielding.props["value"]
                 else:
                     k *= Photochemistry.shielding(reaction, self.network)
 

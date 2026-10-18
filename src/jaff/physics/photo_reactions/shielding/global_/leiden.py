@@ -50,7 +50,7 @@ class Leiden(ShieldingFunction):
         """Return the Leiden tabulated shielding factor for *reaction*.
 
         Extracts the column-density grid and one shielding-factor column per
-        species in ``reaction._metadata["shielding"]["shielded_by"]`` from
+        species in ``reaction.photo.shielding.props["shielded_by"]`` from
         ``data/shielding/leiden.hdf5``, writes them to a per-reaction
         ``shielding_<reaction>.hdf5`` in the generator output directory, and
         returns the product of one
@@ -68,7 +68,9 @@ class Leiden(ShieldingFunction):
             If ``shielded_by`` is missing, or names a species not in
             :data:`LEIDEN_SPECIES_MAP`.
         """
-        sprops = reaction._metadata["shielding"]
+        assert reaction.photo is not None and reaction.photo.shielding is not None
+        sprops = reaction.photo.shielding.props
+        `
         if "shielded_by" not in sprops:
             raise ParserError(
                 "'shielded_by' must be specified for Leiden shielding tables"
@@ -96,8 +98,9 @@ class Leiden(ShieldingFunction):
         h5dict = {**ncol, **shielding_table}
 
         # Emit a per-reaction shielding table the generated code interpolates over.
+        output_dir = network.spec._metadata["jaffgen_object"].jaffgen_config["output_dir"]
         h5obj.from_dict(
-            f"{reaction._metadata['jaffgen']['jaffgen_object'].jaffgen_config['output_dir']}/shielding_{reaction.serialized}.hdf5",
+            f"{output_dir}/shielding_{reaction.serialized}.hdf5",
             h5dict,
             mode="w",
         )

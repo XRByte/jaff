@@ -59,7 +59,12 @@ from ...io import JaffLogger
 from ..elements import Elements
 from ..species import Specie, Species
 from ._helper import to_float_or_none
-from .reaction_props import AuxFunctions, PhotoReactionProps, ReactionRadiationProps
+from .reaction_props import (
+    AuxFunctions,
+    PhotoReactionProps,
+    ReactionRadiationProps,
+    ShieldingProps,
+)
 from .types import RateSegment, RateSegments
 
 if TYPE_CHECKING:
@@ -233,9 +238,11 @@ class Reaction:
         # The reaction type is concluded by the parser and supplied here, not
         # inferred from the rate expression.
         self.type: str = type
-        # Private key/value store for parser- and physics-supplied extras
-        # (e.g. shielding model props). Not part of the public API.
-        self._metadata: dict = {}
+
+        # Looked up for every reaction so a non-photo entry is rejected.
+        shielding = self.__get_shielding()
+        if self.photo is not None and self.photo.shielding is None:
+            self.photo.shielding = shielding
 
         if self.photo is not None:
             self.__set_xsec_props()
@@ -328,6 +335,35 @@ class Reaction:
             deltae=af.get(f"deltae{self.index}", None),
             deltarad=af.get(f"deltarad{self.index}", None),
         )
+
+    def __get_shielding(self) -> ShieldingProps | None:
+        """Shielding model and settings from the jaffgen ``[reactions]`` table.
+
+        Returns
+        -------
+        ShieldingProps or None
+            The model (``type`` defaulting to ``"leiden"``) and its settings,
+            with string values lower-cased, or ``None`` when the reaction has
+            no shielding entry.
+
+        Raises
+        ------
+        ParserError
+            If shielding is configured for a non-photo reaction.
+        """
+        rprops = self.net.spec._metadata.get("reaction_props", {})
+        shielding = rprops.get(self.serialized, {}).get("shielding")
+        if shielding is None:
+            return None
+
+        if self.type != "photo":
+            raise ParserError(f"{self} is not a photo reaction")
+
+        props = {
+            k: (v.lower() if isinstance(v, str) else v) for k, v in shielding.items()
+        }
+
+        return ShieldingProps(type=props.pop("type", "leiden"), props=props)
 
     def __set_xsec_props(self):
         from ...physics import Photochemistry

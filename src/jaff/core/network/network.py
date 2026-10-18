@@ -498,9 +498,6 @@ class Network:
                 t_cutoff=local_tcutoff,
                 photo=PhotoReactionProps(pi_database=pi_db) if rtype == "photo" else None,
             )
-            if "reaction_props" in self.spec._metadata:
-                self.__parse_reaction_metadata(rea)
-
             self.reactions.add(rea)
 
         if self._photochemistry is not None:
@@ -665,27 +662,6 @@ class Network:
             raise ParserError(f"Rate expression is not an Expr: {rate_expr}")
 
         return rate_expr, n_photo
-
-    def __parse_reaction_metadata(self, reaction: Reaction) -> None:
-        if reaction.serialized not in self.spec._metadata["reaction_props"]:
-            return
-
-        rprops = self.spec._metadata["reaction_props"][reaction.serialized]
-        if "shielding" in rprops:
-            if reaction.type != "photo":
-                raise ParserError(f"{reaction} is not a photo reaction")
-
-            shielding_props = rprops["shielding"]
-            if "type" not in shielding_props:
-                shielding_props["type"] = "leiden"
-
-            reaction._metadata["shielding"] = {
-                k: (v.lower() if isinstance(v, str) else v)
-                for k, v in shielding_props.items()
-            }
-            reaction._metadata["jaffgen"] = {
-                "jaffgen_object": self.spec._metadata["jaffgen_object"]
-            }
 
     def to_jaff(self, filename: str | Path):
         """Serialise this network to a binary ``.jaff`` file.

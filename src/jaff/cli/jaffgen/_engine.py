@@ -92,7 +92,7 @@ class JaffGen:
         The reaction network built from the resolved network args.
     jaffgen_config : dict
         Small back-reference payload (``{"output_dir": Path}``) read by the
-        shielding code via ``reaction._metadata["jaffgen"]["jaffgen_object"]``.
+        shielding code via ``network.spec._metadata["jaffgen_object"]``.
 
     Raises
     ------
@@ -119,7 +119,7 @@ class JaffGen:
         self.args: SimpleNamespace = args
         self.state: State = State()
         # Consumed by the shielding code (leiden.py) through the metadata
-        # back-reference: reaction._metadata["jaffgen"]["jaffgen_object"].
+        # back-reference: network.spec._metadata["jaffgen_object"].
         self.jaffgen_config: dict[str, Any] = {}
 
         print(motd("jaffgen"))

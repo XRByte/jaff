@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from sympy import Expr, Float
 
@@ -35,6 +35,9 @@ class PhotoReactionProps:
     xsec_tot : float or None
         Cross section averaged over the whole spectrum (cm²), set when the
         rate is computed from the cross sections.
+    shielding : ShieldingProps or None
+        Shielding applied to the photo rate, or ``None`` when the reaction is
+        not shielded.
     """
 
     def __init__(
@@ -44,6 +47,7 @@ class PhotoReactionProps:
         custom_rad_rate: bool = False,
         xsec_tot: float | None = None,
         rgrouped: List[GroupedPhotoReactionProps] | None = None,
+        shielding: ShieldingProps | None = None,
     ):
         """Store the photo-reaction state; see the class attributes.
 
@@ -57,6 +61,7 @@ class PhotoReactionProps:
         self.custom_rad_rate: bool = custom_rad_rate
         self.xsec_tot: float | None = xsec_tot
         self.rgrouped: List[GroupedPhotoReactionProps] | None = rgrouped
+        self.shielding: ShieldingProps | None = shielding
 
 
 class GroupedPhotoReactionProps:
@@ -80,6 +85,24 @@ class ReactionRadiationProps:
     def __init__(self, dRad: Expr | None = None):
         """Store the radiation coupling; ``dRad=None`` (default) means zero."""
         self.dRad: Expr = dRad if dRad is not None else Float(0.0)
+
+
+class ShieldingProps:
+    """Shielding of a photo rate, held as ``Reaction.photo.shielding``.
+
+    Attributes
+    ----------
+    type : str
+        Shielding model (e.g. ``"leiden"``, ``"db1996"``).
+    props : dict[str, Any]
+        Model-specific settings (e.g. ``shielded_by``, ``min_ncol``).  A
+        ``value`` entry fixes the factor; the computed factor is cached there.
+    """
+
+    def __init__(self, type: str, props: Dict[str, Any] | None = None):
+        """Store the model; ``props=None`` (default) starts empty."""
+        self.type: str = type
+        self.props: Dict[str, Any] = props if props is not None else {}
 
 
 @dataclass
