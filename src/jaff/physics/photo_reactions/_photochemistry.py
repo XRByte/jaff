@@ -42,21 +42,21 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Units:
+class XsecUnits:
     photon_energy: str
     cross_section: str
 
 
 @dataclass
-class Equations:
+class XsecEquations:
     pa: bool
     decay_type: Literal["dissociation", "ionization"]
 
 
 @dataclass
 class XsecProps:
-    units: Units
-    _equations: Equations
+    units: XsecUnits
+    _equations: XsecEquations
     database: Literal["norad", "verner", "leiden"]
     photon_energy: np.ndarray | None
     photo_absorption: np.ndarray | None
@@ -166,8 +166,8 @@ class Photochemistry:
         photo_absorption = pr_xsec.get("photoabsorption", {}).get("_data", None)
 
         return XsecProps(
-            units=Units(photon_energy="eV", cross_section="cm^2"),
-            _equations=Equations(
+            units=XsecUnits(photon_energy="eV", cross_section="cm^2"),
+            _equations=XsecEquations(
                 pa=bool(row["photo_absorption"]) and photo_absorption is not None,
                 decay_type=row["decay_type"],
             ),
@@ -187,8 +187,8 @@ class Photochemistry:
                 return None
 
             return XsecProps(
-                units=Units(photon_energy="eV", cross_section="cm^2"),
-                _equations=Equations(pa=False, decay_type="ionization"),
+                units=XsecUnits(photon_energy="eV", cross_section="cm^2"),
+                _equations=XsecEquations(pa=False, decay_type="ionization"),
                 database="verner",
                 photon_energy=None,
                 photo_absorption=None,

@@ -38,6 +38,6 @@ ReactionProps = TypedDict(
         "rate_segments": NotRequired[list["RateSegmentProps"]],
         "original_string": str,
         "pi_database": NotRequired[str | None],
-        "xsec_props": "XsecProps",
+        "xsec_props": NotRequired["XsecProps | None"],
     },
 )

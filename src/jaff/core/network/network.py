@@ -582,7 +582,7 @@ class Network:
                 rea.xsec_props = self.__photochemistry.get_xsec(
                     rea,
                     required=self.radiation is not None and not rea.custom_rad_rate,
-                ) or reaction.get("xsecs_dict")
+                ) or reaction.get("xsec_props")
 
             if rea.type == "photo" and self.radiation is not None:
                 if rea.custom_rad_rate:

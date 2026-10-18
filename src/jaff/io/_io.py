@@ -27,11 +27,12 @@ import gzip
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 import numpy as np
 from sympy import (
     Basic,
+    Expr,
     Float,
     Heaviside,
     Max,
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
     from .. import Network, Reaction, Specie, Species
     from ..core._typing import ReactionProps
     from ..core.reaction import Reactions
+    from ..physics import XsecProps
 else:
     Specie = "Specie"
     Species = "Species"
@@ -219,6 +221,37 @@ def to_jaff_file(filename: str | Path, net: "Network"):
 
     with gzip.open(filename, "wt", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
+
+
+def _decode_xsec_props(
+    xsecs: dict, decode_expr: Callable[[Any], Expr | None]
+) -> XsecProps:
+    """Rebuild an :class:`XsecProps` from its JSON-serialized dict form.
+
+    Cross-section arrays are JSON-serialized as plain lists; restore them to
+    numpy arrays so the loaded XsecProps matches the in-memory type;
+    *decode_expr* restores the Verner ``photodecay_expr``.
+    """
+    from ..physics.photo_reactions._photochemistry import (
+        XsecEquations,
+        XsecProps,
+        XsecUnits,
+    )
+
+    def as_array(key: str) -> np.ndarray | None:
+        value = xsecs.get(key)
+
+        return None if value is None else np.asarray(value, dtype=float)
+
+    return XsecProps(
+        units=XsecUnits(**xsecs["units"]),
+        _equations=XsecEquations(**xsecs["_equations"]),
+        database=xsecs["database"],
+        photon_energy=as_array("photon_energy"),
+        photo_absorption=as_array("photo_absorption"),
+        photodecay=as_array("photodecay"),
+        photodecay_expr=decode_expr(xsecs.get("photodecay_expr")),
+    )
 
 
 def from_jaff_file(filename: str | Path, errors=False):
@@ -451,17 +484,11 @@ def from_jaff_file(filename: str | Path, errors=False):
         reaction_type = rj.get("type") or "unknown"
         pi_database = rj.get("pi_database")
         xsecs = rj.get("xsecs")
-
-        # Cross-section arrays are JSON-serialized as plain lists; restore them
-        # to numpy arrays so the loaded XsecsProps matches the in-memory type.
-        if isinstance(xsecs, dict):
-            for key in (
-                "photon_energy",
-                "photo_absorption",
-                "photodecay",
-            ):
-                if xsecs.get(key) is not None:
-                    xsecs[key] = np.asarray(xsecs[key], dtype=float)
+        xsec_props = (
+            _decode_xsec_props(xsecs, decode_maybe_sympy)
+            if isinstance(xsecs, dict)
+            else None
+        )
 
         reactions_out.append(
             cast(
@@ -480,7 +507,7 @@ def from_jaff_file(filename: str | Path, errors=False):
                     "original_string": original_string,
                     "reaction_type": reaction_type,
                     "pi_database": pi_database,
-                    "xsecs_dict": xsecs,
+                    "xsec_props": xsec_props,
                 },
             )
         )

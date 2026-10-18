@@ -3,13 +3,14 @@
 
 """Photo cross sections as plotting series.
 
-Duck-typed: a reaction is anything with ``xsecs_dict`` (and optionally
+Duck-typed: a reaction is anything with ``xsec_props`` (and optionally
 ``band_xsecs`` / ``get_latex``).
 """
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import replace
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from sympy import Symbol, lambdify
@@ -18,6 +19,9 @@ from ...common._integrators import get_bounds
 from ...io import JaffLogger
 from .. import _units
 from ._common import label_of as _label_of
+
+if TYPE_CHECKING:
+    from ...physics import XsecProps
 
 #: Valid photo cross-section process keys.
 XSEC_PROCESSES: tuple[str, ...] = ("photo_absorption", "photodecay")
@@ -46,10 +50,10 @@ def normalize_processes(processes: str | list[str] | None) -> list[str]:
     return procs
 
 
-def _sampled_xsecs(xsecs: dict, n: int = 2000) -> dict:
+def _sampled_xsecs(xsecs: XsecProps, n: int = 2000) -> XsecProps:
     """Tabulate a symbolic Verner ``photodecay_expr`` on a log energy grid."""
-    expr = xsecs.get("photodecay_expr")
-    if expr is None or xsecs.get("photon_energy") is not None:
+    expr = xsecs.photodecay_expr
+    if expr is None or xsecs.photon_energy is not None:
         return xsecs
     E = Symbol("E")
     pts = get_bounds(expr, E)
@@ -57,7 +61,7 @@ def _sampled_xsecs(xsecs: dict, n: int = 2000) -> dict:
         return xsecs
     grid = np.geomspace(pts[0], pts[-1], n)
     values = np.asarray(lambdify(E, expr, "numpy")(grid), dtype=float)
-    return {**xsecs, "photon_energy": grid, "photodecay": values}
+    return replace(xsecs, photon_energy=grid, photodecay=values)
 
 
 def _band_series(reaction: Any, energy_unit: str, xsec_unit: str, label: str) -> list:
@@ -109,7 +113,7 @@ def xsec_series(
     Parameters
     ----------
     reaction
-        Reaction-like object exposing ``xsecs_dict``.
+        Reaction-like object exposing ``xsec_props``.
     processes : str, list[str] or None
         ``"all"`` (default), one key, or a list of keys.
     energy_unit, xsec_unit : str
@@ -128,13 +132,16 @@ def xsec_series(
     """
     procs = normalize_processes(processes)
     logger = JaffLogger().get_logger()
-    xsecs = getattr(reaction, "xsecs_dict", None)
+    xsecs: XsecProps | None = getattr(reaction, "xsec_props", None)
+
     if xsecs is None:
         logger.info(f"No cross sections available for: {reaction}")
         return []
+
     if "photodecay" in procs:
         xsecs = _sampled_xsecs(xsecs)
-    energy = xsecs.get("photon_energy")
+
+    energy = xsecs.photon_energy
     if energy is None:
         logger.info(f"No photon energy grid available for: {reaction}")
         return []
@@ -142,10 +149,13 @@ def xsec_series(
     head = f"{_label_of(reaction)} — " if prefix else ""
     out = []
     for p in procs:
-        if xsecs.get(p) is None:
+        data = getattr(xsecs, p)
+        if data is None:
             continue
-        y = np.asarray(_units.convert_xsec(np.asarray(xsecs[p]), "cm2", xsec_unit))
+
+        y = np.asarray(_units.convert_xsec(np.asarray(data), "cm2", xsec_unit))
         out.append({"x": x, "y": y, "label": head + _units.PROCESS_LABELS[p]})
+
     if not out:
         logger.info(f"No data for requested cross-section(s) {procs} in: {reaction}")
         return []

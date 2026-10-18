@@ -432,23 +432,23 @@ class Radiation:
         # Photon-number spectrum: n(E) ∝ E^(α_i-2) used for weighing the cross-section
         # where α_i = profile_idx of the band containing E.  The factor E^(α-2) arises from
         # n(E) = u(E)/E and u(E) ∝ E^(α-1).
-        pr_expr = xsec.get("photodecay_expr")
+        pr_expr = xsec.photodecay_expr
         pa_weighted: np.ndarray | sp.Expr | None = None
 
         if pr_expr is not None:
             E: np.ndarray | sp.Symbol = self.E_sym
             pr_weighted: np.ndarray | sp.Expr = pr_expr * self.nph_profile
         else:
-            if xsec["photodecay"] is None:
+            if xsec.photodecay is None:
                 return
 
-            assert isinstance(xsec["photon_energy"], np.ndarray)
-            E = xsec["photon_energy"]  # photon energy array in eV
+            assert isinstance(xsec.photon_energy, np.ndarray)
+            E = xsec.photon_energy  # photon energy array in eV
             ph_profile = self.get_photden_profile(E)
-            pr_weighted = xsec["photodecay"] * ph_profile
+            pr_weighted = xsec.photodecay * ph_profile
 
-            if xsec["_equations"]["pa"]:
-                pa_weighted = xsec["photo_absorption"] * ph_profile
+            if xsec._equations.pa:
+                pa_weighted = xsec.photo_absorption * ph_profile
 
         k_tot = sp.Float(0.0)  # Accumulates total rate coefficient over all bands
 
@@ -506,7 +506,7 @@ class Radiation:
                 k
                 * (
                     1.0
-                    if not xsec["_equations"]["pa"]
+                    if not xsec._equations.pa
                     else (pr_xsec_avg / rad_xsec_avg if rad_xsec_avg != 0.0 else 0.0)
                 )
                 / (grp.eavg if self.mode == "u" else 1)
