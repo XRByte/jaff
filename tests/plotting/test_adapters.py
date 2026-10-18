@@ -18,7 +18,7 @@ TGAS = sympy.Symbol("tgas")
 
 def _reaction(rate, tmin=None, tmax=None):
     return SimpleNamespace(
-        rate=rate, tmin=tmin, tmax=tmax, get_latex=lambda: "$A \\to B$"
+        rate_coefficient=rate, tmin=tmin, tmax=tmax, get_latex=lambda: "$A \\to B$"
     )
 
 

@@ -3,7 +3,7 @@
 
 """Rate coefficients as plotting series.
 
-Duck-typed: a "reaction" is anything with a ``rate`` (and optionally
+Duck-typed: a "reaction" is anything with a ``rate_coefficient`` (and optionally
 ``tmin`` / ``tmax`` / ``get_latex``), so this module never imports
 :mod:`jaff.core`.
 """
@@ -85,7 +85,7 @@ def rate_series(
     Parameters
     ----------
     item
-        A reaction-like object (has ``rate``), a SymPy expression, or an
+        A reaction-like object (has ``rate_coefficient``), a SymPy expression, or an
         ``(x, y)`` tuple of arrays.
     tmin, tmax : float or None
         Temperature range (K).  For reactions falls back to the reaction's
@@ -122,11 +122,11 @@ def rate_series(
             "label": label or "",
         }
 
-    if hasattr(item, "rate"):
+    if hasattr(item, "rate_coefficient"):
         t0 = _first(tmin, _usable(getattr(item, "tmin", None)), DEFAULT_TMIN)
         t1 = _first(tmax, _usable(getattr(item, "tmax", None)), DEFAULT_TMAX)
         lab = label if label is not None else _label_of(item)
-        return _evaluate(item.rate, var, t0, t1, npoints, lab, quiet)
+        return _evaluate(item.rate_coefficient, var, t0, t1, npoints, lab, quiet)
 
     if isinstance(item, Basic):
         if tmin is None or tmax is None:

@@ -201,12 +201,15 @@ class Codegen:
         if use_cse:
             for i, rea in enumerate(self.net.reactions):
                 # Skip raw-string rates — they are already valid target-language code
-                if type(rea.rate) is str:
+                if type(rea.rate_coefficient) is str:
                     continue
                 # Skip photorates() calls — the $IDX$ placeholder prevents CSE
-                if getattr(rea.rate, "func", None) == self.net.symbols.photorates:
+                if (
+                    getattr(rea.rate_coefficient, "func", None)
+                    == self.net.symbols.photorates
+                ):
                     continue
-                cse_dict[i] = rea.rate
+                cse_dict[i] = rea.rate_coefficient
 
             if cse_dict:
                 exprs = cse_dict.values()
@@ -692,7 +695,7 @@ class Codegen:
 
             # Map symbolic rate placeholders k[i] to concrete rate expressions
             subs_k = {
-                sp.symbols(f"k[{i}]"): rea.rate
+                sp.symbols(f"k[{i}]"): rea.rate_coefficient
                 for i, rea in enumerate(self.net.reactions)
             }
 
@@ -852,7 +855,7 @@ class Codegen:
 
             # Substitute symbolic rate placeholders with concrete expressions
             subs_k = {
-                sp.symbols(f"k[{i}]"): rea.rate
+                sp.symbols(f"k[{i}]"): rea.rate_coefficient
                 for i, rea in enumerate(self.net.reactions)
             }
 
@@ -1257,7 +1260,9 @@ class Codegen:
             # then build the subs_k dict that replaces k[i] placeholders in
             # the ODE expressions with those fully-scalar rate expressions.
             k_exprs = [
-                rea.rate.xreplace({**nden_to_y, **radden_to_y, **radflux_to_y})
+                rea.rate_coefficient.xreplace(
+                    {**nden_to_y, **radden_to_y, **radflux_to_y}
+                )
                 for rea in self.net.reactions
             ]
 

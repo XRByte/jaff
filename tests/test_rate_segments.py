@@ -155,7 +155,7 @@ def test_network_two_touching_tempdep_ranges(tmp_path):
         "2,H,H,H2,100,200,2*tgas\n"
     )
     net = Network(str(dat), funcfile=False)
-    assert net.reactions[0].rate.subs(TGAS, 150) == 300
+    assert net.reactions[0].rate_coefficient.subs(TGAS, 150) == 300
 
 
 def test_network_two_constant_ranges(tmp_path):
@@ -166,6 +166,6 @@ def test_network_two_constant_ranges(tmp_path):
         "2,H,H,H2,100,200,2\n"
     )
     net = Network(str(dat), funcfile=False)
-    rate = net.reactions[0].rate
+    rate = net.reactions[0].rate_coefficient
     assert rate.subs(TGAS, 150) == 2
     assert rate.subs(TGAS, 50) == 1

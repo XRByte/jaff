@@ -78,7 +78,7 @@ class TestNetworkParsers:
                 assert reaction.tmin == 10
                 assert reaction.tmax == 3000
                 # Check that rate contains 'av' parameter (photodissociation)
-                assert "av" in str(reaction.rate)
+                assert "av" in str(reaction.rate_coefficient)
                 break
 
         assert found, "Expected H2 -> H + H photodissociation reaction not found"
@@ -104,7 +104,7 @@ class TestNetworkParsers:
             ):
                 found = True
                 # Check that the rate expression contains tgas and substituted coefficient
-                rate_str = str(reaction.rate)
+                rate_str = str(reaction.rate_coefficient)
                 assert "tgas" in rate_str.lower()
                 # After variable substitution y=tgas/300, the coefficient changes
                 assert "8.648" in rate_str or "8.65" in rate_str  # 9.9e-11 * 300^0.38
@@ -133,7 +133,7 @@ class TestNetworkParsers:
             ):
                 found = True
                 # Check that inv_tgas was substituted
-                rate_str = str(reaction.rate)
+                rate_str = str(reaction.rate_coefficient)
                 assert "tgas" in rate_str.lower()
                 assert "exp" in rate_str.lower()
                 break
@@ -187,7 +187,9 @@ class TestNetworkParsers:
             network = Network(prizmo_file)
 
         # Check for photo reaction by looking for photorates function
-        photo_reactions = [r for r in network.reactions if "photorates" in str(r.rate)]
+        photo_reactions = [
+            r for r in network.reactions if "photorates" in str(r.rate_coefficient)
+        ]
         assert len(photo_reactions) >= 1, "Expected photochemistry reaction not found"
 
         # Verify the photo reactions are correctly identified
@@ -210,7 +212,7 @@ class TestNetworkParsers:
             # A temperature-dependent rate with a defined bound holds that
             # boundary value under the default "clip" cutoff, i.e. it is wrapped
             # in a Piecewise.
-            rate = reaction.rate
+            rate = reaction.rate_coefficient
             if tgas in rate.free_symbols and reaction.t_cutoff == "clip":
                 if reaction.tmin is not None or reaction.tmax is not None:
                     assert rate.has(Piecewise)
@@ -274,7 +276,7 @@ class TestNetworkParsers:
 
             # Check that shortcuts were substituted
             for reaction in network.reactions:
-                rate_str = str(reaction.rate)
+                rate_str = str(reaction.rate_coefficient)
                 # Should not contain shortcut names
                 assert "invte" not in rate_str
                 assert "t32" not in rate_str
@@ -326,10 +328,10 @@ class TestNetworkParsers:
 
             # Check that all rate expressions were parsed as sympy objects
             for reaction in network.reactions:
-                assert reaction.rate is not None
+                assert reaction.rate_coefficient is not None
                 # Rate should be a sympy expression or number
-                assert hasattr(reaction.rate, "free_symbols") or isinstance(
-                    reaction.rate, (int, float)
+                assert hasattr(reaction.rate_coefficient, "free_symbols") or isinstance(
+                    reaction.rate_coefficient, (int, float)
                 )
         finally:
             os.unlink(temp_file)

@@ -83,7 +83,7 @@ class Reaction:
         Ordered species catalogue of reactant species.
     products : Species
         Ordered species catalogue of product species.
-    rate : Basic
+    rate_coefficient : Basic
         SymPy expression for the reaction rate coefficient (units depend on
         the reaction order; typically cm³ s⁻¹ for two-body reactions).
     tmin : float or None
@@ -143,7 +143,7 @@ class Reaction:
         net: "Network",
         reactants: list[Specie],
         products: list[Specie],
-        rate: Expr,
+        rate_coefficient: Expr,
         tmin: float | None,
         tmax: float | None,
         original_string: str,
@@ -162,7 +162,7 @@ class Reaction:
             Reactant species (may contain duplicates for three-body reactions).
         products : list[Specie]
             Product species (may contain duplicates).
-        rate : Basic
+        rate_coefficient : Basic
             SymPy expression for the rate coefficient.
         tmin : float or None
             Lower temperature bound in Kelvin, or ``None``.
@@ -205,12 +205,12 @@ class Reaction:
         self.aux_funcs: AuxFunctions = self.__get_aux_funcs()
         self.reactants: Species = Species(reactants, check_length=False)
         self.products: Species = Species(products, check_length=False)
-        self.rate: Expr = rate
+        self.rate_coefficient: Expr = rate_coefficient
         self.tmin: float | None = tmin
         self.tmax: float | None = tmax
         self.t_cutoff: str = t_cutoff
         self.rate_segments: RateSegments = RateSegments(
-            [RateSegment(rate, tmin, tmax)], t_cutoff
+            [RateSegment(rate_coefficient, tmin, tmax)], t_cutoff
         )
         self.dE: Expr = (
             cast(Expr, self.aux_funcs.deltae.expr)
@@ -393,7 +393,7 @@ class Reaction:
 
         if not self.photo.custom_rad_rate:
             k_tot, xsec_tot, grouped = self.net.radiation.get_reaction_rate_props(self)
-            self.rate = k_tot
+            self.rate_coefficient = k_tot
 
             assert self.photo.xsec is not None
             self.photo.xsec.total = xsec_tot
@@ -749,11 +749,10 @@ class Reaction:
         # Local import: a module-level one would cycle via jaff.core.network.
         from ..network import NetworkSymbols
 
-        if getattr(self.rate, "func", None) == NetworkSymbols.photorates:
+        if getattr(self.rate_coefficient, "func", None) == NetworkSymbols.photorates:
             # $IDX$ placeholder is replaced by the actual index at codegen time
-            return (
-                f"photorates($IDX$, {', '.join(str(arg) for arg in self.rate.args[1:])})"
-            )
+            args = ", ".join(str(arg) for arg in self.rate_coefficient.args[1:])
+            return f"photorates($IDX$, {args})"
 
         return language.code_gen(self.get_sympy(), strict=False)
 
@@ -764,7 +763,7 @@ class Reaction:
         -------
         Basic
         """
-        return sympify(self.rate)
+        return sympify(self.rate_coefficient)
 
     @property
     def band_xsecs(self) -> pd.DataFrame:

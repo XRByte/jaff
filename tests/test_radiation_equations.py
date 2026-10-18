@@ -28,7 +28,7 @@ def _flux(net, rxn, k):
     """Reaction flux for band coefficient *k*: k times every reactant density."""
     nden = net.symbols.ndens
     for reactant in rxn.reactants.core:
-        k *= nden[sp.Idx(net.species[str(reactant)].index)]
+        k *= nden[net.species[str(reactant)].index]
 
     return k
 
@@ -98,7 +98,7 @@ def test_drad_source_enters_density_equation_only(radiation_network, tmp_path):
 def test_non_photo_reactions_do_not_contribute(radiation_network):
     net = radiation_network(PHOTO + NON_PHOTO)
     nden = net.symbols.ndens
-    non_photo = [nden[sp.Idx(net.species[s].index)] for s in ("H", "H2")]
+    non_photo = [nden[net.species[s].index] for s in ("H", "H2")]
 
     for ode in net.sradodes(order=2):
         assert not any(ode.has(n) for n in non_photo)

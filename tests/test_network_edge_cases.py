@@ -224,7 +224,7 @@ class TestNetworkEdgeCases:
 
             # Check that rates were parsed
             for reaction in network.reactions:
-                assert reaction.rate is not None
+                assert reaction.rate_coefficient is not None
         finally:
             os.unlink(temp_file)
 
@@ -358,7 +358,7 @@ class TestNetworkEdgeCases:
 
             # Check that rate expression contains photorates function
             photo_reactions = [
-                r for r in network.reactions if "photorates" in str(r.rate)
+                r for r in network.reactions if "photorates" in str(r.rate_coefficient)
             ]
             assert len(photo_reactions) >= 1
         finally:

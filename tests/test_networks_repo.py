@@ -60,10 +60,10 @@ def test_repo_networks_roundtrip_json():
         # Treat networks containing undefined SymPy functions as unserializable.
         has_undef = False
         for r in net.reactions:
-            if isinstance(r.rate, sympy.Basic):
+            if isinstance(r.rate_coefficient, sympy.Basic):
                 if any(
                     type(f.func) is sympy.core.function.UndefinedFunction
-                    for f in r.rate.atoms(sympy.Function)
+                    for f in r.rate_coefficient.atoms(sympy.Function)
                 ):
                     has_undef = True
                     break
@@ -94,11 +94,11 @@ def test_repo_networks_roundtrip_json():
             assert r2.tmin == r1.tmin
             assert r2.tmax == r1.tmax
 
-            if isinstance(r1.rate, sympy.Basic):
-                assert isinstance(r2.rate, sympy.Basic)
-                assert r2.rate == r1.rate
+            if isinstance(r1.rate_coefficient, sympy.Basic):
+                assert isinstance(r2.rate_coefficient, sympy.Basic)
+                assert r2.rate_coefficient == r1.rate_coefficient
             else:
-                assert r2.rate == r1.rate
+                assert r2.rate_coefficient == r1.rate_coefficient
 
             assert r2.dE == r1.dE
 

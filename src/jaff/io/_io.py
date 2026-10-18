@@ -184,8 +184,8 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 {
                     s
                     for r in net.reactions
-                    if isinstance(r.rate, Basic)
-                    for s in r.rate.free_symbols
+                    if isinstance(r.rate_coefficient, Basic)
+                    for s in r.rate_coefficient.free_symbols
                 }
                 | set(net.thermodynamics.dEdt_extra.volumetric.free_symbols),
                 key=lambda s: s.name,
@@ -195,7 +195,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
             {
                 "reactants": [s.name for s in r.reactants],
                 "products": [s.name for s in r.products],
-                "rate": encode_maybe_sympy(r.rate),
+                "rate": encode_maybe_sympy(r.rate_coefficient),
                 "tmin": r.tmin,
                 "tmax": r.tmax,
                 "t_cutoff": r.t_cutoff,

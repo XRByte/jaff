@@ -278,7 +278,7 @@ class NetworkSymbols:
         """
         net = self._net
         return [
-            *(r.rate for r in net.reactions),
+            *(r.rate_coefficient for r in net.reactions),
             net.thermodynamics.dEdt_chemical.volumetric,
             net.thermodynamics.dEdt_extra.volumetric,
             net.dRad_dt_extra,
@@ -411,7 +411,7 @@ class NetworkSymbols:
                 raise ParserError(
                     f"'{name}' references reaction {num}, which is not in the network"
                 )
-            return rxn.rate
+            return rxn.rate_coefficient
 
         return None
 

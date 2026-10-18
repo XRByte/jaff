@@ -19,13 +19,15 @@ class TestRateExpressions:
     )
     def test_rate_parses_to_expression(self, make_network, line):
         rea = make_network([line]).reactions[0]
-        assert rea.rate is not None
-        assert hasattr(rea.rate, "free_symbols") or isinstance(rea.rate, (int, float))
+        assert rea.rate_coefficient is not None
+        assert hasattr(rea.rate_coefficient, "free_symbols") or isinstance(
+            rea.rate_coefficient, (int, float)
+        )
 
     @pytest.mark.parametrize("rate", ["1e-50", "1e50", "0.0"])
     def test_extreme_rate_values_accepted(self, make_network, rate):
         rea = make_network([f"H -> H+ + e- [10,1000] {rate}"]).reactions[0]
-        assert rea.rate is not None
+        assert rea.rate_coefficient is not None
 
     def test_malformed_rate_expr_is_tolerated(self, make_network):
         # Unknown functions/variables parse as free symbols rather than aborting;
@@ -63,9 +65,9 @@ class TestTemperatureLimits:
         rea = make_network(["H + e- -> H- [10,10000] 3e-16 * (tgas/300)**0.5"]).reactions[
             0
         ]
-        assert tgas in rea.rate.free_symbols
+        assert tgas in rea.rate_coefficient.free_symbols
         assert rea.t_cutoff == "clip"
-        assert rea.rate.has(Piecewise)
+        assert rea.rate_coefficient.has(Piecewise)
 
 
 class TestStoichiometry:

@@ -393,7 +393,7 @@ class Radiation:
 
         After iterating over all bands the total symbolic rate coefficient
         (sum over bands, in units of s⁻¹ or cm³ s⁻¹ depending on reaction
-        type) is written to ``reaction.rate``.
+        type) is returned as ``k_tot``.
 
         If the reaction has no cross section (no ``photo.xsec``, or no
         ``photodecay`` array / ``photodecay_expr``) the method returns silently (no-op).
@@ -413,7 +413,7 @@ class Radiation:
             ``(k_tot, xsec_tot, grouped)``: the total rate coefficient summed
             over bands, the cross section averaged over the whole spectrum
             (cm²), and one entry per band in ``self.groups`` order.  The
-            caller stores them on ``reaction.rate``,
+            caller stores them on ``reaction.rate_coefficient``,
             ``reaction.photo.xsec.total`` and ``reaction.photo.rgrouped``.
 
         Notes
@@ -548,12 +548,12 @@ class Radiation:
         proportionally to the fraction of the ``dRad`` integral that falls
         in each band::
 
-            k_i = reaction.rate * (∫_{E_lo}^{E_hi} dRaddE) / (∫_all dRad dE)
+            k_i = reaction.rate_coefficient * (∫_{E_lo}^{E_hi} dRad dE) / (∫_all dRad dE)
 
         Parameters
         ----------
         reaction : Reaction
-            Reaction with a pre-assigned ``reaction.rate`` (total rate
+            Reaction with a pre-assigned ``reaction.rate_coefficient`` (total rate
             coefficient) and ``reaction.rad.dRad`` as a SymPy expression in
             the symbol ``E`` (photon energy in eV).
 
@@ -597,7 +597,7 @@ class Radiation:
                 0.0 if delta_rad_total_is_zero else delta_rad_band / delta_rad_total
             )
             # Scale the total user-supplied rate by the band fraction.
-            k = reaction.rate * xsec_frac
+            k = reaction.rate_coefficient * xsec_frac
 
             rgroup = GroupedPhotoReactionProps(
                 k=k,

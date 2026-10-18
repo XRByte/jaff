@@ -490,7 +490,7 @@ class Network:
                 self,
                 reactants=rr,
                 products=pp,
-                rate=rate_expr,
+                rate_coefficient=rate_expr,
                 tmin=tmin,
                 tmax=tmax,
                 original_string=reaction["string"],
@@ -526,7 +526,7 @@ class Network:
                 self,
                 reactants=reaction["reactants"],
                 products=reaction["products"],
-                rate=reaction["rate"],
+                rate_coefficient=reaction["rate"],
                 dE=reaction["dE"],
                 tmin=reaction["tmin"],
                 tmax=reaction["tmax"],
@@ -575,17 +575,17 @@ class Network:
         nden = self.symbols.ndens
         for r in self.reactions:
             if loaded_from_jaff:
-                r.rate = self.symbols.standardize(r.rate)
+                r.rate_coefficient = self.symbols.standardize(r.rate_coefficient)
             elif r.type == "photo" and self.radiation is not None:
-                r.rate = self.symbols.standardize(r.rate)
-                r.rate_segments[0].rate = r.rate
+                r.rate_coefficient = self.symbols.standardize(r.rate_coefficient)
+                r.rate_segments[0].rate = r.rate_coefficient
             else:
                 for seg in r.rate_segments:
                     seg.rate = self.symbols.standardize(seg.rate)
-                r.rate = r.rate_segments.sort().evaluate_equivalent_rate(r)
+                r.rate_coefficient = r.rate_segments.sort().evaluate_equivalent_rate(r)
 
             r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
-            dRad_dt = r.rad.dRad * r.rate
+            dRad_dt = r.rad.dRad * r.rate_coefficient
             for s in r.reactants.core:
                 dRad_dt *= nden[self.species[s.name].index]
             self.dRad_dt_extra += dRad_dt

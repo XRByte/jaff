@@ -130,7 +130,7 @@ class Thermodynamics:
         """
         dEdt = Float(0.0)
         for r in self.net.reactions:
-            _dEdt = r.dE * r.rate
+            _dEdt = r.dE * r.rate_coefficient
             for s in r.reactants.core:
                 _dEdt *= self.net.symbols.ndens[self.net.species[s.name].index]
 

@@ -18,7 +18,7 @@ def test_n_H_nuc_is_element_sum(tmp_path):
     expected = nden[sympy.Idx(net.species["H"].index)] + 2 * nden[
         sympy.Idx(net.species["H2"].index)
     ]
-    assert sympy.simplify(net.reactions[1].rate - expected) == 0
+    assert sympy.simplify(net.reactions[1].rate_coefficient - expected) == 0
 
 
 def test_n_H_nuc_symbol_when_not_expanded(tmp_path):
@@ -26,7 +26,7 @@ def test_n_H_nuc_symbol_when_not_expanded(tmp_path):
         tmp_path, "@format:idx,R,R,P,rate\n1,H,H,H2,1\n2,H2,H,H,n_H_nuc\n",
         expand_nuclei=False,
     )
-    assert net.reactions[1].rate == sympy.symbols("nh_nuc")
+    assert net.reactions[1].rate_coefficient == sympy.symbols("nh_nuc")
 
 
 def test_charged_nucleus_sum_raises(tmp_path):

@@ -366,7 +366,7 @@ class Reactions(Catalogue[Reaction]):
         -------
         Vector[Basic]
         """
-        return Vector([r.rate for r in self])
+        return Vector([r.rate_coefficient for r in self])
 
     def tmins(self) -> Vector[float | None]:
         """Return a ``Vector`` of lower temperature bounds (K or ``None``).

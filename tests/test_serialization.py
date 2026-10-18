@@ -59,8 +59,8 @@ def test_network_json_roundtrip_sample_kida_valid(tmp_path):
     expected_symbols = {
         s
         for r in net.reactions
-        if isinstance(r.rate, sympy.Basic)
-        for s in r.rate.free_symbols
+        if isinstance(r.rate_coefficient, sympy.Basic)
+        for s in r.rate_coefficient.free_symbols
     }
     assert set(rate_symbols_by_name) == {s.name for s in expected_symbols}
     for sym in expected_symbols:
@@ -89,24 +89,30 @@ def test_network_json_roundtrip_sample_kida_valid(tmp_path):
         assert r2.get_verbatim() == r1.get_verbatim()
         assert (r2.tmin, r2.tmax) == (r1.tmin, r1.tmax)
 
-        if isinstance(r1.rate, str):
-            assert r2.rate == r1.rate
+        if isinstance(r1.rate_coefficient, str):
+            assert r2.rate_coefficient == r1.rate_coefficient
         else:
-            assert isinstance(r2.rate, sympy.Basic)
-            diff = sympy.simplify(r2.rate - r1.rate)
+            assert isinstance(r2.rate_coefficient, sympy.Basic)
+            diff = sympy.simplify(r2.rate_coefficient - r1.rate_coefficient)
             free = sorted(diff.free_symbols, key=lambda s: s.name)
             if not free:
-                r1_symbols = getattr(r1.rate, "free_symbols", set())
+                r1_symbols = getattr(r1.rate_coefficient, "free_symbols", set())
                 if r1_symbols:
-                    ref = abs(float(sympy.N(r1.rate.subs({s: 1.0 for s in r1_symbols}))))
+                    ref = abs(
+                        float(
+                            sympy.N(
+                                r1.rate_coefficient.subs({s: 1.0 for s in r1_symbols})
+                            )
+                        )
+                    )
                 else:
-                    ref = abs(float(sympy.N(r1.rate)))
+                    ref = abs(float(sympy.N(r1.rate_coefficient)))
                 assert abs(float(diff.evalf())) <= 1e-15 * max(1.0, ref)
             else:
                 for offset in (1.1, 10.1):
                     subs = {s: float(offset + i) for i, s in enumerate(free)}
-                    val1 = float(sympy.N(r1.rate.subs(subs)))
-                    val2 = float(sympy.N(r2.rate.subs(subs)))
+                    val1 = float(sympy.N(r1.rate_coefficient.subs(subs)))
+                    val2 = float(sympy.N(r2.rate_coefficient.subs(subs)))
                     assert abs(val2 - val1) <= 1e-12 * max(1.0, abs(val1))
 
         if isinstance(r1.dE, sympy.Basic) or isinstance(r2.dE, sympy.Basic):
@@ -154,7 +160,7 @@ def test_network_json_roundtrip_preserves_nden_rates(tmp_path):
     )
 
     net = Network(str(jet))
-    assert any("nden" in str(r.rate) for r in net.reactions)
+    assert any("nden" in str(r.rate_coefficient) for r in net.reactions)
     assert any(r.rad.dRad != sympy.Float(0.0) for r in net.reactions)
 
     json_path = str(tmp_path / "gow.jaff")
