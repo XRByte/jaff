@@ -288,7 +288,7 @@ class Radiation:
     photden_tot : sympy.Expr or float
         Integral of ``nph_profile`` over the full band range (the sum of the
         per-band ``grp.photden``), used to normalise the full-spectrum
-        cross section ``reaction.photo.xsec_tot``.
+        cross section ``reaction.photo.xsec_props.total``.
     """
 
     def __init__(
@@ -410,7 +410,7 @@ class Radiation:
         Returns
         -------
         None
-            Results are stored in ``reaction.rate``, ``reaction.photo.xsec_tot``,
+            Results are stored in ``reaction.rate``, ``reaction.photo.xsec_props.total``,
             ``self.groups[i].props[reaction]``, and ``reaction.photo.groups``
             (back-references to the bands this reaction contributes to)
             in-place.

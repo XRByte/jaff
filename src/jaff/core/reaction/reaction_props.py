@@ -32,9 +32,6 @@ class PhotoReactionProps:
     custom_rad_rate : bool
         ``True`` when the rate comes from a ``.jfunc`` aux function rather
         than from the cross sections.
-    xsec_tot : float or None
-        Cross section averaged over the whole spectrum (cm²), set when the
-        rate is computed from the cross sections.
     shielding : ShieldingProps or None
         Shielding applied to the photo rate, or ``None`` when the reaction is
         not shielded.
@@ -45,7 +42,6 @@ class PhotoReactionProps:
         xsec: XsecProps | None = None,
         pi_database: str | None = None,
         custom_rad_rate: bool = False,
-        xsec_tot: float | None = None,
         rgrouped: List[GroupedPhotoReactionProps] | None = None,
         shielding: ShieldingProps | None = None,
     ):
@@ -59,7 +55,6 @@ class PhotoReactionProps:
         self.xsec_props: XsecProps | None = xsec
         self.pi_database: str | None = pi_database
         self.custom_rad_rate: bool = custom_rad_rate
-        self.xsec_tot: float | None = xsec_tot
         self.rgrouped: List[GroupedPhotoReactionProps] | None = rgrouped
         self.shielding: ShieldingProps | None = shielding
 

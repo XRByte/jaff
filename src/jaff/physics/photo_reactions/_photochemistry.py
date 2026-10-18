@@ -62,6 +62,9 @@ class XsecProps:
     photo_absorption: np.ndarray | None
     photodecay: np.ndarray | None
     photodecay_expr: Expr | None
+    # Cross section averaged over the whole radiation spectrum (cm²); 0.0 until
+    # the rate is computed when radiation is enabled, None without radiation.
+    total: float | None = None
 
 
 class Photochemistry:
@@ -167,8 +170,14 @@ class Photochemistry:
 
         return list(dict.fromkeys([chosen, *PI_DATABASES]))
 
+    def _default_total(self) -> float | None:
+        """Initial :attr:`XsecProps.total`: ``0.0`` with radiation, else ``None``."""
+        return 0.0 if self.net.radiation is not None else None
+
     @staticmethod
-    def _tabulated_xsec(db: str, loc: str, row: dict[str, Any]) -> XsecProps:
+    def _tabulated_xsec(
+        db: str, loc: str, row: dict[str, Any], total: float | None
+    ) -> XsecProps:
         """Read one tabulated (Leiden / NORAD) HDF5 group into an XsecProps."""
         pr_xsec = HDF5().to_dict(str(JAFF_DIR.resolve() / loc))
         photo_absorption = pr_xsec.get("photoabsorption", {}).get("_data", None)
@@ -185,6 +194,7 @@ class Photochemistry:
             photo_absorption=photo_absorption,
             photodecay=pr_xsec.get("photodecay", {}).get("_data", None),
             photodecay_expr=None,
+            total=total,
         )
 
     def _load(self, db: str, key: str, row: dict[str, Any] | None) -> XsecProps | None:
@@ -203,12 +213,13 @@ class Photochemistry:
                 photo_absorption=None,
                 photodecay=None,
                 photodecay_expr=expr,
+                total=self._default_total(),
             )
 
         if row is None or not row[db]:
             return None
 
-        return self._tabulated_xsec(db, row[db], row)
+        return self._tabulated_xsec(db, row[db], row, self._default_total())
 
     def get_xsec(self, reaction: Reaction, required: bool = False) -> XsecProps | None:
         """

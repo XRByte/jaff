@@ -134,8 +134,8 @@ class Reaction:
         :class:`~jaff.physics.XsecProps`), ``pi_database`` (per-reaction
         photoionization database override), ``groups`` (radiation bands the
         reaction contributes to; see :attr:`band_xsecs`), ``custom_rad_rate``
-        (rate supplied by a ``.jfunc`` aux function) and ``xsec_tot``
-        (spectrum-averaged cross section, cm²).
+        (rate supplied by a ``.jfunc`` aux function); the spectrum-averaged
+        cross section is ``xsec.total`` (cm²).
     """
 
     def __init__(
@@ -391,7 +391,9 @@ class Reaction:
         if self.aux_funcs.chemrate is None:
             k_tot, xsec_tot, grouped = self.net.radiation.get_reaction_rate_props(self)
             self.rate = k_tot
-            self.photo.xsec_tot = xsec_tot
+
+            assert self.photo.xsec_props is not None
+            self.photo.xsec_props.total = xsec_tot
 
         elif self.aux_funcs.chemrate is not None and self.aux_funcs.deltarad:
             grouped = self.net.radiation.get_reaction_custom_rate_props(self)
