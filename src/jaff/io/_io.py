@@ -233,7 +233,7 @@ def _decode_xsec_props(
     *decode_expr* restores the Verner ``photodecay_expr``.
     """
     from ..physics.photo_reactions._photochemistry import (
-        XsecEquations,
+        XsecProcess,
         XsecProps,
         XsecUnits,
     )
@@ -245,7 +245,7 @@ def _decode_xsec_props(
 
     return XsecProps(
         units=XsecUnits(**xsecs["units"]),
-        _equations=XsecEquations(**xsecs["_equations"]),
+        process=XsecProcess(**xsecs["process"]),
         database=xsecs["database"],
         photon_energy=as_array("photon_energy"),
         photo_absorption=as_array("photo_absorption"),

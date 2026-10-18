@@ -124,13 +124,13 @@ class Reaction:
     custom_rad_rate : bool
         ``True`` when the radiation rate was supplied via a ``.jfunc`` aux
         function rather than computed from cross-sections.
-    xsecs_dict : dict or None
+    xsec_props : XsecProps or None
         Photo cross-section data for the reaction's single decay channel:
         ``photon_energy`` (eV), optional ``photo_absorption`` and the
         ``photodecay`` array (cm²), ``database`` (source used: ``"norad"``,
         ``"verner"`` or ``"leiden"``), ``photodecay_expr`` (Verner SymPy
         expression in ``E`` (eV), else ``None``; the arrays are ``None`` for
-        Verner), plus ``_equations`` metadata.  ``None`` for non-photo reactions.
+        Verner), plus ``process`` metadata.  ``None`` for non-photo reactions.
     pi_database : str or None
         Per-reaction photoionization database override (``"norad"``,
         ``"verner"`` or ``"leiden"``); ``None`` uses the global

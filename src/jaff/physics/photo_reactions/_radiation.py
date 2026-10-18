@@ -447,7 +447,7 @@ class Radiation:
             ph_profile = self.get_photden_profile(E)
             pr_weighted = xsec.photodecay * ph_profile
 
-            if xsec._equations.pa:
+            if xsec.process.absorption_weighted:
                 pa_weighted = xsec.photo_absorption * ph_profile
 
         k_tot = sp.Float(0.0)  # Accumulates total rate coefficient over all bands
@@ -506,7 +506,7 @@ class Radiation:
                 k
                 * (
                     1.0
-                    if not xsec._equations.pa
+                    if not xsec.process.absorption_weighted
                     else (pr_xsec_avg / rad_xsec_avg if rad_xsec_avg != 0.0 else 0.0)
                 )
                 / (grp.eavg if self.mode == "u" else 1)

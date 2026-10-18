@@ -48,15 +48,15 @@ class XsecUnits:
 
 
 @dataclass
-class XsecEquations:
-    pa: bool
+class XsecProcess:
+    absorption_weighted: bool
     decay_type: Literal["dissociation", "ionization"]
 
 
-@dataclass
+@dataclass(eq=False)
 class XsecProps:
     units: XsecUnits
-    _equations: XsecEquations
+    process: XsecProcess
     database: Literal["norad", "verner", "leiden"]
     photon_energy: np.ndarray | None
     photo_absorption: np.ndarray | None
@@ -167,8 +167,9 @@ class Photochemistry:
 
         return XsecProps(
             units=XsecUnits(photon_energy="eV", cross_section="cm^2"),
-            _equations=XsecEquations(
-                pa=bool(row["photo_absorption"]) and photo_absorption is not None,
+            process=XsecProcess(
+                absorption_weighted=bool(row["photo_absorption"])
+                and photo_absorption is not None,
                 decay_type=row["decay_type"],
             ),
             database=db,  # type: ignore
@@ -188,7 +189,7 @@ class Photochemistry:
 
             return XsecProps(
                 units=XsecUnits(photon_energy="eV", cross_section="cm^2"),
-                _equations=XsecEquations(pa=False, decay_type="ionization"),
+                process=XsecProcess(absorption_weighted=False, decay_type="ionization"),
                 database="verner",
                 photon_energy=None,
                 photo_absorption=None,
@@ -227,8 +228,8 @@ class Photochemistry:
 
         Returns
         -------
-        XsecsProps or None
-            Dict with ``units``, ``_equations`` (``pa`` photo-absorption flag and
+        XsecProps or None
+            Object with ``units``, ``process`` (``absorption_weighted`` flag and
             ``decay_type``), the ``database`` used, and either tabulated arrays
             (``photon_energy``, optional ``photo_absorption``, ``photodecay``)
             or a SymPy ``photodecay_expr`` in ``E`` (Verner).  ``None`` if no
