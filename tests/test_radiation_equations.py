@@ -1,0 +1,136 @@
+# ABOUTME: Regression tests for get_sradodes: how per-band photo-reaction data is
+# ABOUTME: assembled into the radiation density/flux moment equations and laid out
+
+import pytest
+import sympy as sp
+
+from jaff.physics import RadiationProps
+
+BANDS = [6.0, 13.6, 100.0]
+PHOTO = "C -> C+ + E  []  PHOTO, 11.3\nCO -> C + O  []  PHOTO, 11\n"
+NON_PHOTO = "H + H -> H2  []  1e-17\n"
+# Custom rate for reaction 0 with a photon-energy dependent dRad (erg/eV).
+CUSTOM_JFUNC = (
+    "@function chemrate0()\n@return 1e-10\n"
+    '@function deltarad0()\n@return 2.0*Symbol("E")\n'
+)
+
+
+@pytest.fixture
+def radiation_network(make_network):
+    def _make(lines=PHOTO, name="rad.jet"):
+        return make_network(lines, name=name, radiation_props=RadiationProps(bands=BANDS))
+
+    return _make
+
+
+def _flux(net, rxn, k):
+    """Reaction flux for band coefficient *k*: k times every reactant density."""
+    nden = net.symbols.ndens
+    for reactant in rxn.reactants.core:
+        k *= nden[sp.Idx(net.species[str(reactant)].index)]
+
+    return k
+
+
+def _expected(net):
+    """Density and flux equations per band, built from each reaction's band data."""
+    groups = net.radiation.groups
+    rflux = sp.IndexedBase("rflux", shape=(net.radiation.nbands,))
+    flux_map = {g.sym: rflux[i] for i, g in enumerate(groups)}
+    loss = [sp.Float(0.0)] * len(groups)
+    source = [sp.Float(0.0)] * len(groups)
+    for rxn in net.reactions:
+        if rxn.photo is None or not rxn.photo.rgrouped:
+            continue
+        for i, band in enumerate(rxn.photo.rgrouped):
+            flux = _flux(net, rxn, band.k)
+            loss[i] -= flux
+            source[i] += band.delta_rad * flux
+
+    density = [loss[i] + source[i] / groups[i].eavg for i in range(len(groups))]
+    fluxes = [loss[i].xreplace(flux_map) for i in range(len(groups))]
+
+    return density, fluxes
+
+
+def _same(a, b):
+    return sp.simplify(sp.sympify(a) - sp.sympify(b)) == 0
+
+
+def test_density_equation_removes_photo_reaction_flux(radiation_network):
+    net = radiation_network()
+    density, _ = _expected(net)
+    odes = net.sradodes(order=2)
+    nb = net.radiation.nbands
+
+    assert len(odes) == 2 * nb
+    for i in range(nb):
+        assert _same(odes[i], density[i])
+        assert odes[i] != 0
+
+
+def test_flux_equation_is_density_loss_with_rflux(radiation_network):
+    net = radiation_network()
+    _, fluxes = _expected(net)
+    odes = net.sradodes(order=2)
+    nb = net.radiation.nbands
+
+    for i in range(nb):
+        assert _same(odes[nb + i], fluxes[i])
+        assert not odes[nb + i].has(net.radiation.groups[i].sym)
+
+
+def test_drad_source_enters_density_equation_only(radiation_network, tmp_path):
+    (tmp_path / "rad.jfunc").write_text(CUSTOM_JFUNC)
+    net = radiation_network()
+    custom = next(r for r in net.reactions if r.photo and r.photo.custom_rad_rate)
+    assert any(band.delta_rad != 0 for band in custom.photo.rgrouped)
+
+    density, fluxes = _expected(net)
+    odes = net.sradodes(order=2)
+    nb = net.radiation.nbands
+    for i in range(nb):
+        assert _same(odes[i], density[i])
+        assert _same(odes[nb + i], fluxes[i])
+
+
+def test_non_photo_reactions_do_not_contribute(radiation_network):
+    net = radiation_network(PHOTO + NON_PHOTO)
+    nden = net.symbols.ndens
+    non_photo = [nden[sp.Idx(net.species[s].index)] for s in ("H", "H2")]
+
+    for ode in net.sradodes(order=2):
+        assert not any(ode.has(n) for n in non_photo)
+
+
+@pytest.mark.parametrize("order", [0, 1, 2, 3])
+def test_layout_places_each_band_by_ordered_index(radiation_network, order):
+    net = radiation_network()
+    density, fluxes = _expected(net)
+    odes = net.sradodes(order=order)
+
+    for i in range(net.radiation.nbands):
+        ei, fi = net.radiation.ordered_index(i, order)
+        assert _same(odes[ei], density[i])
+        assert _same(odes[fi], fluxes[i])
+
+
+def test_photo_reaction_without_band_data_raises(radiation_network):
+    net = radiation_network()
+    rxn = next(r for r in net.reactions if r.photo is not None)
+    rxn.photo.rgrouped = None
+
+    with pytest.raises(RuntimeError, match="no per-band radiation data"):
+        net.sradodes()
+
+
+def test_requires_radiation(make_network):
+    net = make_network(PHOTO, name="norad.jet")
+    with pytest.raises(RuntimeError, match="No radiation bands"):
+        net.sradodes()
+
+
+def test_rejects_unknown_order(radiation_network):
+    with pytest.raises(ValueError, match="Invalid order"):
+        radiation_network().sradodes(order=4)

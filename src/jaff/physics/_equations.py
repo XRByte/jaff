@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sympy import Basic, Expr, Float, Idx, IndexedBase
+from sympy import Basic, Expr, Float, IndexedBase
 
 from ..io._logger import jaff_progress
 
@@ -238,21 +238,36 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
     grate: list[Expr | float] = [Float(0.0) for _ in range(net.radiation.nbands)]
     gflux: list[Expr | float] = [Float(0.0) for _ in range(net.radiation.nbands)]
 
-    for group in jaff_progress.track(
-        rad_groups, description="Generating radiation equations"
+    # Per-band totals over all photo reactions: the radiation removed and the
+    # user-supplied dRad energy added back.
+    group_rates: list[Expr] = [Float(0.0) for _ in rad_groups]
+    group_dRad_dt_extras: list[Expr] = [Float(0.0) for _ in rad_groups]
+
+    for reaction in jaff_progress.track(
+        net.reactions.with_type("photo"), description="Generating radiation equations"
     ):
-        group_rate: Basic = Float(0.0)
-        group_dRad_dt_extra = Float(0.0)
-        for reaction, props in group.props.items():
-            rrate = props["k"]
+        # With radiation, Reaction.__init__ fills rgrouped for every photo
+        # reaction or raises, so missing data is a broken invariant.
+        if reaction.photo is None or not reaction.photo.rgrouped:
+            raise RuntimeError(
+                f"Photo reaction {reaction} has no per-band radiation data"
+            )
+
+        # rgrouped is built by iterating rad_groups in order, one entry per band.
+        for group, props in zip(rad_groups, reaction.photo.rgrouped, strict=True):
+            rrate = props.k
             # Multiply by all reactant number densities (mass-action kinetics)
             # so rrate becomes the full reaction flux (k * prod(nden)).
             for reactant in reaction.reactants.core:
-                rrate *= nden[Idx(net.species[str(reactant)].index)]
+                rrate *= nden[net.species[str(reactant)].index]
 
             # Photochemical reactions *remove* radiation, hence the minus sign.
-            group_rate -= rrate
-            group_dRad_dt_extra += props["delta_rad"] * rrate
+            group_rates[group.index] -= rrate
+            group_dRad_dt_extras[group.index] += props.delta_rad * rrate
+
+    for group in rad_groups:
+        group_rate = group_rates[group.index]
+        group_dRad_dt_extra = group_dRad_dt_extras[group.index]
 
         # The flux-moment equation is obtained by substituting den → rflux in
         # the density-moment equation (two-moment closure).
