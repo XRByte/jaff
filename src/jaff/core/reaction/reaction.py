@@ -237,8 +237,10 @@ class Reaction:
         # (e.g. shielding model props). Not part of the public API.
         self._metadata: dict = {}
 
-        if self.net.radiation is not None:
-            if self.photo is not None:
+        if self.photo is not None:
+            self.__set_xsec_props()
+
+            if self.net.radiation is not None:
                 self.__set_photo_reaction_props()
 
     def __repr__(self):
@@ -325,6 +327,25 @@ class Reaction:
             chemrate=af.get(f"chemrate{self.index}", None),
             deltae=af.get(f"deltae{self.index}", None),
             deltarad=af.get(f"deltarad{self.index}", None),
+        )
+
+    def __set_xsec_props(self):
+        from ...physics import Photochemistry
+
+        assert self.photo is not None
+
+        if self.net._photochemistry is None:
+            self.net._photochemistry = Photochemistry(self.net)
+
+        # A cross section is mandatory only when radiation sets the rate.
+        self.photo.xsec_props = (
+            self.net._photochemistry.get_xsec(
+                self,
+                required=self.net.radiation is not None
+                and self.aux_funcs.chemrate is None
+                and not self.photo.custom_rad_rate,
+            )
+            or self.photo.xsec_props
         )
 
     def __set_photo_reaction_props(self):

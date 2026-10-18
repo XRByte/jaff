@@ -472,6 +472,19 @@ class Network:
                 rea.rate_segments.add(RateSegment(rate_expr, tmin, tmax))
                 continue
 
+            # Per-reaction photoionization database: jaffgen.toml wins over jaff.toml.
+            pi_db = reaction_props.get(srxn, {}).get("pi_database")
+            if pi_db is None:
+                pi_db = reactions_config.get(srxn, {}).get("pi_database")
+
+            if pi_db is not None:
+                if rtype != "photo":
+                    raise ParserError(
+                        f"pi_database is only valid for photo reactions: {srxn}"
+                    )
+
+                pi_db = validate_pi_database(pi_db)
+
             rea = Reaction(
                 self,
                 reactants=rr,
@@ -483,34 +496,12 @@ class Network:
                 index=si,
                 type=rtype,
                 t_cutoff=local_tcutoff,
-                photo=PhotoReactionProps() if rtype == "photo" else None,
+                photo=PhotoReactionProps(pi_database=pi_db) if rtype == "photo" else None,
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
 
             self.reactions.add(rea)
-
-            # Per-reaction photoionization database: jaffgen.toml wins over jaff.toml.
-            pi_db = reaction_props.get(srxn, {}).get("pi_database")
-            if pi_db is None:
-                pi_db = reactions_config.get(srxn, {}).get("pi_database")
-            if pi_db is not None:
-                if rea.photo is None:
-                    raise ParserError(
-                        f"pi_database is only valid for photo reactions: {srxn}"
-                    )
-                rea.photo.pi_database = validate_pi_database(pi_db)
-
-            if rea.photo is not None:
-                if self._photochemistry is None:
-                    self._photochemistry = Photochemistry(self)
-
-                # A cross section is mandatory only when radiation sets the rate.
-                rea.photo.xsec_props = self._photochemistry.get_xsec(
-                    rea,
-                    required=self.radiation is not None
-                    and aux_chem_rate not in aux_funcs,
-                )
 
         if self._photochemistry is not None:
             self._photochemistry.log_fallback_summary()
@@ -544,6 +535,7 @@ class Network:
                 index=i,
                 type=rtype,
                 photo=PhotoReactionProps(
+                    xsec=reaction.get("xsec_props"),
                     pi_database=reaction.get("pi_database"),
                     custom_rad_rate=bool(reaction.get("custom_rad_rate")),
                 )
@@ -558,14 +550,6 @@ class Network:
                     rea.t_cutoff,
                 )
             self.reactions.add(rea)
-
-            if rea.photo is not None:
-                if self._photochemistry is None:
-                    self._photochemistry = Photochemistry(self)
-                rea.photo.xsec_props = self._photochemistry.get_xsec(
-                    rea,
-                    required=self.radiation is not None and not rea.photo.custom_rad_rate,
-                ) or reaction.get("xsec_props")
 
             if rea.photo is not None and self.radiation is not None:
                 if rea.photo.custom_rad_rate:
