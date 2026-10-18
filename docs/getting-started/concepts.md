@@ -153,7 +153,8 @@ rxn = net.reactions[0]
 
 rxn.verbatim      # 'H + _PHOTON -> H+ + e-'   ← verbatim is an attribute
 rxn.type          # 'photo'                     ← type is an attribute
-rxn.rate          # a SymPy expression for the rate coefficient
+rxn.rate_coefficient  # a SymPy expression for the rate coefficient
+rxn.rate              # the coefficient times the reactant densities
 rxn.reactants     # species consumed
 rxn.products      # species created
 ```

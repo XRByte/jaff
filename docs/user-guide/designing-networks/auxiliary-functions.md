@@ -126,7 +126,7 @@ runtime-supplied symbol.)
 Inside a custom `@function` body you can reference the auto-generated rate
 coefficient of another reaction by index with the reserved symbol `rc_<N>`,
 where `N` is the 0-based reaction index. JAFF resolves `rc_<N>` to the computed
-rate coefficient (the `rate` of `network.reactions[N]`), so you can build one
+rate coefficient (the `rate_coefficient` of `network.reactions[N]`), so you can build one
 reaction's rate or energy term out of another's without restating its Arrhenius
 expression.
 
@@ -144,7 +144,7 @@ offending symbol and the `.jfunc` file it came from.
 Inside a custom `@function` body you can reference the auto-generated rate
 coefficient of another reaction by index with the reserved symbol `rc_<N>`,
 where `N` is the 0-based reaction index. JAFF resolves `rc_<N>` to the computed
-rate coefficient (the `rate` of `network.reactions[N]`), so you can build one
+rate coefficient (the `rate_coefficient` of `network.reactions[N]`), so you can build one
 reaction's rate or energy term out of another's without restating its Arrhenius
 expression.
 

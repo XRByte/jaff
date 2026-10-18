@@ -300,10 +300,12 @@ inputs are the H2 column density `ncol_H2` and velocity dispersion `vdisp`.
 
 <!-- prettier-ignore -->
 !!! note "Shielding is exposed programmatically too"
-    `jaff.physics.Photochemistry.shielding(reaction, network)` returns the
-    symbolic factor and caches it on
-    `reaction._metadata["shielding"]["value"]`; the radiation integrator reuses
-    that cached value across bands.
+    The settings are stored on the reaction as `rxn.photo.shielding`, with the
+    model in `.type` and the remaining keys in `.props`, and are saved in
+    `.jaff` files. `jaff.physics.Photochemistry.shielding(reaction, network)`
+    returns the symbolic factor; the radiation integrator evaluates it once per
+    reaction and multiplies it into every band. A `value` key in the TOML block
+    fixes $f_\text{sh}$ to that number instead of evaluating the model.
 
 ---
 
@@ -404,7 +406,10 @@ for rxn in photo:
 rxn = photo[0]
 rxn.photo.xsec.photon_energy       # eV grid
 rxn.photo.xsec.photodecay          # cm² array (or None)
-rxn.plot_xsecs()                    # visualise σ(E)
+rxn.photo.xsec.total               # spectrum-averaged σ (cm²); None without radiation
+rxn.band_xsecs                     # per-band <σ> and fractions (DataFrame)
+rxn.rate_coefficient               # Σ_i k_i, with the radiation density symbols
+rxn.plot_xsecs()                   # visualise σ(E)
 
 # Symbolic radiation ODEs
 print(net.sradodes())

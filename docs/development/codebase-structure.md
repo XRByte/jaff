@@ -17,7 +17,8 @@ src/jaff/
 │   │   ├── _spec.py            # NetworkSpec — normalized Network params
 │   │   └── _args.py            # NetworkArgs — raw CLI arg accumulator
 │   ├── reaction/               # reaction.py (Reaction) · reactions.py (Reactions)
-│   │                           #   reaction_props.py (PhotoReactionProps, ReactionRadiationProps)
+│   │                           #   reaction_props.py (PhotoReactionProps, GroupedPhotoReactionProps,
+│   │                           #   ShieldingProps, ReactionRadiationProps)
 │   ├── species/                # specie.py (Specie) · species.py (Species)
 │   ├── elements/               # element.py (Element) · elements.py (Elements)
 │   ├── parsers/                # File parsers (network + auxiliary)
@@ -43,11 +44,10 @@ src/jaff/
 │   ├── photo_reactions/        # Photochemistry: cross sections, radiation, shielding
 │   │   ├── _photochemistry.py  # XsecProps; get_xsec / get_verner_xsec / shielding — lookups
 │   │   ├── _radiation.py       # Radiation moment equations
-│   │   └── shielding/          # Shielding-function registry (@_register, by reaction metadata)
+│   │   └── shielding/          # Shielding-function registry (@_register, by photo.shielding.type)
 │   │       ├── _base.py        # ShieldingFunction ABC (name, reaction attrs)
 │   │       ├── global_/        # Global models, reaction=None (e.g. leiden.py)
 │   │       └── H2__PHOTON__H_H/ # Local H2 self-shielding (db1996, hg2015) + shared _utils
-│   ├── _typing/                # TypedDicts (Numeric, ...)
 │   └── constants.py            # Physical constants (astropy Quantities)
 │
 ├── plotting/                   # Spec-driven matplotlib plotting

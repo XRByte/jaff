@@ -95,11 +95,12 @@ it. Energies below `bands[0]` use the first band's profile and energies above
 | `get_photden_profile(ph_energy)`          | `numpy.ndarray`   | Evaluates `E**(α_i - 2)` on an energy grid (eV), each point using the index of its band (same edge rules as above) |
 | `get_eden_profile(ph_energy)`             | `numpy.ndarray`   | `ph_energy * get_photden_profile(ph_energy)`, i.e. `E**(α_i - 1)`                                                  |
 | `ordered_index(idx, order)`               | `tuple[int, int]` | Positions `(density, flux)` of band `idx` in the flat radiation ODE array for layout `order` (0–3)                 |
-| `set_reaction_rate_coefficient(reaction)` | `None`            | Band-averages the reaction's tabulated cross section, fills `grp.props[reaction]` and sets `reaction.rate`         |
-| `set_custom_rate(reaction)`               | `None`            | Splits a user-supplied `reaction.rate` across bands in proportion to the band integral of `dRad`                   |
+| `get_reaction_rate_props(reaction)`        | `tuple`           | Band-averages the reaction's cross section; returns `(k_tot, xsec_tot, grouped)`: the total rate coefficient, the spectrum-averaged cross section (cm²) and one `GroupedPhotoReactionProps` per band |
+| `get_reaction_custom_rate_props(reaction)` | `list`            | Splits a user-supplied `reaction.rate_coefficient` across bands in proportion to the band integral of `dRad`; returns one `GroupedPhotoReactionProps` per band |
 
-`Network` calls the last two methods while building the network; you normally
-only read their results. The `order` layouts are:
+`Reaction` calls the last two methods while it is built and stores the results
+on `reaction.rate_coefficient`, `reaction.photo.xsec.total` and
+`reaction.photo.rgrouped`; you normally only read those. The `order` layouts are:
 
 | `order` | Layout                                     |
 | ------- | ------------------------------------------ |
@@ -126,15 +127,16 @@ One band, `[lower, upper]` in eV.
 | `energy_profile` | `sympy.Expr`           | `E**(profile_idx - 1)`                                                                   |
 | `photden`        | `float`                | $\int_\text{lower}^\text{upper} n(E)\,dE$, the normalisation for band averages           |
 | `eavg`           | `float`                | Band-average photon energy $\langle E\rangle_i = \int E\,n\,dE / \int n\,dE$, in **erg** |
-| `props`          | `dict[Reaction, dict]` | Per-reaction band data, keys below                                                       |
 
-`props[reaction]` keys:
+Per-reaction band data is not stored on the group: each photo reaction holds
+one `GroupedPhotoReactionProps` per band in `reaction.photo.rgrouped`, in the
+same order as `Radiation.groups`, with these attributes:
 
-| Key         | Description                                                                                                                                                                                                   |
+| Attribute   | Description                                                                                                                                                                                                   |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `k`         | Symbolic rate coefficient for this band                                                                                                                                                                       |
+| `k`         | Symbolic rate coefficient for this band (including the band density and any shielding)                                                                                                                       |
 | `xsec`      | Photon-number-weighted band-average cross section $\langle\sigma\rangle_i$ (cm²); `None` for custom-rate reactions                                                                                            |
-| `xsec_frac` | Tabulated reactions: $\langle\sigma\rangle_i$ divided by the full-spectrum average (`reaction.photo.xsec_tot`), so values need not sum to 1. Custom-rate reactions: this band's share of the total `dRad` integral |
+| `xsec_frac` | Tabulated reactions: $\langle\sigma\rangle_i$ divided by the full-spectrum average (`reaction.photo.xsec.total`), so values need not sum to 1. Custom-rate reactions: this band's share of the total `dRad` integral |
 | `delta_rad` | Band integral of `dRad`, the radiation energy added per reaction event (erg)                                                                                                                                  |
 
 The same values per reaction are available as a table through

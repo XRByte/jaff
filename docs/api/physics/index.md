@@ -64,6 +64,7 @@ carry numpy arrays.
 | `photo_absorption` | `numpy.ndarray or None`               | Photo-absorption cross section (cm²), or `None` where absent                                      |
 | `photodecay`       | `numpy.ndarray or None`               | Photodecay cross section (cm²); `None` for Verner                                                 |
 | `photodecay_expr`  | `sympy.Expr or None`                  | Verner σ(E) expression (symbol `E` in eV, σ in cm²); `None` for tabulated sources                 |
+| `total`            | `float or None`                       | Cross section averaged over the whole radiation spectrum (cm²); `0.0` until the rate is computed when radiation is enabled (it stays `0.0` for a custom-rate reaction), `None` without radiation |
 
 ## Unit systems
 

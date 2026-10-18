@@ -27,17 +27,24 @@ the TOML `shielding.type` option (matched case-insensitively).
 ## How Shielding Is Resolved
 
 When a reaction carries a `[network.reactions."<serialized>".shielding]` block, the
-network parser copies it onto `reaction._metadata["shielding"]`, and
+`Reaction` reads it while it is built and stores it as `reaction.photo.shielding`,
+a `ShieldingProps` with the model name in `.type` (default `"leiden"`) and every
+other option in `.props`. When the rate is computed,
 `Photochemistry.shielding` (`src/jaff/physics/photo_reactions/_photochemistry.py`)
 asks the registry for the model named by `type`. Lookup is keyed by
 `(name, reaction.serialized)` and prefers a reaction-specific (local) model,
 falling back to a global one registered with `reaction = None`. The resolved
-instance's `get_shielding` method is called; the returned expression is cached
-on `reaction._metadata["shielding"]["value"]` and folded into the rate.
+instance's `get_shielding` method is called **once per reaction** and the
+returned expression multiplies the rate coefficient of every radiation band.
+
+A `value` entry in the block fixes the factor instead: the model is not called
+and that number is used as `S`. The computed factor is not written back into
+`props`, so `props` always holds exactly what the user configured (and is what
+a `.jaff` file saves).
 
 ```mermaid
 flowchart TD
-    A[shielding block in TOML\ntype selects a model] --> B[Network parser\ncopies block onto\nreaction shielding metadata]
+    A[shielding block in TOML\ntype selects a model] --> B[Reaction stores it as\nreaction.photo.shielding\ntype + props]
     B --> C[Photochemistry.shielding]
     C --> D[_get_shielding_function\ntype, reaction.serialized]
     D --> E{local model registered\nfor this reaction?}
@@ -47,8 +54,8 @@ flowchart TD
     G -- no --> I[raise ParserError\nInvalid shielding type]
     F --> J[call instance.get_shielding\nreaction, network]
     H --> J
-    J --> K[Returned sympy.Expr\ncached on the\nshielding value metadata]
-    K --> L[Multiplied into\nthe photo-rate]
+    J --> K[Returned sympy.Expr\nevaluated once per reaction]
+    K --> L[Multiplied into each\nband's rate coefficient]
 ```
 
 The registry is populated by importing every (non-underscore) module under
@@ -57,8 +64,8 @@ discovered automatically once its file is in place; no central list to edit.
 
 <!-- prettier-ignore -->
 !!! note "Case-insensitive matching"
-    The `shielding.type` string is lower-cased when copied onto the reaction
-    metadata, and the registry lower-cases the `name` it matches against. So
+    String options, `type` included, are lower-cased when the reaction stores
+    them, and the registry lower-cases the `name` it matches against. So
     `type = "HG2015"`, `type = "hg2015"`, and a class with `name = "hg2015"` all
     refer to the same model. Pick a lower-case `name` to avoid surprises.
 
@@ -88,7 +95,7 @@ class MyModel(ShieldingFunction):
 | --------------- | ----------------------------------------------------------------------------------------------- |
 | `name`          | Shielding-type identifier, matched case-insensitively against `shielding.type`.                 |
 | `reaction`      | Serialized reaction this model is bound to (local), or `None` for a global model.               |
-| `get_shielding` | Returns the dimensionless `sympy.Expr`. Read model params off `reaction._metadata["shielding"]`. |
+| `get_shielding` | Returns the dimensionless `sympy.Expr`. Read model params off `reaction.photo.shielding.props`. |
 
 The returned `Expr` may reference free symbols the code generator resolves at
 runtime, by convention:
@@ -98,9 +105,9 @@ runtime, by convention:
 | `ncol_<species>` | Column density of `<species>` (cm⁻²), e.g. `ncol_H2` |
 | `vdisp`          | Velocity dispersion (cm s⁻¹)                         |
 
-The `shielding` block from the TOML is available verbatim (lower-cased strings)
-on `reaction._metadata["shielding"]`, so any extra option you add — floors,
-tolerances, a radiation-field selector — is read straight from there. **Validate
+The `shielding` block from the TOML is available verbatim (lower-cased strings,
+`type` removed) on `reaction.photo.shielding.props`, so any extra option you add
+— floors, tolerances, a radiation-field selector — is read straight from there. **Validate
 your inputs** and raise `jaff.errors.ParserError` with a reaction-tagged message
 on bad values; the existing models all do this.
 
@@ -140,8 +147,8 @@ min_vdisp = 1.0e-20
 min_ncol  = 1.0e-35
 ```
 
-The model reads its options off the metadata, validates them, and returns the
-expression. Following `H2__PHOTON__H_H/hg2015.py`:
+The model reads its options off `reaction.photo.shielding.props`, validates
+them, and returns the expression. Following `H2__PHOTON__H_H/hg2015.py`:
 
 ```python
 """
@@ -168,7 +175,9 @@ class HG2015(ShieldingFunction):
     reaction = "H2._PHOTON__H.H"
 
     def get_shielding(self, reaction, network) -> Expr:
-        sprops: dict[str, Any] = reaction._metadata["shielding"]
+        assert reaction.photo is not None and reaction.photo.shielding is not None
+        sprops: dict[str, Any] = reaction.photo.shielding.props
+
         if "min_ncol" in sprops and not isinstance(sprops["min_ncol"], (float, int)):
             raise ParserError(
                 f"Minimum column density must be a float or int for: {reaction}"
@@ -237,7 +246,7 @@ interpolation call per shielding species.
 - [x] Local model placed under the **sanitised** folder
       (`shielding/<sanitized_reaction>/<type>.py`); global under `shielding/global_/`
 - [x] Implements `get_shielding(self, reaction, network) -> sympy.Expr`
-- [x] Reads model options from `reaction._metadata["shielding"]`
+- [x] Reads model options from `reaction.photo.shielding.props`
 - [x] Validates inputs and raises `ParserError` (reaction-tagged) on bad values
 - [x] Returns a dimensionless expression using the `ncol_<species>` / `vdisp`
       symbol conventions

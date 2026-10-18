@@ -31,7 +31,7 @@ class DB1996(ShieldingFunction):
 
         Thin wrapper over :func:`shielding` with ``alpha = 2.0``.  Reads the
         optional floors ``shielding.min_ncol`` (cm^-2) and
-        ``shielding.min_vdisp`` (cm/s) from the reaction metadata.
+        ``shielding.min_vdisp`` (cm/s) from ``reaction.photo.shielding.props``.
 
         Raises
         ------

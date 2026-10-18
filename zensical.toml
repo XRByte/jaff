@@ -146,6 +146,7 @@ nav = [
         "api/core/reactions/types.md",
         "api/core/reactions/reactants.md",
         "api/core/reactions/products.md",
+        "api/core/reactions/rate_coefficients.md",
         "api/core/reactions/rates.md",
         "api/core/reactions/tmins.md",
         "api/core/reactions/tmaxes.md",

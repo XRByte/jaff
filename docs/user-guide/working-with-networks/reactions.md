@@ -71,14 +71,15 @@ ideas to hold onto.
 
 ### The rate is symbolic, not a number
 
-The single most important thing about a `Reaction` is that its `rate` is a
-**SymPy expression**, not a float. It is a formula in the gas temperature
+The single most important thing about a `Reaction` is that its
+`rate_coefficient` is a **SymPy expression**, not a float. It is a formula in the gas temperature
 `tgas` (and possibly other symbols like `crate`, `av`, `ntot`), frozen at load
 time but not yet evaluated.
 
 ```python
 rec = net.reactions[1]      # H+ + e- -> H  (recombination)
-rec.rate                    # 1.65941781598291e-10/tgas**0.7
+rec.rate_coefficient        # 2.63e-13/(tgas/10000.0)**0.7
+rec.rate                    # 1.65941781598291e-10*nden[1]*nden[2]/tgas**0.7
 ```
 
 Because the rate is symbolic, a single reaction can be turned into many concrete
@@ -87,7 +88,7 @@ forms on demand — differentiated, compiled to six languages, or plotted:
 ```python
 import sympy
 
-rec.get_sympy()                          # 1.65941781598291e-10/tgas**0.7
+rec.get_sympy()                          # 2.63e-13/(tgas/10000.0)**0.7
 sympy.diff(rec.get_sympy(), "tgas")      # analytic dk/dT, also symbolic
 ```
 
@@ -96,7 +97,7 @@ reaction is classified as photochemical by the parser (via its `_PHOTON`
 reactant), not by inspecting the rate — see [reaction types](#reaction-types):
 
 ```python
-net.reactions[0].rate       # photorates(1, 13.6, 1.0e+99)
+net.reactions[0].rate_coefficient  # photorates(1, 13.6, 1.0e+99)
 ```
 
 <!-- prettier-ignore -->
@@ -109,7 +110,8 @@ net.reactions[0].rate       # photorates(1, 13.6, 1.0e+99)
 | --------------------- | --------------- | ------------------------------------------------------------------------- |
 | `reactants`           | `Species`       | Catalogue of reactant species (may repeat, e.g. for 3-body reactions)     |
 | `products`            | `Species`       | Catalogue of product species                                              |
-| `rate`                | `sympy.Basic`   | Symbolic rate-coefficient expression (units depend on reaction order)     |
+| `rate_coefficient`    | `sympy.Basic`   | Symbolic rate-coefficient expression (units depend on reaction order) |
+| `rate`                | `sympy.Basic`   | Rate per unit volume: `rate_coefficient` × each core reactant's density |
 | `tmin`                | `float or None` | Lower temperature bound of rate validity (K); `None` = unbounded          |
 | `tmax`                | `float or None` | Upper temperature bound of rate validity (K); `None` = unbounded          |
 | `dE`                  | `sympy.Basic`   | Energy released per reaction event (erg), from a `.jfunc` aux function    |
@@ -120,7 +122,7 @@ net.reactions[0].rate       # photorates(1, 13.6, 1.0e+99)
 | `serialized`          | `str`           | Canonical **name-level** identity (isomer-sensitive)                      |
 | `serialized_exploded` | `str`           | Canonical **atom-level** identity (isomer-insensitive)                    |
 | `type`                | `str`           | Reaction type concluded by the parser (verbatim): gas-phase `"photo"`/`"cosmic_ray"`/`"3_body"`/`"unknown"`, or a grain surface-mechanism type — see [Reaction types](#reaction-types) |
-| `photo`               | `PhotoReactionProps or None` | Photo-reaction state, `None` for non-photo reactions: `xsec` (cross sections), `pi_database`, `groups` (radiation bands), `custom_rad_rate` (rate from a `.jfunc`, not cross-sections) and `xsec_tot` — see [Photo-reactions](#photo-reactions-a-special-citizen) |
+| `photo`               | `PhotoReactionProps or None` | Photo-reaction state, `None` for non-photo reactions: `xsec` (cross sections; `xsec.total` is the spectrum-averaged σ), `pi_database`, `custom_rad_rate` (rate from a `.jfunc`, not cross-sections), `rgrouped` (per-band data) and `shielding` — see [Photo-reactions](#photo-reactions-a-special-citizen) |
 
 <!-- prettier-ignore -->
 !!! tip "`reactants` and `products` are `Species` Catalogues"
@@ -274,7 +276,7 @@ A reaction is valid over `[tmin, tmax]`. When the **same** reaction (same specie
 *and* same `type`) appears in the network file across several **disjoint**
 temperature ranges — a common way to fit a rate accurately over a wide
 temperature span — JAFF keeps each range as a `RateSegment` and merges them into
-a single **piecewise** rate expression on `net.reactions[i].rate`:
+a single **piecewise** rate expression on `net.reactions[i].rate_coefficient`:
 
 - each range contributes its own rate over that range;
 - the gap between two adjacent ranges is bridged by **linear interpolation** of
@@ -303,7 +305,7 @@ carries a cross-section table instead of an analytic rate:
 ```python
 rxn = net.reactions[0]
 
-rxn.rate                                # photorates(1, 13.6, 1.0e+99)
+rxn.rate_coefficient                    # photorates(1, 13.6, 1.0e+99)
 rxn.photo.xsec                          # XsecProps: units, process, photon_energy,
                                         #   photo_absorption, photodecay,
                                         #   database, photodecay_expr
@@ -403,7 +405,8 @@ Each returns a `Vector` aligned to catalogue order.
 | ----------------------- | ----------------------- | ------------------------------------ |
 | `verbatim()`            | `Vector[str]`           | `['H + _PHOTON -> H+ + e-', 'H+ + e- -> H']` |
 | `types()`              | `Vector[str]`           | `['photo', 'unknown']`               |
-| `rates()`               | `Vector[Basic]`         | the two symbolic rate expressions    |
+| `rate_coefficients()`   | `Vector[Basic]`         | the two symbolic rate coefficients   |
+| `rates()`               | `Vector[Basic]`         | the two rates (coefficient × densities) |
 | `reactants()`           | `Vector[Species]`       | one `Species` catalogue per reaction |
 | `products()`            | `Vector[Species]`       | one `Species` catalogue per reaction |
 | `tmins()` / `tmaxes()`  | `Vector[float or None]` | `[None, None]` / `[None, None]`      |

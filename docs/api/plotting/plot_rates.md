@@ -13,7 +13,7 @@ Plot rate coefficients against gas temperature.
 **Parameters**
 
 **rates** : _reaction-like, sympy.Basic, (x, y) tuple, or list of these_
-: Each leaf is a reaction (anything with `rate`, optionally `tmin` / `tmax` /
+: Each leaf is a reaction (anything with `rate_coefficient`, optionally `tmin` / `tmax` /
   `get_latex`), a SymPy expression (needs `tmin` and `tmax`), or an `(x, y)`
   tuple used verbatim. With `grid`, each top-level item is one panel and a
   nested list is overlaid on one panel; without `grid` everything is overlaid.

@@ -8,9 +8,9 @@ tags:
 
 `#!python rates()`
 
-Returns the symbolic rate-coefficient expression for every reaction in the catalogue, in catalogue order. Units depend on reaction order (e.g. cm³ s⁻¹ for two-body reactions).
+Returns the symbolic reaction rate per unit volume (`Reaction.rate`: the rate coefficient times each core reactant's number density) for every reaction in the catalogue, in catalogue order. For the coefficients alone use [`rate_coefficients()`](rate_coefficients.md).
 
 **Returns**
 
 _Vector\[sympy.Basic\]_
-: SymPy rate-coefficient expression for each reaction, in the same order as the catalogue.
+: SymPy reaction-rate expression for each reaction, in the same order as the catalogue.
