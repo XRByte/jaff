@@ -13,6 +13,7 @@ import sympy as sp
 from jaff import Network
 from jaff.common._integrators import get_bounds
 from jaff.cli import JaffGen
+from jaff.core.reaction import PhotoReactionProps, ReactionRadiationProps
 from jaff.errors import ParserError
 from jaff.physics import RadiationProps
 from jaff.physics.photo_reactions._photochemistry import Photochemistry, XsecProcess
@@ -43,8 +44,12 @@ class TestRadiationPropsPiDatabase:
 
 class TestReactionAttribute:
     def test_reaction_pi_database_defaults_to_none(self, make_network):
-        net = make_network("H + H -> H2  []  1e-10\n", name="t.jet")
-        assert all(r.pi_database is None for r in net.reactions)
+        net = make_network(
+            "C -> C+ + E  []  PHOTO, 11.3\nH + H -> H2  []  1e-10\n", name="t.jet"
+        )
+        r = _by_key(net)
+        assert r["C._PHOTON__C+.e-"].photo.pi_database is None
+        assert r["H.H__H2"].photo is None
 
 
 def _net(pi_database=None):
@@ -57,7 +62,7 @@ def _rxn(key, pi_database=None):
     return SimpleNamespace(
         serialized=key,
         normalized_proxy_reaction_str=lambda: key,
-        pi_database=pi_database,
+        photo=PhotoReactionProps(pi_database=pi_database),
     )
 
 
@@ -159,12 +164,10 @@ class _FakeReaction:
     """Hashable stand-in for the Reaction attributes Radiation touches."""
 
     def __init__(self, xsecs):
-        self.xsec_props = xsecs
-        self.dRad = sp.Float(0.0)
+        self.photo = PhotoReactionProps(xsec=xsecs)
+        self.rad = ReactionRadiationProps()
         self._metadata = {}
-        self.rad_groups = []
         self.rate = None
-        self.rad_xsecs = None
 
 
 class TestVernerIntegration:
@@ -202,7 +205,9 @@ class TestVernerIntegration:
         for g in rad.groups:
             a, b = float(g.props[r_sym]["xsec"]), float(g.props[r_tab]["xsec"])
             assert a == pytest.approx(b, rel=1e-4, abs=1e-30)
-        assert float(r_sym.rad_xsecs) == pytest.approx(float(r_tab.rad_xsecs), rel=1e-4)
+        assert float(r_sym.photo.xsec_tot) == pytest.approx(
+            float(r_tab.photo.xsec_tot), rel=1e-4
+        )
 
 
 PHOTO_JET = (
@@ -224,8 +229,8 @@ class TestNetworkWiring:
             radiation_props=RadiationProps(bands=BANDS, pi_database="verner"),
         )
         r = _by_key(net)
-        assert r["C._PHOTON__C+.e-"].xsec_props.database == "verner"
-        assert r["CO._PHOTON__C.O"].xsec_props.database == "leiden"
+        assert r["C._PHOTON__C+.e-"].photo.xsec.database == "verner"
+        assert r["CO._PHOTON__C.O"].photo.xsec.database == "leiden"
 
     def test_jaff_toml_per_reaction_override(self, make_network, tmp_path):
         cfg = tmp_path / "jaff.toml"
@@ -237,8 +242,8 @@ class TestNetworkWiring:
             radiation_props=RadiationProps(bands=BANDS),
         )
         rxn = _by_key(net)["C._PHOTON__C+.e-"]
-        assert rxn.pi_database == "leiden"
-        assert rxn.xsec_props.database == "leiden"
+        assert rxn.photo.pi_database == "leiden"
+        assert rxn.photo.xsec.database == "leiden"
 
     def test_override_on_non_photo_reaction_raises(self, make_network, tmp_path):
         cfg = tmp_path / "jaff.toml"
@@ -271,12 +276,12 @@ class TestNetworkWiring:
             radiation_props=RadiationProps(bands=BANDS),
         )
         rxn = _by_key(net)["Cx._PHOTON__C+.e-"]
-        assert rxn.xsec_props.database == "verner"
+        assert rxn.photo.xsec.database == "verner"
 
     def test_missing_xsec_raises_only_with_radiation(self, make_network):
         line = "C9H9 -> C9H9+ + E  []  PHOTO, 9\n"
         net = make_network(line, name="a.jet")  # no radiation: fine
-        assert _by_key(net)["C9H9._PHOTON__C9H9+.e-"].xsec_props is None
+        assert _by_key(net)["C9H9._PHOTON__C9H9+.e-"].photo.xsec is None
         with pytest.raises(ParserError, match="C9H9"):
             make_network(line, name="b.jet", radiation_props=RadiationProps(bands=BANDS))
 
@@ -353,7 +358,7 @@ class TestJaffgenWiring:
         gen = _jaffgen(tmp_path, self.RAD + 'pi_database = "verner"\n')
         assert gen.net.radiation.pi_database == "verner"
         (rxn,) = [r for r in gen.net.reactions if r.type == "photo"]
-        assert rxn.xsec_props.database == "verner"
+        assert rxn.photo.xsec.database == "verner"
 
     def test_per_reaction_pi_database(self, tmp_path):
         gen = _jaffgen(
@@ -362,8 +367,8 @@ class TestJaffgenWiring:
             + '\n[network.reactions."H._PHOTON__H+.e-"]\npi_database = "leiden"\n',
         )
         (rxn,) = [r for r in gen.net.reactions if r.type == "photo"]
-        assert rxn.pi_database == "leiden"
-        assert rxn.xsec_props.database == "leiden"
+        assert rxn.photo.pi_database == "leiden"
+        assert rxn.photo.xsec.database == "leiden"
 
 
 class TestJaffRoundTrip:
@@ -378,9 +383,9 @@ class TestJaffRoundTrip:
         net.to_jaff(out)
         back = Network(str(out), radiation_props=props)
         rxn = _by_key(back)["C._PHOTON__C+.e-"]
-        assert rxn.pi_database == "verner"
-        assert rxn.xsec_props.database == "verner"
-        assert _by_key(back)["Ca+++++._PHOTON__Ca++++++.e-"].pi_database is None
+        assert rxn.photo.pi_database == "verner"
+        assert rxn.photo.xsec.database == "verner"
+        assert _by_key(back)["Ca+++++._PHOTON__Ca++++++.e-"].photo.pi_database is None
 
 
 class TestPlotSampling:
@@ -404,6 +409,8 @@ class TestPlotSampling:
 
         make, _ = pc_and_warn
         x = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-"))
-        (s,) = xsec_series(SimpleNamespace(xsec_props=x), processes="photodecay")
+        (s,) = xsec_series(
+            SimpleNamespace(photo=PhotoReactionProps(xsec=x)), processes="photodecay"
+        )
         assert s["x"][0] == pytest.approx(11.26, rel=1e-3)
         assert np.all(s["y"] > 0)

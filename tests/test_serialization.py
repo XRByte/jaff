@@ -155,7 +155,7 @@ def test_network_json_roundtrip_preserves_nden_rates(tmp_path):
 
     net = Network(str(jet))
     assert any("nden" in str(r.rate) for r in net.reactions)
-    assert any(r.dRad != sympy.Float(0.0) for r in net.reactions)
+    assert any(r.rad.dRad != sympy.Float(0.0) for r in net.reactions)
 
     json_path = str(tmp_path / "gow.jaff")
     net.to_jaff(json_path)

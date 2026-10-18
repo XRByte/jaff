@@ -7,6 +7,7 @@ from unittest.mock import patch
 import numpy as np
 import sympy as sp
 
+from jaff.core.reaction import PhotoReactionProps, ReactionRadiationProps
 from jaff.physics import RadiationProps
 from jaff.physics.photo_reactions._radiation import Radiation
 from tests.xsec_props import make_xsec_props
@@ -17,16 +18,16 @@ class _Reaction:
 
     def __init__(self, energies, absorption, decay):
         E = np.array(energies, dtype=float)
-        self.xsec_props = make_xsec_props(
-            absorption_weighted=True,
-            photon_energy=E,
-            photo_absorption=np.array(absorption, dtype=float),
-            photodecay=np.array(decay, dtype=float),
+        self.photo = PhotoReactionProps(
+            xsec=make_xsec_props(
+                absorption_weighted=True,
+                photon_energy=E,
+                photo_absorption=np.array(absorption, dtype=float),
+                photodecay=np.array(decay, dtype=float),
+            )
         )
-        self.dRad = sp.Float(0.0)
+        self.rad = ReactionRadiationProps()
         self._metadata = {}
-        self.rad_groups = []
-        self.rad_xsecs = None
         self.rate = None
 
 
@@ -79,7 +80,7 @@ def test_all_zero_cross_section_table():
 
     assert not rxn.rate.has(sp.nan)
     assert _numeric(rxn.rate, rad) == 0.0
-    assert rxn.rad_xsecs == 0.0
+    assert rxn.photo.xsec_tot == 0.0
 
 
 def test_xsec_frac_zero_total_is_zero():

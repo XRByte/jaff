@@ -9,6 +9,7 @@ import pytest
 import sympy
 from matplotlib.collections import LineCollection
 
+from jaff.core.reaction import PhotoReactionProps
 from jaff.plotting.adapters import normalize_processes, rate_series, xsec_series
 from tests.xsec_props import make_xsec_props
 
@@ -27,7 +28,7 @@ def _photo(processes=("photodecay",), band_xsecs=None):
         photon_energy=energy, **{p: np.full(11, 1e-18) for p in processes}
     )
     return SimpleNamespace(
-        xsec_props=xs,
+        photo=PhotoReactionProps(xsec=xs),
         band_xsecs=band_xsecs
         if band_xsecs is not None
         else pd.DataFrame(columns=["lower", "upper", "eavg", "xsec", "xsec_frac"]),
@@ -97,7 +98,7 @@ class TestXsecSeries:
         assert s["label"] == "$C \\to C^+$ — Photodecay"
 
     def test_no_xsecs(self):
-        assert xsec_series(SimpleNamespace(xsec_props=None)) == []
+        assert xsec_series(SimpleNamespace(photo=None)) == []
 
     def test_empty_band_xsecs_adds_nothing(self):
         out = xsec_series(_photo(), bands=True)
@@ -185,7 +186,9 @@ class TestXsecExtras:
         E = sympy.Symbol("E")
         expr = sympy.Piecewise((0, E < 10), (1e-18 * (10 / E) ** 3, E < 100), (0, True))
         r = SimpleNamespace(
-            xsec_props=make_xsec_props(photodecay_expr=expr, database="verner"),
+            photo=PhotoReactionProps(
+                xsec=make_xsec_props(photodecay_expr=expr, database="verner")
+            ),
             get_latex=lambda: "x",
         )
         (s,) = xsec_series(r, energy_unit="nm")
@@ -197,7 +200,7 @@ class TestXsecExtras:
         assert xsec_series(_photo(("photodecay",)), processes=["photo_absorption"]) == []
 
     def test_no_energy_returns_empty(self):
-        r = SimpleNamespace(xsec_props=make_xsec_props())
+        r = SimpleNamespace(photo=PhotoReactionProps(xsec=make_xsec_props()))
         assert xsec_series(r) == []
 
 
