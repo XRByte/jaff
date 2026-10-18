@@ -50,7 +50,6 @@ from astropy import units as u
 from sympy import (
     Basic,
     Expr,
-    Float,
     sympify,
 )
 
@@ -140,11 +139,11 @@ class Reaction:
         dE: Basic,
         original_string: str,
         index: int,
+        rad: ReactionRadiationProps,
         t_cutoff: str = "clip",
         type: str = "unknown",
         errors: bool = False,
         photo: PhotoReactionProps | None = None,
-        rad: ReactionRadiationProps = ReactionRadiationProps(),
     ):
         """Construct a ``Reaction`` and validate mass/charge conservation.
 

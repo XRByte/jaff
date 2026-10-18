@@ -66,6 +66,7 @@ class ReactionRadiationProps:
         (erg/eV), as a SymPy expression in ``E`` (eV).  Zero by default.
     """
 
-    def __init__(self, dRad: Expr | None = None):
+    def __init__(self, explicit: bool, dRad: Expr | None = None):
         """Store the radiation coupling; ``dRad=None`` (default) means zero."""
         self.dRad: Expr = dRad if dRad is not None else Float(0.0)
+        self.explicit: bool = explicit

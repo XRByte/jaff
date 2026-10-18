@@ -499,7 +499,7 @@ class Network:
                 t_cutoff=local_tcutoff,
                 errors=self.spec.errors,
                 photo=PhotoReactionProps() if rtype == "photo" else None,
-                rad=ReactionRadiationProps(dRad=deltaRad),
+                rad=ReactionRadiationProps(bool(self.radiation), dRad=deltaRad),
             )
             if "reaction_props" in self.spec._metadata:
                 self.__parse_reaction_metadata(rea)
