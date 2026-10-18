@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
-from sympy import Basic, Expr
+from sympy import Expr
 
 if TYPE_CHECKING:
     from ...physics import XsecProps

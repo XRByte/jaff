@@ -70,7 +70,7 @@ class Leiden(ShieldingFunction):
         """
         assert reaction.photo is not None and reaction.photo.shielding is not None
         sprops = reaction.photo.shielding.props
-        `
+
         if "shielded_by" not in sprops:
             raise ParserError(
                 "'shielded_by' must be specified for Leiden shielding tables"

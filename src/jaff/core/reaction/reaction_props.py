@@ -64,7 +64,7 @@ class GroupedPhotoReactionProps:
         self.k: Expr = k
         self.xsec: float | None = xsec
         self.xsec_frac: float = xsec_frac
-        self.detla_rad: float = delta_rad
+        self.delta_rad: float = delta_rad
 
 
 class ReactionRadiationProps:

@@ -765,9 +765,10 @@ class Reaction:
     def band_xsecs(self) -> pd.DataFrame:
         """Band-averaged cross sections for this reaction, one row per band.
 
-        Assembles a tidy table from the :class:`~jaff.physics.photo_reactions._radiation.RadiationGroup`
-        back-references in ``photo.groups`` (populated when a radiation field
-        is configured).  Intended as the data source for band bar plots.
+        Pairs each per-band entry of ``photo.rgrouped`` (populated when a
+        radiation field is configured) with the
+        :class:`~jaff.physics.photo_reactions._radiation.RadiationGroup` it was
+        computed for.  Intended as the data source for band bar plots.
 
         Returns
         -------
@@ -789,12 +790,15 @@ class Reaction:
 
         Notes
         -----
-        The rows are ordered by ascending band index, matching
-        ``photo.groups``.
+        The rows are ordered by ascending band index: ``photo.rgrouped`` is
+        built by iterating ``net.radiation.groups`` in order, so the two are
+        paired by position.
         """
         import pandas as pd
 
         columns = ["lower", "upper", "eavg", "xsec", "xsec_frac"]
+        grouped = self.photo.rgrouped if self.photo is not None else None
+        groups = self.net.radiation.groups if grouped and self.net.radiation else []
         rows = [
             {
                 "lower": to_float_or_none(group.lower),
@@ -804,10 +808,10 @@ class Reaction:
                     if group.eavg is None
                     else to_float_or_none(group.eavg * u.erg.to(u.eV))
                 ),
-                "xsec": to_float_or_none(group.props.get(self, {}).get("xsec")),
-                "xsec_frac": to_float_or_none(group.props.get(self, {}).get("xsec_frac")),
+                "xsec": to_float_or_none(props.xsec),
+                "xsec_frac": to_float_or_none(props.xsec_frac),
             }
-            for group in (self.photo.groups if self.photo is not None else [])
+            for group, props in zip(groups, grouped or [], strict=True)
         ]
 
         return pd.DataFrame(rows, columns=columns)
