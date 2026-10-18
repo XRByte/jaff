@@ -211,6 +211,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 "dRad": encode_maybe_sympy(r.rad.dRad),
                 "custom_rad_rate": r.photo is not None and r.photo.custom_rad_rate,
                 "original_string": r.original_string,
+                "index": r.index,
                 "type": r.type,
                 "pi_database": r.photo.pi_database if r.photo is not None else None,
             }
@@ -505,6 +506,7 @@ def from_jaff_file(filename: str | Path, errors=False):
                     "t_cutoff": t_cutoff,
                     "rate_segments": rate_segments,
                     "original_string": original_string,
+                    **({"index": rj["index"]} if "index" in rj else {}),
                     "reaction_type": reaction_type,
                     "pi_database": pi_database,
                     "xsec_props": xsec_props,

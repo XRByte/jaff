@@ -529,7 +529,7 @@ class Network:
                 tmax=reaction["tmax"],
                 t_cutoff=reaction.get("t_cutoff", "clip"),
                 original_string=reaction["original_string"],
-                index=i,
+                index=reaction.get("index", i),
                 type=rtype,
                 photo=PhotoReactionProps(
                     xsec=reaction.get("xsec_props"),
@@ -547,13 +547,6 @@ class Network:
                     rea.t_cutoff,
                 )
             self.reactions.add(rea)
-
-            if rea.photo is not None and self.radiation is not None:
-                if rea.photo.custom_rad_rate:
-                    self.radiation.get_reaction_custom_rate_props(rea)
-                    continue
-
-                self.radiation.get_reaction_rate_props(rea)
 
         if self._photochemistry is not None:
             self._photochemistry.log_fallback_summary()

@@ -245,6 +245,10 @@ class Reaction:
             self.photo.shielding = shielding
 
         if self.photo is not None:
+            # A .jfunc chemrate supplies the rate; a .jaff reload carries the flag.
+            if self.aux_funcs.chemrate is not None:
+                self.photo.custom_rad_rate = True
+
             self.__set_xsec_props()
 
             if self.net.radiation is not None:
@@ -378,7 +382,6 @@ class Reaction:
             self.net._photochemistry.get_xsec(
                 self,
                 required=self.net.radiation is not None
-                and self.aux_funcs.chemrate is None
                 and not self.photo.custom_rad_rate,
             )
             or self.photo.xsec
@@ -388,22 +391,24 @@ class Reaction:
         assert self.net.radiation is not None
         assert self.photo is not None
 
-        if self.aux_funcs.chemrate is None:
+        if not self.photo.custom_rad_rate:
             k_tot, xsec_tot, grouped = self.net.radiation.get_reaction_rate_props(self)
             self.rate = k_tot
 
             assert self.photo.xsec is not None
             self.photo.xsec.total = xsec_tot
 
-        elif self.aux_funcs.chemrate is not None and self.aux_funcs.deltarad:
-            grouped = self.net.radiation.get_reaction_custom_rate_props(self)
-        else:
+        # A .jaff reload has no aux functions; its stored dRad was validated
+        # when the network was first built from the .jfunc.
+        elif self.aux_funcs.chemrate is not None and self.aux_funcs.deltarad is None:
             raise ParserError(
                 "If radiation is enabled and a custom rate is supplied\n"
                 "for a photo reaction, the auxilary deltaRad function is\n"
                 "necessary to weigh the first moment radiation equations\n"
                 f"Please add a custom deltaRad function for reaction {self.index}"
             )
+        else:
+            grouped = self.net.radiation.get_reaction_custom_rate_props(self)
 
         self.photo.rgrouped = grouped
 
