@@ -144,3 +144,73 @@ class TestParserMetadata:
         a._metadata["x"] = 1
 
         assert b._metadata == {}
+
+
+class TestFilterCache:
+    """with_type / with_format return ordered, cached results."""
+
+    NET = "H + H -> H2 [] 1e-17\nC -> C+ + E [] PHOTO, 11.3\nO -> O+ + E [] PHOTO, 13.6\n"
+
+    def test_with_type_is_ordered_and_cached(self, make_network):
+        net = make_network(self.NET, name="r.jet")
+        first = net.reactions.with_type("photo")
+
+        assert [r.verbatim for r in first] == [
+            "C + _PHOTON -> C+ + e-",
+            "O + _PHOTON -> O+ + e-",
+        ]
+        assert net.reactions.with_type("photo") is first
+
+    def test_with_format(self, make_network):
+        net = make_network(self.NET, name="r.jet")
+
+        assert len(net.reactions.with_format("prizmo")) == 3
+        assert net.reactions.with_format("prizmo") is net.reactions.with_format("prizmo")
+        assert len(net.reactions.with_format("kida")) == 0
+
+    def test_add_clears_cache(self, make_network):
+        from jaff.core.reaction import Reactions
+
+        net = make_network(self.NET, name="r.jet")
+        # A separate catalogue, so the test never depends on the network's own.
+        cat = Reactions([net.reactions[0], net.reactions[1]])
+        before = cat.with_type("photo")
+        cat.add(net.reactions[2])
+        after = cat.with_type("photo")
+
+        assert len(before) == 1
+        assert after is not before
+        assert len(after) == 2
+
+
+class TestFreeze:
+    """Frozen catalogues reject additions (parser hooks must not add)."""
+
+    def test_frozen_reactions_reject_add(self, make_network):
+        from jaff.core.reaction import Reactions
+
+        net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+        cat = Reactions(list(net.reactions._list))
+        cat.freeze()
+
+        with pytest.raises(RuntimeError, match="Reactions catalogue is frozen"):
+            cat.add(net.reactions[0])
+
+    def test_frozen_species_reject_add(self, make_network):
+        from jaff.core.species import Specie, Species
+
+        net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+        cat = Species(list(net.species._list))
+        cat.freeze()
+
+        with pytest.raises(RuntimeError, match="Species catalogue is frozen"):
+            cat.add(Specie("He", 99))
+
+    def test_unfrozen_catalogues_still_accept_add(self, make_network):
+        from jaff.core.species import Specie, Species
+
+        net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+        cat = Species(list(net.species._list))
+        cat.add(Specie("He", 99))
+
+        assert cat.count == 3
