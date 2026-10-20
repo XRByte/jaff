@@ -213,6 +213,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 "original_string": r.original_string,
                 "index": r.index,
                 "type": r.type,
+                "format": r._format,
                 "pi_database": r.photo.pi_database if r.photo is not None else None,
                 "shielding": (
                     {"type": r.photo.shielding.type, "props": r.photo.shielding.props}
@@ -514,6 +515,7 @@ def from_jaff_file(filename: str | Path, errors=False):
                     "original_string": original_string,
                     **({"index": rj["index"]} if "index" in rj else {}),
                     "reaction_type": reaction_type,
+                    "format": rj.get("format"),
                     "pi_database": pi_database,
                     "shielding": shielding,
                     "xsec_props": xsec_props,

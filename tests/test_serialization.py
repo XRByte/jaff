@@ -251,6 +251,29 @@ def _write_payload(path, payload):
         json.dump(payload, f)
 
 
+def test_jaff_roundtrip_keeps_reaction_format(make_network, tmp_path):
+    """The producing parser's name survives a ``.jaff`` round-trip."""
+    net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+    net.to_jaff(tmp_path / "r.jaff")
+
+    back = Network(str(tmp_path / "r.jaff"), funcfile=False)
+
+    assert back.reactions[0]._format == "prizmo"
+
+
+def test_jaff_without_format_loads_as_none(tmp_path):
+    """Files written before ``format`` was stored load with ``_format = None``."""
+    path = _make_valid_jaff(tmp_path)
+    payload = _read_payload(path)
+    for reaction in payload["reactions"]:
+        reaction.pop("format", None)
+    _write_payload(path, payload)
+
+    net = Network(str(path), funcfile=False)
+
+    assert all(r._format is None for r in net.reactions)
+
+
 def test_jaff_rejects_missing_real_participant(tmp_path):
     """A reaction referencing a real species absent from the table is rejected.
 

@@ -545,6 +545,7 @@ class Network:
                 original_string=reaction["original_string"],
                 index=reaction.get("index", i),
                 type=rtype,
+                format=reaction.get("format"),
                 photo=PhotoReactionProps(
                     xsec=reaction.get("xsec_props"),
                     pi_database=reaction.get("pi_database"),
