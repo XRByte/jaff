@@ -157,6 +157,8 @@ class Reaction:
         type: str = "unknown",
         rad: ReactionRadiationProps | None = None,
         photo: PhotoReactionProps | None = None,
+        format: str | None = None,
+        metadata: dict | None = None,
     ):
         """Construct a ``Reaction`` and validate mass/charge conservation.
 
@@ -198,6 +200,12 @@ class Reaction:
         photo : PhotoReactionProps or None, optional
             Photo-reaction state; pass one for photo reactions, ``None``
             (default) otherwise.
+        format : str or None, optional
+            Name of the network-format parser that produced the reaction
+            (e.g. ``"prizmo"``); ``None`` (default) when unknown.
+        metadata : dict or None, optional
+            Parser-private data attached at parse time; ``None`` (default)
+            starts empty.
 
         Raises
         ------
@@ -208,6 +216,8 @@ class Reaction:
         """
         self.logger = JaffLogger().get_logger()
         self.net: "Network" = net
+        self._format: str | None = format
+        self._metadata: dict = metadata if metadata is not None else {}
         self.index: int = index
         self.aux_funcs: AuxFunctions = self.__get_aux_funcs()
         self.reactants: Species = Species(reactants, check_length=False)

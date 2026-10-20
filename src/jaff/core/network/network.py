@@ -331,6 +331,7 @@ class Network:
             self.__load_network_from_jaff_file(jaff_props)
 
         self.__normalize_network_extras(loaded_from_jaff_file)
+        self.elements: Elements = Elements(self.species._list)
         self.thermodynamics: Thermodynamics = Thermodynamics(
             self, jaff_props.get("dEdt_extra")
         )
@@ -341,8 +342,6 @@ class Network:
         self.check_isomers(errors)
 
         self.__generate_reaction_matrices()
-
-        self.elements: Elements = Elements(self.species._list)
 
         self.logger.info("[green]Network loaded successfully![/]")
 
@@ -498,6 +497,8 @@ class Network:
                 type=rtype,
                 t_cutoff=local_tcutoff,
                 photo=PhotoReactionProps(pi_database=pi_db) if rtype == "photo" else None,
+                format=reaction.get("format"),
+                metadata=reaction.get("metadata"),
             )
             self.reactions.add(rea)
 

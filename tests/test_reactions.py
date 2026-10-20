@@ -95,3 +95,46 @@ class TestStoichiometry:
         n = net.reactions.count
         assert net.reactant_matrix.shape == (n, net.species.count)
         assert net.product_matrix.shape == (n, net.species.count)
+
+
+class TestParserMetadata:
+    """Reactions carry the producing parser's format and private metadata."""
+
+    @staticmethod
+    def _build(net, **kwargs):
+        from jaff.core.reaction import Reaction
+
+        h, h2 = net.species["H"], net.species["H2"]
+
+        return Reaction(
+            net,
+            reactants=[h, h],
+            products=[h2],
+            rate_coefficient=net.reactions[0].rate_coefficient,
+            tmin=None,
+            tmax=None,
+            original_string="H + H -> H2",
+            index=99,
+            **kwargs,
+        )
+
+    def test_defaults_when_not_supplied(self, make_network):
+        net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+        rxn = self._build(net)
+
+        assert rxn._format is None
+        assert rxn._metadata == {}
+
+    def test_constructor_stores_format_and_metadata(self, make_network):
+        net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+        rxn = self._build(net, format="prizmo", metadata={"band": (13.6, 1e99)})
+
+        assert rxn._format == "prizmo"
+        assert rxn._metadata == {"band": (13.6, 1e99)}
+
+    def test_metadata_default_is_not_shared(self, make_network):
+        net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+        a, b = self._build(net), self._build(net)
+        a._metadata["x"] = 1
+
+        assert b._metadata == {}
