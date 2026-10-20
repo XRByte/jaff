@@ -69,6 +69,15 @@ class Species(Catalogue[Specie]):
 
         super().__init__(_species, _by_name, check_length)
         self._by_serialized = _by_serialized
+        self.__frozen: bool = False
+
+    def _freeze(self) -> None:
+        """Disallow further :meth:`add` calls.
+
+        ``Network`` freezes its catalogue before running the parsers'
+        post-processing hooks, which may not add species.
+        """
+        self.__frozen = True
 
     def __repr__(self):
         return f"Catalogue({self.names()!r})"
@@ -87,9 +96,16 @@ class Species(Catalogue[Specie]):
         ------
         ValueError
             If *specie* is not a ``Specie`` instance.
+        RuntimeError
+            If the catalogue has been frozen (see :meth:`freeze`).
         """
         if not isinstance(specie, Specie):
             raise ValueError(f"'{specie}' must be an instance of 'Specie'")
+
+        if self.__frozen:
+            raise RuntimeError(
+                "Species catalogue is frozen: Species cannot be further added to the network"
+            )
 
         if specie.name not in self._by_prop:
             self._by_prop[specie.name] = specie
