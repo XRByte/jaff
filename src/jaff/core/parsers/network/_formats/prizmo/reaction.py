@@ -14,6 +14,9 @@ class PrizmoReaction:
 
     global_re = re.compile(r"^(?!\s*[!#]).*->.*$")
 
+    #: A photo rate: ``photo(lo, hi)``, ``PHOTO, lo[, hi]`` or a bare ``PHOTO``.
+    photo_re = re.compile(r"^photo\s*(\(|,|$)", re.IGNORECASE)
+
     local_re = re.compile(
         r"^\s*"
         r"(?P<reactants>[\w\+\-\s]+)"
@@ -88,8 +91,10 @@ class PrizmoReaction:
 
         rate = rate.replace("user_crflux", "crate").replace("user_av", "av")
 
-        if "photo" in rate.lower() and "_PHOTON" not in rr:
-            rr.append("_PHOTON")
+        if self.photo_re.match(rate):
+            rate = self._photo_placeholder(rate, line, nline, file)
+            if "_PHOTON" not in rr:
+                rr.append("_PHOTON")
 
         return {
             "r": rr,
@@ -100,6 +105,36 @@ class PrizmoReaction:
             "type": self._reaction_type(rate, rr),
             "string": line.strip(),
         }
+
+    @staticmethod
+    def _photo_placeholder(rate: str, line: str, nline: int, file) -> str:
+        """Turn a photo rate into the placeholder ``prizmo_photo(lo, hi)``.
+
+        Accepts ``photo(lo, hi)``, ``PHOTO, lo[, hi]`` and a bare ``PHOTO``; a
+        missing band edge defaults to ``1e99``.  ``PrizmoParser.post_process``
+        later replaces the placeholder with ``photorates(n, lo, hi)``.
+
+        Raises
+        ------
+        ParserError
+            If a band edge is not a number.
+        """
+        match = re.match(r"(?i:photo)\s*\((.*?)\)", rate)
+        if match:
+            args = [a.strip() for a in match.group(1).split(",") if a.strip()]
+        else:
+            args = [a.strip() for a in rate.split(",")[1:] if a.strip()]
+
+        band: list[float] = []
+        for arg in (args + ["1e99", "1e99"])[:2]:
+            try:
+                band.append(float(arg.replace("d", "e")))
+            except ValueError:
+                raise ParserError(
+                    f"Invalid photo band edge '{arg}'", line, nline, file
+                ) from None
+
+        return f"prizmo_photo({band[0]!r}, {band[1]!r})"
 
     @staticmethod
     def _reaction_type(rate: str, rr: list[str]) -> str:

@@ -139,8 +139,9 @@ class KromeReaction:
             rate = rate.replace(k, v)
 
         rate = f90_convert(rate)
+        # ``KromeParser.post_process`` numbers the placeholder into photorates().
         if "auto" in rate:
-            rate = rate.replace("auto", "PHOTO, 1e99")
+            rate = rate.replace("auto", "krome_photo(1e99, 1e99)")
 
         if "photo" in rate.lower() and "_PHOTON" not in rr:
             rr.append("_PHOTON")

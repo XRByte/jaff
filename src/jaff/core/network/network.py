@@ -19,7 +19,6 @@ integer position of species ``X`` within the network.
 from __future__ import annotations
 
 import logging
-import re
 import sys
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
@@ -371,7 +370,6 @@ class Network:
         specie_names = set()
         special_species: dict[str, Specie] = {}
 
-        n_photo = 0
         default_tcutoff: str = "clip"
         config = self.spec.config
         reactions_config: dict = config.get("reactions", {})
@@ -440,9 +438,7 @@ class Network:
                     f"valid cutoffs are: {','.join(self._valid_tcutoffs)}"
                 )
 
-            rate_expr, n_photo = self.__parse_rate(
-                aux_chem_rate, rate, aux_funcs, global_vars, n_photo
-            )
+            rate_expr = self.__parse_rate(aux_chem_rate, rate, aux_funcs, global_vars)
             rate_expr = resolve_dependencies(rate_expr, local_subs_dict, aux_funcs)
 
             rtype = reaction.get("type", "unknown")
@@ -516,7 +512,9 @@ class Network:
             self._photochemistry.log_fallback_summary()
 
         self.logger.info(f"Loaded {self.reactions.count} reactions")
-        self.logger.info(f"Loaded {n_photo} photo-chemistry reactions")
+        self.logger.info(
+            f"Loaded {len(self.reactions.with_type('photo'))} photo-chemistry reactions"
+        )
 
         return parsers
 
@@ -625,16 +623,17 @@ class Network:
         rate: str,
         aux_funcs: dict[str, AuxiliaryFunctionProps],
         global_vars: dict[str, Expr],
-        n_photo: int,
-    ) -> tuple[Expr, int]:
+    ) -> Expr:
         """Convert a raw rate string to a SymPy expression.
 
         Checks, in priority order:
 
         1. Whether an auxiliary function named *aux_chem_rate* exists (custom rate).
         2. Whether *rate* is a global variable name.
-        3. Whether *rate* describes a photo-reaction (contains ``"photo"``).
-        4. Falls back to ``sympy.parse_expr``.
+        3. Falls back to ``sympy.parse_expr``.
+
+        Format-specific rates (e.g. photo rates) arrive as placeholder calls that
+        the producing parser resolves in its ``post_process`` hook.
 
         Parameters
         ----------
@@ -646,48 +645,23 @@ class Network:
             Parsed auxiliary functions, keyed by name.
         global_vars : dict[str, Basic]
             Resolved global variable map from the network file.
-        n_photo : int
-            Running counter of photo-reactions seen so far.
 
         Returns
         -------
-        tuple[Expr, int]
-            ``(rate_expr, n_photo)`` where *n_photo* is
-            incremented by 1 for photo-reactions.
+        Expr
+            The rate expression.
         """
         if aux_chem_rate in aux_funcs:
             rate_expr = aux_funcs[aux_chem_rate].expr
         elif rate in global_vars:
             rate_expr = symbols(rate)
-        elif "photo" in rate.lower():
-            f = NetworkSymbols.photorates
-            n_photo += 1
-
-            match = re.match(r"(?i:photo)\((.*?)\)", rate)
-            if match:
-                args_str = match.group(1)
-                photo_args: list[str | float] = [
-                    arg.strip() for arg in args_str.split(",") if arg.strip()
-                ]
-                while len(photo_args) < 2:
-                    photo_args.append(1.0e99)
-
-                rate_expr = f(n_photo, photo_args[0], photo_args[1])
-            else:
-                photo_args: list[str | float] = [
-                    arg.strip() for arg in rate.split(",") if arg.strip()
-                ]
-                while len(photo_args) < 3:
-                    photo_args.append(1.0e99)
-
-                rate_expr = f(n_photo, photo_args[1], photo_args[2])
         else:
             rate_expr = _parse_rate_expr(rate)
 
         if not isinstance(rate_expr, Expr):
             raise ParserError(f"Rate expression is not an Expr: {rate_expr}")
 
-        return rate_expr, n_photo
+        return rate_expr
 
     def to_jaff(self, filename: str | Path):
         """Serialise this network to a binary ``.jaff`` file.

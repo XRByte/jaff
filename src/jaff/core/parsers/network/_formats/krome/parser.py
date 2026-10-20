@@ -1,7 +1,9 @@
 """KROME parser: ``@format``/``@var`` directives + comma-delimited reactions."""
 
-from sympy import parse_expr
+from sympy import Basic, parse_expr
+from sympy.core.function import AppliedUndef
 
+from ......errors import ParserError
 from .._parser import Parser, register
 from .._record import ParsedRecord, ParseResult
 from .header import KromeFormatHeader
@@ -73,5 +75,48 @@ class KromeParser(Parser):
         return ParseResult(reactions, globals_)
 
     def post_process(self, network) -> None:
-        """No post-processing needed for this format."""
-        return
+        """Number photo reactions: ``krome_photo(lo, hi)`` → ``photorates(n, lo, hi)``.
+
+        ``n`` is the reaction's 1-based position in
+        ``network.reactions.with_type("photo")``, so every format numbers photo
+        reactions the same way.  A photo reaction without the placeholder (e.g.
+        one whose rate comes from a ``.jfunc`` ``chemRate``) leaves its number
+        unused.
+
+        Raises
+        ------
+        ParserError
+            If a placeholder is left in any of this parser's reactions.
+        """
+        for n, rea in enumerate(network.reactions.with_type("photo"), start=1):
+            for seg in rea.rate_segments:
+                seg.rate = self._number_photo(seg.rate, n)
+
+            rea.rate_coefficient = self._number_photo(rea.rate_coefficient, n)
+
+        for rea in network.reactions.with_format(self.name):
+            exprs = [rea.rate_coefficient, *(seg.rate for seg in rea.rate_segments)]
+            if any(self._placeholders(expr) for expr in exprs):
+                raise ParserError(f"Unresolved photo placeholder in {rea}")
+
+    @staticmethod
+    def _placeholders(expr) -> list:
+        """The ``krome_photo(lo, hi)`` calls in *expr*."""
+        if not isinstance(expr, Basic):
+            return []
+
+        return [f for f in expr.atoms(AppliedUndef) if f.func.__name__ == "krome_photo"]
+
+    @classmethod
+    def _number_photo(cls, expr, n: int):
+        """Replace every placeholder in *expr* with ``photorates(n, lo, hi)``."""
+        # Local import: a module-level one would cycle via jaff.core.network.
+        from .....network import NetworkSymbols
+
+        placeholders = cls._placeholders(expr)
+        if not placeholders:
+            return expr
+
+        return expr.xreplace(
+            {f: NetworkSymbols.photorates(n, *f.args) for f in placeholders}
+        )
