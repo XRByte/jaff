@@ -64,3 +64,15 @@ def test_photo_only_detected_at_start_of_rate(make_network):
 def test_non_numeric_band_edge_raises(make_network):
     with pytest.raises(ParserError, match="photo band edge"):
         make_network("C -> C+ + E [] photo(abc)\n", name="bad.jet")
+
+
+@pytest.mark.parametrize("lang", ["python", "fortran"])
+def test_rate_code_keeps_network_photo_index(make_network, lang):
+    from jaff.codegen import Codegen
+
+    net = make_network(NETWORK, name="p.jet")
+    code = Codegen(network=net, lang=lang).get_rates_str()
+
+    assert "photorates(1, 11.3" in code
+    assert "photorates(2, 13.6" in code
+    assert "$IDX$" not in code

@@ -765,11 +765,6 @@ class Reaction:
     def get_code(self, lang="cpp") -> str:
         """Generate source code for the reaction rate expression.
 
-        For photo-reactions whose rate is a ``photorates(n, lo, hi)`` call,
-        the first argument (the photo-reaction index) is emitted as the
-        placeholder ``$IDX$``, which the code generator replaces at a later
-        stage with the actual array index.
-
         Parameters
         ----------
         lang : str, optional
@@ -790,14 +785,6 @@ class Reaction:
         from ...codegen import Language
 
         language = Language(lang)
-
-        # Local import: a module-level one would cycle via jaff.core.network.
-        from ..network import NetworkSymbols
-
-        if getattr(self.rate_coefficient, "func", None) == NetworkSymbols.photorates:
-            # $IDX$ placeholder is replaced by the actual index at codegen time
-            args = ", ".join(str(arg) for arg in self.rate_coefficient.args[1:])
-            return f"photorates($IDX$, {args})"
 
         return language.code_gen(self.get_sympy(), strict=False)
 

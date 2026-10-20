@@ -158,13 +158,9 @@ class Codegen:
         """Return rate-coefficient expressions as an :class:`~jaff.types.IndexedReturn`.
 
         Applies SymPy CSE across all symbolic rates to minimise repeated
-        sub-expression evaluation in the generated code.  Two categories of
-        rates are **excluded** from CSE because they cannot be simplified
-        symbolically:
-
-        * Rates stored as raw strings (e.g. user-supplied C code snippets).
-        * ``photorates($IDX$, ...)`` calls (photochemistry; the ``$IDX$``
-          placeholder cannot be absorbed into a shared sub-expression).
+        sub-expression evaluation in the generated code.  Rates stored as raw
+        strings (e.g. user-supplied C code snippets) are **excluded** from CSE
+        because they cannot be simplified symbolically.
 
         Use :meth:`get_rates_str` for a formatted string ready to paste into
         a source file.
@@ -196,18 +192,12 @@ class Codegen:
             "expressions": IndexedList(),
         }
         # Maps reaction index -> symbolic rate for reactions eligible for CSE.
-        # String rates and photorates() calls are excluded (see docstring).
+        # String rates are excluded (see docstring).
         cse_dict: dict[int, sp.Basic | str] = {}
         if use_cse:
             for i, rea in enumerate(self.net.reactions):
                 # Skip raw-string rates — they are already valid target-language code
                 if type(rea.rate_coefficient) is str:
-                    continue
-                # Skip photorates() calls — the $IDX$ placeholder prevents CSE
-                if (
-                    getattr(rea.rate_coefficient, "func", None)
-                    == self.net.symbols.photorates
-                ):
                     continue
                 cse_dict[i] = rea.rate_coefficient
 
@@ -239,9 +229,8 @@ class Codegen:
                     cse_dict[key] = expr
 
         # Build the final expression list for all reactions.
-        # Reactions absent from cse_dict (string/photorates) fall back to
-        # their get_code() representation, which handles $IDX$ substitution
-        # and string-rate passthrough.
+        # Reactions absent from cse_dict (string rates) fall back to their
+        # get_code() representation, which passes string rates through.
         for i, rea in enumerate(self.net.reactions):
             rate = cse_dict[i] if cse_dict.get(i, "") else rea.get_code(self.lang.name)
             out["expressions"].append(IndexedValue([i], rate))
@@ -267,12 +256,8 @@ class Codegen:
 
             x0 = <cse_expr>;         // CSE temporaries (if any)
             k[0] = x0 * exp(-alpha); // reaction 0 rate
-            k[1] = photorates(1, …); // reaction 1 (photorates with index substituted)
+            k[1] = photorates(1, …); // reaction 1 (1-based photo-reaction number)
             …
-
-        The ``$IDX$`` placeholder in any ``photorates(...)`` expression is
-        replaced here with the concrete integer reaction index (adjusted by
-        *idx_offset*) so the emitted code compiles without further processing.
 
         Parameters
         ----------
@@ -317,10 +302,6 @@ class Codegen:
 
         for idx, expression in rate_expressions["expressions"]:
             _idx = idx[0]
-            # Replace the $IDX$ placeholder in photorates expressions with
-            # the actual zero/one-based reaction index.
-            if "$IDX$" in expression:
-                expression = expression.replace("$IDX$", str(ioff + _idx))
             rates += f"{rate_variable}{self.lang.lb}{ioff + _idx}{self.lang.rb} {self.lang.assignment_op} {expression}{self.lang.line_end}\n"
 
         return rates
