@@ -42,7 +42,9 @@ class ParsedRecord:
     """A fully parsed reaction produced by a format family's ``process``.
 
     The engine sorts these by ``(source_index, sub_order)`` and converts each to
-    the ``parsedListProps`` dict consumed by ``Network``.
+    the ``parsedListProps`` dict consumed by ``Network``.  ``metadata`` is
+    parser-private data that ends up on the reaction as ``Reaction._metadata``
+    for the parser's post-processing hook.
     """
 
     def __init__(
@@ -56,6 +58,7 @@ class ParsedRecord:
         string: str,
         source_index: int,
         sub_order: int = 0,
+        metadata: dict | None = None,
     ):
         self.r = r
         self.p = p
@@ -66,9 +69,16 @@ class ParsedRecord:
         self.string = string
         self.source_index = source_index
         self.sub_order = sub_order
+        self.metadata: dict = metadata if metadata is not None else {}
 
-    def as_parsed_props(self) -> dict:
-        """Convert to the engine's ``parsedListProps`` dict (+ source_index)."""
+    def as_parsed_props(self, format: str) -> dict:
+        """Convert to the engine's ``parsedListProps`` dict, tagged with *format*.
+
+        Parameters
+        ----------
+        format : str
+            Name of the parser that produced this record (``Parser.name``).
+        """
         return {
             "r": self.r,
             "p": self.p,
@@ -78,6 +88,8 @@ class ParsedRecord:
             "type": self.type,
             "string": self.string,
             "source_index": self.source_index,
+            "format": format,
+            "metadata": self.metadata,
         }
 
 

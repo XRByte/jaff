@@ -11,5 +11,7 @@ parsedListProps = TypedDict(
         "type": str,
         "string": str,
         "source_index": NotRequired[int],
+        "format": NotRequired[str],
+        "metadata": NotRequired[dict],
     },
 )

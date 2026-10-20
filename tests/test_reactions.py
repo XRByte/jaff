@@ -132,6 +132,12 @@ class TestParserMetadata:
         assert rxn._format == "prizmo"
         assert rxn._metadata == {"band": (13.6, 1e99)}
 
+    def test_network_reactions_record_their_format(self, make_network):
+        net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+
+        assert net.reactions[0]._format == "prizmo"
+        assert net.reactions[0]._metadata == {}
+
     def test_metadata_default_is_not_shared(self, make_network):
         net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
         a, b = self._build(net), self._build(net)
