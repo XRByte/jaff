@@ -33,3 +33,7 @@ class UclchemParser(Parser):
             )
 
         return ParseResult(reactions, {})
+
+    def post_process(self, network) -> None:
+        """No post-processing needed for this format."""
+        return

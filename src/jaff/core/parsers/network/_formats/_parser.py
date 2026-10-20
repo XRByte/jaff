@@ -19,6 +19,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from ....network import Network
     from ._record import ParseResult, Record
 
 _PARSER_REGISTRY: list[type["Parser"]] = []
@@ -90,6 +91,20 @@ class Parser(ABC):
     @abstractmethod
     def process(self, records: list["Record"]) -> "ParseResult":
         """Walk *records* in file order and return the parsed reactions + globals."""
+        ...
+
+    @abstractmethod
+    def post_process(self, network: "Network") -> None:
+        """Adjust this parser's reactions once the network has been built.
+
+        Called once, only for parsers that produced records, after every
+        reaction is loaded and before rates are standardised.  The reaction and
+        species catalogues are frozen: a hook may change reactions (e.g. their
+        rate segments, props or ``_metadata``) but must not add or remove
+        reactions or species.  Use ``network.reactions.with_format(self.name)``
+        to select this parser's reactions.  Parsers with nothing to do
+        implement it as a no-op.
+        """
         ...
 
 

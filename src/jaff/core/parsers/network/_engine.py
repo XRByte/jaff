@@ -45,7 +45,7 @@ from sympy import Basic
 
 from ....common import resolve_symbolic_dependencies
 from ....io import JaffLogger, jaff_progress
-from ._formats import Record, all_parsers
+from ._formats import Parser, Record, all_parsers
 from ._typing import parsedListProps
 
 
@@ -125,11 +125,13 @@ class NetworkParser:
 
         # Each parsed record is kept with the name of the parser that made it.
         reactions = []
+        self.__used_parsers: list[Parser] = []
         for parser in self.__parsers:
             bucket = self.__buckets.get(parser.name)
             if not bucket:
                 continue
 
+            self.__used_parsers.append(parser)
             result = parser.process(bucket)
             reactions.extend((pr, parser.name) for pr in result.reactions)
             self.__globals.update(result.globals)
@@ -154,6 +156,13 @@ class NetworkParser:
         self.__parsers.clear()
 
         return
+
+    def get_parsers(self) -> list[Parser]:
+        """Return the parsers that produced records, in priority order.
+
+        ``Network`` calls each one's ``post_process`` once the network is built.
+        """
+        return list(self.__used_parsers)
 
     def get_parsed(self) -> tuple[list[parsedListProps], dict[str, Basic]]:
         """Return the parsed reaction list and resolved global variable map.

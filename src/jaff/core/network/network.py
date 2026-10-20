@@ -70,6 +70,7 @@ from ._symbols import NetworkSymbols
 if TYPE_CHECKING:
     from .._typing import ElementProps
     from ..parsers.auxiliary_func import AuxiliaryFunctionProps
+    from ..parsers.network._formats import Parser
 
 
 @lru_cache(maxsize=200000)
@@ -325,13 +326,15 @@ class Network:
         self.mass_dict: dict[str, ElementProps] = load_mass_dict()
         Species.configure(self.mass_dict)
 
+        parsers: list[Parser] = []
         if not loaded_from_jaff_file:
-            self.__load_network()
+            parsers = self.__load_network()
         else:
             self.__load_network_from_jaff_file(jaff_props)
 
-        self.__normalize_network_extras(loaded_from_jaff_file)
         self.elements: Elements = Elements(self.species._list)
+        self.__post_process(parsers)
+        self.__normalize_network_extras(loaded_from_jaff_file)
         self.thermodynamics: Thermodynamics = Thermodynamics(
             self, jaff_props.get("dEdt_extra")
         )
@@ -357,8 +360,14 @@ class Network:
         assert self.spec.label is not None
         return self.spec.label
 
-    def __load_network(self):
-        """Parse the network file and build species, reactions, and auxiliary quantities."""
+    def __load_network(self) -> list[Parser]:
+        """Parse the network file and build species, reactions, and auxiliary quantities.
+
+        Returns
+        -------
+        list[Parser]
+            The parsers that produced reactions, for :meth:`__post_process`.
+        """
         specie_names = set()
         special_species: dict[str, Specie] = {}
 
@@ -372,6 +381,7 @@ class Network:
 
         with NetworkParser(self.spec.fname, self.logger) as netp:
             reactions_list, global_vars = netp.get_parsed()
+            parsers = netp.get_parsers()
 
         aux_funcs = self.spec.aux_funcs
 
@@ -508,6 +518,8 @@ class Network:
         self.logger.info(f"Loaded {self.reactions.count} reactions")
         self.logger.info(f"Loaded {n_photo} photo-chemistry reactions")
 
+        return parsers
+
     def __load_network_from_jaff_file(self, jaff_props: JaffProps):
         """Restore species, reactions, and radiation state from a ``.jaff`` file payload.
 
@@ -556,6 +568,25 @@ class Network:
 
         if self._photochemistry is not None:
             self._photochemistry.log_fallback_summary()
+
+    def __post_process(self, parsers: list[Parser]) -> None:
+        """Freeze the catalogues and run each parser's ``post_process`` hook.
+
+        Species and reactions are final from here on: hooks may change
+        reactions but not add any (``add()`` raises once frozen).  Runs before
+        :meth:`__normalize_network_extras`, so whatever a hook writes is
+        standardised like every other rate.
+
+        Parameters
+        ----------
+        parsers : list[Parser]
+            Parsers that produced reactions; empty for a ``.jaff`` network.
+        """
+        self.reactions._freeze()
+        self.species._freeze()
+
+        for parser in parsers:
+            parser.post_process(self)
 
     def __normalize_network_extras(self, loaded_from_jaff: bool = False):
         """Standardize convenience symbols in all rate and auxiliary expressions.

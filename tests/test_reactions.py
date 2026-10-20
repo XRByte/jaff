@@ -191,7 +191,7 @@ class TestFreeze:
 
         net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
         cat = Reactions(list(net.reactions._list))
-        cat.freeze()
+        cat._freeze()
 
         with pytest.raises(RuntimeError, match="Reactions catalogue is frozen"):
             cat.add(net.reactions[0])
@@ -201,7 +201,7 @@ class TestFreeze:
 
         net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
         cat = Species(list(net.species._list))
-        cat.freeze()
+        cat._freeze()
 
         with pytest.raises(RuntimeError, match="Species catalogue is frozen"):
             cat.add(Specie("He", 99))
