@@ -66,13 +66,15 @@ def test_non_numeric_band_edge_raises(make_network):
         make_network("C -> C+ + E [] photo(abc)\n", name="bad.jet")
 
 
-@pytest.mark.parametrize("lang", ["python", "fortran"])
-def test_rate_code_keeps_network_photo_index(make_network, lang):
+@pytest.mark.parametrize("use_cse", [True, False])
+@pytest.mark.parametrize("lang", ["python", "c", "fortran"])
+def test_rate_code_keeps_network_photo_index(make_network, lang, use_cse):
     from jaff.codegen import Codegen
 
     net = make_network(NETWORK, name="p.jet")
-    code = Codegen(network=net, lang=lang).get_rates_str()
+    code = Codegen(network=net, lang=lang).get_rates_str(use_cse=use_cse)
 
     assert "photorates(1, 11.3" in code
     assert "photorates(2, 13.6" in code
     assert "$IDX$" not in code
+    assert "Not supported" not in code

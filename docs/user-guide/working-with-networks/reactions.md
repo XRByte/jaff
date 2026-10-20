@@ -331,11 +331,12 @@ net.reactions.photo_reaction_truths()   # [1, 0]  — 1 where photo
 net.reactions.photo_reaction_indices()  # [0]     — their positions
 ```
 
-When generating code, and radiation is disabled, a photo-reaction's rate is emitted with an `$IDX$`
-placeholder that the code generator fills in with the real array index later:
+When radiation is disabled, a photo-reaction's rate is a `photorates(n, lo, hi)` call,
+where `n` is its 1-based position in `net.reactions.with_type("photo")` and `lo`/`hi`
+are the band edges:
 
 ```python
-photo.get_code(lang="cxx")   # 'photorates($IDX$, 13.6000000000000, 1.0e+99)'
+photo.get_code(lang="cxx")   # 'photorates(1, 13.6, 1.0e+99)'
 ```
 
 ---
@@ -425,6 +426,7 @@ Each returns a `Vector` aligned to catalogue order.
 net.reactions.photo_reactions()              # the photo subset
 net.reactions.with_type("cosmic_ray")       # cosmic-ray reactions
 net.reactions.with_type("unknown")          # everything unclassified
+net.reactions.with_format("prizmo")         # reactions read by the PRIZMO parser
 ```
 
 The type key is whatever string the parser stored — the gas-phase set

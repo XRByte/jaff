@@ -8,7 +8,7 @@ tags:
 
 `#!python with_type(type)`
 
-Filters the catalogue and returns every reaction whose type label matches *type*, preserving their relative catalogue order.
+Filters the catalogue and returns every reaction whose type label matches *type*, preserving their relative catalogue order. The result is cached per *type* and recomputed after the catalogue changes.
 
 **Parameters**
 

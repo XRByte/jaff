@@ -167,9 +167,9 @@ k[1] = photorates(1, G0, av, chi);
 k[2] = 3.2e-17;
 ```
 
-Photochemical rates carry a `photorates($IDX$, ...)` placeholder; `get_rates_str`
-substitutes the concrete reaction index (`$IDX$` → `1`) so the line compiles as
-written. The CSE prefix here defaults to `x` (giving `x0`, `x1`, …) rather than
+Photochemical rates are `photorates(n, ...)` calls, where `n` is the reaction's
+1-based position among the network's photo-reactions (the same in every
+language). The CSE prefix here defaults to `x` (giving `x0`, `x1`, …) rather than
 the `cse` used elsewhere.
 
 ### Fluxes — `#!python get_flux_expressions_str()`
@@ -311,9 +311,8 @@ cg.get_rates_str(use_cse=False)               # every rate fully expanded inline
 cg.get_rates_str(use_cse=True, cse_var="tmp")  # shared pieces lifted to tmp0, tmp1, …
 ```
 
-Two kinds of rate are left out of CSE because they can't be simplified
-symbolically: rates stored as raw code strings, and `photorates(...)` calls
-(the `$IDX$` placeholder can't be folded into a shared sub-expression).
+Rates stored as raw code strings are left out of CSE because they can't be
+simplified symbolically.
 
 ---
 
@@ -342,7 +341,7 @@ methods are just thin formatters over these.
 ```python
 ir = cg.get_indexed_rates()
 for idx, expr in ir["expressions"]:
-    print(idx, expr)        # ([0], '1.8e-11*x0'), ([1], 'photorates($IDX$, ...)'), ...
+    print(idx, expr)        # ([0], '1.8e-11*x0'), ([1], 'photorates(1, ...)'), ...
 ```
 
 ---

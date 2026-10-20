@@ -786,7 +786,9 @@ class Reaction:
 
         language = Language(lang)
 
-        return language.code_gen(self.get_sympy(), strict=False)
+        return language.code_gen(
+            self.get_sympy(), strict=False, allow_unknown_functions=True
+        )
 
     def get_sympy(self) -> Basic:
         """Return the rate as a canonical SymPy expression.

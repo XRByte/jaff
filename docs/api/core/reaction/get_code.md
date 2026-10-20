@@ -18,7 +18,7 @@ Returns the rate expression as a code string in the target language.
 **Returns**
 
 _str_
-: Rate expression code. Photo-reactions return `"photorates($IDX$, ...)"`.
+: Rate expression code. A photo-reaction rate prints as `photorates(n, lo, hi)`, where `n` is the reaction's 1-based position among the network's photo-reactions.
 
 **Raises**
 

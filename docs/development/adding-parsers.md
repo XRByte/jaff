@@ -48,6 +48,7 @@ Every format subclasses `Parser` (`_formats/_parser.py`, the **only** ABC in thi
 | `priority: int`              | Ordering hint on the parser itself (line detection is driven by each *handler's* own `priority`).         |
 | `handlers: list`             | The parser's handler objects, set in `__init__`.                                                           |
 | `process(records) -> ParseResult` | Walk the parser's bucket of `Record`s (already in file order) and return the parsed reactions + globals. |
+| `post_process(network) -> None` | Finish format-specific work on the built `Network` (see [Post-processing hook](#post-processing-hook)). Required; a no-op body is fine. |
 
 `Parser` also provides `_initial_state()`, which merges every handler's `default_state()` (if it defines one) into a single local `state` dict — call it at the top of `process` for formats that need mutable, file-order state.
 
@@ -84,7 +85,9 @@ A reaction handler's `parse` returns a dict with exactly these keys (the same sh
 | `"type"`   | `str`           | Reaction type concluded by the parser: `"photo"`, `"cosmic_ray"`, `"3_body"`, or `"unknown"` (or a more specific structural type, see `kida/reaction.py`) |
 | `"string"` | `str`           | Original network-file line (for error reporting)    |
 
-The parser's `process` wraps this dict in a `ParsedRecord` (from `_formats/_record.py`), adding `source_index` and `sub_order` from the `Record` the engine handed it. `ParsedRecord.as_parsed_props()` converts it back to this same dict (+ `source_index`) for `Network` to consume.
+The parser's `process` wraps this dict in a `ParsedRecord` (from `_formats/_record.py`), adding `source_index` and `sub_order` from the `Record` the engine handed it. `ParsedRecord.as_parsed_props()` converts it back to this same dict (+ `source_index`) for `Network` to consume, and the engine adds the parser's `name` as `"format"`.
+
+`ParsedRecord` also takes an optional `metadata` dict for format-private data. `Network` stores the parser name and that dict on each `Reaction` as the private fields `_format` and `_metadata`, so the parser's [post-processing hook](#post-processing-hook) can find its own reactions (`network.reactions.with_format(self.name)`) and read back what it recorded.
 
 ### Concluding the reaction type
 
@@ -104,6 +107,30 @@ serialization but are excluded from the kinetics. See the existing formats'
 `krome/reaction.py`) for reference implementations.
 
 After all parsers have run, the engine sorts every collected `ParsedRecord` by `(source_index, sub_order)`, `__normalize_rates` lower-cases every `"rate"` string, and `resolve_symbolic_dependencies` substitutes any global variables (e.g. from `@var` or `VARIABLES` blocks, merged from every parser's `ParseResult.globals`) into the expressions.
+
+### Post-processing hook
+
+Some format-specific work needs the whole network, not one line at a time — for example numbering photo-reactions across every format in the file. `Parser.post_process(network)` is where that happens. `Network` calls it once for each parser that produced at least one record, in parser priority order:
+
+```text
+parse file → build reactions and species → elements
+→ freeze reactions + species → parser.post_process(network) for each parser
+→ standardise rates and collapse rate segments → thermodynamics → checks
+```
+
+The hook sees the full `Network` API (`network.reactions`, `network.species`, `network.elements`, filters such as `with_type` and `with_format`). Rates are still raw SymPy expressions: they have not been standardised yet.
+
+The hook **may** change things *on* existing reactions: `rate_segments[i].rate`, `rate_coefficient`, other reaction properties, and `_metadata`.
+
+The hook **may not** add or remove reactions or species. Both catalogues are frozen before the hooks run, so `add()` raises `RuntimeError`.
+
+The usual pattern is a **placeholder**. The handler writes an undefined function call into the rate string at parse time, and the hook replaces it once the whole network is known. PRIZMO's photo rates work this way:
+
+1. `prizmo/reaction.py` turns `photo(lo, hi)` / `PHOTO, lo[, hi]` into `prizmo_photo(lo, hi)`.
+2. `PrizmoParser.post_process` numbers every reaction in `network.reactions.with_type("photo")` from 1 and replaces `prizmo_photo(lo, hi)` with `photorates(n, lo, hi)` in its segments and rate coefficient.
+3. It then raises `ParserError` if any `prizmo_photo` is left in its own reactions (`with_format(self.name)`).
+
+Give the placeholder a name unique to your format (KROME uses `krome_photo`), so formats never rewrite each other's placeholders. A `.jaff` file is loaded without running any hooks: its stored rates are already final.
 
 ---
 
@@ -204,6 +231,10 @@ class MyFormatParser(Parser):
             )
 
         return ParseResult(reactions, {})
+
+    def post_process(self, network) -> None:
+        """No post-processing needed for this format."""
+        return
 ```
 
 1. **`global_re`** — match any non-comment line that contains `|`. Keep it broad and fast; it is checked against **every** line before any handler's `local_re` runs.
@@ -309,6 +340,7 @@ If your format introduces additional shorthand symbols, add them to your parser'
 - [x] Reaction `"type"` concluded structurally; agent pseudo-species (`_PHOTON`/`_CR`) injected when the format implies one
 - [x] Errors raised as `ParserError` with a descriptive message (line, `nline`, `file`)
 - [x] Subpackage's `__init__.py` imports its `parser` module so `@register` runs
+- [x] `post_process(network)` defined (a no-op if the format needs no network-wide work); it only modifies existing reactions and resolves every placeholder its handlers emitted
 - [x] Format-specific symbols replaced with JAFF canonical names in the handler or via the parser's own globals dict
 - [x] Tests added in `tests/` with at least one valid reaction line and one malformed line
 
