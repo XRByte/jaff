@@ -8,6 +8,8 @@ from collections.abc import Callable
 from typing import Any, ClassVar
 
 import sympy as sp
+from sympy.core.function import AppliedUndef
+from sympy.printing.fortran import FCodePrinter
 
 from ..errors import InvalidLanguageError
 
@@ -192,9 +194,28 @@ def _fortran_free_wrap(code: str, width: int = _FORTRAN_WIDTH) -> str:
     return "\n".join(out)
 
 
+class _JaffFCodePrinter(FCodePrinter):
+    """Fortran printer that keeps integer arguments of user-defined functions.
+
+    SymPy evaluates every constant function argument as a real, so
+    ``photorates(1, ...)`` would print as ``photorates(1.0d0, ...)``.  For
+    user-defined (undefined) functions an integer argument is an index and stays
+    an integer; other arguments, and every intrinsic's arguments, are unchanged.
+    """
+
+    def _print_Function(self, expr):
+        if not isinstance(expr, AppliedUndef):
+            return super()._print_Function(expr)
+
+        prec = self._settings["precision"]
+        args = [a if a.is_Integer else sp.N(a, prec) for a in expr.args]
+        return super(FCodePrinter, self)._print_Function(expr.func(*args))
+
+
 def _fortran_code_gen(expr: Any, **kwargs: Any) -> str:
     """Serialise *expr* to free-form Fortran with split-safe line wrapping."""
-    return _fortran_free_wrap(sp.fcode(expr, standard=95, source_format="free", **kwargs))
+    settings = {"standard": 95, "source_format": "free", **kwargs}
+    return _fortran_free_wrap(_JaffFCodePrinter(settings).doprint(expr))
 
 
 def wrap_fortran_source(
