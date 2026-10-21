@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from jaff.core.reaction import PhotoReactionProps, ReactionRadiationProps
+from jaff.core.reaction import PhotoReactionProps
 from jaff.physics import RadiationProps
 from jaff.physics.photo_reactions._radiation import Radiation
 from tests.xsec_props import make_xsec_props
@@ -79,7 +79,6 @@ class _FakeReaction:
         self.photo = PhotoReactionProps(
             xsec=make_xsec_props(photon_energy=E, photodecay=sigma)
         )
-        self.rad = ReactionRadiationProps()
 
 
 def test_photon_and_energy_modes_equivalent():

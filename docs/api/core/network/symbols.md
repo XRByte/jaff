@@ -23,6 +23,7 @@ expressions, introspection sets and symbol standardization.
 | `chi_pe`     | `chi_pe`     | Photoelectric-band field (placeholder) |
 | `zd`         | `Zd`         | Grain charge                           |
 | `vdisp`      | `vdisp`      | Velocity dispersion [cm s⁻¹]           |
+| `ph_E`       | `ph_E`       | Photon energy [eV]                     |
 | `photorates` | `photorates` | Photo-rate placeholder function        |
 
 `#!python ncol(name)` → `Symbol(f"ncol_{name}")` (column density).

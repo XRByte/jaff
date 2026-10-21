@@ -274,18 +274,17 @@ class NetworkSymbols:
     # after loading).  Mutating rates or thermodynamics afterwards leaves them stale.
 
     def _expressions(self) -> list[Expr]:
-        """Standardized network expressions: rates and energy/radiation sources.
+        """Standardized network expressions: rates and energy sources.
 
-        The aggregated ``dEdt_chemical`` and ``dRad_dt_extra`` are used instead of
-        each reaction's raw ``dE``/``dRad`` because only the aggregates have their
-        convenience symbols (``n_X``, ...) resolved to ``nden`` entries.
+        The aggregated ``dEdt_chemical`` is used instead of each reaction's raw
+        ``dE`` because only the aggregate has its convenience symbols (``n_X``,
+        ...) resolved to ``nden`` entries.
         """
         net = self._net
         return [
             *(r.rate_coefficient for r in net.reactions),
             net.thermodynamics.dEdt_chemical.volumetric,
             net.thermodynamics.dEdt_extra.volumetric,
-            net.dRad_dt_extra,
         ]
 
     @cached_property

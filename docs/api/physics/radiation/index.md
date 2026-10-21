@@ -79,7 +79,7 @@ Built by `Network` from `radiation_props`; available as `net.radiation`
 | `den`              | `sympy.IndexedBase`       | Band density variable, shape `(nbands,)`, named `photden` (`"nph"`) or `radeden` (`"u"`) |
 | `groups`           | `list[RadiationGroup]`    | One group per band, in ascending energy order                                            |
 | `background_field` | `BackgroundField`         | Reference field built from `RadiationProps.background_field`                             |
-| `E_sym`            | `sympy.Symbol`            | Photon-energy symbol `E` (eV) used in the profiles                                       |
+| `ph_E`             | `sympy.Symbol`            | Photon-energy symbol `ph_E` (eV) used in the profiles                                    |
 | `nph_profile`      | `sympy.Piecewise`         | Photon-number profile over all bands, `E**(α_i - 2)` in band _i_                         |
 | `energy_profile`   | `sympy.Piecewise`         | Energy-density profile over all bands, `E**(α_i - 1)` in band _i_                        |
 | `photden_tot`      | `float`                   | $\int n(E)\,dE$ over the full range, i.e. the sum of the groups' `photden`               |
@@ -137,7 +137,6 @@ same order as `Radiation.groups`, with these attributes:
 | `k`         | Symbolic rate coefficient for this band (including the band density and any shielding)                                                                                                                       |
 | `xsec`      | Photon-number-weighted band-average cross section $\langle\sigma\rangle_i$ (cm²); `None` for custom-rate reactions                                                                                            |
 | `xsec_frac` | Tabulated reactions: $\langle\sigma\rangle_i$ divided by the full-spectrum average (`reaction.photo.xsec.total`), so values need not sum to 1. Custom-rate reactions: this band's share of the total `dRad` integral |
-| `delta_rad` | Band integral of `dRad`, the radiation energy added per reaction event (erg)                                                                                                                                  |
 
 The same values per reaction are available as a table through
 [`Reaction.band_xsecs`](../../core/reaction/band_xsecs.md) (there `eavg` is in eV).

@@ -67,19 +67,14 @@ class GroupedPhotoReactionProps:
         Photon-number-weighted band-average cross section (cm²), or ``None``
         for a custom-rate reaction.
     xsec_frac : float
-        Fraction of the total cross section (or of the total ``dRad``, for a
-        custom rate) attributed to this band.
-    delta_rad : float
-        ``dRad`` integrated over the band: the radiation energy added to the
-        band per reaction event (erg).
+        Fraction of the reaction's rate attributed to this band.
     """
 
-    def __init__(self, k: Expr, xsec: float | None, xsec_frac: float, delta_rad: float):
+    def __init__(self, k: Expr, xsec: float | None, xsec_frac: float):
         """Store the band data; see the class attributes."""
         self.k: Expr = k
         self.xsec: float | None = xsec
         self.xsec_frac: float = xsec_frac
-        self.delta_rad: float = delta_rad
 
 
 class ReactionRadiationProps:
@@ -120,4 +115,3 @@ class ShieldingProps:
 class AuxFunctions:
     chemrate: AuxiliaryFunctionProps | None = None
     deltae: AuxiliaryFunctionProps | None = None
-    deltarad: AuxiliaryFunctionProps | None = None

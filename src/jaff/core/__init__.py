@@ -7,7 +7,6 @@ from .network import Network, NetworkArgs, NetworkSpec, NetworkSymbols
 from .reaction import (
     PhotoReactionProps,
     Reaction,
-    ReactionRadiationProps,
     Reactions,
     ShieldingProps,
 )
@@ -31,6 +30,5 @@ __all__ = [
     ReactionProps,
     NetworkSymbols,
     PhotoReactionProps,
-    ReactionRadiationProps,
     ShieldingProps,
 ]

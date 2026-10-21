@@ -14,7 +14,7 @@ from jaff import Network
 from jaff.common._integrators import get_bounds
 from jaff.core.network import NetworkSymbols
 from jaff.cli import JaffGen
-from jaff.core.reaction import PhotoReactionProps, ReactionRadiationProps
+from jaff.core.reaction import PhotoReactionProps
 from jaff.errors import ParserError
 from jaff.physics import RadiationProps
 from jaff.physics.photo_reactions._photochemistry import Photochemistry, XsecProcess
@@ -167,7 +167,6 @@ class _FakeReaction:
 
     def __init__(self, xsecs):
         self.photo = PhotoReactionProps(xsec=xsecs)
-        self.rad = ReactionRadiationProps()
 
 
 class TestVernerIntegration:

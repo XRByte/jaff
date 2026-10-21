@@ -10,10 +10,6 @@ from jaff.physics import RadiationProps
 BANDS = [6.0, 13.6, 100.0]
 PHOTO = "C -> C+ + E  []  PHOTO, 11.3\nCO -> C + O  []  PHOTO, 11\n"
 NON_PHOTO = "H + H -> H2  []  1e-17\n"
-# Custom rate for reaction 0 with a photon-energy dependent dRad (erg/eV).
-CUSTOM_JFUNC = (
-    "@function chemrate0()\n@return 1e-10\n@function deltarad0()\n@return 2.0*ph_E\n"
-)
 
 
 @pytest.fixture
@@ -39,16 +35,13 @@ def _expected(net):
     rflux = sp.IndexedBase("rflux", shape=(net.radiation.nbands,))
     flux_map = {g.sym: rflux[i] for i, g in enumerate(groups)}
     loss = [sp.Float(0.0)] * len(groups)
-    source = [sp.Float(0.0)] * len(groups)
     for rxn in net.reactions:
         if rxn.photo is None or not rxn.photo.rgrouped:
             continue
         for i, band in enumerate(rxn.photo.rgrouped):
-            flux = _flux(net, rxn, band.k)
-            loss[i] -= flux
-            source[i] += band.delta_rad * flux
+            loss[i] -= _flux(net, rxn, band.k)
 
-    density = [loss[i] + source[i] / groups[i].eavg for i in range(len(groups))]
+    density = loss
     fluxes = [loss[i].xreplace(flux_map) for i in range(len(groups))]
 
     return density, fluxes
@@ -81,30 +74,15 @@ def test_flux_equation_is_density_loss_with_rflux(radiation_network):
         assert not odes[nb + i].has(net.radiation.groups[i].sym)
 
 
-def test_drad_source_enters_density_equation_only(radiation_network, tmp_path):
-    (tmp_path / "rad.jfunc").write_text(CUSTOM_JFUNC)
+def test_no_reaction_radiation_source_term(radiation_network):
     net = radiation_network()
-    custom = next(r for r in net.reactions if r.photo and r.photo.custom_rad_rate)
-    assert any(band.delta_rad != 0 for band in custom.photo.rgrouped)
 
-    density, fluxes = _expected(net)
-    odes = net.sradodes(order=2)
-    nb = net.radiation.nbands
-    for i in range(nb):
-        assert _same(odes[i], density[i])
-        assert _same(odes[nb + i], fluxes[i])
-
-
-def test_drad_is_a_function_of_photon_energy(radiation_network, tmp_path):
-    (tmp_path / "rad.jfunc").write_text(CUSTOM_JFUNC)
-    net = radiation_network()
-    custom = next(r for r in net.reactions if r.photo and r.photo.custom_rad_rate)
-
-    assert custom.rad.dRad.free_symbols == {NetworkSymbols.ph_E}
-    # ∫ 2 ph_E dph_E over each band.
-    expected = [hi**2 - lo**2 for lo, hi in zip(BANDS[:-1], BANDS[1:])]
-    got = [float(band.delta_rad) for band in custom.photo.rgrouped]
-    assert got == pytest.approx(expected)
+    assert not hasattr(net, "dRad_dt_extra")
+    assert not hasattr(net.reactions, "dRad")
+    for rxn in net.reactions:
+        assert not hasattr(rxn, "rad")
+        assert not hasattr(rxn.aux_funcs, "deltarad")
+        assert all(not hasattr(band, "delta_rad") for band in rxn.photo.rgrouped)
 
 
 def test_spectral_profiles_use_photon_energy_symbol(radiation_network):

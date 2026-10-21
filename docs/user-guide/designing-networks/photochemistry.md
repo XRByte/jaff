@@ -34,10 +34,6 @@ $$
 
 where $\rho_i$ is the radiation energy or photon density in band $i$ and $k_i$ is a pre-computed rate coefficient for that band.
 
-<!-- prettier-ignore -->
-!!! tip "Radiation source terms"
-    If a reaction adds photons to the local radiation field, it can be specified using a custom `deltaRad<N>` function. Details are mentioned in [Auxiliary functions file](auxiliary-functions.md)
-
 ---
 
 ## Radiation Field Discretisation
@@ -170,7 +166,7 @@ queries at runtime (see [Codebase Structure](../../development/codebase-structur
   `photo_absorption` flag, a `decay_type` (`"ionization"` / `"dissociation"`)
   and a `file.hdf5::<group>` pointer into the Leiden or NORAD HDF5 file.
 - `verner_cross_sections` — the Verner analytic σ(E) expression as a
-  SymPy-parseable string (symbol `E`, photon energy in **eV**, σ in cm²).
+  SymPy-parseable string (symbol `ph_E`, photon energy in **eV**, σ in cm²).
 
 ### What lands on the reaction
 
@@ -189,7 +185,7 @@ dissociation. The radiation integrator integrates these arrays numerically over
 each band.
 
 Verner fits are kept **symbolic**: the object then carries the SymPy `Piecewise`
-in `photo.xsec.photodecay_expr` (symbol `E`, eV, σ in cm²) and the arrays are
+in `photo.xsec.photodecay_expr` (symbol `ph_E`, eV, σ in cm²) and the arrays are
 `None`; the integrator integrates the expression analytically per band. The
 database actually used is recorded in `photo.xsec.database`
 (`"norad"`, `"verner"` or `"leiden"`).

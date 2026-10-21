@@ -68,6 +68,5 @@ _FileNotFoundError_
 | `product_matrix`  | `ndarray`            | Shape (n_reactions, n_species) stoichiometry matrix for products                                                    |
 | `mass_dict`       | `dict`               | Mapping from element symbol to mass properties, used for conservation checks                                        |
 | `thermodynamics`  | `Thermodynamics`     | Thermal equations: `eos`, `dEdt_chemical`, `dEdt_extra`, `dEdt_tot`, `dTdt_chemical`, `dTdt_extra`, `dTdt_tot`; see [thermodynamics](thermodynamics.md) |
-| `dRad_dt_extra`   | `sympy.Basic`        | Extra radiation moment source terms from `@function` definitions                                                    |
 | `radiation`       | `Radiation or None`  | Radiation field object; `None` when no radiation bands are specified                                                |
 | `symbols`         | `NetworkSymbols`     | Canonical symbols, densities (`ndens`, `ntot`, `rho`, `n_hnuc`), introspection sets and `standardize`; see [symbols](symbols.md) |

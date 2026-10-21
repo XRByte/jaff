@@ -25,7 +25,7 @@ _pandas.DataFrame_
 | `upper`     | eV   | Upper band edge (`inf` for an open top band)                                                     |
 | `eavg`      | eV   | Photon-number-weighted band-average energy                                                        |
 | `xsec`      | cm²  | Photon-number-weighted band-average cross section (`NaN` for custom-rate reactions)              |
-| `xsec_frac` | —    | Fraction of the total cross section (or `dRad`) attributed to the band                            |
+| `xsec_frac` | —    | Fraction of the reaction's rate attributed to the band                                          |
 
 : The frame is empty (with the columns above) when the reaction contributes to
 no band, e.g. no radiation field is configured. Rows are ordered by ascending

@@ -152,7 +152,6 @@ nav = [
         "api/core/reactions/tmins.md",
         "api/core/reactions/tmaxes.md",
         "api/core/reactions/dE.md",
-        "api/core/reactions/dRad.md",
         "api/core/reactions/serialized.md",
         "api/core/reactions/serialized_exploded.md",
         "api/core/reactions/photo_reactions.md",

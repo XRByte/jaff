@@ -449,15 +449,6 @@ class Reactions(Catalogue[Reaction]):
         """
         return Vector([r.dE for r in self])
 
-    def dRad(self) -> Vector[Basic]:
-        """Return a ``Vector`` of radiation-rate SymPy expressions.
-
-        Returns
-        -------
-        Vector[Basic]
-        """
-        return Vector([r.rad.dRad for r in self])
-
     def serialized(self) -> Vector[str]:
         """Return a ``Vector`` of name-level serialized reaction strings.
 

@@ -62,7 +62,6 @@ from ._helper import to_float_or_none
 from .reaction_props import (
     AuxFunctions,
     PhotoReactionProps,
-    ReactionRadiationProps,
     ShieldingProps,
 )
 from .types import RateSegment, RateSegments
@@ -106,10 +105,6 @@ class Reaction:
         collapsed into :attr:`rate_coefficient` via ``evaluate_equivalent_rate``.
     dE : Basic
         SymPy expression for the energy released per reaction event (erg).
-    rad : ReactionRadiationProps
-        Radiation coupling: ``dRad``, the SymPy expression (in the
-        photon-energy symbol ``ph_E``, eV) for the radiation energy this reaction
-        adds to the field per unit photon energy, in erg/eV.
     verbatim : str
         Human-readable string ``"R1 + R2 -> P1 + P2"``.
     index : int
@@ -155,7 +150,6 @@ class Reaction:
         dE: Expr | None = None,
         t_cutoff: str = "clip",
         type: str = "unknown",
-        rad: ReactionRadiationProps | None = None,
         photo: PhotoReactionProps | None = None,
         format: str | None = None,
         metadata: dict | None = None,
@@ -194,9 +188,6 @@ class Reaction:
             ``"photo"``, ``"cosmic_ray"``, ``"3_body"``, ``"unknown"``, or a
             grain surface-mechanism type).  Stored verbatim on the ``type``
             attribute; defaults to ``"unknown"``.
-        rad : ReactionRadiationProps or None, optional
-            Radiation coupling.  ``None`` (default) builds one whose ``dRad``
-            comes from the ``.jfunc`` ``deltarad`` function, or zero.
         photo : PhotoReactionProps or None, optional
             Photo-reaction state; pass one for photo reactions, ``None``
             (default) otherwise.
@@ -235,15 +226,6 @@ class Reaction:
             else (dE if dE is not None else Float(0.0))
         )
         self.photo: PhotoReactionProps | None = photo
-        self.rad: ReactionRadiationProps = (
-            ReactionRadiationProps(
-                dRad=cast(Expr, self.aux_funcs.deltarad.expr)
-                if self.aux_funcs.deltarad is not None
-                else Float(0.0)
-            )
-            if rad is None
-            else rad
-        )
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
         self.verbatim: str = self.get_verbatim()
@@ -354,7 +336,6 @@ class Reaction:
         return AuxFunctions(
             chemrate=af.get(f"chemrate{self.index}", None),
             deltae=af.get(f"deltae{self.index}", None),
-            deltarad=af.get(f"deltarad{self.index}", None),
         )
 
     def __get_shielding(self) -> ShieldingProps | None:
@@ -820,8 +801,8 @@ class Reaction:
             - ``xsec``  : photon-number-weighted band-average cross section in
               cm² (``NaN`` for custom-rate reactions, which carry no tabulated
               cross section).
-            - ``xsec_frac`` : fraction of the total cross section (or ``dRad``)
-              attributed to the band.
+            - ``xsec_frac`` : fraction of the reaction's rate attributed to the
+              band.
 
             Empty (with the columns above) when the reaction contributes to no
             band, e.g. no radiation field is configured.

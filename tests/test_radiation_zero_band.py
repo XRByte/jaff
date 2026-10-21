@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from jaff.core.reaction import PhotoReactionProps, ReactionRadiationProps
+from jaff.core.reaction import PhotoReactionProps
 from jaff.physics import RadiationProps
 from jaff.physics.photo_reactions._radiation import Radiation
 from tests.xsec_props import make_xsec_props
@@ -27,7 +27,6 @@ class _Reaction:
                 photodecay=np.array(decay, dtype=float),
             )
         )
-        self.rad = ReactionRadiationProps()
 
 
 def _radiation(bands, profile_index, mode="nph"):

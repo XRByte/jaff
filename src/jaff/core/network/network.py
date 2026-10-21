@@ -58,7 +58,6 @@ from ..reaction import (
     RateSegment,
     RateSegments,
     Reaction,
-    ReactionRadiationProps,
     Reactions,
     ShieldingProps,
 )
@@ -175,8 +174,6 @@ class Network:
     symbols : NetworkSymbols
         Canonical symbols, density expressions, introspection sets and symbol
         standardization for this network.
-    dRad_dt_extra : Basic
-        Extra radiation moment source terms from ``@function`` definitions.
     radiation : Radiation | None
         Radiation field object; ``None`` when no radiation bands are specified.
     mass_dict : dict[str, ElementProps]
@@ -305,7 +302,6 @@ class Network:
         self.symbols: NetworkSymbols = NetworkSymbols(self)
         self.reactant_matrix: np.ndarray | None = None
         self.product_matrix: np.ndarray | None = None
-        self.dRad_dt_extra: Basic = Float(0.0)
         self.radiation: Radiation | None = (
             Radiation(self, radiation_props) if radiation_props is not None else None
         )
@@ -554,7 +550,6 @@ class Network:
                 )
                 if rtype == "photo"
                 else None,
-                rad=ReactionRadiationProps(dRad=reaction["dRad"]),
             )
 
             segments = reaction.get("rate_segments")
@@ -591,8 +586,7 @@ class Network:
         """Standardize convenience symbols in all rate and auxiliary expressions.
 
         Replaces shorthand symbols (``n_X``, ``n_X_nuc``, ``n_e``, ``ntot``, …) with
-        ``nden[i]`` references in every reaction rate and the extra radiation
-        source term :attr:`dRad_dt_extra`.
+        ``nden[i]`` references in every reaction rate.
 
         Parameters
         ----------
@@ -615,8 +609,6 @@ class Network:
                 r.rate_coefficient = r.rate_segments.sort().evaluate_equivalent_rate(r)
 
             r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
-            self.dRad_dt_extra += r.rad.dRad * r.rate
-        self.dRad_dt_extra = self.symbols.standardize(self.dRad_dt_extra)
 
     @staticmethod
     def __parse_rate(

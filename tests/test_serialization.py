@@ -134,11 +134,10 @@ def test_network_json_roundtrip_preserves_nden_rates(tmp_path):
     """Rates standardized to ``nden[i, 0]`` MatrixElements survive a round-trip.
 
     Regression: the reload side once rebuilt the ``nden`` MatrixSymbol as a plain
-    Symbol (breaking MatrixElement) and read ``dRad`` under the wrong JSON key.
+    Symbol (breaking MatrixElement).
 
     Uses a small self-contained network: the first rate references an electron
-    density (``ne``) that standardizes to an ``nden[i, 0]`` MatrixElement, and a
-    ``deltarad{i}`` auxiliary gives each reaction a non-trivial ``dRad``.  It
+    density (``ne``) that standardizes to an ``nden[i, 0]`` MatrixElement.  It
     deliberately avoids interpolation/undefined functions, which the ``.jaff``
     serializer does not support.
     """
@@ -151,17 +150,9 @@ def test_network_json_roundtrip_preserves_nden_rates(tmp_path):
         "H + H+ -> H+ + H               []         2.0e-9*ne\n"
         "H+ + E -> H                    []         2.63e-13*(Tgas/1e4)**(-0.7)*n_H\n"
     )
-    (net_dir / "syn.jet.jfunc").write_text(
-        "@function deltarad0()\n"
-        "    @return 1.5e-11\n"
-        "\n"
-        "@function deltarad1()\n"
-        "    @return 3.0e-11\n"
-    )
 
     net = Network(str(jet))
     assert any("nden" in str(r.rate_coefficient) for r in net.reactions)
-    assert any(r.rad.dRad != sympy.Float(0.0) for r in net.reactions)
 
     json_path = str(tmp_path / "gow.jaff")
     net.to_jaff(json_path)
@@ -259,6 +250,16 @@ def test_jaff_roundtrip_keeps_reaction_format(make_network, tmp_path):
     back = Network(str(tmp_path / "r.jaff"), funcfile=False)
 
     assert back.reactions[0]._format == "prizmo"
+
+
+def test_jaff_does_not_store_drad(make_network, tmp_path):
+    """Reactions carry no radiation source term, so ``.jaff`` stores none."""
+    net = make_network("H + H -> H2 [] 1e-17\n", name="r.jet")
+    net.to_jaff(tmp_path / "r.jaff")
+
+    payload = _read_payload(tmp_path / "r.jaff")
+
+    assert all("dRad" not in r for r in payload["reactions"])
 
 
 def test_jaff_without_format_loads_as_none(tmp_path):

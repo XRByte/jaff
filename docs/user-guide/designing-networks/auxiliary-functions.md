@@ -161,13 +161,12 @@ offending symbol and the `.jfunc` file it came from.
 
 ## Reserved Function Names
 
-JAFF recognises four reserved naming conventions:
+JAFF recognises three reserved naming conventions:
 
 | Pattern              | Role                                                                                                                                                                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `chemRate<N>`        | Custom rate coefficient for reaction index _N_ (0-based). Replaces the Arrhenius expression in the network file.                                                                                                                             |
 | `deltaE<N>`          | Change in gas thermal energy per occurrence of reaction _N_ (erg). Positive = exothermic.                                                                                                                                                    |
-| `deltaRad<N>`        | Radiation energy source/sink term for photo-reaction _N_, as a function of photon energy `E`. Integrated over each radiation band to weigh the radiation moment equations (see [Radiation Source Terms](#radiation-source-terms-deltaradn)). |
 | `heatingCoolingRate` | Net gas heating minus cooling rate from all non-chemical radiative processes (erg s⁻¹ cm⁻³).                                                                                                                                                 |
 | Any other name       | Helper function — substituted symbolically into the bodies that call it.                                                                                                                                                                     |
 
@@ -293,17 +292,9 @@ The heating cooling function is used to add any non-chemical heating and cooling
 
 ---
 
-## Radiation Source Terms — `deltaRad<N>`
+## Radiation Moment Equations
 
-When a network is loaded with radiation transport enabled (by passing `radiation_props=RadiationProps(bands=...)` to `Network`), JAFF builds a set of **radiation moment equations** alongside the chemical ODEs. A `deltaRad<N>` function supplies the radiation energy (in ergs) per photon energy (in eV) that photo-reaction _N_ adds to the local field, expressed in ergs/eV.
-
-```text
-@function deltaRad5()
-    # Reaction 5: local radiation energy source as a function of photon energy E
-    @return some_expression_in_E
-```
-
-The body must be a function of the photon-energy symbol `E`. JAFF integrates it over each radiation band, so the value represents an energy density. A reaction without a `deltaRad<N>` function contributes no radiation source to the local radiation field.
+When a network is loaded with radiation transport enabled (by passing `radiation_props=RadiationProps(bands=...)` to `Network`), JAFF builds a set of **radiation moment equations** alongside the chemical ODEs. Photo-reactions remove radiation from each band they absorb in.
 
 ### Radiation density variable — `radeden` / `photden`
 
@@ -314,16 +305,7 @@ Each radiation band carries one density unknown in the generated equations. Its 
 | `"u"`                 | `radeden[i]`     | Radiation energy density | erg cm⁻³ |
 | `"nph"` (default)     | `photden[i]`     | Photon number density    | cm⁻³     |
 
-Here `i` indexes the radiation band. The photo-reaction rate coefficient for band $i$ is $k_i = c \cdot den_i \cdot {\langle \sigma \rangle}_i$, where ${\langle \sigma \rangle}_i$ is the band-averaged photoionisation cross section and `c` is the speed of light. In energy-density mode (`mode="u"`) the `deltaRad` contribution is divided by the band-average photon energy to convert it to the matching units.
-
-### Custom rates and `deltaRad`
-
-If a photo-reaction has **both** radiation transport enabled and a custom `chemRate<N>` rate, a matching `deltaRad<N>` is **required**. JAFF cannot derive the spectral weighing for the reaction rate across bands from a cross-section in that case, so it uses `deltaRad<N>` to weigh the supplied rate across the bands for radiation energy density contribution.
-
-Thus, the reaction rate per band is weighed by
-
-<!-- prettier-ignore -->
-$$ \dfrac{\Delta rad_{band}}{\Delta rad_{spectrum}} $$
+Here `i` indexes the radiation band. The photo-reaction rate coefficient for band $i$ is $k_i = c \cdot den_i \cdot {\langle \sigma \rangle}_i$, where ${\langle \sigma \rangle}_i$ is the band-averaged photoionisation cross section and `c` is the speed of light.
 
 The radiation moment equations themselves are available through [`Network.sradodes()`](../../api/core/network/sradodes.md).
 

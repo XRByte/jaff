@@ -115,7 +115,6 @@ net.reactions[0].rate_coefficient  # photorates(1, 13.6, 1.0e+99)
 | `tmin`                | `float or None` | Lower temperature bound of rate validity (K); `None` = unbounded          |
 | `tmax`                | `float or None` | Upper temperature bound of rate validity (K); `None` = unbounded          |
 | `dE`                  | `sympy.Basic`   | Energy released per reaction event (erg), from a `.jfunc` aux function    |
-| `rad`                 | `ReactionRadiationProps` | Radiation coupling on every reaction: `rad.dRad`, the radiation energy emitted per photon energy (eV) per event |
 | `verbatim`            | `str`           | Human-readable equation `"R1 + R2 -> P1 + P2"`                            |
 | `index`               | `int`           | File-side source number (`source_index`): file-order row number, **gapped** when rows merge. Not an array subscript |
 | `catalogue_index`     | `int`           | Dense `0..count-1` position inside `net.reactions`; the array subscript used by generated code |
@@ -312,7 +311,6 @@ rxn.photo.xsec                          # XsecProps: units, process, photon_ener
 len(rxn.photo.xsec.photon_energy)       # number of grid points (energies in eV)
 rxn.photo.xsec.photodecay               # cross sections in cm^2 (or None)
 rxn.photo.pi_database                   # per-reaction PI database override (or None)
-rxn.rad.dRad                            # radiation energy added per event (erg/eV)
 ```
 
 The `photon_energy` grid is in eV and each process array is in cm² (or `None`
@@ -411,7 +409,7 @@ Each returns a `Vector` aligned to catalogue order.
 | `reactants()`           | `Vector[Species]`       | one `Species` catalogue per reaction |
 | `products()`            | `Vector[Species]`       | one `Species` catalogue per reaction |
 | `tmins()` / `tmaxes()`  | `Vector[float or None]` | `[None, None]` / `[None, None]`      |
-| `dE()` / `dRad()`       | `Vector[Basic]`         | energy / radiation expressions       |
+| `dE()`                  | `Vector[Basic]`         | energy expressions                   |
 | `serialized()`          | `Vector[str]`           | `['H._PHOTON__H+.e-', 'H+.e-__H']`   |
 | `serialized_exploded()` | `Vector[str]`           | atom-level serialized strings        |
 

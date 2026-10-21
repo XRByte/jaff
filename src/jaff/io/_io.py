@@ -208,7 +208,6 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                     for s in r.rate_segments
                 ],
                 "dE": encode_maybe_sympy(r.dE),
-                "dRad": encode_maybe_sympy(r.rad.dRad),
                 "custom_rad_rate": r.photo is not None and r.photo.custom_rad_rate,
                 "original_string": r.original_string,
                 "index": r.index,
@@ -469,7 +468,6 @@ def from_jaff_file(filename: str | Path, errors=False):
 
         rate = decode_maybe_sympy(rj.get("rate"))
         dE = decode_maybe_sympy(rj.get("dE"))
-        dRad_dt = decode_maybe_sympy(rj.get("dRad"))
         custom_rad_rate = rj.get("custom_rad_rate")
         tmin = rj.get("tmin")
         tmax = rj.get("tmax")
@@ -506,7 +504,6 @@ def from_jaff_file(filename: str | Path, errors=False):
                     "products": products,
                     "rate": rate,
                     "dE": dE,
-                    "dRad": dRad_dt,
                     "custom_rad_rate": custom_rad_rate,
                     "tmin": tmin,
                     "tmax": tmax,
