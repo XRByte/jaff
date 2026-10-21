@@ -43,6 +43,22 @@ def validate_override_custom_rate(value: object) -> bool:
     return value
 
 
+def validate_override_custom_cross_section(value: object) -> bool:
+    """Validate an ``override_custom_cross_section`` flag and return it.
+
+    Raises
+    ------
+    ParserError
+        If *value* is not a bool.
+    """
+    if not isinstance(value, bool):
+        raise ParserError(
+            f"Invalid override_custom_cross_section {value!r}. It must be true or false"
+        )
+
+    return value
+
+
 class RadiationProps:
     """Radiation-field configuration passed to :class:`Network` / :class:`Radiation`.
 
@@ -76,6 +92,9 @@ class RadiationProps:
     override_custom_rate : bool
         When ``True``, a photo reaction with a ``.jfunc`` ``chemRate`` has its
         rate recomputed from its cross sections instead.
+    override_custom_cross_section : bool
+        When ``True``, a photo reaction with a ``.jfunc`` ``photoCrossSection``
+        uses the database cross sections instead.
     """
 
     # Vaiid modes
@@ -103,6 +122,7 @@ class RadiationProps:
         background_field: str = "draine",
         pi_database: str = "norad",
         override_custom_rate: bool = False,
+        override_custom_cross_section: bool = False,
     ):
         """Validate and store the radiation-field configuration.
 
@@ -138,6 +158,12 @@ class RadiationProps:
             ``chemRate`` (default ``False``: the ``chemRate`` is kept).  A
             reaction's own ``override_custom_rate`` in ``jaffgen.toml`` /
             ``jaff.toml`` takes precedence.
+        override_custom_cross_section : bool, optional
+            When ``True``, a photo reaction with a ``.jfunc``
+            ``photoCrossSection`` uses the database cross sections, ignoring the
+            ``photoCrossSection`` (default ``False``: it is used).  A reaction's
+            own ``override_custom_cross_section`` in ``jaffgen.toml`` /
+            ``jaff.toml`` takes precedence.
 
         Raises
         ------
@@ -155,6 +181,9 @@ class RadiationProps:
         self.pi_database: str = validate_pi_database(pi_database)
         self.override_custom_rate: bool = validate_override_custom_rate(
             override_custom_rate
+        )
+        self.override_custom_cross_section: bool = validate_override_custom_cross_section(
+            override_custom_cross_section
         )
 
     def _validate_c(self, c) -> float | str:

@@ -161,12 +161,13 @@ offending symbol and the `.jfunc` file it came from.
 
 ## Reserved Function Names
 
-JAFF recognises three reserved naming conventions:
+JAFF recognises four reserved naming conventions:
 
 | Pattern              | Role                                                                                                                                                                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `chemRate<N>`        | Custom rate coefficient for reaction index _N_ (0-based). Replaces the Arrhenius expression in the network file.                                                                                                                             |
 | `deltaE<N>`          | Change in gas thermal energy per occurrence of reaction _N_ (erg). Positive = exothermic.                                                                                                                                                    |
+| `photoCrossSection<N>` | Photodecay cross section (cm²) of photo-reaction _N_ as a function of photon energy `ph_E` (eV). Replaces the database cross section (see [Custom cross sections](#custom-cross-sections-photocrosssectionn)). |
 | `heatingCoolingRate` | Net gas heating minus cooling rate from all non-chemical radiative processes (erg s⁻¹ cm⁻³).                                                                                                                                                 |
 | Any other name       | Helper function — substituted symbolically into the bodies that call it.                                                                                                                                                                     |
 
@@ -271,6 +272,20 @@ where $R_i$ represents the rate of the $i^{th}$ reaction and $\Delta E_i$ repres
     f = 1 / (1 + ncrH2(tgas, n_H_nuc, n_H, n_H2, k_photo) / n_H_nuc)
     @return (0.4 + 8 * 2 * f) * eV
 ```
+
+### Custom cross sections — `photoCrossSection<N>`
+
+A `photoCrossSection<N>` function replaces the database cross section of photo-reaction _N_. Its body is the photodecay cross section in cm² as a function of the photon-energy symbol `ph_E` in eV (a bare `E` is Euler's number to SymPy):
+
+```text
+@function photoCrossSection5()
+    # Reaction 5: flat 1e-18 cm^2 above 11.26 eV
+    @return Piecewise((1e-18, ph_E >= 11.26), (0, True))
+```
+
+The reaction stores it as `photo.xsec` with `database = "custom"` and no photo-absorption cross section. With radiation enabled it is averaged over each band and over the whole spectrum exactly like a Verner fit, and the band averages set the photo rate. A reaction cannot have both a `chemRate<N>` and a `photoCrossSection<N>` (`ParserError`), nor a per-reaction `pi_database` while its custom cross section is in use.
+
+Setting `override_custom_cross_section = true` (globally in [`jaffgen.toml`](../code-generation/jaffgen-toml.md#networkradiation-section) or `RadiationProps`, or per reaction in `jaffgen.toml` / [`jaff.toml`](../working-with-networks/jaff-toml.md#custom-photo-cross-sections)) ignores the function and uses the database cross section instead. A per-reaction value applies with or without radiation. A `.jaff` file stores the custom cross section, so it survives a reload without the `.jfunc`.
 
 ### Heating / cooling function
 

@@ -57,7 +57,7 @@ class XsecProcess:
 class XsecProps:
     units: XsecUnits
     process: XsecProcess
-    database: Literal["norad", "verner", "leiden"]
+    database: Literal["norad", "verner", "leiden", "custom"]
     photon_energy: np.ndarray | None
     photo_absorption: np.ndarray | None
     photodecay: np.ndarray | None
@@ -219,6 +219,40 @@ class Photochemistry:
             return None
 
         return self._tabulated_xsec(db, row[db], row, self._default_total())
+
+    def get_custom_xsec(self, reaction: Reaction, expr: Expr) -> XsecProps:
+        """Cross sections from a ``.jfunc`` ``photoCrossSection`` function.
+
+        Parameters
+        ----------
+        reaction : Reaction
+            Reaction the cross section belongs to; its decay type is resolved
+            as in :meth:`get_xsec`.
+        expr : Expr
+            Photodecay cross section (cm²) as an expression in ``ph_E`` (eV).
+
+        Returns
+        -------
+        XsecProps
+            Symbolic cross sections with ``database="custom"`` and no
+            photo-absorption.
+        """
+        key = self._lookup_key(reaction)
+        ionization = self._is_ionization(key, self._tabulated_row(key))
+
+        return XsecProps(
+            units=XsecUnits(photon_energy="eV", cross_section="cm^2"),
+            process=XsecProcess(
+                absorption=False,
+                decay_type="ionization" if ionization else "dissociation",
+            ),
+            database="custom",
+            photon_energy=None,
+            photo_absorption=None,
+            photodecay=None,
+            photodecay_expr=expr,
+            total=self._default_total(),
+        )
 
     def get_xsec(self, reaction: Reaction, required: bool = False) -> XsecProps | None:
         """

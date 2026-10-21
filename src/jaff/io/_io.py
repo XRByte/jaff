@@ -26,6 +26,7 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, cast
 
@@ -214,6 +215,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 "type": r.type,
                 "format": r._format,
                 "pi_database": r.photo.pi_database if r.photo is not None else None,
+                "xsecs": _encode_custom_xsec_props(r, encode_maybe_sympy),
                 "shielding": (
                     {"type": r.photo.shielding.type, "props": r.photo.shielding.props}
                     if r.photo is not None and r.photo.shielding is not None
@@ -227,6 +229,27 @@ def to_jaff_file(filename: str | Path, net: "Network"):
 
     with gzip.open(filename, "wt", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
+
+
+def _encode_custom_xsec_props(
+    reaction: Reaction, encode_expr: Callable[[Any], Any]
+) -> dict | None:
+    """JSON form of a ``photoCrossSection`` cross section, else ``None``.
+
+    Only custom cross sections are stored: database ones are looked up again
+    when the ``.jaff`` file is loaded, but a custom one would otherwise need the
+    ``.jfunc`` it came from.  *encode_expr* serializes the ``photodecay_expr``.
+    """
+    xsec = reaction.photo.xsec if reaction.photo is not None else None
+    if xsec is None or xsec.database != "custom":
+        return None
+
+    return {
+        "units": asdict(xsec.units),
+        "process": asdict(xsec.process),
+        "database": xsec.database,
+        "photodecay_expr": encode_expr(xsec.photodecay_expr),
+    }
 
 
 def _decode_xsec_props(

@@ -309,6 +309,7 @@ class Radiation:
         # Global photoionization database; reactions may override it.
         self.pi_database: str = props.pi_database
         self.override_custom_rate: bool = props.override_custom_rate
+        self.override_custom_cross_section: bool = props.override_custom_cross_section
 
         self.nbands: int = len(self.bands) - 1
         # Symbolic radiation density variable: energy density (erg/cm³) or

@@ -121,7 +121,7 @@ net.reactions[0].rate_coefficient  # photorates(1, 13.6, 1.0e+99)
 | `serialized`          | `str`                        | Canonical **name-level** identity (isomer-sensitive)                                                                                                                                                                                                                                                                                                                   |
 | `serialized_exploded` | `str`                        | Canonical **atom-level** identity (isomer-insensitive)                                                                                                                                                                                                                                                                                                                 |
 | `type`                | `str`                        | Reaction type concluded by the parser (verbatim): gas-phase `"photo"`/`"cosmic_ray"`/`"3_body"`/`"unknown"`, or a grain surface-mechanism type — see [Reaction types](#reaction-types)                                                                                                                                                                                 |
-| `photo`               | `PhotoReactionProps or None` | Photo-reaction state, `None` for non-photo reactions: `xsec` (cross sections; `xsec.total` is the spectrum-averaged σ), `pi_database`, `override_custom_rate` (per-reaction override, or `None`), `custom_rad_rate` (rate from a `.jfunc`, not cross-sections), `rgrouped` (per-band data) and `shielding` — see [Photo-reactions](#photo-reactions-a-special-citizen) |
+| `photo`               | `PhotoReactionProps or None` | Photo-reaction state, `None` for non-photo reactions: `xsec` (cross sections; `xsec.total` is the spectrum-averaged σ), `pi_database`, `override_custom_rate` (per-reaction override, or `None`), `override_custom_cross_section` (per-reaction override, or `None`), `custom_rad_rate` (rate from a `.jfunc`, not cross-sections), `rgrouped` (per-band data) and `shielding` — see [Photo-reactions](#photo-reactions-a-special-citizen) |
 
 <!-- prettier-ignore -->
 !!! tip "`reactants` and `products` are `Species` Catalogues"
@@ -312,6 +312,7 @@ len(rxn.photo.xsec.photon_energy)       # number of grid points (energies in eV)
 rxn.photo.xsec.photodecay               # cross sections in cm^2 (or None)
 rxn.photo.pi_database                   # per-reaction PI database override (or None)
 rxn.photo.override_custom_rate          # per-reaction override_custom_rate (or None)
+rxn.photo.override_custom_cross_section # per-reaction override_custom_cross_section (or None)
 ```
 
 The `photon_energy` grid is in eV and each process array is in cm² (or `None`

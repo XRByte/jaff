@@ -145,6 +145,21 @@ reaction raises a `ParserError`); a value from `jaffgen.toml` wins over
 `jaff.toml`. See
 [Network Configuration → Custom photo rates under radiation](../working-with-networks/jaff-toml.md#custom-photo-rates-under-radiation).
 
+### Per-reaction `override_custom_cross_section`
+
+A photo reaction may override the global
+[`override_custom_cross_section`](#networkradiation-section) flag:
+
+```toml
+[network.reactions."C._PHOTON__C+.e-"]
+override_custom_cross_section = true
+```
+
+The key takes `true` or `false` and is only valid on photo reactions (any other
+reaction raises a `ParserError`); a value from `jaffgen.toml` wins over
+`jaff.toml`. See
+[Network Configuration → Custom photo cross sections](../working-with-networks/jaff-toml.md#custom-photo-cross-sections).
+
 ---
 
 ## `[network.radiation]` section
@@ -163,6 +178,7 @@ background_field = "draine"         # reference field used to scale chi_pe
 use_proxy_photoreaction = true      # look up xsecs under the proxy key (CHx -> CH, OHx -> OH)
 pi_database = "norad"               # photoionization xsecs: norad | verner | leiden
 override_custom_rate = false        # true: recompute .jfunc chemRate photo rates from xsecs
+override_custom_cross_section = false  # true: ignore .jfunc photoCrossSection, use the database
 ```
 
 | Key                       | Type                     | Default                 | Description                                                                                                      |
@@ -175,6 +191,7 @@ override_custom_rate = false        # true: recompute .jfunc chemRate photo rate
 | `use_proxy_photoreaction` | `bool`                   | `true`                  | Look up cross-sections under the proxy key (`CHx`→`CH`, `OHx`→`OH`); custom `.jfunc` rate still wins unless `override_custom_rate` |
 | `pi_database`             | `str`                    | `"norad"`               | Photoionization cross-section database: `"norad"`, `"verner"` or `"leiden"` (case-insensitive)                   |
 | `override_custom_rate`    | `bool`                   | `false`                 | Recompute the rate of photo reactions with a `.jfunc` `chemRate<N>` from their cross sections instead; see [per-reaction `override_custom_rate`](#per-reaction-override_custom_rate) |
+| `override_custom_cross_section` | `bool`             | `false`                 | Ignore `.jfunc` `photoCrossSection<N>` functions and use the database cross sections; see [per-reaction `override_custom_cross_section`](#per-reaction-override_custom_cross_section) |
 
 `profile_index` is used to configure the weight factor of the photo-reaction cross-sections (Refer to the [Photochemistry](../designing-networks/photochemistry.md) section for more information). A scalar applies the same index to every band; a list such as `profile_index = [0, 1]` sets one index per band and must have exactly `len(bands) - 1` entries.
 

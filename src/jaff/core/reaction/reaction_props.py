@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 from sympy import Expr
 
 from ...core.parsers import AuxiliaryFunctionProps
+from ...errors import ParserError
 
 if TYPE_CHECKING:
     from ...physics import XsecProps
@@ -30,6 +31,10 @@ class PhotoReactionProps:
     override_custom_rate : bool or None
         Per-reaction override of :attr:`RadiationProps.override_custom_rate`;
         ``None`` uses the global flag.
+    override_custom_cross_section : bool or None
+        Per-reaction override of
+        :attr:`RadiationProps.override_custom_cross_section`; ``None`` uses the
+        global flag (``False`` without radiation).
     custom_rad_rate : bool
         ``True`` when the rate comes from a ``.jfunc`` aux function rather
         than from the cross sections.
@@ -47,6 +52,7 @@ class PhotoReactionProps:
         xsec: XsecProps | None = None,
         pi_database: str | None = None,
         override_custom_rate: bool | None = None,
+        override_custom_cross_section: bool | None = None,
         custom_rad_rate: bool = False,
         rgrouped: List[GroupedPhotoReactionProps] | None = None,
         shielding: ShieldingProps | None = None,
@@ -55,6 +61,7 @@ class PhotoReactionProps:
         self.xsec: XsecProps | None = xsec
         self.pi_database: str | None = pi_database
         self.override_custom_rate: bool | None = override_custom_rate
+        self.override_custom_cross_section: bool | None = override_custom_cross_section
         self.custom_rad_rate: bool = custom_rad_rate
         self.rgrouped: List[GroupedPhotoReactionProps] | None = rgrouped
         self.shielding: ShieldingProps | None = shielding
@@ -120,3 +127,12 @@ class ShieldingProps:
 class AuxFunctions:
     chemrate: AuxiliaryFunctionProps | None = None
     deltae: AuxiliaryFunctionProps | None = None
+    photocrosssection: AuxiliaryFunctionProps | None = None
+
+    def __post_init__(self) -> None:
+        """Reject a reaction given both a custom rate and a custom cross section."""
+        if self.chemrate is not None and self.photocrosssection is not None:
+            raise ParserError(
+                "A reaction cannot have both a chemRate and a photoCrossSection "
+                "auxiliary function"
+            )

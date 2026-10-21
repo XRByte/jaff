@@ -115,6 +115,33 @@ The global flag lives in
 
 ---
 
+## Custom photo cross sections
+
+A photo reaction with a `.jfunc`
+[`photoCrossSection<N>`](../designing-networks/auxiliary-functions.md#custom-cross-sections-photocrosssectionn)
+uses that cross section instead of the database one. Setting
+`override_custom_cross_section = true` ignores the function and uses the
+database cross section:
+
+```toml
+[network.reactions."C._PHOTON__C+.e-"]
+override_custom_cross_section = true
+```
+
+The key takes `true` or `false` and is only valid on photo reactions (any other
+reaction raises a `ParserError`); a value from `jaffgen.toml` wins over
+`jaff.toml`, and a per-reaction value wins over the global flag. Unlike
+`override_custom_rate` it applies with or without radiation, since it decides
+which cross section the reaction stores.
+
+The global flag lives in
+[`jaffgen.toml`](../code-generation/jaffgen-toml.md#networkradiation-section)
+(`[network.radiation] override_custom_cross_section`) or, in Python, in
+`RadiationProps(bands=[...], override_custom_cross_section=True)`. The default is
+`false`.
+
+---
+
 ## Resolution order
 
 The same settings can also appear in [`jaffgen.toml`](../code-generation/jaffgen-toml.md)

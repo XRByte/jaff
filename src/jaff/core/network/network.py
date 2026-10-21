@@ -50,6 +50,7 @@ from ...physics import (
     get_sradodes,
 )
 from ...physics.photo_reactions._radiation_props import (
+    validate_override_custom_cross_section,
     validate_override_custom_rate,
     validate_pi_database,
 )
@@ -489,18 +490,25 @@ class Network:
 
                 pi_db = validate_pi_database(pi_db)
 
-            # Per-reaction override_custom_rate: jaffgen.toml wins over jaff.toml.
-            override = reaction_props.get(srxn, {}).get("override_custom_rate")
-            if override is None:
-                override = reactions_config.get(srxn, {}).get("override_custom_rate")
+            # Per-reaction override flags: jaffgen.toml wins over jaff.toml.
+            overrides: dict[str, bool | None] = {}
+            for key, validate in (
+                ("override_custom_rate", validate_override_custom_rate),
+                ("override_custom_cross_section", validate_override_custom_cross_section),
+            ):
+                value = reaction_props.get(srxn, {}).get(key)
+                if value is None:
+                    value = reactions_config.get(srxn, {}).get(key)
 
-            if override is not None:
-                if rtype != "photo":
-                    raise ParserError(
-                        f"override_custom_rate is only valid for photo reactions: {srxn}"
-                    )
+                if value is not None:
+                    if rtype != "photo":
+                        raise ParserError(
+                            f"{key} is only valid for photo reactions: {srxn}"
+                        )
 
-                override = validate_override_custom_rate(override)
+                    value = validate(value)
+
+                overrides[key] = value
 
             rea = Reaction(
                 self,
@@ -513,7 +521,13 @@ class Network:
                 index=si,
                 type=rtype,
                 t_cutoff=local_tcutoff,
-                photo=PhotoReactionProps(pi_database=pi_db, override_custom_rate=override)
+                photo=PhotoReactionProps(
+                    pi_database=pi_db,
+                    override_custom_rate=overrides["override_custom_rate"],
+                    override_custom_cross_section=overrides[
+                        "override_custom_cross_section"
+                    ],
+                )
                 if rtype == "photo"
                 else None,
                 format=reaction.get("format"),

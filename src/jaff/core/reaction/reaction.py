@@ -335,6 +335,7 @@ class Reaction:
         return AuxFunctions(
             chemrate=af.get(f"chemrate{self.index}", None),
             deltae=af.get(f"deltae{self.index}", None),
+            photocrosssection=af.get(f"photocrosssection{self.index}", None),
         )
 
     def __overrides_custom_rate(self) -> bool:
@@ -354,6 +355,22 @@ class Reaction:
             return self.photo.override_custom_rate
 
         return rad.override_custom_rate
+
+    def __overrides_custom_cross_section(self) -> bool:
+        """Whether this photo reaction ignores its ``photoCrossSection``.
+
+        The reaction's own ``override_custom_cross_section`` wins over the
+        global :attr:`RadiationProps.override_custom_cross_section` (``False``
+        without radiation).
+        """
+        assert self.photo is not None
+
+        if self.photo.override_custom_cross_section is not None:
+            return self.photo.override_custom_cross_section
+
+        rad = self.net.radiation
+
+        return rad.override_custom_cross_section if rad is not None else False
 
     def __get_shielding(self) -> ShieldingProps | None:
         """Shielding model and settings from the jaffgen ``[reactions]`` table.
@@ -391,6 +408,23 @@ class Reaction:
 
         if self.net._photochemistry is None:
             self.net._photochemistry = Photochemistry(self.net)
+
+        custom = self.aux_funcs.photocrosssection
+        if custom is not None and not self.__overrides_custom_cross_section():
+            if self.photo.pi_database is not None:
+                raise ParserError(
+                    f"pi_database cannot be set for {self}: its cross section comes "
+                    "from a photoCrossSection function"
+                )
+
+            self.photo.xsec = self.net._photochemistry.get_custom_xsec(
+                self, cast(Expr, custom.expr)
+            )
+            return
+
+        # A .jaff reload has no aux functions but carries the custom cross section.
+        if self.photo.xsec is not None and self.photo.xsec.database == "custom":
+            return
 
         # A cross section is mandatory only when radiation sets the rate.
         self.photo.xsec = (

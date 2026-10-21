@@ -44,6 +44,7 @@ RadiationProps(
     background_field="draine",
     pi_database="norad",
     override_custom_rate=False,
+    override_custom_cross_section=False,
 )
 ```
 
@@ -56,6 +57,7 @@ RadiationProps(
 | `background_field` | `str`                     | `"draine"`              | Reference field used to scale `chi_pe`: `bb_4000`, `bb_10000`, `bb_20000`, `draine`, `habing`, `mathis`, `solar`, `tw_hydra`                                                                                    |
 | `pi_database`      | `str`                     | `"norad"`               | Photoionization cross-section database: `norad`, `verner` or `leiden` (case-insensitive). Falls back `norad` → `verner` → `leiden` with one summary warning after loading; photodissociation always uses Leiden |
 | `override_custom_rate` | `bool`                | `False`                 | When `True`, a photo reaction with a `.jfunc` `chemRate<N>` has its rate recomputed from its cross sections instead. A reaction's own `override_custom_rate` (in `jaffgen.toml` / `jaff.toml`) takes precedence |
+| `override_custom_cross_section` | `bool`       | `False`                 | When `True`, a photo reaction with a `.jfunc` `photoCrossSection<N>` uses the database cross section instead. A reaction's own `override_custom_cross_section` takes precedence |
 
 The arguments are validated at construction; the table of `ParserError` /
 `RuntimeError` conditions is in
