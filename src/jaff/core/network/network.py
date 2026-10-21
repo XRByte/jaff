@@ -1016,7 +1016,6 @@ class Network:
         fast_log=False,
         include_all=False,
         verbose=False,
-        nT_max=16385,
     ) -> None:
         """Write a pre-tabulated rate coefficient table to an HDF5 file.
 
@@ -1049,9 +1048,6 @@ class Network:
             default ``False``.
         verbose : bool, optional
             Print per-reaction tabulation progress, default ``False``.
-        nT_max : int or None, optional
-            Maximum refined grid size, default ``16385``; see
-            ``jaff.io._io.get_table``.
         """
         if isinstance(fname, str):
             fname = Path(fname)
@@ -1074,7 +1070,6 @@ class Network:
             format="hdf5",
             include_all=include_all,
             verbose=verbose,
-            nT_max=nT_max,
         )
 
     def to_txt(
@@ -1090,7 +1085,6 @@ class Network:
         fast_log=False,
         include_all=False,
         verbose=False,
-        nT_max=16385,
     ) -> None:
         """Write a pre-tabulated rate coefficient table to a plain-text file.
 
@@ -1121,9 +1115,6 @@ class Network:
             Include temperature-bounded reactions, default ``False``.
         verbose : bool, optional
             Print tabulation progress, default ``False``.
-        nT_max : int or None, optional
-            Maximum refined grid size, default ``16385``; see
-            ``jaff.io._io.get_table``.
         """
         if isinstance(fname, str):
             fname = Path(fname)
@@ -1146,7 +1137,6 @@ class Network:
             format="txt",
             include_all=include_all,
             verbose=verbose,
-            nT_max=nT_max,
         )
 
     def write_table(
@@ -1163,7 +1153,6 @@ class Network:
         format="auto",
         include_all=False,
         verbose=False,
-        nT_max=16385,
     ) -> None:
         """Write a pre-tabulated rate coefficient table in the specified format.
 
@@ -1196,9 +1185,6 @@ class Network:
             Include temperature-bounded reactions, default ``False``.
         verbose : bool, optional
             Print tabulation progress, default ``False``.
-        nT_max : int or None, optional
-            Maximum refined grid size, default ``16385``; see
-            ``jaff.io._io.get_table``.
         """
         write_data_table(
             reactions=self.reactions,
@@ -1215,5 +1201,4 @@ class Network:
             format=format,
             include_all=include_all,
             verbose=verbose,
-            nT_max=nT_max,
         )

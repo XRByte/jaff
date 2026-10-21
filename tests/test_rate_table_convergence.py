@@ -12,9 +12,8 @@ REPO = Path(__file__).resolve().parent.parent
 NETWORK = REPO / "networks" / "uclchem_small_gas" / "uclchem_small_gas_network.jet"
 TIMEOUT_SECONDS = 300
 
-# Settings of the original export_table example. nT_max=None removes the grid cap,
-# so finishing in time means the table actually reached err_tol (with the cap,
-# refinement would stop early with only a warning).
+# Settings of the original export_table example. Refinement has no grid cap, so
+# finishing in time means the table actually reached err_tol.
 SCRIPT = textwrap.dedent(
     """
     import sys
@@ -32,7 +31,6 @@ SCRIPT = textwrap.dedent(
         fast_log=True,
         format="hdf5",
         include_all=False,
-        nT_max=None,
     )
     """
 )
