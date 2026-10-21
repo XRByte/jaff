@@ -75,17 +75,18 @@ class GroupedPhotoReactionProps:
     k : Expr
         Band rate coefficient (s⁻¹, or cm³ s⁻¹ for two-body reactions),
         including the radiation density ``den[i]`` and any shielding.
-    xsec : float or None
-        Photon-number-weighted band-average cross section (cm²), or ``None``
-        for a custom-rate reaction.
+    xsec : float, sympy.Expr or None
+        Photon-number-weighted band-average cross section (cm²): an expression
+        when a ``photoCrossSection`` uses other symbols (e.g. ``tgas``), or
+        ``None`` for a custom-rate reaction.
     xsec_frac : float
         Fraction of the reaction's rate attributed to this band.
     """
 
-    def __init__(self, k: Expr, xsec: float | None, xsec_frac: float):
+    def __init__(self, k: Expr, xsec: float | Expr | None, xsec_frac: float):
         """Store the band data; see the class attributes."""
         self.k: Expr = k
-        self.xsec: float | None = xsec
+        self.xsec: float | Expr | None = xsec
         self.xsec_frac: float = xsec_frac
 
 

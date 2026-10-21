@@ -64,7 +64,8 @@ class XsecProps:
     photodecay_expr: Expr | None
     # Cross section averaged over the whole radiation spectrum (cm²); 0.0 until
     # the rate is computed when radiation is enabled, None without radiation.
-    total: float | None = None
+    # An expression when a photoCrossSection uses other symbols (e.g. tgas).
+    total: float | Expr | None = None
 
 
 class Photochemistry:

@@ -647,6 +647,23 @@ class Network:
                 r.rad.group_yields = [
                     self.symbols.standardize(g) for g in r.rad.group_yields
                 ]
+            if r.photo is not None:
+                self.__standardize_photo_band_data(r.photo)
+
+    def __standardize_photo_band_data(self, photo: PhotoReactionProps) -> None:
+        """Standardize a photo reaction's band data, as its rate already is.
+
+        A symbolic ``photoCrossSection`` (e.g. one using ``n_X``) leaves those
+        symbols in the band-averaged cross sections and rate coefficients that
+        :func:`~jaff.physics._equations.get_sradodes` builds the equations from.
+        """
+        if photo.xsec is not None and isinstance(photo.xsec.total, Basic):
+            photo.xsec.total = self.symbols.standardize(photo.xsec.total)
+
+        for band in photo.rgrouped or []:
+            band.k = self.symbols.standardize(band.k)
+            if isinstance(band.xsec, Basic):
+                band.xsec = self.symbols.standardize(band.xsec)
 
     def __set_emissivity(self, stored: Expr | None) -> None:
         """Integrate the ``emissivity`` over the radiation groups.

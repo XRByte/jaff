@@ -106,6 +106,20 @@ class TestCustomCrossSection:
         assert all(band.xsec.has(tgas) for band in rxn.photo.rgrouped)
         assert rxn.rate_coefficient.has(tgas)
 
+    def test_density_symbols_are_standardized(self, xsec_network):
+        """A density in a custom σ reaches the band data and equations as nden."""
+        jfunc = "@function photoCrossSection0(n_C)\n@return 1e-18*n_C\n"
+        net = xsec_network(jfunc=jfunc, radiation_props=RadiationProps(bands=BANDS))
+        rxn = _photo(net)
+        raw = sp.Symbol("n_C")
+        nden = net.symbols.ndens[net.species["C"].index]
+
+        exprs = [rxn.photo.xsec.total, *net.sradodes(order=2)]
+        for band in rxn.photo.rgrouped:
+            exprs += [band.k, band.xsec]
+        assert not any(sp.sympify(e).has(raw) for e in exprs)
+        assert all(band.k.has(nden) for band in rxn.photo.rgrouped)
+
     def test_jaff_reload_keeps_custom_xsec(self, xsec_network, tmp_path):
         """A ``.jaff`` reload without the ``.jfunc`` keeps the stored custom σ."""
         net = xsec_network(radiation_props=RadiationProps(bands=BANDS))
