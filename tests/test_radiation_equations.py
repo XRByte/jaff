@@ -4,6 +4,7 @@
 import pytest
 import sympy as sp
 
+from jaff.core.network import NetworkSymbols
 from jaff.physics import RadiationProps
 
 BANDS = [6.0, 13.6, 100.0]
@@ -11,8 +12,7 @@ PHOTO = "C -> C+ + E  []  PHOTO, 11.3\nCO -> C + O  []  PHOTO, 11\n"
 NON_PHOTO = "H + H -> H2  []  1e-17\n"
 # Custom rate for reaction 0 with a photon-energy dependent dRad (erg/eV).
 CUSTOM_JFUNC = (
-    "@function chemrate0()\n@return 1e-10\n"
-    '@function deltarad0()\n@return 2.0*Symbol("E")\n'
+    "@function chemrate0()\n@return 1e-10\n@function deltarad0()\n@return 2.0*ph_E\n"
 )
 
 
@@ -93,6 +93,26 @@ def test_drad_source_enters_density_equation_only(radiation_network, tmp_path):
     for i in range(nb):
         assert _same(odes[i], density[i])
         assert _same(odes[nb + i], fluxes[i])
+
+
+def test_drad_is_a_function_of_photon_energy(radiation_network, tmp_path):
+    (tmp_path / "rad.jfunc").write_text(CUSTOM_JFUNC)
+    net = radiation_network()
+    custom = next(r for r in net.reactions if r.photo and r.photo.custom_rad_rate)
+
+    assert custom.rad.dRad.free_symbols == {NetworkSymbols.ph_E}
+    # ∫ 2 ph_E dph_E over each band.
+    expected = [hi**2 - lo**2 for lo, hi in zip(BANDS[:-1], BANDS[1:])]
+    got = [float(band.delta_rad) for band in custom.photo.rgrouped]
+    assert got == pytest.approx(expected)
+
+
+def test_spectral_profiles_use_photon_energy_symbol(radiation_network):
+    rad = radiation_network().radiation
+
+    assert rad.ph_E is NetworkSymbols.ph_E
+    assert rad.nph_profile.free_symbols == {NetworkSymbols.ph_E}
+    assert all(g.ph_E is NetworkSymbols.ph_E for g in rad.groups)
 
 
 def test_non_photo_reactions_do_not_contribute(radiation_network):

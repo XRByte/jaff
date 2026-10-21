@@ -44,6 +44,9 @@ class NetworkSymbols:
         Grain charge (``Zd``).
     vdisp : Symbol
         Velocity dispersion [cm s⁻¹].
+    ph_E : Symbol
+        Photon energy [eV]: the variable of cross sections, spectral profiles
+        and ``deltaRad`` functions.
     photorates : UndefinedFunction
         Placeholder function for photo-reaction rates.
 
@@ -63,6 +66,7 @@ class NetworkSymbols:
     chi_pe: ClassVar[Symbol] = Symbol("chi_pe")
     zd: ClassVar[Symbol] = Symbol("Zd")
     vdisp: ClassVar[Symbol] = Symbol("vdisp")
+    ph_E: ClassVar[Symbol] = Symbol("ph_E")
     photorates: ClassVar[UndefinedFunction] = Function("photorates")  # type: ignore
 
     def __init__(self, net: Network) -> None:

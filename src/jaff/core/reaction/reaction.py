@@ -108,7 +108,7 @@ class Reaction:
         SymPy expression for the energy released per reaction event (erg).
     rad : ReactionRadiationProps
         Radiation coupling: ``dRad``, the SymPy expression (in the
-        photon-energy symbol ``E``, eV) for the radiation energy this reaction
+        photon-energy symbol ``ph_E``, eV) for the radiation energy this reaction
         adds to the field per unit photon energy, in erg/eV.
     verbatim : str
         Human-readable string ``"R1 + R2 -> P1 + P2"``.

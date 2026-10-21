@@ -5,8 +5,10 @@ import pytest
 import sympy as sp
 
 from jaff.common import _integrators, arr_integrate, smart_integrate, sym_integrate
+from jaff.core.network import NetworkSymbols
 
-E = sp.Symbol("E")
+# Photon energy: the Verner fits read from jaff.db are expressions in it.
+E = NetworkSymbols.ph_E
 
 
 def test_array_input_matches_arr_integrate():

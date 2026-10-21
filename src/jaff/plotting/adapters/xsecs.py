@@ -13,7 +13,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from sympy import Symbol, lambdify
+from sympy import lambdify
 
 from ...common._integrators import get_bounds
 from ...io import JaffLogger
@@ -55,7 +55,9 @@ def _sampled_xsecs(xsecs: XsecProps, n: int = 2000) -> XsecProps:
     expr = xsecs.photodecay_expr
     if expr is None or xsecs.photon_energy is not None:
         return xsecs
-    E = Symbol("E")
+    from ...core.network import NetworkSymbols
+
+    E = NetworkSymbols.ph_E
     pts = get_bounds(expr, E)
     if len(pts) < 2:
         return xsecs

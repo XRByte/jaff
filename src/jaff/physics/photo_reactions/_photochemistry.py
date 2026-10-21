@@ -7,7 +7,7 @@ Three databases are used:
   ``photo_reaction_cross_sections`` table and read from the corresponding HDF5
   group as numpy arrays.
 - **Verner** (1996) -- analytic photoionisation fits stored as SymPy strings
-  in the ``verner_cross_sections`` table, returned as an expression in ``E``.
+  in the ``verner_cross_sections`` table, returned as an expression in ``ph_E``.
 
 Photodissociation always comes from Leiden.  Photoionisation follows the
 reaction's ``pi_database`` override, then the global
@@ -121,7 +121,7 @@ class Photochemistry:
 
         Notes
         -----
-        The expression uses the symbol ``E`` (photon energy in eV) as the
+        The expression uses the symbol ``ph_E`` (photon energy in eV) as the
         independent variable and returns cross sections in cm²; it is zero
         outside ``[E_th, E_max]``.
 
@@ -251,7 +251,7 @@ class Photochemistry:
             Object with ``units``, ``process`` (``absorption_weighted`` flag and
             ``decay_type``), the ``database`` used, and either tabulated arrays
             (``photon_energy``, optional ``photo_absorption``, ``photodecay``)
-            or a SymPy ``photodecay_expr`` in ``E`` (Verner).  ``None`` if no
+            or a SymPy ``photodecay_expr`` in ``ph_E`` (Verner).  ``None`` if no
             entry exists and *required* is false.
 
         Raises

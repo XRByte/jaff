@@ -29,7 +29,7 @@ def make_xsec_props(
         photon_energy: Tabulated photon energy grid (eV)
         photo_absorption: Tabulated photo-absorption cross section (cm²)
         photodecay: Tabulated photodecay cross section (cm²)
-        photodecay_expr: Symbolic photodecay cross section in ``E`` (eV)
+        photodecay_expr: Symbolic photodecay cross section in ``ph_E`` (eV)
         absorption_weighted: Weight the rate by the photo-absorption cross section
         decay_type: Decay channel of the reaction
         database: Source database label

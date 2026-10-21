@@ -89,7 +89,7 @@ class ReactionRadiationProps:
     ----------
     dRad : Expr
         Radiation energy the reaction adds to the field per unit photon energy
-        (erg/eV), as a SymPy expression in ``E`` (eV).  Zero by default.
+        (erg/eV), as a SymPy expression in ``ph_E`` (eV).  Zero by default.
     """
 
     def __init__(self, dRad: Expr | None = None):

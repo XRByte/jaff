@@ -140,11 +140,11 @@ class PhotoelectricEmission:
             # Each band uses its own spectral profile (per-band profile index).
             energy_frac = smart_integrate(
                 grp.energy_profile,
-                rad.E_sym,
+                rad.ph_E,
                 (lower, upper),
             ) / smart_integrate(
                 grp.energy_profile,
-                rad.E_sym,
+                rad.ph_E,
                 (grp.lower, grp.upper),
             )
 

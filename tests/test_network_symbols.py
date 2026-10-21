@@ -22,6 +22,7 @@ TWO_SPECIES = "@format:idx,R,R,P,rate\n1,H,H,H2,1\n2,H2,H,H,1\n"
         ("chi_pe", "chi_pe"),
         ("zd", "Zd"),
         ("vdisp", "vdisp"),
+        ("ph_E", "ph_E"),
     ],
 )
 def test_fixed_symbol_names(attr, name):

@@ -183,7 +183,7 @@ class TestXsecExtras:
         assert out[-1]["label"] == "$C \\to C^+$ — Band average"
 
     def test_verner_sampling_nm(self):
-        E = sympy.Symbol("E")
+        E = sympy.Symbol("ph_E")
         expr = sympy.Piecewise((0, E < 10), (1e-18 * (10 / E) ** 3, E < 100), (0, True))
         r = SimpleNamespace(
             photo=PhotoReactionProps(

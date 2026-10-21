@@ -48,7 +48,7 @@ energy (``eavg``).
 
 Energy units
 ------------
-Band edges, the photon-energy symbol ``E`` and the cross-section tables are
+Band edges, the photon-energy symbol ``ph_E`` and the cross-section tables are
 all in **eV**, and the band-average cross sections are energy-unit-free ratios.
 The one quantity carrying a net energy dimension, the band-average photon
 energy ``eavg`` (``<E>_i``), is converted from eV to **erg** (via
@@ -119,6 +119,8 @@ class RadiationGroup:
         Band width ``upper - lower`` in eV.
     profile_idx : float
         Spectral index *α* of this band.
+    ph_E : sympy.Symbol
+        The photon-energy symbol (eV), :attr:`NetworkSymbols.ph_E`.
     nph_profile : sympy.Expr
         Photon-number spectral profile ``E^(profile_idx - 2)`` of this band.
     energy_profile : sympy.Expr
@@ -134,8 +136,6 @@ class RadiationGroup:
         terms by it stays CGS-consistent.  Computed on construction and
         shared across all reactions in the band.
     """
-
-    E_sym: sp.Symbol = sp.Symbol("E")
 
     def __init__(
         self,
@@ -179,17 +179,20 @@ class RadiationGroup:
             if all(isinstance(val, (int, float)) for val in [self.upper, self.lower])
             else None
         )
+        from ...core.network import NetworkSymbols
+
+        self.ph_E: sp.Symbol = NetworkSymbols.ph_E
         self.profile_idx: float = profile_idx
-        self.nph_profile: sp.Expr = self.E_sym ** (self.profile_idx - 2)
-        self.energy_profile: sp.Expr = self.E_sym * self.nph_profile
+        self.nph_profile: sp.Expr = self.ph_E ** (self.profile_idx - 2)
+        self.energy_profile: sp.Expr = self.ph_E * self.nph_profile
         # ∫ n(E) dE over the band — used as normalisation for averages.
         self.photden = smart_integrate(
-            self.nph_profile, self.E_sym, (self.lower, self.upper)
+            self.nph_profile, self.ph_E, (self.lower, self.upper)
         )
         # Compute the band-average photon energy once per band (shared
         # across all reactions): <E>_i = ∫ E n(E) dE / ∫ n(E) dE
         self.eavg: float = (
-            smart_integrate(self.energy_profile, self.E_sym, (self.lower, self.upper))
+            smart_integrate(self.energy_profile, self.ph_E, (self.lower, self.upper))
             / self.photden
         ) * u.eV.to(u.erg)
 
@@ -260,8 +263,9 @@ class Radiation:
         carries its own spectral index *α_i* (``grp.profile_idx``, from
         ``props.profile_index``; a scalar applies to every band).  Typical
         values: 1 (flat energy spectrum), 2 (flat photon spectrum).
-    E_sym : sympy.Symbol
-        The photon-energy symbol ``E`` (eV) used in the symbolic profiles.
+    ph_E : sympy.Symbol
+        The photon-energy symbol (eV), :attr:`NetworkSymbols.ph_E`, used in the
+        symbolic profiles.
     nph_profile : sympy.Piecewise
         Piecewise photon-number spectral profile: ``E^(α_i - 2)`` in band *i*
         (see :meth:`_piecewise_profile`).
@@ -324,7 +328,7 @@ class Radiation:
             )
             for i, lower in enumerate(self.bands[:-1])
         ]
-        self.E_sym: sp.Symbol = sp.Symbol("E")
+        self.ph_E: sp.Symbol = self.groups[0].ph_E
         self.nph_profile: sp.Expr = self._piecewise_profile("nph_profile")
         self.energy_profile: sp.Expr = self._piecewise_profile("energy_profile")
 
@@ -343,12 +347,10 @@ class Radiation:
         Returns
         -------
         sympy.Expr
-            Piecewise expression in ``E`` selecting the band containing ``E``
+            Piecewise expression in ``ph_E`` selecting the band containing ``ph_E``
             (``lower <= E < upper``); the last band is the catch-all.
         """
-        pieces = [
-            (getattr(grp, attr), self.E_sym < grp.upper) for grp in self.groups[:-1]
-        ]
+        pieces = [(getattr(grp, attr), self.ph_E < grp.upper) for grp in self.groups[:-1]]
         pieces.append((getattr(self.groups[-1], attr), True))
 
         return sp.Piecewise(*pieces)
@@ -384,7 +386,7 @@ class Radiation:
         ----------
         reaction : Reaction
             The photochemical reaction to process.  ``reaction.rad.dRad`` must
-            be a SymPy expression in the symbol ``E`` (photon energy in eV)
+            be a SymPy expression in the symbol ``ph_E`` (photon energy in eV)
             describing the radiation energy the reaction adds to the field per
             unit photon energy (erg/eV); integrated over each band it gives the
             energy added per reaction event (erg).
@@ -429,7 +431,7 @@ class Radiation:
         pa_weighted: np.ndarray | sp.Expr | None = None
 
         if pr_expr is not None:
-            E: np.ndarray | sp.Symbol = self.E_sym
+            E: np.ndarray | sp.Symbol = self.ph_E
             pr_weighted: np.ndarray | sp.Expr = pr_expr * self.nph_profile
         else:
             if xsec.photodecay is None:
@@ -484,7 +486,7 @@ class Radiation:
             # Integral of the user-supplied dRad (radiation energy per photon
             # energy, erg/eV) over the band -> energy per reaction event (erg).
             delta_rad_band = smart_integrate(
-                reaction.rad.dRad, self.E_sym, (grp.lower, grp.upper)
+                reaction.rad.dRad, self.ph_E, (grp.lower, grp.upper)
             )
 
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
@@ -535,7 +537,7 @@ class Radiation:
         reaction : Reaction
             Reaction with a pre-assigned ``reaction.rate_coefficient`` (total rate
             coefficient) and ``reaction.rad.dRad`` as a SymPy expression in
-            the symbol ``E`` (photon energy in eV).
+            the symbol ``ph_E`` (photon energy in eV).
 
         Returns
         -------
@@ -545,7 +547,7 @@ class Radiation:
 
         Notes
         -----
-        ``dRad`` must be expressed per unit eV and the symbol ``E`` must be
+        ``dRad`` must be expressed per unit eV and the symbol ``ph_E`` must be
         used as the integration variable.
 
         If the total ``dRad`` integral evaluates to zero (e.g. the
@@ -555,8 +557,8 @@ class Radiation:
         photo = reaction.photo
         assert photo is not None, f"{reaction} is not a photo reaction"
 
-        # E is the photon energy symbol used in dRad expressions.
-        E = sp.Symbol("E")
+        # ph_E is the photon energy symbol used in dRad expressions.
+        E = self.ph_E
         # Integrate dRad over the full spectrum to use as denominator.
         delta_rad_total = smart_integrate(
             reaction.rad.dRad, E, (self.bands[0], self.bands[-1])
@@ -690,3 +692,6 @@ class Radiation:
             (see :meth:`get_photden_profile`).
         """
         return ph_energy * self.get_photden_profile(ph_energy)
+
+    def get_integrated_spectral_yield_per_reaction(self, reaction: Reaction):
+        raise NotImplementedError()

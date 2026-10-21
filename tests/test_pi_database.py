@@ -12,6 +12,7 @@ import sympy as sp
 
 from jaff import Network
 from jaff.common._integrators import get_bounds
+from jaff.core.network import NetworkSymbols
 from jaff.cli import JaffGen
 from jaff.core.reaction import PhotoReactionProps, ReactionRadiationProps
 from jaff.errors import ParserError
@@ -99,6 +100,7 @@ class TestResolution:
         make, _ = pc_and_warn
         x = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-"))
         assert isinstance(x.photodecay_expr, sp.Basic)
+        assert x.photodecay_expr.free_symbols == {NetworkSymbols.ph_E}
         assert x.photon_energy is None and x.photodecay is None
         assert x.process == XsecProcess(
             absorption_weighted=False, decay_type="ionization"
@@ -184,7 +186,7 @@ class TestVernerIntegration:
     def test_symbolic_matches_dense_tabulation(self, pc_and_warn, bands):
         make, _ = pc_and_warn
         sym = make(_net("verner")).get_xsec(_rxn("C._PHOTON__C+.e-"))
-        E = sp.Symbol("E")
+        E = NetworkSymbols.ph_E
         # The fit is zero above E_max, so a dense grid up to E_max suffices.
         e_max = float(get_bounds(sym.photodecay_expr, E)[-1])
         grid = np.geomspace(11.0, e_max, 400_000)

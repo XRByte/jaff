@@ -1,7 +1,8 @@
 import pandas as pd
-from sympy import Expr, Piecewise, Symbol, srepr
+from sympy import Expr, Piecewise, srepr
 
 from jaff.config import XSECS_DATA_DIR
+from jaff.core.network import NetworkSymbols
 from jaff.drivers.sqlite import JaffDb
 from jaff.io import JaffLogger
 
@@ -24,7 +25,7 @@ def verner_xsecs(
 
         return p1 * p2 * p3
 
-    E = Symbol("E")
+    E = NetworkSymbols.ph_E
     x = E / E0 - y0
     y = (x * x + y1 * y1) ** 0.5
     mb = 1e-18  # Units of cm^2
