@@ -11,9 +11,9 @@ import pytest
 import sympy as sp
 
 from jaff import Network
+from jaff.cli import JaffGen
 from jaff.common._integrators import get_bounds
 from jaff.core.network import NetworkSymbols
-from jaff.cli import JaffGen
 from jaff.core.reaction import PhotoReactionProps
 from jaff.errors import ParserError
 from jaff.physics import RadiationProps
@@ -102,9 +102,7 @@ class TestResolution:
         assert isinstance(x.photodecay_expr, sp.Basic)
         assert x.photodecay_expr.free_symbols == {NetworkSymbols.ph_E}
         assert x.photon_energy is None and x.photodecay is None
-        assert x.process == XsecProcess(
-            absorption_weighted=False, decay_type="ionization"
-        )
+        assert x.process == XsecProcess(absorption=False, decay_type="ionization")
 
     def test_per_reaction_override_beats_global(self, pc_and_warn):
         make, _ = pc_and_warn
@@ -138,7 +136,7 @@ class TestResolution:
     def test_norad_never_reports_leiden_absorption(self, pc_and_warn):
         make, _ = pc_and_warn
         x = make(_net("norad")).get_xsec(_rxn("C._PHOTON__C+.e-"))
-        assert x.process.absorption_weighted is False and x.photo_absorption is None
+        assert x.process.absorption is False and x.photo_absorption is None
 
     def test_missing_everywhere_returns_none_when_not_required(self, pc_and_warn):
         make, _ = pc_and_warn

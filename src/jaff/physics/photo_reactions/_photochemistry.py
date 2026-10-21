@@ -49,7 +49,7 @@ class XsecUnits:
 
 @dataclass
 class XsecProcess:
-    absorption_weighted: bool
+    absorption: bool
     decay_type: Literal["dissociation", "ionization"]
 
 
@@ -185,8 +185,7 @@ class Photochemistry:
         return XsecProps(
             units=XsecUnits(photon_energy="eV", cross_section="cm^2"),
             process=XsecProcess(
-                absorption_weighted=bool(row["photo_absorption"])
-                and photo_absorption is not None,
+                absorption=bool(row["photo_absorption"]) and photo_absorption is not None,
                 decay_type=row["decay_type"],
             ),
             database=db,  # type: ignore
@@ -207,7 +206,7 @@ class Photochemistry:
 
             return XsecProps(
                 units=XsecUnits(photon_energy="eV", cross_section="cm^2"),
-                process=XsecProcess(absorption_weighted=False, decay_type="ionization"),
+                process=XsecProcess(absorption=False, decay_type="ionization"),
                 database="verner",
                 photon_energy=None,
                 photo_absorption=None,
@@ -248,7 +247,7 @@ class Photochemistry:
         Returns
         -------
         XsecProps or None
-            Object with ``units``, ``process`` (``absorption_weighted`` flag and
+            Object with ``units``, ``process`` (``absorption`` flag and
             ``decay_type``), the ``database`` used, and either tabulated arrays
             (``photon_energy``, optional ``photo_absorption``, ``photodecay``)
             or a SymPy ``photodecay_expr`` in ``ph_E`` (Verner).  ``None`` if no

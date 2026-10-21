@@ -19,7 +19,7 @@ def make_xsec_props(
     photo_absorption: Optional[np.ndarray] = None,
     photodecay: Optional[np.ndarray] = None,
     photodecay_expr: Optional[Expr] = None,
-    absorption_weighted: bool = False,
+    absorption: bool = False,
     decay_type: Literal["dissociation", "ionization"] = "ionization",
     database: Literal["norad", "verner", "leiden"] = "norad",
 ) -> XsecProps:
@@ -30,7 +30,7 @@ def make_xsec_props(
         photo_absorption: Tabulated photo-absorption cross section (cm²)
         photodecay: Tabulated photodecay cross section (cm²)
         photodecay_expr: Symbolic photodecay cross section in ``ph_E`` (eV)
-        absorption_weighted: Weight the rate by the photo-absorption cross section
+        absorption: Weight the rate by the photo-absorption cross section
         decay_type: Decay channel of the reaction
         database: Source database label
 
@@ -39,9 +39,7 @@ def make_xsec_props(
     """
     return XsecProps(
         units=XsecUnits(photon_energy="eV", cross_section="cm^2"),
-        process=XsecProcess(
-            absorption_weighted=absorption_weighted, decay_type=decay_type
-        ),
+        process=XsecProcess(absorption=absorption, decay_type=decay_type),
         database=database,
         photon_energy=photon_energy,
         photo_absorption=photo_absorption,

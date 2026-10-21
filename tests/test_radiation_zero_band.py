@@ -21,7 +21,7 @@ class _Reaction:
         E = np.array(energies, dtype=float)
         self.photo = PhotoReactionProps(
             xsec=make_xsec_props(
-                absorption_weighted=True,
+                absorption=True,
                 photon_energy=E,
                 photo_absorption=np.array(absorption, dtype=float),
                 photodecay=np.array(decay, dtype=float),

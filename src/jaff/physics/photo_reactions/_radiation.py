@@ -309,6 +309,7 @@ class Radiation:
         self.background_field = BackgroundField(props.background_field)
         # Global photoionization database; reactions may override it.
         self.pi_database: str = props.pi_database
+        self.override_custom_rate: bool = props.override_custom_rate
 
         self.nbands: int = len(self.bands) - 1
         # Symbolic radiation density variable: energy density (erg/cm³) or
@@ -444,7 +445,7 @@ class Radiation:
             ph_profile = self.get_photden_profile(E)
             pr_weighted = xsec.photodecay * ph_profile
 
-            if xsec.process.absorption_weighted:
+            if xsec.process.absorption:
                 pa_weighted = xsec.photo_absorption * ph_profile
 
         k_tot: sp.Expr = sp.Float(
@@ -504,7 +505,7 @@ class Radiation:
                 k
                 * (
                     1.0
-                    if not xsec.process.absorption_weighted
+                    if not xsec.process.absorption
                     else (pr_xsec_avg / rad_xsec_avg if rad_xsec_avg != 0.0 else 0.0)
                 )
                 / (grp.eavg if self.mode == "u" else 1)
