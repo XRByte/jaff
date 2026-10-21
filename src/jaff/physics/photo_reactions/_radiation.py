@@ -8,8 +8,7 @@ This module defines two classes:
   cross-section data.
 - :class:`Radiation` -- the full collection of bands; responsible for
   computing rate coefficients by integrating tabulated photo cross
-  sections (and user-supplied ``dRad`` functions) over each band using a
-  power-law photon-number spectrum.
+  sections over each band using a power-law photon-number spectrum.
 
 Photon spectrum assumption
 --------------------------
@@ -372,8 +371,8 @@ class Radiation:
         3. Assembles the symbolic rate coefficient
            ``k_i = c * den[i] * <σ>_i`` (photon-density mode) or
            ``k_i = c * den[i] * <σ>_i / <E>_i`` (energy-density mode).
-        4. Collects ``k_i``, the band-average cross section, the
-           cross-section fraction, and the integrated ``dRad`` into one
+        4. Collects ``k_i``, the band-average cross section and the
+           cross-section fraction into one
            :class:`GroupedPhotoReactionProps` per band.
 
         After iterating over all bands the total symbolic rate coefficient
@@ -381,16 +380,12 @@ class Radiation:
         type) is returned as ``k_tot``.
 
         If the reaction has no cross section (no ``photo.xsec``, or no
-        ``photodecay`` array / ``photodecay_expr``) the method returns silently (no-op).
+        ``photodecay`` array / ``photodecay_expr``) a ``ValueError`` is raised.
 
         Parameters
         ----------
         reaction : Reaction
-            The photochemical reaction to process.  ``reaction.rad.dRad`` must
-            be a SymPy expression in the symbol ``ph_E`` (photon energy in eV)
-            describing the radiation energy the reaction adds to the field per
-            unit photon energy (erg/eV); integrated over each band it gives the
-            energy added per reaction event (erg).
+            The photochemical reaction to process.
 
         Returns
         -------
@@ -411,9 +406,9 @@ class Radiation:
         Cross-section integrals (``∫ σ n dE``) use
         :func:`~jaff.common._integrators.smart_integrate`: tabulated ``(E, σ)``
         arrays go through ``arr_integrate`` and Verner expressions through
-        ``sym_integrate``.  The remaining analytic integrals over ``n(E)``,
-        ``E n(E)`` and ``reaction.rad.dRad`` use the same function, which falls
-        back to numerical quadrature when SymPy cannot find a closed form.
+        ``sym_integrate``.  The remaining analytic integrals over ``n(E)`` and
+        ``E n(E)`` use the same function, which falls back to numerical
+        quadrature when SymPy cannot find a closed form.
         """
         photo = reaction.photo
         if photo is None or photo.xsec is None:
@@ -424,16 +419,12 @@ class Radiation:
         xsec: XsecProps = photo.xsec
 
         # Each reaction carries a single decay-channel cross section, either as
-        # tabulated arrays (NORAD / Leiden) or as a SymPy expression (Verner).
-        # Photon-number spectrum: n(E) ∝ E^(α_i-2) used for weighing the cross-section
-        # where α_i = profile_idx of the band containing E.  The factor E^(α-2) arises from
-        # n(E) = u(E)/E and u(E) ∝ E^(α-1).
-        pr_expr = xsec.photodecay_expr
-        pa_weighted: np.ndarray | sp.Expr | None = None
-
-        if pr_expr is not None:
+        # tabulated arrays (NORAD / Leiden) or as a SymPy expression (Verner);
+        # only tabulated sources can carry a separate absorption cross section.
+        absorption: np.ndarray | None = None
+        if xsec.photodecay_expr is not None:
             E: np.ndarray | sp.Symbol = self.ph_E
-            pr_weighted: np.ndarray | sp.Expr = pr_expr * self.nph_profile
+            decay: np.ndarray | sp.Expr = xsec.photodecay_expr
         else:
             if xsec.photodecay is None:
                 raise ValueError(
@@ -442,22 +433,19 @@ class Radiation:
 
             assert isinstance(xsec.photon_energy, np.ndarray)
             E = xsec.photon_energy  # photon energy array in eV
-            ph_profile = self.get_photden_profile(E)
-            pr_weighted = xsec.photodecay * ph_profile
+            decay = xsec.photodecay
 
             if xsec.process.absorption:
-                pa_weighted = xsec.photo_absorption * ph_profile
+                absorption = xsec.photo_absorption
 
         k_tot: sp.Expr = sp.Float(
             0.0
         )  # Accumulates total rate coefficient over all bands
 
-        # Total cross section integrated over the full spectrum (cm²),
+        # Total cross section averaged over the full spectrum (cm²),
         # stored on the reaction for later reference
-        xsec_tot: float = (
-            smart_integrate(pr_weighted, E, (self.bands[0], self.bands[-1]))
-            / self.photden_tot
-        )
+        profile = self.get_photden_profile(E) if isinstance(E, np.ndarray) else None
+        xsec_tot: float = self.get_total_average_cross_section(decay, E, profile)
 
         # Shielding factor, the same for every band: a user-fixed "value", or
         # the shielding model evaluated once (it may write per-reaction tables).
@@ -475,12 +463,12 @@ class Radiation:
         for grp in self.groups:
             # Photon-number-weighted average cross section in the band:
             # <σ>_i = ∫ σ(E) n(E) dE / ∫ n(E) dE
-            pr_xsec_avg: float = (
-                smart_integrate(pr_weighted, E, (grp.lower, grp.upper)) / grp.photden
+            pr_xsec_avg: float = self.get_group_average_cross_section(
+                decay, E, grp, profile
             )
             rad_xsec_avg: float = (
-                smart_integrate(pa_weighted, E, (grp.lower, grp.upper)) / grp.photden
-                if pa_weighted is not None
+                self.get_group_average_cross_section(absorption, E, grp, profile)
+                if absorption is not None
                 else pr_xsec_avg
             )
 
@@ -686,6 +674,101 @@ class Radiation:
             (see :meth:`get_photden_profile`).
         """
         return ph_energy * self.get_photden_profile(ph_energy)
+
+    def get_total_average_cross_section(
+        self,
+        xsec: np.ndarray | sp.Expr,
+        ph_E: np.ndarray | sp.Symbol,
+        ph_profile: np.ndarray | None = None,
+    ) -> float:
+        """Photon-number-weighted mean of *xsec* over the whole spectrum.
+
+        ``<σ> = ∫ σ(E) n(E) dE / ∫ n(E) dE`` from ``bands[0]`` to ``bands[-1]``,
+        with the piecewise power-law ``n(E)`` of the bands.
+
+        Parameters
+        ----------
+        xsec : numpy.ndarray or sympy.Expr
+            Cross section (cm²): tabulated on the *ph_E* grid, or an
+            expression in the symbol *ph_E*.
+        ph_E : numpy.ndarray or sympy.Symbol
+            Photon-energy grid (eV) of a tabulated *xsec*, or the photon-energy
+            symbol of a symbolic one.
+        ph_profile : numpy.ndarray or None, optional
+            :meth:`get_photden_profile` already evaluated on a tabulated
+            *ph_E* grid, to reuse across calls; ``None`` (default) evaluates it.
+
+        Returns
+        -------
+        float
+            The spectrum-averaged cross section (cm²).
+        """
+        profile: np.ndarray | sp.Expr = (
+            ph_profile
+            if ph_profile is not None
+            else self.get_photden_profile(ph_E)
+            if isinstance(ph_E, np.ndarray)
+            else self.nph_profile
+        )
+
+        return (
+            smart_integrate(
+                xsec * profile,
+                ph_E,
+                (self.bands[0], self.bands[-1]),
+            )
+            / self.photden_tot
+        )
+
+    def get_group_average_cross_section(
+        self,
+        xsec: np.ndarray | sp.Expr,
+        ph_E: np.ndarray | sp.Symbol,
+        group: RadiationGroup,
+        ph_profile: np.ndarray | None = None,
+    ) -> float:
+        """Photon-number-weighted mean of *xsec* over one band.
+
+        ``<σ>_i = ∫ σ(E) n(E) dE / ∫ n(E) dE`` over ``[group.lower, group.upper]``.
+
+        Parameters
+        ----------
+        xsec : numpy.ndarray or sympy.Expr
+            Cross section (cm²): tabulated on the *ph_E* grid, or an
+            expression in the symbol *ph_E*.
+        ph_E : numpy.ndarray or sympy.Symbol
+            Photon-energy grid (eV) of a tabulated *xsec*, or the photon-energy
+            symbol of a symbolic one.
+        group : RadiationGroup
+            The band to average over.
+        ph_profile : numpy.ndarray or None, optional
+            :meth:`get_photden_profile` already evaluated on a tabulated
+            *ph_E* grid, to reuse across calls; ``None`` (default) evaluates it.
+
+        Returns
+        -------
+        float
+            The band-averaged cross section (cm²).
+        """
+        profile: np.ndarray | sp.Expr = (
+            ph_profile
+            if ph_profile is not None
+            else self.get_photden_profile(ph_E)
+            if isinstance(ph_E, np.ndarray)
+            else group.nph_profile
+        )
+
+        return (
+            smart_integrate(
+                xsec * profile,
+                ph_E,
+                (group.lower, group.upper),
+            )
+            / group.photden
+        )
+
+    def get_integrated_custom_cross_section(self):
+        raise NotImplementedError()
 
     def get_integrated_spectral_yield_per_reaction(self, reaction: Reaction):
         raise NotImplementedError()
