@@ -427,6 +427,7 @@ net.reactions.photo_reactions()              # the photo subset
 net.reactions.with_type("cosmic_ray")       # cosmic-ray reactions
 net.reactions.with_type("unknown")          # everything unclassified
 net.reactions.with_format("prizmo")         # reactions read by the PRIZMO parser
+net.reactions.radiation_emitters()          # reactions with a spectralYield<N>
 ```
 
 The type key is whatever string the parser stored — the gas-phase set

@@ -61,7 +61,7 @@ class Reactions(Catalogue[Reaction]):
         self._by_serialized = _by_serialized
         self._by_source_index = _by_source_index
         # Filter results keyed by (filter, argument); cleared by add().
-        self.__filter_cache: dict[tuple[str, str], Vector[Reaction]] = {}
+        self.__filter_cache: dict[tuple[str, ...], Vector[Reaction]] = {}
         self.__frozen: bool = False
 
     def _freeze(self) -> None:
@@ -466,6 +466,24 @@ class Reactions(Catalogue[Reaction]):
         Vector[str]
         """
         return Vector([r.serialized_exploded for r in self])
+
+    def radiation_emitters(self) -> Vector[Reaction]:
+        """Return all reactions that emit radiation (have a ``spectralYield``).
+
+        Returns
+        -------
+        Vector[Reaction]
+            Reactions whose ``rad.spectral_yield`` is set, in catalogue order.
+            Cached: the same object is returned until a reaction is added, so
+            treat it as read-only.
+        """
+        key = ("radiation_emitters",)
+        if key not in self.__filter_cache:
+            self.__filter_cache[key] = Vector(
+                [r for r in self if r.rad.spectral_yield is not None]
+            )
+
+        return self.__filter_cache[key]
 
     def photo_reactions(self) -> Vector[Reaction]:
         """Return all photo-reactions (``type == "photo"``).

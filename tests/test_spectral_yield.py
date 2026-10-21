@@ -46,6 +46,18 @@ def test_reaction_without_yield(yield_network):
     assert rxn.rad.group_yields is None
 
 
+def test_radiation_emitters_lists_reactions_with_a_yield(yield_network):
+    net = yield_network(RECOMB + "H + H -> H2  []  1e-17\n")
+
+    emitters = net.reactions.radiation_emitters()
+    assert [r.verbatim for r in emitters] == ["H+ + e- -> H"]
+    assert net.reactions.radiation_emitters() is emitters
+
+
+def test_radiation_emitters_empty_without_yields(yield_network):
+    assert len(yield_network(jfunc="").reactions.radiation_emitters()) == 0
+
+
 def test_no_radiation_no_group_yields(yield_network):
     assert yield_network().reactions[0].rad.group_yields is None
 

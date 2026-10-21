@@ -143,6 +143,7 @@ nav = [
         "api/core/reactions/get.md",
         "api/core/reactions/with_type.md",
         "api/core/reactions/with_format.md",
+        "api/core/reactions/radiation_emitters.md",
         "api/core/reactions/verbatim.md",
         "api/core/reactions/types.md",
         "api/core/reactions/reactants.md",

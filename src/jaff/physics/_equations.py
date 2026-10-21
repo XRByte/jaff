@@ -256,10 +256,7 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
 
     # Per-group radiation emitted by any reaction with a spectral yield.
     group_emissions: list[Expr] = [Float(0.0) for _ in rad_groups]
-    for reaction in net.reactions:
-        if reaction.rad.group_yields is None:
-            continue
-
+    for reaction in net.reactions.radiation_emitters():
         for group, group_yield in zip(rad_groups, reaction.rad.group_yields, strict=True):
             group_emissions[group.index] += group_yield * reaction.rate
 
