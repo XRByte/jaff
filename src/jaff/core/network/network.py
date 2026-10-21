@@ -29,7 +29,6 @@ import numpy as np
 from sympy import (
     Basic,
     Expr,
-    Float,
     parse_expr,
     symbols,
 )
@@ -50,7 +49,10 @@ from ...physics import (
     get_sodes,
     get_sradodes,
 )
-from ...physics.photo_reactions._radiation_props import validate_pi_database
+from ...physics.photo_reactions._radiation_props import (
+    validate_override_custom_rate,
+    validate_pi_database,
+)
 from ..elements import Elements
 from ..parsers import NetworkParser
 from ..reaction import (
@@ -487,6 +489,19 @@ class Network:
 
                 pi_db = validate_pi_database(pi_db)
 
+            # Per-reaction override_custom_rate: jaffgen.toml wins over jaff.toml.
+            override = reaction_props.get(srxn, {}).get("override_custom_rate")
+            if override is None:
+                override = reactions_config.get(srxn, {}).get("override_custom_rate")
+
+            if override is not None:
+                if rtype != "photo":
+                    raise ParserError(
+                        f"override_custom_rate is only valid for photo reactions: {srxn}"
+                    )
+
+                override = validate_override_custom_rate(override)
+
             rea = Reaction(
                 self,
                 reactants=rr,
@@ -498,7 +513,9 @@ class Network:
                 index=si,
                 type=rtype,
                 t_cutoff=local_tcutoff,
-                photo=PhotoReactionProps(pi_database=pi_db) if rtype == "photo" else None,
+                photo=PhotoReactionProps(pi_database=pi_db, override_custom_rate=override)
+                if rtype == "photo"
+                else None,
                 format=reaction.get("format"),
                 metadata=reaction.get("metadata"),
             )

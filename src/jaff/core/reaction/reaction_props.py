@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List
 
-from sympy import Expr, Float
+from sympy import Expr
 
 from ...core.parsers import AuxiliaryFunctionProps
 
@@ -27,6 +27,9 @@ class PhotoReactionProps:
         Per-reaction photoionization database override (``"norad"``,
         ``"verner"`` or ``"leiden"``); ``None`` uses the global
         :attr:`RadiationProps.pi_database`.
+    override_custom_rate : bool or None
+        Per-reaction override of :attr:`RadiationProps.override_custom_rate`;
+        ``None`` uses the global flag.
     custom_rad_rate : bool
         ``True`` when the rate comes from a ``.jfunc`` aux function rather
         than from the cross sections.
@@ -43,6 +46,7 @@ class PhotoReactionProps:
         self,
         xsec: XsecProps | None = None,
         pi_database: str | None = None,
+        override_custom_rate: bool | None = None,
         custom_rad_rate: bool = False,
         rgrouped: List[GroupedPhotoReactionProps] | None = None,
         shielding: ShieldingProps | None = None,
@@ -50,6 +54,7 @@ class PhotoReactionProps:
         """Store the photo-reaction state; see the class attributes."""
         self.xsec: XsecProps | None = xsec
         self.pi_database: str | None = pi_database
+        self.override_custom_rate: bool | None = override_custom_rate
         self.custom_rad_rate: bool = custom_rad_rate
         self.rgrouped: List[GroupedPhotoReactionProps] | None = rgrouped
         self.shielding: ShieldingProps | None = shielding

@@ -130,6 +130,21 @@ overrides from `jaffgen.toml` are not applied when the network is loaded from a
 `.jaff` file; the value stored in the `.jaff` is used.
 See [`pi_database`](#networkradiation-section) for the global choice.
 
+### Per-reaction `override_custom_rate`
+
+A photo reaction may override the global
+[`override_custom_rate`](#networkradiation-section) flag:
+
+```toml
+[network.reactions."C._PHOTON__C+.e-"]
+override_custom_rate = true
+```
+
+The key takes `true` or `false` and is only valid on photo reactions (any other
+reaction raises a `ParserError`); a value from `jaffgen.toml` wins over
+`jaff.toml`. See
+[Network Configuration → Custom photo rates under radiation](../working-with-networks/jaff-toml.md#custom-photo-rates-under-radiation).
+
 ---
 
 ## `[network.radiation]` section
@@ -147,6 +162,7 @@ rsl              = 2.99792458e10    # speed of light (cm/s). Used to configure r
 background_field = "draine"         # reference field used to scale chi_pe
 use_proxy_photoreaction = true      # look up xsecs under the proxy key (CHx -> CH, OHx -> OH)
 pi_database = "norad"               # photoionization xsecs: norad | verner | leiden
+override_custom_rate = false        # true: recompute .jfunc chemRate photo rates from xsecs
 ```
 
 | Key                       | Type                     | Default                 | Description                                                                                                      |
@@ -156,8 +172,9 @@ pi_database = "norad"               # photoionization xsecs: norad | verner | le
 | `mode`                    | `str`                    | `"nph"`                 | Radiation density variable type: `"nph"` (photon number density, `photden`) or `"u"` (energy density, `radeden`) |
 | `rsl`                     | `float` or `str`         | `constants.c.cgs.value` | Speed of light override (maps to the `c` `RadiationProps` arg). Becomes a symbol if passed as a string           |
 | `background_field`        | `str`                    | `"draine"`              | Reference radiation field (HDF5 group name) used to scale the photoelectric-band `chi_pe` symbol                 |
-| `use_proxy_photoreaction` | `bool`                   | `true`                  | Look up cross-sections under the proxy key (`CHx`→`CH`, `OHx`→`OH`); custom `.jfunc` rate still wins             |
+| `use_proxy_photoreaction` | `bool`                   | `true`                  | Look up cross-sections under the proxy key (`CHx`→`CH`, `OHx`→`OH`); custom `.jfunc` rate still wins unless `override_custom_rate` |
 | `pi_database`             | `str`                    | `"norad"`               | Photoionization cross-section database: `"norad"`, `"verner"` or `"leiden"` (case-insensitive)                   |
+| `override_custom_rate`    | `bool`                   | `false`                 | Recompute the rate of photo reactions with a `.jfunc` `chemRate<N>` from their cross sections instead; see [per-reaction `override_custom_rate`](#per-reaction-override_custom_rate) |
 
 `profile_index` is used to configure the weight factor of the photo-reaction cross-sections (Refer to the [Photochemistry](../designing-networks/photochemistry.md) section for more information). A scalar applies the same index to every band; a list such as `profile_index = [0, 1]` sets one index per band and must have exactly `len(bands) - 1` entries.
 

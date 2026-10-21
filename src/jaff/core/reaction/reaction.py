@@ -244,9 +244,8 @@ class Reaction:
             self.photo.shielding = shielding
 
         if self.photo is not None:
-            # A .jfunc chemrate supplies the rate; a .jaff reload carries the flag.
             if self.aux_funcs.chemrate is not None:
-                self.photo.custom_rad_rate = True
+                self.photo.custom_rad_rate = not self.__overrides_custom_rate()
 
             self.__set_xsec_props()
 
@@ -338,6 +337,24 @@ class Reaction:
             deltae=af.get(f"deltae{self.index}", None),
         )
 
+    def __overrides_custom_rate(self) -> bool:
+        """Whether radiation recomputes this photo reaction's ``chemRate`` rate.
+
+        The reaction's own ``override_custom_rate`` wins over the global
+        :attr:`RadiationProps.override_custom_rate`; without radiation there is
+        no cross-section rate to use, so the ``chemRate`` is always kept.
+        """
+        assert self.photo is not None
+
+        rad = self.net.radiation
+        if rad is None:
+            return False
+
+        if self.photo.override_custom_rate is not None:
+            return self.photo.override_custom_rate
+
+        return rad.override_custom_rate
+
     def __get_shielding(self) -> ShieldingProps | None:
         """Shielding model and settings from the jaffgen ``[reactions]`` table.
 
@@ -396,8 +413,6 @@ class Reaction:
             assert self.photo.xsec is not None
             self.photo.xsec.total = xsec_tot
 
-        # A .jaff reload has no aux functions; its stored dRad was validated
-        # when the network was first built from the .jfunc.
         elif self.aux_funcs.chemrate is not None and self.aux_funcs.deltarad is None:
             raise ParserError(
                 "If radiation is enabled and a custom rate is supplied\n"

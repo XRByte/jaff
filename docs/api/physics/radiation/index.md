@@ -43,6 +43,7 @@ RadiationProps(
     c=constants.c.cgs.value,
     background_field="draine",
     pi_database="norad",
+    override_custom_rate=False,
 )
 ```
 
@@ -54,6 +55,7 @@ RadiationProps(
 | `c`                | `float` or `str`          | `constants.c.cgs.value` | Speed of light in cm/s. A string (e.g. `"c_hat"`) becomes a symbol, for a reduced speed of light                                                                                                                |
 | `background_field` | `str`                     | `"draine"`              | Reference field used to scale `chi_pe`: `bb_4000`, `bb_10000`, `bb_20000`, `draine`, `habing`, `mathis`, `solar`, `tw_hydra`                                                                                    |
 | `pi_database`      | `str`                     | `"norad"`               | Photoionization cross-section database: `norad`, `verner` or `leiden` (case-insensitive). Falls back `norad` → `verner` → `leiden` with one summary warning after loading; photodissociation always uses Leiden |
+| `override_custom_rate` | `bool`                | `False`                 | When `True`, a photo reaction with a `.jfunc` `chemRate<N>` has its rate recomputed from its cross sections instead. A reaction's own `override_custom_rate` (in `jaffgen.toml` / `jaff.toml`) takes precedence |
 
 The arguments are validated at construction; the table of `ParserError` /
 `RuntimeError` conditions is in

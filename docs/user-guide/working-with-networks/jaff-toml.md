@@ -92,6 +92,29 @@ The key is only valid on photoionization reactions (any other reaction raises a
 
 ---
 
+## Custom photo rates under radiation
+
+With radiation enabled, a photo reaction with a `.jfunc` `chemRate<N>` keeps that
+custom rate by default. Setting `override_custom_rate = true` recomputes its rate
+from its cross sections instead, ignoring the `chemRate<N>`:
+
+```toml
+[network.reactions."C._PHOTON__C+.e-"]
+override_custom_rate = true
+```
+
+The key takes `true` or `false` and is only valid on photo reactions (any other
+reaction raises a `ParserError`); a value from `jaffgen.toml` wins over
+`jaff.toml`, and a per-reaction value wins over the global flag. Without
+radiation it has no effect: there is no cross-section rate to use.
+
+The global flag lives in
+[`jaffgen.toml`](../code-generation/jaffgen-toml.md#networkradiation-section)
+(`[network.radiation] override_custom_rate`) or, in Python, in
+`RadiationProps(bands=[...], override_custom_rate=True)`. The default is `false`.
+
+---
+
 ## Resolution order
 
 The same settings can also appear in [`jaffgen.toml`](../code-generation/jaffgen-toml.md)

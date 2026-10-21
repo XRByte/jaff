@@ -483,12 +483,6 @@ class Radiation:
                 else pr_xsec_avg
             )
 
-            # Integral of the user-supplied dRad (radiation energy per photon
-            # energy, erg/eV) over the band -> energy per reaction event (erg).
-            delta_rad_band = smart_integrate(
-                reaction.rad.dRad, self.ph_E, (grp.lower, grp.upper)
-            )
-
             # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
             # (units: s⁻¹ for photon-density mode, cm³ s⁻¹ for two-body)
             k: sp.Expr = self.c * self.den[grp.index] * rad_xsec_avg
@@ -501,7 +495,6 @@ class Radiation:
                 xsec_frac=rad_xsec_avg / xsec_tot
                 if xsec_tot != 0.0
                 else 0.0,  # fraction of total cross section
-                delta_rad=delta_rad_band,
             )
             grouped.append(rgroup)
 

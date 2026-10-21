@@ -280,6 +280,8 @@ class JaffGen:
                 sn.background_field = v
             if (v := nr.get("pi_database")) is not None:
                 sn.pi_database = v
+            if (v := nr.get("override_custom_rate")) is not None:
+                sn.override_custom_rate = v
 
         # The presence of a [network.dust] table enables the dust module
         # (photoelectric emission, ...); it is a network-level module, not a
@@ -672,6 +674,7 @@ class JaffGen:
                     c=sn.c,
                     background_field=sn.background_field,
                     pi_database=sn.pi_database,
+                    override_custom_rate=sn.override_custom_rate,
                 )
                 if sn.rad_bands
                 else None

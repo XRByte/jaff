@@ -27,6 +27,22 @@ def validate_pi_database(value: object) -> str:
     return value.lower()
 
 
+def validate_override_custom_rate(value: object) -> bool:
+    """Validate an ``override_custom_rate`` flag and return it.
+
+    Raises
+    ------
+    ParserError
+        If *value* is not a bool.
+    """
+    if not isinstance(value, bool):
+        raise ParserError(
+            f"Invalid override_custom_rate {value!r}. It must be true or false"
+        )
+
+    return value
+
+
 class RadiationProps:
     """Radiation-field configuration passed to :class:`Network` / :class:`Radiation`.
 
@@ -57,6 +73,9 @@ class RadiationProps:
         Validated background-field name (lower-cased).
     pi_database : str
         Validated photoionization database name (lower-cased).
+    override_custom_rate : bool
+        When ``True``, a photo reaction with a ``.jfunc`` ``chemRate`` has its
+        rate recomputed from its cross sections instead.
     """
 
     # Vaiid modes
@@ -83,6 +102,7 @@ class RadiationProps:
         c: float | str = constants.c.cgs.value,
         background_field: str = "draine",
         pi_database: str = "norad",
+        override_custom_rate: bool = False,
     ):
         """Validate and store the radiation-field configuration.
 
@@ -112,6 +132,12 @@ class RadiationProps:
             dissociation always uses Leiden.  See
             :meth:`~jaff.physics.photo_reactions._photochemistry.Photochemistry.get_xsec`
             for the fallback order.
+        override_custom_rate : bool, optional
+            When ``True``, a photo reaction with a ``.jfunc`` ``chemRate``
+            has its rate recomputed from its cross sections, ignoring the
+            ``chemRate`` (default ``False``: the ``chemRate`` is kept).  A
+            reaction's own ``override_custom_rate`` in ``jaffgen.toml`` /
+            ``jaff.toml`` takes precedence.
 
         Raises
         ------
@@ -127,6 +153,9 @@ class RadiationProps:
         self.c: float | str = self._validate_c(c)
         self.background_field: str = self._validate_field(background_field)
         self.pi_database: str = validate_pi_database(pi_database)
+        self.override_custom_rate: bool = validate_override_custom_rate(
+            override_custom_rate
+        )
 
     def _validate_c(self, c) -> float | str:
         if isinstance(c, (float, int, str)):
