@@ -1,5 +1,5 @@
-# ABOUTME: Tabulating the full KIDA network must converge to err_tol within 5 minutes
-# ABOUTME: Currently fails: 1 K gaps between rate ranges need ~64k grid points (#217)
+# ABOUTME: Tabulating a full gas-phase network must converge to err_tol within 5 minutes
+# ABOUTME: Uses UCLCHEM small gas network; KIDA's 1 K range gaps make refinement unbounded (#217)
 
 import subprocess
 import sys
@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-KIDA = REPO / "networks" / "kida_uva_2024" / "gas_reactions_kida.uva.2024.jet"
+NETWORK = REPO / "networks" / "uclchem_small_gas" / "uclchem_small_gas_network.jet"
 TIMEOUT_SECONDS = 300
 
 # Settings of the original export_table example. nT_max=None removes the grid cap,
@@ -38,14 +38,14 @@ SCRIPT = textwrap.dedent(
 )
 
 
-def test_kida_rate_table_converges_within_timeout(tmp_path):
-    cmd = [sys.executable, "-c", SCRIPT, str(KIDA), str(tmp_path / "kida_rates.hdf5")]
+def test_rate_table_converges_within_timeout(tmp_path):
+    cmd = [sys.executable, "-c", SCRIPT, str(NETWORK), str(tmp_path / "rates.hdf5")]
 
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=TIMEOUT_SECONDS
         )
     except subprocess.TimeoutExpired:
-        pytest.fail(f"KIDA rate table did not converge within {TIMEOUT_SECONDS} s")
+        pytest.fail(f"Rate table did not converge within {TIMEOUT_SECONDS} s")
 
     assert proc.returncode == 0, proc.stdout + proc.stderr
