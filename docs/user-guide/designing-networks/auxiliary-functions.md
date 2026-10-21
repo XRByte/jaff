@@ -250,6 +250,8 @@ Reactions whose rate cannot be written as a simple Arrhenius expression get a `c
         (d2g / d2g_solar) * n_H_nuc / n_e
 ```
 
+With radiation transport enabled, a photo reaction with a `chemRate<N>` keeps that rate but is **not coupled** to the radiation bands (it removes no photons), because a custom rate does not depend on the transported field. JAFF logs a warning naming each such reaction. To couple it, supply a [`photoCrossSection<N>`](#custom-cross-sections-photocrosssectionn) instead, or set [`override_custom_rate`](../working-with-networks/jaff-toml.md#custom-photo-rates-under-radiation) to use the database cross sections without editing the `.jfunc`. A reaction cannot have both a `chemRate<N>` and a `photoCrossSection<N>`.
+
 ### Thermal energy change — `deltaE<N>`
 
 Functions labeled by `deltaE<N>` are used for representing the internal energy change per reaction. `N` represents the 0-indexed reaction number. The expression returned by these functions are multiplied with the reaction rate and added together to obtain the rate of internal energy change.

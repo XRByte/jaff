@@ -440,23 +440,23 @@ class Reaction:
         assert self.net.radiation is not None
         assert self.photo is not None
 
-        if not self.photo.custom_rad_rate:
-            k_tot, xsec_tot, grouped = self.net.radiation.get_reaction_rate_props(self)
-            self.rate_coefficient = k_tot
-
-            assert self.photo.xsec is not None
-            self.photo.xsec.total = xsec_tot
-
-        elif self.aux_funcs.chemrate is not None and self.aux_funcs.deltarad is None:
-            raise ParserError(
-                "If radiation is enabled and a custom rate is supplied\n"
-                "for a photo reaction, the auxilary deltaRad function is\n"
-                "necessary to weigh the first moment radiation equations\n"
-                f"Please add a custom deltaRad function for reaction {self.index}"
+        # A custom rate is not driven by the transported field, so the reaction
+        # is not coupled to the bands and gets no band data.
+        if self.photo.custom_rad_rate:
+            self.logger.warning(
+                f"Photo reaction [cyan]{self}[/] (index {self.index}) uses the custom "
+                f"rate chemRate{self.index}: it is not coupled to the radiation bands "
+                "and removes no photons. Supply a photoCrossSection"
+                f"{self.index} instead, or set override_custom_rate = true to "
+                "compute its rate from the database cross sections."
             )
-        else:
-            grouped = self.net.radiation.get_reaction_custom_rate_props(self)
+            return
 
+        k_tot, xsec_tot, grouped = self.net.radiation.get_reaction_rate_props(self)
+        self.rate_coefficient = k_tot
+
+        assert self.photo.xsec is not None
+        self.photo.xsec.total = xsec_tot
         self.photo.rgrouped = grouped
 
     @property

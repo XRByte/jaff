@@ -100,7 +100,6 @@ it. Energies below `bands[0]` use the first band's profile and energies above
 | `get_eden_profile(ph_energy)`             | `numpy.ndarray`   | `ph_energy * get_photden_profile(ph_energy)`, i.e. `E**(α_i - 1)`                                                  |
 | `ordered_index(idx, order)`               | `tuple[int, int]` | Positions `(density, flux)` of band `idx` in the flat radiation ODE array for layout `order` (0–3)                 |
 | `get_reaction_rate_props(reaction)`        | `tuple`           | Band-averages the reaction's cross section; returns `(k_tot, xsec_tot, grouped)`: the total rate coefficient, the spectrum-averaged cross section (cm²) and one `GroupedPhotoReactionProps` per band |
-| `get_reaction_custom_rate_props(reaction)` | `list`            | Splits a user-supplied `reaction.rate_coefficient` across bands in proportion to the band integral of `dRad`; returns one `GroupedPhotoReactionProps` per band |
 
 `Reaction` calls the last two methods while it is built and stores the results
 on `reaction.rate_coefficient`, `reaction.photo.xsec.total` and
@@ -134,13 +133,14 @@ One band, `[lower, upper]` in eV.
 
 Per-reaction band data is not stored on the group: each photo reaction holds
 one `GroupedPhotoReactionProps` per band in `reaction.photo.rgrouped`, in the
-same order as `Radiation.groups`, with these attributes:
+same order as `Radiation.groups` (`None` for a reaction with a `.jfunc`
+`chemRate<N>`, which is not coupled to the bands), with these attributes:
 
 | Attribute   | Description                                                                                                                                                                                                   |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `k`         | Symbolic rate coefficient for this band (including the band density and any shielding)                                                                                                                       |
 | `xsec`      | Photon-number-weighted band-average cross section $\langle\sigma\rangle_i$ (cm²); `None` for custom-rate reactions                                                                                            |
-| `xsec_frac` | Tabulated reactions: $\langle\sigma\rangle_i$ divided by the full-spectrum average (`reaction.photo.xsec.total`), so values need not sum to 1. Custom-rate reactions: this band's share of the total `dRad` integral |
+| `xsec_frac` | Tabulated reactions: $\langle\sigma\rangle_i$ divided by the full-spectrum average (`reaction.photo.xsec.total`), so values need not sum to 1. |
 
 The same values per reaction are available as a table through
 [`Reaction.band_xsecs`](../../core/reaction/band_xsecs.md) (there `eavg` is in eV).

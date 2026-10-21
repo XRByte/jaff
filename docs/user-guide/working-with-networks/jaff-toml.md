@@ -95,8 +95,13 @@ The key is only valid on photoionization reactions (any other reaction raises a
 ## Custom photo rates under radiation
 
 With radiation enabled, a photo reaction with a `.jfunc` `chemRate<N>` keeps that
-custom rate by default. Setting `override_custom_rate = true` recomputes its rate
-from its cross sections instead, ignoring the `chemRate<N>`:
+custom rate by default. A custom rate does not depend on the transported field, so
+the reaction is **not coupled** to the radiation bands: it removes no photons, and
+JAFF logs a warning naming it. To couple it, either replace the `chemRate<N>` with
+a
+[`photoCrossSection<N>`](../designing-networks/auxiliary-functions.md#custom-cross-sections-photocrosssectionn),
+or set `override_custom_rate = true`, which recomputes its rate from the database
+cross sections and ignores the `chemRate<N>` without editing the `.jfunc`:
 
 ```toml
 [network.reactions."C._PHOTON__C+.e-"]
