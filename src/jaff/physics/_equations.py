@@ -269,6 +269,8 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
 
         # Emission is isotropic, so it feeds the density equation only.
         group_rate += group_emissions[group.index]
+        if group.emissivity is not None:
+            group_rate += group.emissivity
 
         if net.dust is not None:
             group_rate, flux = handle_dust_reduction(net, group, group_rate, flux, rflux)

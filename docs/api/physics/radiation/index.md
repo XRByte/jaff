@@ -87,6 +87,8 @@ Built by `Network` from `radiation_props`; available as `net.radiation`
 | `nph_profile`      | `sympy.Piecewise`         | Photon-number profile over all bands, `E**(α_i - 2)` in band _i_                         |
 | `energy_profile`   | `sympy.Piecewise`         | Energy-density profile over all bands, `E**(α_i - 1)` in band _i_                        |
 | `photden_tot`      | `float`                   | $\int n(E)\,dE$ over the full range, i.e. the sum of the groups' `photden`               |
+| `emissivity`       | `sympy.Expr` or `None`    | The network `.jfunc` `emissivity` (erg cm⁻³ s⁻¹ eV⁻¹ in `ph_E`, integrated over solid angle), or `None` |
+| `total_emissivity` | `sympy.Expr` or `None`    | Property: the sum of the groups' `emissivity`, i.e. its integral over the whole band range |
 
 In the piecewise profiles a point on an interior edge belongs to the band above
 it. Energies below `bands[0]` use the first band's profile and energies above
@@ -99,7 +101,7 @@ it. Energies below `bands[0]` use the first band's profile and energies above
 | `get_photden_profile(ph_energy)`          | `numpy.ndarray`   | Evaluates `E**(α_i - 2)` on an energy grid (eV), each point using the index of its band (same edge rules as above) |
 | `get_eden_profile(ph_energy)`             | `numpy.ndarray`   | `ph_energy * get_photden_profile(ph_energy)`, i.e. `E**(α_i - 1)`                                                  |
 | `ordered_index(idx, order)`               | `tuple[int, int]` | Positions `(density, flux)` of band `idx` in the flat radiation ODE array for layout `order` (0–3)                 |
-| `get_group_yields(spectral_yield)`        | `list`            | Integrates a reaction's `spectralYield<N>` (erg eV⁻¹ per event, in `ph_E`) over each group: the energy added in `"u"` mode (erg), the photons added in `"nph"` mode; stored on `reaction.rad.group_yields` |
+| `integrate_over_groups(spectrum)`         | `list`            | Integrates an emitted spectrum in `ph_E` (a reaction's `spectralYield<N>`, or the network `emissivity`) over each group, in the units of the group density: `∫ S dE` in `"u"` mode, `∫ S/E dE` (photons) in `"nph"` mode |
 | `get_reaction_rate_props(reaction)`        | `tuple`           | Band-averages the reaction's cross section; returns `(k_tot, xsec_tot, grouped)`: the total rate coefficient, the spectrum-averaged cross section (cm²) and one `GroupedPhotoReactionProps` per band |
 
 `Reaction` calls the last two methods while it is built and stores the results
@@ -131,6 +133,7 @@ One band, `[lower, upper]` in eV.
 | `energy_profile` | `sympy.Expr`           | `E**(profile_idx - 1)`                                                                   |
 | `photden`        | `float`                | $\int_\text{lower}^\text{upper} n(E)\,dE$, the normalisation for band averages           |
 | `eavg`           | `float`                | Band-average photon energy $\langle E\rangle_i = \int E\,n\,dE / \int n\,dE$, in **erg** |
+| `emissivity`     | `sympy.Expr` or `None` | The network `emissivity` integrated over this band, in the band density's units (erg cm⁻³ s⁻¹ in `"u"` mode, photons cm⁻³ s⁻¹ in `"nph"`); added to its density equation |
 
 Per-reaction band data is not stored on the group: each photo reaction holds
 one `GroupedPhotoReactionProps` per band in `reaction.photo.rgrouped`, in the

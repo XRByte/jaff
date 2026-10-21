@@ -103,7 +103,7 @@ class ReactionRadiationProps:
         ``spectral_yield`` integrated over each radiation group, in
         ``net.radiation.groups`` order, in the units of the group density per
         event (erg in ``"u"`` mode, photons in ``"nph"`` mode); see
-        :meth:`Radiation.get_group_yields`.  ``None`` without radiation or
+        :meth:`Radiation.integrate_over_groups`.  ``None`` without radiation or
         without a yield.
     """
 

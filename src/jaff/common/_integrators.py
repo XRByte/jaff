@@ -36,6 +36,7 @@ from sympy import (
     piecewise_fold,
     solve,
 )
+from sympy import exp, exp_polar
 from sympy import integrate as sympy_integrate
 from sympy.core.relational import (
     Equality,
@@ -565,7 +566,10 @@ def smart_integrate(
     if value.has(Integral):
         raise ValueError(f"{y} has no closed-form integral over {x} in {tuple(bounds)}")
 
-    return value
+    # SymPy may leave polar numbers (e.g. ``Ei(x*exp_polar(I*pi))``), which no
+    # code printer can emit.  The integral is real, so take the principal
+    # branch: exp_polar(I*pi) -> exp(I*pi) = -1, giving ``Ei(-x)``.
+    return value.replace(exp_polar, exp)
 
 
 def safe_integrate():

@@ -39,6 +39,16 @@ def test_expression_with_other_symbols_and_infinite_bound():
     assert float(got / tgas) == pytest.approx(1.0)
 
 
+def test_analytic_result_has_no_polar_numbers():
+    tgas = NetworkSymbols.tgas
+    got = smart_integrate(sp.exp(-E / tgas) / E, E, (1.0, 2.0))
+
+    assert not got.has(sp.exp_polar)
+    # Real principal value: matches direct numerical quadrature at tgas = 3.
+    expected = sp.Integral(sp.exp(-E / 3.0) / E, (E, 1.0, 2.0)).evalf()
+    assert float(got.subs(tgas, 3.0)) == pytest.approx(float(expected))
+
+
 def test_expression_with_other_symbols_without_closed_form_raises():
     tgas = NetworkSymbols.tgas
     with pytest.raises(ValueError, match="closed-form"):

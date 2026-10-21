@@ -25,6 +25,7 @@ JaffProps = TypedDict(
         "species": "Species",
         "reactions": NotRequired["list[ReactionProps]"],
         "dEdt_extra": NotRequired["Expr"],
+        "emissivity": NotRequired["Expr"],
     },
 )
 """

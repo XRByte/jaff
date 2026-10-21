@@ -99,6 +99,13 @@ def test_extra_symbols_stay_symbolic(yield_network):
     assert all(g.has(NetworkSymbols.tgas) for g in rxn.rad.group_yields)
 
 
+def test_yield_symbols_reported_in_network_variables(yield_network):
+    jfunc = "@function spectralYield0(tgas)\n@return 1e-16*tgas\n"
+    net = yield_network(jfunc=jfunc, radiation_props=RadiationProps(bands=BANDS))
+
+    assert NetworkSymbols.tgas in net.symbols.variables
+
+
 def test_symbolic_yield_without_closed_form_raises(yield_network):
     jfunc = "@function spectralYield0(tgas)\n@return exp(-tgas*ph_E)/(ph_E + log(ph_E))\n"
     props = RadiationProps(bands=BANDS, mode="u", profile_index=0.5)

@@ -23,7 +23,7 @@ import sys
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from sympy import (
@@ -334,6 +334,7 @@ class Network:
         self.elements: Elements = Elements(self.species._list)
         self.__post_process(parsers)
         self.__normalize_network_extras(loaded_from_jaff_file)
+        self.__set_emissivity(jaff_props.get("emissivity"))
         self.thermodynamics: Thermodynamics = Thermodynamics(
             self, jaff_props.get("dEdt_extra")
         )
@@ -646,6 +647,29 @@ class Network:
                 r.rad.group_yields = [
                     self.symbols.standardize(g) for g in r.rad.group_yields
                 ]
+
+    def __set_emissivity(self, stored: Expr | None) -> None:
+        """Integrate the ``emissivity`` over the radiation groups.
+
+        Stores the spectrum on ``radiation.emissivity`` and its standardized
+        per-group integrals on each ``group.emissivity``.  The ``.jfunc``
+        ``emissivity`` function wins over the expression *stored* in a ``.jaff``
+        file.  Does nothing without radiation or without an emissivity.
+        """
+        if self.radiation is None:
+            return
+
+        aux = self.spec.aux_funcs.get("emissivity")
+        emissivity = cast(Expr, aux.expr) if aux is not None else stored
+        if emissivity is None:
+            return
+
+        self.radiation.emissivity = emissivity
+        groups = self.radiation.groups
+        for group, value in zip(
+            groups, self.radiation.integrate_over_groups(emissivity), strict=True
+        ):
+            group.emissivity = self.symbols.standardize(value)
 
     @staticmethod
     def __parse_rate(

@@ -226,6 +226,9 @@ def to_jaff_file(filename: str | Path, net: "Network"):
             for r in net.reactions
         ],
         "dEdt_extra": encode_maybe_sympy(net.thermodynamics.dEdt_extra.volumetric),
+        "emissivity": encode_maybe_sympy(
+            net.radiation.emissivity if net.radiation is not None else None
+        ),
     }
 
     with gzip.open(filename, "wt", encoding="utf-8") as f:
@@ -549,6 +552,9 @@ def from_jaff_file(filename: str | Path, errors=False):
 
     if "dEdt_extra" in payload:
         net_data["dEdt_extra"] = decode_maybe_sympy(payload.get("dEdt_extra"))
+
+    if payload.get("emissivity") is not None:
+        net_data["emissivity"] = decode_maybe_sympy(payload["emissivity"])
 
     return net_data
 

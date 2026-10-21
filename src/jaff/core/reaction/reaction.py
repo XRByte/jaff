@@ -271,7 +271,7 @@ class Reaction:
                 self.__set_photo_reaction_props()
 
         if self.net.radiation is not None and self.rad.spectral_yield is not None:
-            self.rad.group_yields = self.net.radiation.get_group_yields(
+            self.rad.group_yields = self.net.radiation.integrate_over_groups(
                 self.rad.spectral_yield
             )
 

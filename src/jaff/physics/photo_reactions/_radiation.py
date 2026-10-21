@@ -134,6 +134,11 @@ class RadiationGroup:
         ``astropy.units``, ``u.eV.to(u.erg)``), so that dividing rate/ODE
         terms by it stays CGS-consistent.  Computed on construction and
         shared across all reactions in the band.
+    emissivity : sympy.Expr or None
+        The network ``emissivity`` integrated over this band, in the units of
+        the band's density equation (erg cm⁻³ s⁻¹ in ``"u"`` mode, photons
+        cm⁻³ s⁻¹ in ``"nph"`` mode); see :meth:`Radiation.integrate_over_groups`.
+        ``None`` without an ``emissivity`` function.
     """
 
     def __init__(
@@ -194,6 +199,8 @@ class RadiationGroup:
             smart_integrate(self.energy_profile, self.ph_E, (self.lower, self.upper))
             / self.photden
         ) * u.eV.to(u.erg)
+        # Set by the network once the species are known.
+        self.emissivity: sp.Expr | None = None
 
     def __repr__(self):
         """Return detailed string representation of this radiation group.
@@ -274,6 +281,12 @@ class Radiation:
         Integral of ``nph_profile`` over the full band range (the sum of the
         per-band ``grp.photden``), used to normalise the full-spectrum
         cross section ``reaction.photo.xsec.total``.
+    emissivity : sympy.Expr or None
+        The network ``.jfunc`` ``emissivity``: radiation energy emitted per unit
+        volume, time and photon energy (erg cm⁻³ s⁻¹ eV⁻¹), integrated over
+        solid angle, as an expression in ``ph_E``.  ``None`` without one.  Its
+        per-group integrals are ``grp.emissivity``; their sum is
+        :attr:`total_emissivity`.
     """
 
     def __init__(
@@ -335,6 +348,9 @@ class Radiation:
 
         # ∫ n(E) dE over the full range = sum of the per-band integrals.
         self.photden_tot = sum(grp.photden for grp in self.groups)
+
+        # Set by the network once the species are known.
+        self.emissivity: sp.Expr | None = None
 
     def _piecewise_profile(self, attr: str) -> sp.Expr:
         """Join the per-band profiles ``grp.<attr>`` into one ``sympy.Piecewise``.
@@ -698,23 +714,23 @@ class Radiation:
             / group.photden
         )
 
-    def get_group_yields(self, spectral_yield: sp.Expr) -> List[sp.Expr]:
-        """Integrate a reaction's spectral yield over each group.
+    def integrate_over_groups(self, spectrum: sp.Expr) -> List[sp.Expr]:
+        """Integrate an emitted spectrum over each group, in density-equation units.
 
-        The result is what one reaction event adds to each group's density
-        variable, so multiplied by the reaction rate it is the source term of
-        the group's density equation:
+        *spectrum* is emitted energy per unit photon energy (erg/eV, times
+        whatever it is "per": a reaction event for a ``spectralYield``, a
+        volume and time for the ``emissivity``).  Each group's integral is in
+        the units of that group's density variable:
 
-        - ``"u"`` mode: ``∫ Y(E) dE`` over the group, the energy added (erg);
-        - ``"nph"`` mode: ``∫ Y(E) / E dE`` over the group (``E`` in erg), the
-          number of photons added.
+        - ``"u"`` mode: ``∫ S(E) dE`` over the group, the energy added (erg);
+        - ``"nph"`` mode: ``∫ S(E) / E dE`` over the group divided by the
+          eV-to-erg factor (one photon carries ``E`` eV), the photons added.
 
         Parameters
         ----------
-        spectral_yield : sympy.Expr
-            Radiation energy added per event per unit photon energy (erg/eV),
-            integrated over solid angle, as an expression in :attr:`ph_E` (eV).
-            Other symbols (e.g. ``tgas``) stay symbolic (see
+        spectrum : sympy.Expr
+            The spectrum as an expression in :attr:`ph_E` (eV).  Other symbols
+            (e.g. ``tgas``) stay symbolic (see
             :func:`~jaff.common._integrators.smart_integrate`).
 
         Returns
@@ -725,15 +741,32 @@ class Radiation:
         Raises
         ------
         ValueError
-            If a yield with symbols other than ``ph_E`` has no closed-form
+            If a spectrum with symbols other than ``ph_E`` has no closed-form
             integral over a group.
         """
-        integrand = (
-            spectral_yield
-            if self.mode == "u"
-            else spectral_yield / (self.ph_E * u.eV.to(u.erg))
-        )
+        if self.mode == "u":
+            return [
+                sp.sympify(smart_integrate(spectrum, self.ph_E, (grp.lower, grp.upper)))
+                for grp in self.groups
+            ]
+
         return [
-            sp.sympify(smart_integrate(integrand, self.ph_E, (grp.lower, grp.upper)))
+            sp.sympify(
+                smart_integrate(spectrum / self.ph_E, self.ph_E, (grp.lower, grp.upper))
+            )
+            / u.eV.to(u.erg)
             for grp in self.groups
         ]
+
+    @property
+    def total_emissivity(self) -> sp.Expr | None:
+        """Sum of the group emissivities, or ``None`` without an ``emissivity``.
+
+        The groups are contiguous, so this is the emissivity integrated over the
+        whole band range, in the units of the density equations (erg cm⁻³ s⁻¹
+        in ``"u"`` mode, photons cm⁻³ s⁻¹ in ``"nph"`` mode).
+        """
+        if self.emissivity is None:
+            return None
+
+        return sum((grp.emissivity for grp in self.groups), sp.S.Zero)  # type: ignore[arg-type]
