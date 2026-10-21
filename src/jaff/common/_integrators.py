@@ -26,6 +26,7 @@ from sympy import (
     Basic,
     Expr,
     FiniteSet,
+    Integral,
     Not,
     Or,
     Piecewise,
@@ -35,6 +36,7 @@ from sympy import (
     piecewise_fold,
     solve,
 )
+from sympy import integrate as sympy_integrate
 from sympy.core.relational import (
     Equality,
     GreaterThan,
@@ -508,14 +510,17 @@ def smart_integrate(
     y: np.ndarray | Basic,
     x: np.ndarray | Basic,
     bounds: tuple[float | int | Basic, float | int | Basic],
-) -> float:
+) -> float | Expr:
     """
     Integrate tabulated data or a SymPy expression over an interval.
 
     Dispatches on the type of *y*: a :class:`numpy.ndarray` integrand is
     integrated with :func:`arr_integrate` over the sample abscissae *x*;
-    anything else is treated as a SymPy expression in the symbol *x* and
-    integrated with :func:`sym_integrate`.
+    anything else is treated as a SymPy expression in the symbol *x*.  An
+    expression in *x* alone is integrated numerically with
+    :func:`sym_integrate`; one with other free symbols (e.g. ``tgas``) is
+    integrated analytically with :func:`sympy.integrate`, so those symbols
+    stay in the result.
 
     Parameters
     ----------
@@ -528,14 +533,17 @@ def smart_integrate(
 
     Returns
     -------
-    float
-        The definite integral.
+    float or sympy.Expr
+        The definite integral: a float, or an expression in the other free
+        symbols of *y*.
 
     Raises
     ------
     TypeError
         If *y* is an array but *x* is not, or *y* is symbolic but *x* is not a
         :class:`sympy.Symbol`.
+    ValueError
+        If *y* has free symbols other than *x* and no closed-form integral.
     """
     if isinstance(y, np.ndarray):
         if not isinstance(x, np.ndarray):
@@ -550,7 +558,14 @@ def smart_integrate(
             f"Symbolic integrand needs a sympy Symbol variable, got {type(x).__name__}"
         )
 
-    return sym_integrate(y, x, bounds)
+    if not y.free_symbols - {x}:
+        return sym_integrate(y, x, bounds)
+
+    value = sympy_integrate(y, (x, *bounds))
+    if value.has(Integral):
+        raise ValueError(f"{y} has no closed-form integral over {x} in {tuple(bounds)}")
+
+    return value
 
 
 def safe_integrate():

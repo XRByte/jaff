@@ -90,18 +90,31 @@ class GroupedPhotoReactionProps:
 
 
 class ReactionRadiationProps:
-    """Radiation coupling of any reaction, held as ``Reaction.rad``.
+    """Radiation emitted by any reaction, held as ``Reaction.rad``.
 
     Attributes
     ----------
-    dRad : Expr
-        Radiation energy the reaction adds to the field per unit photon energy
-        (erg/eV), as a SymPy expression in ``ph_E`` (eV).  Zero by default.
+    spectral_yield : Expr or None
+        Radiation energy the reaction adds to the field per event per unit
+        photon energy (erg/eV), integrated over solid angle, as an expression in
+        ``ph_E`` (eV); from a ``.jfunc`` ``spectralYield`` function.  ``None``
+        when the reaction emits nothing.
+    group_yields : list[Expr] or None
+        ``spectral_yield`` integrated over each radiation group, in
+        ``net.radiation.groups`` order, in the units of the group density per
+        event (erg in ``"u"`` mode, photons in ``"nph"`` mode); see
+        :meth:`Radiation.get_group_yields`.  ``None`` without radiation or
+        without a yield.
     """
 
-    def __init__(self, dRad: Expr | None = None):
-        """Store the radiation coupling; ``dRad=None`` (default) means zero."""
-        self.dRad: Expr = dRad if dRad is not None else Float(0.0)
+    def __init__(
+        self,
+        spectral_yield: Expr | None = None,
+        group_yields: List[Expr] | None = None,
+    ):
+        """Store the emission; see the class attributes."""
+        self.spectral_yield: Expr | None = spectral_yield
+        self.group_yields: List[Expr] | None = group_yields
 
 
 class ShieldingProps:
@@ -128,6 +141,7 @@ class AuxFunctions:
     chemrate: AuxiliaryFunctionProps | None = None
     deltae: AuxiliaryFunctionProps | None = None
     photocrosssection: AuxiliaryFunctionProps | None = None
+    spectralyield: AuxiliaryFunctionProps | None = None
 
     def __post_init__(self) -> None:
         """Reject a reaction given both a custom rate and a custom cross section."""

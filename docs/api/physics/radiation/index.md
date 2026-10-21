@@ -99,6 +99,7 @@ it. Energies below `bands[0]` use the first band's profile and energies above
 | `get_photden_profile(ph_energy)`          | `numpy.ndarray`   | Evaluates `E**(α_i - 2)` on an energy grid (eV), each point using the index of its band (same edge rules as above) |
 | `get_eden_profile(ph_energy)`             | `numpy.ndarray`   | `ph_energy * get_photden_profile(ph_energy)`, i.e. `E**(α_i - 1)`                                                  |
 | `ordered_index(idx, order)`               | `tuple[int, int]` | Positions `(density, flux)` of band `idx` in the flat radiation ODE array for layout `order` (0–3)                 |
+| `get_group_yields(spectral_yield)`        | `list`            | Integrates a reaction's `spectralYield<N>` (erg eV⁻¹ per event, in `ph_E`) over each group: the energy added in `"u"` mode (erg), the photons added in `"nph"` mode; stored on `reaction.rad.group_yields` |
 | `get_reaction_rate_props(reaction)`        | `tuple`           | Band-averages the reaction's cross section; returns `(k_tot, xsec_tot, grouped)`: the total rate coefficient, the spectrum-averaged cross section (cm²) and one `GroupedPhotoReactionProps` per band |
 
 `Reaction` calls the last two methods while it is built and stores the results

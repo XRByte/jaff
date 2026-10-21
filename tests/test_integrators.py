@@ -24,6 +24,27 @@ def test_expression_input_matches_sym_integrate():
     assert got == pytest.approx(26.0 / 3.0, rel=1e-10)
 
 
+def test_expression_with_other_symbols_integrates_analytically():
+    tgas = NetworkSymbols.tgas
+    got = smart_integrate(tgas * E, E, (1.0, 2.0))
+
+    assert got.free_symbols == {tgas}
+    assert float(got / tgas) == pytest.approx(1.5)
+
+
+def test_expression_with_other_symbols_and_infinite_bound():
+    tgas = NetworkSymbols.tgas
+    got = smart_integrate(tgas * E**-2, E, (1.0, sp.oo))
+
+    assert float(got / tgas) == pytest.approx(1.0)
+
+
+def test_expression_with_other_symbols_without_closed_form_raises():
+    tgas = NetworkSymbols.tgas
+    with pytest.raises(ValueError, match="closed-form"):
+        smart_integrate(sp.exp(-tgas * E) / (E + sp.log(E)), E, (6.0, 13.6))
+
+
 def test_array_with_symbolic_x_raises():
     with pytest.raises(TypeError, match="ndarray"):
         smart_integrate(np.ones(3), E, (0.0, 1.0))

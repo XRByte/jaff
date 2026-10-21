@@ -96,6 +96,16 @@ class TestCustomCrossSection:
         bands = [float(band.xsec) for band in rxn.photo.rgrouped]
         assert bands == pytest.approx([0.0, 1e-18])
 
+    def test_extra_symbols_stay_symbolic(self, xsec_network):
+        jfunc = "@function photoCrossSection0(tgas)\n@return 1e-18*tgas\n"
+        net = xsec_network(jfunc=jfunc, radiation_props=RadiationProps(bands=BANDS))
+        rxn = _photo(net)
+        tgas = net.symbols.tgas
+
+        assert float(rxn.photo.xsec.total / tgas) == pytest.approx(1e-18)
+        assert all(band.xsec.has(tgas) for band in rxn.photo.rgrouped)
+        assert rxn.rate_coefficient.has(tgas)
+
     def test_jaff_reload_keeps_custom_xsec(self, xsec_network, tmp_path):
         """A ``.jaff`` reload without the ``.jfunc`` keeps the stored custom σ."""
         net = xsec_network(radiation_props=RadiationProps(bands=BANDS))

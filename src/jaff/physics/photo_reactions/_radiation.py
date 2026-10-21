@@ -698,8 +698,42 @@ class Radiation:
             / group.photden
         )
 
-    def get_integrated_custom_cross_section(self):
-        raise NotImplementedError()
+    def get_group_yields(self, spectral_yield: sp.Expr) -> List[sp.Expr]:
+        """Integrate a reaction's spectral yield over each group.
 
-    def get_integrated_spectral_yield_per_reaction(self, reaction: Reaction):
-        raise NotImplementedError()
+        The result is what one reaction event adds to each group's density
+        variable, so multiplied by the reaction rate it is the source term of
+        the group's density equation:
+
+        - ``"u"`` mode: ``∫ Y(E) dE`` over the group, the energy added (erg);
+        - ``"nph"`` mode: ``∫ Y(E) / E dE`` over the group (``E`` in erg), the
+          number of photons added.
+
+        Parameters
+        ----------
+        spectral_yield : sympy.Expr
+            Radiation energy added per event per unit photon energy (erg/eV),
+            integrated over solid angle, as an expression in :attr:`ph_E` (eV).
+            Other symbols (e.g. ``tgas``) stay symbolic (see
+            :func:`~jaff.common._integrators.smart_integrate`).
+
+        Returns
+        -------
+        list[sympy.Expr]
+            One entry per group in ``self.groups`` order.
+
+        Raises
+        ------
+        ValueError
+            If a yield with symbols other than ``ph_E`` has no closed-form
+            integral over a group.
+        """
+        integrand = (
+            spectral_yield
+            if self.mode == "u"
+            else spectral_yield / (self.ph_E * u.eV.to(u.erg))
+        )
+        return [
+            sp.sympify(smart_integrate(integrand, self.ph_E, (grp.lower, grp.upper)))
+            for grp in self.groups
+        ]

@@ -161,13 +161,14 @@ offending symbol and the `.jfunc` file it came from.
 
 ## Reserved Function Names
 
-JAFF recognises four reserved naming conventions:
+JAFF recognises five reserved naming conventions:
 
 | Pattern              | Role                                                                                                                                                                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `chemRate<N>`        | Custom rate coefficient for reaction index _N_ (0-based). Replaces the Arrhenius expression in the network file.                                                                                                                             |
 | `deltaE<N>`          | Change in gas thermal energy per occurrence of reaction _N_ (erg). Positive = exothermic.                                                                                                                                                    |
 | `photoCrossSection<N>` | Photodecay cross section (cm²) of photo-reaction _N_ as a function of photon energy `ph_E` (eV). Replaces the database cross section (see [Custom cross sections](#custom-cross-sections-photocrosssectionn)). |
+| `spectralYield<N>`   | Radiation energy (erg) reaction _N_ adds to the field per event per unit photon energy `ph_E` (eV), integrated over solid angle (see [Spectral yield](#spectral-yield-spectralyieldn)). |
 | `heatingCoolingRate` | Net gas heating minus cooling rate from all non-chemical radiative processes (erg s⁻¹ cm⁻³).                                                                                                                                                 |
 | Any other name       | Helper function — substituted symbolically into the bodies that call it.                                                                                                                                                                     |
 
@@ -289,6 +290,25 @@ The reaction stores it as `photo.xsec` with `database = "custom"` and no photo-a
 
 Setting `override_custom_cross_section = true` (globally in [`jaffgen.toml`](../code-generation/jaffgen-toml.md#networkradiation-section) or `RadiationProps`, or per reaction in `jaffgen.toml` / [`jaff.toml`](../working-with-networks/jaff-toml.md#custom-photo-cross-sections)) ignores the function and uses the database cross section instead. A per-reaction value applies with or without radiation. A `.jaff` file stores the custom cross section, so it survives a reload without the `.jfunc`.
 
+### Spectral yield — `spectralYield<N>`
+
+A `spectralYield<N>` function gives the radiation that reaction _N_ emits: the energy (erg) added to the radiation field per reaction event per unit photon energy, as a function of the photon-energy symbol `ph_E` (eV), so its units are erg eV⁻¹. Supply it already **integrated over solid angle**: the emission is treated as isotropic. Any reaction may have one, photo or not, e.g. radiative recombination:
+
+```text
+@function spectralYield7()
+    # Reaction 7: H+ + e- -> H, a recombination line near 13.6 eV
+    @return Piecewise((2.2e-11 / 0.2, (ph_E >= 13.6) & (ph_E <= 13.8)), (0, True))
+```
+
+With radiation transport enabled, JAFF integrates the yield over each radiation group and stores the result on `rxn.rad.group_yields`, in the units of the group density per event:
+
+| `RadiationProps.mode` | Group yield                                  | Units  |
+| --------------------- | -------------------------------------------- | ------ |
+| `"u"`                 | $\int_\text{group} Y(E)\,dE$                  | erg    |
+| `"nph"` (default)     | $\int_\text{group} Y(E)\,/\,E\;dE$ (`E` in erg) | photons |
+
+Each group yield times the reaction rate is added to that group's **density** equation only; isotropic emission carries no net flux, so the flux equations are unchanged. The yield may use other symbols (e.g. `tgas`); such a yield is integrated analytically, so those symbols stay in the generated equations, and it must have a closed-form integral over every group (else `ValueError`). The same holds for a `photoCrossSection<N>`. Energy emitted outside the group range is dropped. Without radiation the yield is stored on `rxn.rad.spectral_yield` but has no effect. A `.jaff` file stores the yield.
+
 ### Heating / cooling function
 
 The heating cooling function is used to add any non-chemical heating and cooling rates to the reaction network. The returned `expression` must be in terms of rate of internal energy change in units of $erg\ s^{-1}\ cm^{-3}$
@@ -324,7 +344,7 @@ Each radiation band carries one density unknown in the generated equations. Its 
 
 Here `i` indexes the radiation band. The photo-reaction rate coefficient for band $i$ is $k_i = c \cdot den_i \cdot {\langle \sigma \rangle}_i$, where ${\langle \sigma \rangle}_i$ is the band-averaged photoionisation cross section and `c` is the speed of light.
 
-The radiation moment equations themselves are available through [`Network.sradodes()`](../../api/core/network/sradodes.md).
+Reactions with a [`spectralYield<N>`](#spectral-yield-spectralyieldn) add their emission to the density equations. The radiation moment equations themselves are available through [`Network.sradodes()`](../../api/core/network/sradodes.md).
 
 ---
 

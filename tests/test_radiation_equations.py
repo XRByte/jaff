@@ -75,12 +75,14 @@ def test_flux_equation_is_density_loss_with_rflux(radiation_network):
 
 
 def test_no_reaction_radiation_source_term(radiation_network):
+    """Without a spectralYield<N>, reactions emit nothing (the old dRad is gone)."""
     net = radiation_network()
 
     assert not hasattr(net, "dRad_dt_extra")
     assert not hasattr(net.reactions, "dRad")
     for rxn in net.reactions:
-        assert not hasattr(rxn, "rad")
+        assert rxn.rad.spectral_yield is None
+        assert rxn.rad.group_yields is None
         assert not hasattr(rxn.aux_funcs, "deltarad")
         assert all(not hasattr(band, "delta_rad") for band in rxn.photo.rgrouped)
 

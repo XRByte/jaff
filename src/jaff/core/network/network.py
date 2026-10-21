@@ -58,6 +58,7 @@ from ..elements import Elements
 from ..parsers import NetworkParser
 from ..reaction import (
     PhotoReactionProps,
+    ReactionRadiationProps,
     RateSegment,
     RateSegments,
     Reaction,
@@ -581,6 +582,7 @@ class Network:
                 )
                 if rtype == "photo"
                 else None,
+                rad=ReactionRadiationProps(spectral_yield=reaction.get("spectral_yield")),
             )
 
             segments = reaction.get("rate_segments")
@@ -640,6 +642,10 @@ class Network:
                 r.rate_coefficient = r.rate_segments.sort().evaluate_equivalent_rate(r)
 
             r.tmin, r.tmax = r.rate_segments[0].tmin, r.rate_segments[-1].tmax
+            if r.rad.group_yields is not None:
+                r.rad.group_yields = [
+                    self.symbols.standardize(g) for g in r.rad.group_yields
+                ]
 
     @staticmethod
     def __parse_rate(

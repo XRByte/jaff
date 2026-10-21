@@ -216,6 +216,7 @@ def to_jaff_file(filename: str | Path, net: "Network"):
                 "format": r._format,
                 "pi_database": r.photo.pi_database if r.photo is not None else None,
                 "xsecs": _encode_custom_xsec_props(r, encode_maybe_sympy),
+                "spectral_yield": encode_maybe_sympy(r.rad.spectral_yield),
                 "shielding": (
                     {"type": r.photo.shielding.type, "props": r.photo.shielding.props}
                     if r.photo is not None and r.photo.shielding is not None
@@ -539,6 +540,7 @@ def from_jaff_file(filename: str | Path, errors=False):
                     "pi_database": pi_database,
                     "shielding": shielding,
                     "xsec_props": xsec_props,
+                    "spectral_yield": decode_maybe_sympy(rj.get("spectral_yield")),
                 },
             )
         )

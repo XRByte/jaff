@@ -41,5 +41,6 @@ ReactionProps = TypedDict(
         "pi_database": NotRequired[str | None],
         "shielding": NotRequired[dict[str, Any] | None],
         "xsec_props": NotRequired["XsecProps | None"],
+        "spectral_yield": NotRequired[Expr | None],
     },
 )

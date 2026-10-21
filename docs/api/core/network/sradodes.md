@@ -22,7 +22,10 @@ Returns symbolic radiation ODE expressions in a given pattern
 | 2     | \[$rd_0$, $rd_1$, ..., $f_0$, $f_1$, ...\] |
 | 3     | \[$f_0$, $f_1$, ..., $rd_0$, $rd_1$, ...\] |
 
-Where $rd_i$ is the radiation energy density / photon density and $f_i$ and is the radiation flux
+Where $rd_i$ is the radiation energy density / photon density and $f_i$ and is the radiation flux.
+Each density equation removes what photo reactions absorb and adds what reactions with a
+[`spectralYield<N>`](../../../user-guide/designing-networks/auxiliary-functions.md#spectral-yield-spectralyieldn)
+emit; the flux equations only carry the absorption.
 
 Default is `0`.
 

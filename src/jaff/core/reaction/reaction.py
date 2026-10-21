@@ -62,6 +62,7 @@ from ._helper import to_float_or_none
 from .reaction_props import (
     AuxFunctions,
     PhotoReactionProps,
+    ReactionRadiationProps,
     ShieldingProps,
 )
 from .types import RateSegment, RateSegments
@@ -135,6 +136,10 @@ class Reaction:
         supplied by a ``.jfunc`` aux function), ``rgrouped`` (per-band data;
         see :attr:`band_xsecs`) and ``shielding``; the spectrum-averaged cross
         section is ``xsec.total`` (cm²).
+    rad : ReactionRadiationProps
+        Radiation the reaction emits: ``spectral_yield`` (from a ``.jfunc``
+        ``spectralYield`` function, or ``None``) and its per-group integrals
+        ``group_yields`` (set when a radiation field is configured).
     """
 
     def __init__(
@@ -151,6 +156,7 @@ class Reaction:
         t_cutoff: str = "clip",
         type: str = "unknown",
         photo: PhotoReactionProps | None = None,
+        rad: ReactionRadiationProps | None = None,
         format: str | None = None,
         metadata: dict | None = None,
     ):
@@ -191,6 +197,9 @@ class Reaction:
         photo : PhotoReactionProps or None, optional
             Photo-reaction state; pass one for photo reactions, ``None``
             (default) otherwise.
+        rad : ReactionRadiationProps or None, optional
+            Emitted radiation.  ``None`` (default) builds one from the
+            ``.jfunc`` ``spectralYield`` function, if any.
         format : str or None, optional
             Name of the network-format parser that produced the reaction
             (e.g. ``"prizmo"``); ``None`` (default) when unknown.
@@ -226,6 +235,15 @@ class Reaction:
             else (dE if dE is not None else Float(0.0))
         )
         self.photo: PhotoReactionProps | None = photo
+        self.rad: ReactionRadiationProps = (
+            rad
+            if rad is not None
+            else ReactionRadiationProps(
+                spectral_yield=cast(Expr, self.aux_funcs.spectralyield.expr)
+                if self.aux_funcs.spectralyield is not None
+                else None
+            )
+        )
         self.original_string = original_string
         # verbatim is kept for backward compatibility alongside original_string
         self.verbatim: str = self.get_verbatim()
@@ -251,6 +269,11 @@ class Reaction:
 
             if self.net.radiation is not None:
                 self.__set_photo_reaction_props()
+
+        if self.net.radiation is not None and self.rad.spectral_yield is not None:
+            self.rad.group_yields = self.net.radiation.get_group_yields(
+                self.rad.spectral_yield
+            )
 
     def __repr__(self):
         """Return detailed string representation of this reaction.
@@ -336,6 +359,7 @@ class Reaction:
             chemrate=af.get(f"chemrate{self.index}", None),
             deltae=af.get(f"deltae{self.index}", None),
             photocrosssection=af.get(f"photocrosssection{self.index}", None),
+            spectralyield=af.get(f"spectralyield{self.index}", None),
         )
 
     def __overrides_custom_rate(self) -> bool:
