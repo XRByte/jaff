@@ -169,7 +169,7 @@ JAFF recognises six reserved naming conventions:
 | `deltaE<N>`          | Change in gas thermal energy per occurrence of reaction _N_ (erg). Positive = exothermic.                                                                                                                                                    |
 | `photoCrossSection<N>` | Photodecay cross section (cm²) of photo-reaction _N_ as a function of photon energy `ph_E` (eV). Replaces the database cross section (see [Custom cross sections](#custom-cross-sections-photocrosssectionn)). |
 | `spectralYield<N>`   | Radiation energy (erg) reaction _N_ adds to the field per event per unit photon energy `ph_E` (eV), integrated over solid angle (see [Spectral yield](#spectral-yield-spectralyieldn)). |
-| `emissivity`         | Radiation energy emitted per unit volume, time and photon energy `ph_E` (erg cm⁻³ s⁻¹ eV⁻¹) by processes not tied to a reaction, integrated over solid angle (see [Emissivity](#emissivity)). |
+| `globalEmissivity`   | Radiation energy emitted per unit volume, time and photon energy `ph_E` (erg cm⁻³ s⁻¹ eV⁻¹) by processes not tied to a reaction, integrated over solid angle (see [Global emissivity](#global-emissivity-globalemissivity)). |
 | `heatingCoolingRate` | Net gas heating minus cooling rate from all non-chemical radiative processes (erg s⁻¹ cm⁻³).                                                                                                                                                 |
 | Any other name       | Helper function — substituted symbolically into the bodies that call it.                                                                                                                                                                     |
 
@@ -328,12 +328,12 @@ The heating cooling function is used to add any non-chemical heating and cooling
         - cooling_dust_rec(chi, av, d2g, tgas, n_e)
 ```
 
-### Emissivity
+### Global emissivity — `globalEmissivity`
 
-The `emissivity` function is the network-wide counterpart of `spectralYield<N>`: radiation emitted by processes that are not one reaction (e.g. free-free or dust emission). Its body is the energy emitted per unit volume, per unit time, per unit photon energy, as a function of the photon-energy symbol `ph_E` (eV): erg cm⁻³ s⁻¹ eV⁻¹, already **integrated over solid angle** (isotropic emission). There is one per network, with no `<N>`:
+The `globalEmissivity` function is the network-wide counterpart of `spectralYield<N>`: radiation emitted by processes that are not one reaction (e.g. free-free or dust emission). Its body is the energy emitted per unit volume, per unit time, per unit photon energy, as a function of the photon-energy symbol `ph_E` (eV): erg cm⁻³ s⁻¹ eV⁻¹, already **integrated over solid angle** (isotropic emission). There is one per network, with no `<N>`:
 
 ```text
-@function emissivity(n_e, n_Hj, tgas)
+@function globalEmissivity(n_e, n_Hj, tgas)
     # Free-free emission of an ionised hydrogen plasma (Gaunt factor 1)
     @return 6.8e-38 * 2.418e14 * n_e * n_Hj * tgas**-0.5 * exp(-ph_E / (8.617e-5 * tgas))
 ```
@@ -357,7 +357,7 @@ Each radiation band carries one density unknown in the generated equations. Its 
 
 Here `i` indexes the radiation band. The photo-reaction rate coefficient for band $i$ is $k_i = c \cdot den_i \cdot {\langle \sigma \rangle}_i$, where ${\langle \sigma \rangle}_i$ is the band-averaged photoionisation cross section and `c` is the speed of light.
 
-Reactions with a [`spectralYield<N>`](#spectral-yield-spectralyieldn) and the network [`emissivity`](#emissivity) add their emission to the density equations. The radiation moment equations themselves are available through [`Network.sradodes()`](../../api/core/network/sradodes.md).
+Reactions with a [`spectralYield<N>`](#spectral-yield-spectralyieldn) and the network [`globalEmissivity`](#global-emissivity-globalemissivity) add their emission to the density equations. The radiation moment equations themselves are available through [`Network.sradodes()`](../../api/core/network/sradodes.md).
 
 ---
 

@@ -1,4 +1,4 @@
-# ABOUTME: emissivity aux function: network-wide radiation emitted per volume per time
+# ABOUTME: globalEmissivity aux function: network-wide radiation emitted per volume per time
 # ABOUTME: per photon energy, integrated per group and added to the density equations
 
 import math
@@ -13,7 +13,7 @@ from jaff.physics import RadiationProps
 EV2ERG = u.eV.to(u.erg)
 BANDS = [6.0, 13.6, 100.0]
 NET = "H + H -> H2  []  1e-17\n"
-FLAT = "@function emissivity()\n@return 1e-20\n"
+FLAT = "@function globalEmissivity()\n@return 1e-20\n"
 U_MODE = {"mode": "u", "profile_index": 0.5}
 
 
@@ -46,6 +46,15 @@ def test_without_function_is_none(emissive_network):
     assert rad.total_emissivity is None
 
 
+def test_plain_emissivity_name_is_not_reserved(emissive_network):
+    jfunc = "@function emissivity()\n@return 1e-20\n"
+    rad = emissive_network(
+        jfunc=jfunc, radiation_props=RadiationProps(bands=BANDS)
+    ).radiation
+
+    assert rad.emissivity is None
+
+
 def test_spectral_expression_stored(emissive_network):
     rad = emissive_network(radiation_props=RadiationProps(bands=BANDS)).radiation
 
@@ -73,7 +82,7 @@ def test_photon_mode_group_integrals(emissive_network):
 
 
 def test_density_symbols_are_standardized(emissive_network):
-    jfunc = "@function emissivity(n_H, tgas)\n@return 1e-30*n_H*tgas\n"
+    jfunc = "@function globalEmissivity(n_H, tgas)\n@return 1e-30*n_H*tgas\n"
     net = emissive_network(jfunc=jfunc, radiation_props=RadiationProps(bands=BANDS))
 
     nden = net.symbols.ndens[net.species["H"].index]
@@ -84,7 +93,7 @@ def test_density_symbols_are_standardized(emissive_network):
 
 
 def test_symbols_reported_in_network_variables(emissive_network):
-    jfunc = "@function emissivity(tgas)\n@return 1e-30*tgas\n"
+    jfunc = "@function globalEmissivity(tgas)\n@return 1e-30*tgas\n"
     net = emissive_network(jfunc=jfunc, radiation_props=RadiationProps(bands=BANDS))
 
     assert net.symbols.tgas in net.symbols.variables

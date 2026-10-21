@@ -26,7 +26,7 @@ Where $rd_i$ is the radiation energy density / photon density and $f_i$ and is t
 Each density equation removes what photo reactions absorb and adds what reactions with a
 [`spectralYield<N>`](../../../user-guide/designing-networks/auxiliary-functions.md#spectral-yield-spectralyieldn)
 emit, plus the network
-[`emissivity`](../../../user-guide/designing-networks/auxiliary-functions.md#emissivity);
+[`globalEmissivity`](../../../user-guide/designing-networks/auxiliary-functions.md#global-emissivity-globalemissivity);
 the flux equations only carry the absorption.
 
 Default is `0`.

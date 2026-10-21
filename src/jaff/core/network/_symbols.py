@@ -279,7 +279,8 @@ class NetworkSymbols:
         The aggregated ``dEdt_chemical`` is used instead of each reaction's raw
         ``dE`` because only the aggregate has its convenience symbols (``n_X``,
         ...) resolved to ``nden`` entries.  With radiation, the reactions'
-        ``group_yields`` and the groups' ``emissivity`` are included.
+        ``group_yields`` and the groups' ``emissivity`` (from ``globalEmissivity``)
+        are included.
         """
         net = self._net
         expressions = [

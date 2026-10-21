@@ -135,10 +135,10 @@ class RadiationGroup:
         terms by it stays CGS-consistent.  Computed on construction and
         shared across all reactions in the band.
     emissivity : sympy.Expr or None
-        The network ``emissivity`` integrated over this band, in the units of
+        The network ``globalEmissivity`` integrated over this band, in the units of
         the band's density equation (erg cm⁻³ s⁻¹ in ``"u"`` mode, photons
         cm⁻³ s⁻¹ in ``"nph"`` mode); see :meth:`Radiation.integrate_over_groups`.
-        ``None`` without an ``emissivity`` function.
+        ``None`` without a ``globalEmissivity`` function.
     """
 
     def __init__(
@@ -282,7 +282,7 @@ class Radiation:
         per-band ``grp.photden``), used to normalise the full-spectrum
         cross section ``reaction.photo.xsec.total``.
     emissivity : sympy.Expr or None
-        The network ``.jfunc`` ``emissivity``: radiation energy emitted per unit
+        The network ``.jfunc`` ``globalEmissivity``: radiation energy emitted per unit
         volume, time and photon energy (erg cm⁻³ s⁻¹ eV⁻¹), integrated over
         solid angle, as an expression in ``ph_E``.  ``None`` without one.  Its
         per-group integrals are ``grp.emissivity``; their sum is
@@ -719,7 +719,7 @@ class Radiation:
 
         *spectrum* is emitted energy per unit photon energy (erg/eV, times
         whatever it is "per": a reaction event for a ``spectralYield``, a
-        volume and time for the ``emissivity``).  Each group's integral is in
+        volume and time for the ``globalEmissivity``).  Each group's integral is in
         the units of that group's density variable:
 
         - ``"u"`` mode: ``∫ S(E) dE`` over the group, the energy added (erg);
@@ -760,7 +760,7 @@ class Radiation:
 
     @property
     def total_emissivity(self) -> sp.Expr | None:
-        """Sum of the group emissivities, or ``None`` without an ``emissivity``.
+        """Sum of the group emissivities, or ``None`` without a ``globalEmissivity``.
 
         The groups are contiguous, so this is the emissivity integrated over the
         whole band range, in the units of the density equations (erg cm⁻³ s⁻¹

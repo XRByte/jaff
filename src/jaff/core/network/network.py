@@ -666,17 +666,17 @@ class Network:
                 band.xsec = self.symbols.standardize(band.xsec)
 
     def __set_emissivity(self, stored: Expr | None) -> None:
-        """Integrate the ``emissivity`` over the radiation groups.
+        """Integrate the ``globalEmissivity`` over the radiation groups.
 
         Stores the spectrum on ``radiation.emissivity`` and its standardized
         per-group integrals on each ``group.emissivity``.  The ``.jfunc``
-        ``emissivity`` function wins over the expression *stored* in a ``.jaff``
+        ``globalEmissivity`` function wins over the expression *stored* in a ``.jaff``
         file.  Does nothing without radiation or without an emissivity.
         """
         if self.radiation is None:
             return
 
-        aux = self.spec.aux_funcs.get("emissivity")
+        aux = self.spec.aux_funcs.get("globalemissivity")
         emissivity = cast(Expr, aux.expr) if aux is not None else stored
         if emissivity is None:
             return
