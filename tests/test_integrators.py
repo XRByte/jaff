@@ -230,3 +230,36 @@ def test_sym_integrate_cached_result_matches_uncached():
     fresh = [sym_integrate(expr, E, b) for b in bounds]
     _integrators._prepare.cache_clear()
     assert cached == fresh
+
+
+# --------------------------------------------------------------------------
+# sym_integrate outer regions: clip only where the integrand is zero
+# --------------------------------------------------------------------------
+_ABOVE = sp.Piecewise((1e-18, E >= 13.6), (0, True)) * E**-2
+_BELOW = sp.Piecewise((1e-18, E < 20.0), (0, True)) * E**-2
+
+
+def test_one_sided_threshold_integrates_above_it():
+    got = sym_integrate(_ABOVE, E, (13.6, 100.0))
+    assert got == pytest.approx(1e-18 * (1 / 13.6 - 1 / 100.0), rel=1e-9, abs=0)
+
+
+def test_one_sided_threshold_with_infinite_upper_bound():
+    got = sym_integrate(_ABOVE, E, (6.0, sp.oo))
+    assert got == pytest.approx(1e-18 / 13.6, rel=1e-6, abs=0)
+
+
+def test_one_sided_cutoff_integrates_below_it():
+    got = sym_integrate(_BELOW, E, (6.0, 100.0))
+    assert got == pytest.approx(1e-18 * (1 / 6.0 - 1 / 20.0), rel=1e-9, abs=0)
+
+
+def test_zero_side_of_one_sided_threshold_is_zero():
+    assert sym_integrate(_ABOVE, E, (6.0, 13.6)) == 0.0
+
+
+def test_two_sided_support_still_clipped_to_infinity():
+    """A fit zero outside [10, 50] still integrates correctly to infinity."""
+    expr = sp.Piecewise((1e-18, (E >= 10) & (E <= 50)), (0, True)) * E**-2
+    got = sym_integrate(expr, E, (6.0, sp.oo))
+    assert got == pytest.approx(1e-18 * (1 / 10 - 1 / 50), rel=1e-9, abs=0)
