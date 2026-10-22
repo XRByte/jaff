@@ -169,7 +169,7 @@ JAFF recognises six reserved naming conventions:
 | `deltaE<N>`          | Change in gas thermal energy per occurrence of reaction _N_ (erg). Positive = exothermic.                                                                                                                                                    |
 | `photoCrossSection<N>` | Photodecay cross section (cm²) of photo-reaction _N_ as a function of photon energy `ph_E` (eV). Replaces the database cross section (see [Custom cross sections](#custom-cross-sections-photocrosssectionn)). |
 | `spectralYield<N>`   | Radiation energy (erg) reaction _N_ adds to the field per event per unit photon energy `ph_E` (eV), integrated over solid angle (see [Spectral yield](#spectral-yield-spectralyieldn)). |
-| `globalEmissivity`   | Radiation energy emitted per unit volume, time and photon energy `ph_E` (erg cm⁻³ s⁻¹ eV⁻¹) by processes not tied to a reaction, integrated over solid angle (see [Global emissivity](#global-emissivity-globalemissivity)). |
+| `globalEmissivity`   | **Volume** emissivity: radiation energy emitted per unit volume, time and photon energy `ph_E` (erg cm⁻³ s⁻¹ eV⁻¹) by processes not tied to a reaction, integrated over solid angle (see [Global emissivity](#global-emissivity-globalemissivity)). |
 | `heatingCoolingRate` | Net gas heating minus cooling rate from all non-chemical radiative processes (erg s⁻¹ cm⁻³).                                                                                                                                                 |
 | Any other name       | Helper function — substituted symbolically into the bodies that call it.                                                                                                                                                                     |
 
@@ -330,7 +330,24 @@ The heating cooling function is used to add any non-chemical heating and cooling
 
 ### Global emissivity — `globalEmissivity`
 
-The `globalEmissivity` function is the network-wide counterpart of `spectralYield<N>`: radiation emitted by processes that are not one reaction (e.g. free-free or dust emission). Its body is the energy emitted per unit volume, per unit time, per unit photon energy, as a function of the photon-energy symbol `ph_E` (eV): erg cm⁻³ s⁻¹ eV⁻¹, already **integrated over solid angle** (isotropic emission). There is one per network, with no `<N>`:
+The `globalEmissivity` function is the network-wide counterpart of `spectralYield<N>`: radiation emitted by processes that are not one reaction (e.g. free-free or dust emission). Its body is the **volume emissivity**: the energy emitted per unit volume, per unit time, per unit photon energy, as a function of the photon-energy symbol `ph_E` (eV), in erg cm⁻³ s⁻¹ eV⁻¹, already **integrated over solid angle** (isotropic emission). There is one per network, with no `<N>`:
+
+<!-- prettier-ignore -->
+!!! warning "Which emissivity?"
+    "Emissivity" means different things in different sources. JAFF expects the
+    volume emissivity per unit **photon energy in eV**, integrated over solid angle.
+    Convert other conventions first (2.418 × 10¹⁴ Hz eV⁻¹ is $d\nu/dE = 1/h$):
+
+    | Convention                                  | Usual units                       | JAFF `globalEmissivity`                                 |
+    | ------------------------------------------- | --------------------------------- | ------------------------------------------------------- |
+    | Emission coefficient $j_\nu$, per steradian | erg cm⁻³ s⁻¹ sr⁻¹ Hz⁻¹             | $4\pi\, j_\nu \times 2.418\times10^{14}$               |
+    | Angle-integrated $\varepsilon_\nu = 4\pi j_\nu$ | erg cm⁻³ s⁻¹ Hz⁻¹                  | $\varepsilon_\nu \times 2.418\times10^{14}$            |
+    | Mass (specific) emissivity                  | erg g⁻¹ s⁻¹ Hz⁻¹                   | $\rho\,\varepsilon_\text{mass} \times 2.418\times10^{14}$ ($\rho$ in g cm⁻³) |
+    | Per reaction event                          | erg eV⁻¹                          | not this: use [`spectralYield<N>`](#spectral-yield-spectralyieldn) |
+    | Dimensionless (0–1, grey body)               | —                                 | a surface property, not this quantity                   |
+
+    The example below starts from Rybicki & Lightman's angle-integrated free-free
+    $\varepsilon_\nu$ (erg cm⁻³ s⁻¹ Hz⁻¹), hence its factor `2.418e14`.
 
 ```text
 @function globalEmissivity(n_e, n_Hj, tgas)

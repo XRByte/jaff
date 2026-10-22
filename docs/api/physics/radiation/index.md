@@ -87,7 +87,7 @@ Built by `Network` from `radiation_props`; available as `net.radiation`
 | `nph_profile`      | `sympy.Piecewise`         | Photon-number profile over all bands, `E**(α_i - 2)` in band _i_                         |
 | `energy_profile`   | `sympy.Piecewise`         | Energy-density profile over all bands, `E**(α_i - 1)` in band _i_                        |
 | `photden_tot`      | `float`                   | $\int n(E)\,dE$ over the full range, i.e. the sum of the groups' `photden`               |
-| `emissivity`       | `sympy.Expr` or `None`    | The network `.jfunc` `globalEmissivity` (erg cm⁻³ s⁻¹ eV⁻¹ in `ph_E`, integrated over solid angle), or `None` |
+| `emissivity`       | `sympy.Expr` or `None`    | The network `.jfunc` `globalEmissivity`: the volume emissivity (erg cm⁻³ s⁻¹ eV⁻¹ in `ph_E`, integrated over solid angle), or `None` |
 | `total_emissivity` | `sympy.Expr` or `None`    | Property: the sum of the groups' `emissivity`, i.e. its integral over the whole band range |
 
 In the piecewise profiles a point on an interior edge belongs to the band above

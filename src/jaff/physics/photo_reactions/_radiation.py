@@ -282,9 +282,10 @@ class Radiation:
         per-band ``grp.photden``), used to normalise the full-spectrum
         cross section ``reaction.photo.xsec.total``.
     emissivity : sympy.Expr or None
-        The network ``.jfunc`` ``globalEmissivity``: radiation energy emitted per unit
-        volume, time and photon energy (erg cm⁻³ s⁻¹ eV⁻¹), integrated over
-        solid angle, as an expression in ``ph_E``.  ``None`` without one.  Its
+        The network ``.jfunc`` ``globalEmissivity``: the *volume* emissivity,
+        i.e. radiation energy emitted per unit volume, time and photon energy
+        (erg cm⁻³ s⁻¹ eV⁻¹), integrated over solid angle, as an expression in
+        ``ph_E``.  ``None`` without one.  Its
         per-group integrals are ``grp.emissivity``; their sum is
         :attr:`total_emissivity`.
     """

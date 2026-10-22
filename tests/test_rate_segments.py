@@ -210,6 +210,6 @@ def test_network_open_ended_ranges(tmp_path):
         "2,H,H,H2,NONE,100,1\n"
     )
     net = Network(str(dat), funcfile=False)
-    rate = net.reactions[0].rate
+    rate = net.reactions[0].rate_coefficient
     assert rate.subs(TGAS, 50) == 1
     assert rate.subs(TGAS, 150) == 2
