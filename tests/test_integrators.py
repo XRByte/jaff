@@ -255,7 +255,8 @@ def test_one_sided_cutoff_integrates_below_it():
 
 
 def test_zero_side_of_one_sided_threshold_is_zero():
-    assert sym_integrate(_ABOVE, E, (6.0, 13.6)) == 0.0
+    # abs: far below the ~1e-20 integral above the threshold.
+    assert sym_integrate(_ABOVE, E, (6.0, 13.6)) == pytest.approx(0.0, abs=1e-30)
 
 
 def test_two_sided_support_still_clipped_to_infinity():

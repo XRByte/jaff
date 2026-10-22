@@ -88,7 +88,10 @@ def test_line_lands_in_its_group_only(yield_network):
     props = RadiationProps(bands=BANDS, mode="u", profile_index=0.5)
     rxn = yield_network(jfunc=jfunc, radiation_props=props).reactions[0]
 
-    assert _floats(rxn.rad.group_yields) == pytest.approx([0.0, 1e-12], rel=1e-6, abs=0)
+    # abs: far below the 1e-12 yield, above numerical noise in the zero group.
+    assert _floats(rxn.rad.group_yields) == pytest.approx(
+        [0.0, 1e-12], rel=1e-6, abs=1e-24
+    )
 
 
 def test_extra_symbols_stay_symbolic(yield_network):

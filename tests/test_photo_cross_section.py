@@ -96,7 +96,8 @@ class TestCustomCrossSection:
 
         assert rxn.photo.xsec.photodecay_expr.free_symbols == {net.radiation.ph_E}
         bands = [float(band.xsec) for band in rxn.photo.rgrouped]
-        assert bands == pytest.approx([0.0, 1e-18], rel=1e-6, abs=0)
+        # abs: far below the 1e-18 cross section, above noise in the zero band.
+        assert bands == pytest.approx([0.0, 1e-18], rel=1e-6, abs=1e-30)
 
     def test_extra_symbols_stay_symbolic(self, xsec_network):
         jfunc = "@function photoCrossSection0(tgas)\n@return 1e-18*tgas\n"
