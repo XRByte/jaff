@@ -335,6 +335,7 @@ class Network:
         self.__post_process(parsers)
         self.__normalize_network_extras(loaded_from_jaff_file)
         self.__set_emissivity(jaff_props.get("emissivity"))
+        self.__set_absorption_coefficient(jaff_props.get("absorption_coefficient"))
         self.thermodynamics: Thermodynamics = Thermodynamics(
             self, jaff_props.get("dEdt_extra")
         )
@@ -687,6 +688,29 @@ class Network:
             groups, self.radiation.integrate_over_groups(emissivity), strict=True
         ):
             group.emissivity = self.symbols.standardize(value)
+
+    def __set_absorption_coefficient(self, stored: Expr | None) -> None:
+        """Average the ``globalAbsorptionCoefficient`` over the radiation groups.
+
+        Stores the spectrum on ``radiation.absorption_coefficient`` and its
+        standardized per-group averages on each ``group.absorption_coefficient``.
+        The ``.jfunc`` function wins over the expression *stored* in a ``.jaff``
+        file.  Does nothing without radiation or without a coefficient.
+        """
+        if self.radiation is None:
+            return
+
+        aux = self.spec.aux_funcs.get("globalabsorptioncoefficient")
+        coefficient = cast(Expr, aux.expr) if aux is not None else stored
+        if coefficient is None:
+            return
+
+        self.radiation.absorption_coefficient = coefficient
+        groups = self.radiation.groups
+        for group, value in zip(
+            groups, self.radiation.average_over_groups(coefficient), strict=True
+        ):
+            group.absorption_coefficient = self.symbols.standardize(value)
 
     @staticmethod
     def __parse_rate(

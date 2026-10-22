@@ -152,6 +152,11 @@ class RadiationGroup:
         the band's density equation (erg cm⁻³ s⁻¹ in ``"u"`` mode, photons
         cm⁻³ s⁻¹ in ``"nph"`` mode); see :meth:`Radiation.integrate_over_groups`.
         ``None`` without a ``globalEmissivity`` function.
+    absorption_coefficient : sympy.Expr or None
+        The network ``globalAbsorptionCoefficient`` averaged over this band
+        (cm⁻¹), energy-weighted in ``"u"`` mode and photon-number weighted in
+        ``"nph"`` mode; see :meth:`Radiation.average_over_groups`.  ``None``
+        without a ``globalAbsorptionCoefficient`` function.
     """
 
     def __init__(
@@ -215,6 +220,7 @@ class RadiationGroup:
         self.eavg: float = (self.eden / self.photden) * u.eV.to(u.erg)
         # Set by the network once the species are known.
         self.emissivity: sp.Expr | None = None
+        self.absorption_coefficient: sp.Expr | None = None
 
     def __repr__(self):
         """Return detailed string representation of this radiation group.
@@ -302,6 +308,11 @@ class Radiation:
         ``ph_E``.  ``None`` without one.  Its
         per-group integrals are ``grp.emissivity``; their sum is
         :attr:`total_emissivity`.
+    absorption_coefficient : sympy.Expr or None
+        The network ``.jfunc`` ``globalAbsorptionCoefficient``: the fraction of
+        the radiation absorbed per unit path length (cm⁻¹) as a function of
+        ``ph_E`` (eV).  ``None`` without one.  Its per-group averages are
+        ``grp.absorption_coefficient``.
     """
 
     def __init__(
@@ -366,6 +377,7 @@ class Radiation:
 
         # Set by the network once the species are known.
         self.emissivity: sp.Expr | None = None
+        self.absorption_coefficient: sp.Expr | None = None
 
     def _piecewise_profile(self, attr: str) -> sp.Expr:
         """Join the per-band profiles ``grp.<attr>`` into one ``sympy.Piecewise``.
@@ -793,6 +805,43 @@ class Radiation:
                 smart_integrate(spectrum / self.ph_E, self.ph_E, (grp.lower, grp.upper))
             )
             / u.eV.to(u.erg)
+            for grp in self.groups
+        ]
+
+    def average_over_groups(self, spectrum: sp.Expr) -> List[sp.Expr]:
+        """Average a per-photon-energy coefficient over each group.
+
+        *spectrum* is a quantity defined at each photon energy, not per eV (e.g.
+        an absorption coefficient in cm⁻¹), so it is averaged rather than
+        integrated, weighted by the group's assumed spectrum: by the energy
+        profile ``E n(E)`` in ``"u"`` mode (the energy density loses energy) and
+        by the photon profile ``n(E)`` in ``"nph"`` mode (the photon density
+        loses photons).
+
+        Parameters
+        ----------
+        spectrum : sympy.Expr
+            The coefficient as an expression in :attr:`ph_E` (eV).  Other
+            symbols (e.g. ``tgas``) stay symbolic (see
+            :func:`~jaff.common._integrators.smart_integrate`).
+
+        Returns
+        -------
+        list[sympy.Expr]
+            One weighted mean per group in ``self.groups`` order.
+
+        Raises
+        ------
+        ValueError
+            If a spectrum with symbols other than ``ph_E`` has no closed-form
+            integral over a group.
+        """
+        return [
+            sp.sympify(
+                self.get_group_average_cross_section(
+                    spectrum, self.ph_E, grp, energy_weighted=self.mode == "u"
+                )
+            )
             for grp in self.groups
         ]
 

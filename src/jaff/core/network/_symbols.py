@@ -291,9 +291,10 @@ class NetworkSymbols:
         if net.radiation is not None:
             for r in net.reactions.radiation_emitters():
                 expressions.extend(r.rad.group_yields or [])
-            expressions.extend(
-                g.emissivity for g in net.radiation.groups if g.emissivity is not None
-            )
+            for g in net.radiation.groups:
+                expressions.extend(
+                    e for e in (g.emissivity, g.absorption_coefficient) if e is not None
+                )
 
         return expressions
 

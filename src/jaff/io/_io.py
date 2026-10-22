@@ -229,6 +229,9 @@ def to_jaff_file(filename: str | Path, net: "Network"):
         "emissivity": encode_maybe_sympy(
             net.radiation.emissivity if net.radiation is not None else None
         ),
+        "absorption_coefficient": encode_maybe_sympy(
+            net.radiation.absorption_coefficient if net.radiation is not None else None
+        ),
     }
 
     with gzip.open(filename, "wt", encoding="utf-8") as f:
@@ -555,6 +558,11 @@ def from_jaff_file(filename: str | Path, errors=False):
 
     if payload.get("emissivity") is not None:
         net_data["emissivity"] = decode_maybe_sympy(payload["emissivity"])
+
+    if payload.get("absorption_coefficient") is not None:
+        net_data["absorption_coefficient"] = decode_maybe_sympy(
+            payload["absorption_coefficient"]
+        )
 
     return net_data
 

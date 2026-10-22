@@ -89,6 +89,7 @@ Built by `Network` from `radiation_props`; available as `net.radiation`
 | `photden_tot`      | `float`                   | $\int n(E)\,dE$ over the full range, i.e. the sum of the groups' `photden`               |
 | `emissivity`       | `sympy.Expr` or `None`    | The network `.jfunc` `globalEmissivity`: the volume emissivity (erg cm⁻³ s⁻¹ eV⁻¹ in `ph_E`, integrated over solid angle), or `None` |
 | `total_emissivity` | `sympy.Expr` or `None`    | Property: the sum of the groups' `emissivity`, i.e. its integral over the whole band range |
+| `absorption_coefficient` | `sympy.Expr` or `None` | The network `.jfunc` `globalAbsorptionCoefficient` (cm⁻¹ as a function of `ph_E`), or `None` |
 
 In the piecewise profiles a point on an interior edge belongs to the band above
 it. Energies below `bands[0]` use the first band's profile and energies above
@@ -102,6 +103,7 @@ it. Energies below `bands[0]` use the first band's profile and energies above
 | `get_eden_profile(ph_energy)`             | `numpy.ndarray`   | `ph_energy * get_photden_profile(ph_energy)`, i.e. `E**(α_i - 1)`                                                  |
 | `ordered_index(idx, order)`               | `tuple[int, int]` | Positions `(density, flux)` of band `idx` in the flat radiation ODE array for layout `order` (0–3)                 |
 | `integrate_over_groups(spectrum)`         | `list`            | Integrates an emitted spectrum in `ph_E` (a reaction's `spectralYield<N>`, or the network `globalEmissivity`) over each group, in the units of the group density: `∫ S dE` in `"u"` mode, `∫ S/E dE` (photons) in `"nph"` mode |
+| `average_over_groups(spectrum)`           | `list`            | Averages a coefficient defined at each photon energy (the `globalAbsorptionCoefficient`, cm⁻¹) over each group, weighted by $E\,n(E)$ in `\"u\"` mode and $n(E)$ in `\"nph\"` mode |
 | `get_group_average_cross_section(xsec, ph_E, group, ph_profile=None, energy_weighted=False)` | `float` | Mean of a tabulated or symbolic σ over one band, weighted by $n(E)$ (normalised by `photden`) or, with `energy_weighted`, by $E\,n(E)$ (normalised by `eden`) |
 | `get_total_average_cross_section(xsec, ph_E, ph_profile=None)` | `float` | Photon-number-weighted mean of σ over the whole band range |
 | `get_reaction_rate_props(reaction)`        | `tuple`           | Band-averages the reaction's cross section; returns `(k_tot, xsec_tot, grouped)`: the total rate coefficient, the spectrum-averaged cross section (cm²) and one `GroupedPhotoReactionProps` per band |
@@ -137,6 +139,7 @@ One band, `[lower, upper]` in eV.
 | `eden`           | `float`                | $\int_\text{lower}^\text{upper} E\,n(E)\,dE$ (eV), the normalisation for energy-weighted band averages |
 | `eavg`           | `float`                | Band-average photon energy $\langle E\rangle_i = \int E\,n\,dE / \int n\,dE$, in **erg** |
 | `emissivity`     | `sympy.Expr` or `None` | The network `globalEmissivity` integrated over this band, in the band density's units (erg cm⁻³ s⁻¹ in `"u"` mode, photons cm⁻³ s⁻¹ in `"nph"`); added to its density equation |
+| `absorption_coefficient` | `sympy.Expr` or `None` | The network `globalAbsorptionCoefficient` averaged over this band (cm⁻¹), energy-weighted in `\"u\"` mode and photon-number weighted in `\"nph\"`; removed from its density equation as $c\,\langle\alpha\rangle_i\,den_i$ |
 
 Per-reaction band data is not stored on the group: each photo reaction holds
 one `GroupedPhotoReactionProps` per band in `reaction.photo.rgrouped`, in the

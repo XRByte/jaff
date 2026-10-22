@@ -271,6 +271,9 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
         group_rate += group_emissions[group.index]
         if group.emissivity is not None:
             group_rate += group.emissivity
+        # Absorption by the medium; the flux equation is left unchanged.
+        if group.absorption_coefficient is not None:
+            group_rate -= net.radiation.c * group.absorption_coefficient * group.sym
 
         if net.dust is not None:
             group_rate, flux = handle_dust_reduction(net, group, group_rate, flux, rflux)

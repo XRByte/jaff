@@ -161,7 +161,7 @@ offending symbol and the `.jfunc` file it came from.
 
 ## Reserved Function Names
 
-JAFF recognises six reserved naming conventions:
+JAFF recognises seven reserved naming conventions:
 
 | Pattern              | Role                                                                                                                                                                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -170,6 +170,7 @@ JAFF recognises six reserved naming conventions:
 | `photoCrossSection<N>` | Photodecay cross section (cm²) of photo-reaction _N_ as a function of photon energy `ph_E` (eV). Replaces the database cross section (see [Custom cross sections](#custom-cross-sections-photocrosssectionn)). |
 | `spectralYield<N>`   | Radiation energy (erg) reaction _N_ adds to the field per event per unit photon energy `ph_E` (eV), integrated over solid angle (see [Spectral yield](#spectral-yield-spectralyieldn)). |
 | `globalEmissivity`   | **Volume** emissivity: radiation energy emitted per unit volume, time and photon energy `ph_E` (erg cm⁻³ s⁻¹ eV⁻¹) by processes not tied to a reaction, integrated over solid angle (see [Global emissivity](#global-emissivity-globalemissivity)). |
+| `globalAbsorptionCoefficient` | Absorption coefficient of the medium: fraction of the radiation absorbed per unit path length (cm⁻¹) as a function of photon energy `ph_E` (eV) (see [Global absorption coefficient](#global-absorption-coefficient-globalabsorptioncoefficient)). |
 | `heatingCoolingRate` | Net gas heating minus cooling rate from all non-chemical radiative processes (erg s⁻¹ cm⁻³).                                                                                                                                                 |
 | Any other name       | Helper function — substituted symbolically into the bodies that call it.                                                                                                                                                                     |
 
@@ -357,6 +358,38 @@ The `globalEmissivity` function is the network-wide counterpart of `spectralYiel
 
 With radiation transport enabled, JAFF integrates it over each radiation group, with the same units rule as the spectral yield (erg cm⁻³ s⁻¹ in `"u"` mode, photons cm⁻³ s⁻¹ in `"nph"` mode), and adds each group's value to that group's **density** equation only. The spectrum is stored on `net.radiation.emissivity`, the group values on `group.emissivity` (with `n_X` symbols resolved to the species densities), and their sum on `net.radiation.total_emissivity`. Other symbols such as `tgas` stay symbolic, which needs a closed-form integral over every group (else `ValueError`). Without radiation it has no effect. A `.jaff` file stores it.
 
+### Global absorption coefficient — `globalAbsorptionCoefficient`
+
+The `globalAbsorptionCoefficient` function gives absorption by the medium itself, beyond the photo reactions (e.g. a grey dust opacity). Its body is the **absorption coefficient** $\alpha$: the fraction of the radiation absorbed per unit path length, in **cm⁻¹**, as a function of the photon-energy symbol `ph_E` (eV). Unlike the emissivity, $\alpha$ is a value *at* each photon energy, not a density per eV. There is one per network, with no `<N>`:
+
+```text
+@function globalAbsorptionCoefficient(n_H_nuc)
+    # Grey dust absorption: 1e-21 cm^2 per H nucleus at every photon energy
+    @return 1e-21 * n_H_nuc
+```
+
+<!-- prettier-ignore -->
+!!! note "Converting to an absorption coefficient"
+    | Given                                  | Units      | $\alpha$                 |
+    | -------------------------------------- | ---------- | ------------------------ |
+    | Cross section $\sigma$ per absorber    | cm²        | $n\,\sigma$ ($n$ in cm⁻³) |
+    | Mass opacity $\kappa$                  | cm² g⁻¹    | $\rho\,\kappa$ ($\rho$ in g cm⁻³) |
+    | Optical depth per path length          | cm⁻¹       | $d\tau/ds$               |
+
+With radiation transport enabled, JAFF averages $\alpha$ over each radiation group, weighted by the group's assumed spectrum, and removes the absorbed radiation from that group's **density** equation:
+
+$$
+\frac{d\,den_i}{dt} \supset -\,c\,\langle\alpha\rangle_i\, den_i,
+\qquad
+\langle\alpha\rangle_i = \frac{\int_\text{group} \alpha(E)\, w(E)\, dE}{\int_\text{group} w(E)\, dE}
+$$
+
+with $w(E) = E\,n(E)$ in `"u"` mode (the energy density loses each photon's energy) and $w(E) = n(E)$ in `"nph"` mode (the photon density loses photons). The averages are stored on `group.absorption_coefficient` (with `n_X` symbols resolved to the species densities) and the spectrum on `net.radiation.absorption_coefficient`. The flux equations are not changed. Other symbols such as `tgas` stay symbolic, which needs a closed-form integral over every group (else `ValueError`). Without radiation it has no effect. A `.jaff` file stores it.
+
+<!-- prettier-ignore -->
+!!! warning "Dust module"
+    With the [dust module](../code-generation/jaffgen-toml.md#networkdust-section) enabled, dust absorption is already applied to the radiation field. Do not put a dust opacity in `globalAbsorptionCoefficient` as well, or dust absorbs twice.
+
 ---
 
 ## Radiation Moment Equations
@@ -374,7 +407,7 @@ Each radiation band carries one density unknown in the generated equations. Its 
 
 Here `i` indexes the radiation band. The photo-reaction rate coefficient for band $i$ is $k_i = c \cdot den_i \cdot {\langle \sigma \rangle}_i$, where ${\langle \sigma \rangle}_i$ is the band-averaged photoionisation cross section and `c` is the speed of light.
 
-Reactions with a [`spectralYield<N>`](#spectral-yield-spectralyieldn) and the network [`globalEmissivity`](#global-emissivity-globalemissivity) add their emission to the density equations. The radiation moment equations themselves are available through [`Network.sradodes()`](../../api/core/network/sradodes.md).
+Reactions with a [`spectralYield<N>`](#spectral-yield-spectralyieldn) and the network [`globalEmissivity`](#global-emissivity-globalemissivity) add their emission to the density equations, and the network [`globalAbsorptionCoefficient`](#global-absorption-coefficient-globalabsorptioncoefficient) removes the absorbed radiation from them. The radiation moment equations themselves are available through [`Network.sradodes()`](../../api/core/network/sradodes.md).
 
 ---
 
