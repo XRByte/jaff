@@ -33,7 +33,7 @@ from sympy import (
     symbols,
 )
 
-from ...common import is_jaff_file, load_mass_dict, motd, resolve_dependencies
+from ...common import is_jaff_file, load_mass_dict, print_motd, resolve_dependencies
 from ...errors import ParserError
 from ...io import JaffLogger, jaff_progress
 from ...io._io import JaffProps, from_jaff_file, to_jaff_file, write_data_table
@@ -298,7 +298,7 @@ class Network:
         # label, else the file stem.
         self.spec.label = jaff_props.get("label", label or self.spec.fname.stem)
         if not _from_cli:
-            print(motd())
+            print_motd()
 
         self.mass_dict: dict[str, ElementProps] = {}
         self.species: Species = Species()

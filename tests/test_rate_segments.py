@@ -169,3 +169,47 @@ def test_network_two_constant_ranges(tmp_path):
     rate = net.reactions[0].rate_coefficient
     assert rate.subs(TGAS, 150) == 2
     assert rate.subs(TGAS, 50) == 1
+
+
+# --------------------------------------------------------------------------- #
+# open lower bound (tmin None) sorts first                                    #
+# --------------------------------------------------------------------------- #
+def test_sort_open_lower_bound_first():
+    """A ``tmin=None`` segment sorts below any finite bound (was a TypeError)."""
+    high = RateSegment(Integer(2), 100, None)
+    low = RateSegment(Integer(1), None, 100)
+    segs = RateSegments([high, low], "clip").sort()
+    assert list(segs) == [low, high]
+
+
+@pytest.mark.parametrize(
+    "bounds",
+    [
+        [(None, 100), (None, 200)],  # two open lower bounds
+        [(100, None), (200, None)],  # two open upper bounds
+        [(10, None), (300, 500)],  # open upper bound below another range
+    ],
+)
+def test_sort_rejects_open_bound_off_the_edge(bounds):
+    """Only the lowest range may lack ``tmin``; only the highest may lack ``tmax``."""
+    segs = [RateSegment(Integer(i), lo, hi) for i, (lo, hi) in enumerate(bounds)]
+    with pytest.raises(ValueError, match="open"):
+        RateSegments(segs, "clip").sort()
+
+
+def test_sort_allows_lone_fully_open_segment():
+    seg = RateSegment(Integer(1), None, None)
+    assert list(RateSegments([seg], "clip").sort()) == [seg]
+
+
+def test_network_open_ended_ranges(tmp_path):
+    dat = tmp_path / "open.dat"
+    dat.write_text(
+        "@format:idx,R,R,P,tmin,tmax,rate\n"
+        "1,H,H,H2,100,NONE,2\n"
+        "2,H,H,H2,NONE,100,1\n"
+    )
+    net = Network(str(dat), funcfile=False)
+    rate = net.reactions[0].rate
+    assert rate.subs(TGAS, 50) == 1
+    assert rate.subs(TGAS, 150) == 2
