@@ -42,14 +42,14 @@ def test_without_radiation_custom_rate_is_kept(custom_network):
     rxn = _photo(custom_network())
 
     assert rxn.photo.custom_rad_rate is True
-    assert float(rxn.rate_coefficient) == pytest.approx(1e-10)
+    assert float(rxn.rate_coefficient) == pytest.approx(1e-10, rel=1e-6, abs=0)
 
 
 def test_under_radiation_custom_rate_is_kept(custom_network):
     rxn = _photo(custom_network(radiation_props=RadiationProps(bands=BANDS)))
 
     assert rxn.photo.custom_rad_rate is True
-    assert float(rxn.rate_coefficient) == pytest.approx(1e-10)
+    assert float(rxn.rate_coefficient) == pytest.approx(1e-10, rel=1e-6, abs=0)
 
 
 def test_under_radiation_has_no_band_data(custom_network):

@@ -58,7 +58,7 @@ def test_plain_emissivity_name_is_not_reserved(emissive_network):
 def test_spectral_expression_stored(emissive_network):
     rad = emissive_network(radiation_props=RadiationProps(bands=BANDS)).radiation
 
-    assert float(rad.emissivity) == pytest.approx(1e-20)
+    assert float(rad.emissivity) == pytest.approx(1e-20, rel=1e-6, abs=0)
 
 
 def test_energy_mode_group_integrals(emissive_network):
@@ -67,8 +67,12 @@ def test_energy_mode_group_integrals(emissive_network):
     ).radiation
 
     expected = [1e-20 * (13.6 - 6.0), 1e-20 * (100.0 - 13.6)]
-    assert _floats(g.emissivity for g in rad.groups) == pytest.approx(expected)
-    assert float(rad.total_emissivity) == pytest.approx(1e-20 * (100.0 - 6.0))
+    assert _floats(g.emissivity for g in rad.groups) == pytest.approx(
+        expected, rel=1e-6, abs=0
+    )
+    assert float(rad.total_emissivity) == pytest.approx(
+        1e-20 * (100.0 - 6.0), rel=1e-6, abs=0
+    )
 
 
 def test_photon_mode_group_integrals(emissive_network):
@@ -78,7 +82,9 @@ def test_photon_mode_group_integrals(emissive_network):
         1e-20 * math.log(13.6 / 6.0) / EV2ERG,
         1e-20 * math.log(100.0 / 13.6) / EV2ERG,
     ]
-    assert _floats(g.emissivity for g in rad.groups) == pytest.approx(expected)
+    assert _floats(g.emissivity for g in rad.groups) == pytest.approx(
+        expected, rel=1e-6, abs=0
+    )
 
 
 def test_density_symbols_are_standardized(emissive_network):
@@ -121,7 +127,7 @@ def test_jaff_round_trip_keeps_emissivity(emissive_network, tmp_path):
 
     assert back.radiation is not None
     assert back.radiation.emissivity is not None
-    assert float(back.radiation.emissivity) == pytest.approx(1e-20)
+    assert float(back.radiation.emissivity) == pytest.approx(1e-20, rel=1e-6, abs=0)
     assert _floats(g.emissivity for g in back.radiation.groups) == pytest.approx(
-        _floats(g.emissivity for g in net.radiation.groups)
+        _floats(g.emissivity for g in net.radiation.groups), rel=1e-6, abs=0
     )

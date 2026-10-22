@@ -100,6 +100,29 @@ $$
 
 where $\langle E\rangle_i$ is the photon-number–weighted average energy in the band.
 
+The rate counts photons, so it always uses the photon-number–weighted
+$\langle\sigma\rangle_i$ above: two photons the reaction is equally likely to absorb
+contribute equally, whatever their energies.
+
+### Radiation removed from the band
+
+Each reaction absorbs one photon, so in **photon-density mode** the band loses photons
+at the reaction rate. In **energy-density mode** the band loses the *energy* of the
+absorbed photons, and each takes its own energy $E$, not the band average. The energy
+loss therefore weights the cross section by photon energy:
+
+$$
+\frac{du_i}{dt} \supset -\,c\, u_i\, \langle\sigma\rangle_i^{(E)} \prod n^{\alpha},
+\qquad
+\langle\sigma\rangle_i^{(E)} = \frac{\displaystyle\int_{E_\text{lo}}^{E_\text{hi}} \sigma(E)\, E\, \dfrac{\partial n_\gamma}{\partial E}\, dE}{\displaystyle\int_{E_\text{lo}}^{E_\text{hi}} E\, \dfrac{\partial n_\gamma}{\partial E}\, dE}
+$$
+
+The two weightings agree for a flat $\sigma$ and differ when $\sigma$ varies across the
+band, e.g. at a threshold inside it, where the absorbed photons are more energetic than
+the band average. With a separate photo-absorption cross section, the absorption cross
+section is the one weighted. Each band's loss coefficient is stored as
+`reaction.photo.rgrouped[i].k` (see [`Radiation`](../../api/physics/radiation/index.md)).
+
 ---
 
 ## Generated Rate Expressions

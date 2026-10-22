@@ -36,7 +36,7 @@ def _floats(values):
 def test_yield_is_carried_on_rad(yield_network):
     rxn = yield_network().reactions[0]
 
-    assert float(rxn.rad.spectral_yield) == pytest.approx(1e-12)
+    assert float(rxn.rad.spectral_yield) == pytest.approx(1e-12, rel=1e-6, abs=0)
 
 
 def test_reaction_without_yield(yield_network):
@@ -67,7 +67,7 @@ def test_energy_mode_integrates_yield(yield_network):
     rxn = yield_network(radiation_props=props).reactions[0]
 
     expected = [1e-12 * (13.6 - 6.0), 1e-12 * (100.0 - 13.6)]
-    assert _floats(rxn.rad.group_yields) == pytest.approx(expected)
+    assert _floats(rxn.rad.group_yields) == pytest.approx(expected, rel=1e-6, abs=0)
 
 
 def test_photon_mode_counts_photons(yield_network):
@@ -77,7 +77,7 @@ def test_photon_mode_counts_photons(yield_network):
         1e-12 * math.log(13.6 / 6.0) / EV2ERG,
         1e-12 * math.log(100.0 / 13.6) / EV2ERG,
     ]
-    assert _floats(rxn.rad.group_yields) == pytest.approx(expected)
+    assert _floats(rxn.rad.group_yields) == pytest.approx(expected, rel=1e-6, abs=0)
 
 
 def test_line_lands_in_its_group_only(yield_network):
@@ -88,7 +88,7 @@ def test_line_lands_in_its_group_only(yield_network):
     props = RadiationProps(bands=BANDS, mode="u", profile_index=0.5)
     rxn = yield_network(jfunc=jfunc, radiation_props=props).reactions[0]
 
-    assert _floats(rxn.rad.group_yields) == pytest.approx([0.0, 1e-12])
+    assert _floats(rxn.rad.group_yields) == pytest.approx([0.0, 1e-12], rel=1e-6, abs=0)
 
 
 def test_extra_symbols_stay_symbolic(yield_network):
@@ -136,7 +136,7 @@ def test_jaff_round_trip_keeps_yield(yield_network, tmp_path):
 
     rxn = back.reactions[0]
     assert rxn.rad.spectral_yield is not None
-    assert float(rxn.rad.spectral_yield) == pytest.approx(1e-12)
+    assert float(rxn.rad.spectral_yield) == pytest.approx(1e-12, rel=1e-6, abs=0)
     assert _floats(rxn.rad.group_yields) == pytest.approx(
-        _floats(net.reactions[0].rad.group_yields)
+        _floats(net.reactions[0].rad.group_yields), rel=1e-6, abs=0
     )

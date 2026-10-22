@@ -73,8 +73,13 @@ class GroupedPhotoReactionProps:
     Attributes
     ----------
     k : Expr
-        Band rate coefficient (s⁻¹, or cm³ s⁻¹ for two-body reactions),
-        including the radiation density ``den[i]`` and any shielding.
+        Band loss coefficient: ``k`` times the reactant densities is the
+        radiation the reaction removes from the band per unit time.  It is
+        ``c · den[i] · <σ>_i`` (with any shielding), where ``<σ>_i`` is the
+        absorption cross section weighted by photon number in ``"nph"`` mode
+        and by photon energy in ``"u"`` mode (each absorbed photon takes its
+        own energy).  The reaction rate itself always counts photons; see
+        :meth:`Radiation.get_reaction_rate_props`.
     xsec : float, sympy.Expr or None
         Photon-number-weighted band-average cross section (cm²): an expression
         when a ``photoCrossSection`` uses other symbols (e.g. ``tgas``), or

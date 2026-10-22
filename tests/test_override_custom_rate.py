@@ -67,7 +67,7 @@ class TestGlobalFlag:
         rxn = _photo(custom_network(config=str(cfg)))
 
         assert rxn.photo.custom_rad_rate is True
-        assert float(rxn.rate_coefficient) == pytest.approx(1e-10)
+        assert float(rxn.rate_coefficient) == pytest.approx(1e-10, rel=1e-6, abs=0)
 
 
 class TestPerReaction:

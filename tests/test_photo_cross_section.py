@@ -65,7 +65,9 @@ class TestCustomCrossSection:
 
         assert rxn.aux_funcs.photocrosssection is not None
         assert rxn.photo.xsec.database == "custom"
-        assert float(rxn.photo.xsec.photodecay_expr) == pytest.approx(1e-18)
+        assert float(rxn.photo.xsec.photodecay_expr) == pytest.approx(
+            1e-18, rel=1e-6, abs=0
+        )
         assert rxn.photo.xsec.photon_energy is None
         assert rxn.photo.xsec.process.absorption is False
         assert rxn.photo.xsec.process.decay_type == "ionization"
@@ -78,9 +80,9 @@ class TestCustomCrossSection:
         props = RadiationProps(bands=BANDS)
         rxn = _photo(xsec_network(radiation_props=props))
 
-        assert float(rxn.photo.xsec.total) == pytest.approx(1e-18)
+        assert float(rxn.photo.xsec.total) == pytest.approx(1e-18, rel=1e-6, abs=0)
         bands = [float(band.xsec) for band in rxn.photo.rgrouped]
-        assert bands == pytest.approx([1e-18, 1e-18])
+        assert bands == pytest.approx([1e-18, 1e-18], rel=1e-6, abs=0)
         assert rxn.rate_coefficient.has(rxn.net.radiation.den[0])
 
     def test_energy_dependent_xsec_uses_photon_energy_symbol(self, xsec_network):
@@ -94,7 +96,7 @@ class TestCustomCrossSection:
 
         assert rxn.photo.xsec.photodecay_expr.free_symbols == {net.radiation.ph_E}
         bands = [float(band.xsec) for band in rxn.photo.rgrouped]
-        assert bands == pytest.approx([0.0, 1e-18])
+        assert bands == pytest.approx([0.0, 1e-18], rel=1e-6, abs=0)
 
     def test_extra_symbols_stay_symbolic(self, xsec_network):
         jfunc = "@function photoCrossSection0(tgas)\n@return 1e-18*tgas\n"
@@ -102,7 +104,7 @@ class TestCustomCrossSection:
         rxn = _photo(net)
         tgas = net.symbols.tgas
 
-        assert float(rxn.photo.xsec.total / tgas) == pytest.approx(1e-18)
+        assert float(rxn.photo.xsec.total / tgas) == pytest.approx(1e-18, rel=1e-6, abs=0)
         assert all(band.xsec.has(tgas) for band in rxn.photo.rgrouped)
         assert rxn.rate_coefficient.has(tgas)
 
@@ -133,7 +135,7 @@ class TestCustomCrossSection:
 
         rxn = _photo(back)
         assert rxn.photo.xsec.database == "custom"
-        assert float(rxn.photo.xsec.total) == pytest.approx(1e-18)
+        assert float(rxn.photo.xsec.total) == pytest.approx(1e-18, rel=1e-6, abs=0)
 
     def test_per_reaction_pi_database_raises(self, xsec_network, tmp_path):
         with pytest.raises(ParserError, match="pi_database"):

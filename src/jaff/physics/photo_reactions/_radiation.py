@@ -43,7 +43,17 @@ in cm⁻³) is::
     k_i = c * den[i] * <σ>_i / <E>_i  (energy density mode)
 
 where *c* is the speed of light and ``<E>_i`` is the band-average photon
-energy (``eavg``).
+energy (``eavg``).  The rate counts photons, so ``<σ>_i`` is photon-number
+weighted.
+
+The radiation a band *loses* is a different quantity in energy-density mode:
+each absorbed photon takes its own energy ``E``, so the energy loss weights
+the (absorption) cross section by photon energy::
+
+    du_i/dt ⊃ -c * u_i * <σ>_i^(E),   <σ>_i^(E) = ∫ σ E n dE / ∫ E n dE
+
+In photon-density mode the band loses photons at the reaction rate, so the
+photon-number weighting applies to both.
 
 Energy units
 ------------
@@ -128,6 +138,9 @@ class RadiationGroup:
     photden : sympy.Expr or float
         ``∫ nph_profile dE`` over the band, the normalisation for band
         averages.
+    eden : sympy.Expr or float
+        ``∫ energy_profile dE`` over the band (eV), the normalisation for
+        energy-weighted band averages.
     eavg : float
         Photon-number-weighted average energy of this band, in **erg** (the
         band-edge integral is in eV and converted via
@@ -193,12 +206,13 @@ class RadiationGroup:
         self.photden = smart_integrate(
             self.nph_profile, self.ph_E, (self.lower, self.upper)
         )
+        # ∫ E n(E) dE over the band — normalisation for energy-weighted averages.
+        self.eden = smart_integrate(
+            self.energy_profile, self.ph_E, (self.lower, self.upper)
+        )
         # Compute the band-average photon energy once per band (shared
         # across all reactions): <E>_i = ∫ E n(E) dE / ∫ n(E) dE
-        self.eavg: float = (
-            smart_integrate(self.energy_profile, self.ph_E, (self.lower, self.upper))
-            / self.photden
-        ) * u.eV.to(u.erg)
+        self.eavg: float = (self.eden / self.photden) * u.eV.to(u.erg)
         # Set by the network once the species are known.
         self.emissivity: sp.Expr | None = None
 
@@ -389,8 +403,12 @@ class Radiation:
         3. Assembles the symbolic rate coefficient
            ``k_i = c * den[i] * <σ>_i`` (photon-density mode) or
            ``k_i = c * den[i] * <σ>_i / <E>_i`` (energy-density mode).
-        4. Collects ``k_i``, the band-average cross section and the
-           cross-section fraction into one
+        4. Assembles the band loss coefficient ``c * den[i] * <σ>_i`` that
+           :func:`~jaff.physics._equations.get_sradodes` removes from the band,
+           with the absorption cross section energy-weighted in
+           energy-density mode (each absorbed photon takes its own energy).
+        5. Collects the loss coefficient (as ``k``), the band-average cross
+           section and the cross-section fraction into one
            :class:`GroupedPhotoReactionProps` per band.
 
         After iterating over all bands the total symbolic rate coefficient
@@ -489,11 +507,25 @@ class Radiation:
                 if absorption is not None
                 else pr_xsec_avg
             )
+            loss_xsec_avg = (
+                self.get_group_average_cross_section(
+                    decay if absorption is None else absorption,
+                    E,
+                    grp,
+                    profile,
+                    energy_weighted=True,
+                )
+                if self.mode == "u"
+                else rad_xsec_avg
+            )
 
-            # Symbolic rate coefficient: k_i = c · den[i] · <σ>_i
+            # Photon-counting rate coefficient: k_rate = c · den[i] · <σ>_i
             # (units: s⁻¹ for photon-density mode, cm³ s⁻¹ for two-body)
-            k: sp.Expr = self.c * self.den[grp.index] * rad_xsec_avg
+            k_rate: sp.Expr = self.c * self.den[grp.index] * rad_xsec_avg
+            # Band loss coefficient: what get_sradodes removes from den[i].
+            k: sp.Expr = self.c * self.den[grp.index] * loss_xsec_avg
             if shielding is not None:
+                k_rate *= shielding
                 k *= shielding
 
             rgroup: GroupedPhotoReactionProps = GroupedPhotoReactionProps(
@@ -508,7 +540,7 @@ class Radiation:
             # In energy-density mode, convert from "per eV" to "per photon"
             # by dividing by the band-average energy <E>_i.
             k_tot += (
-                k
+                k_rate
                 * (
                     1.0
                     if not xsec.process.absorption
@@ -674,10 +706,15 @@ class Radiation:
         ph_E: np.ndarray | sp.Symbol,
         group: RadiationGroup,
         ph_profile: np.ndarray | None = None,
+        energy_weighted: bool = False,
     ) -> float:
-        """Photon-number-weighted mean of *xsec* over one band.
+        """Photon-number- or energy-weighted mean of *xsec* over one band.
 
-        ``<σ>_i = ∫ σ(E) n(E) dE / ∫ n(E) dE`` over ``[group.lower, group.upper]``.
+        ``<σ>_i = ∫ σ(E) n(E) dE / ∫ n(E) dE`` over ``[group.lower, group.upper]``,
+        or, with *energy_weighted*, ``∫ σ(E) E n(E) dE / ∫ E n(E) dE``.  The
+        photon-number weighting gives reaction rates (they count photons); the
+        energy weighting gives the energy a band loses in ``"u"`` mode (each
+        absorbed photon takes its own energy ``E``).
 
         Parameters
         ----------
@@ -692,6 +729,9 @@ class Radiation:
         ph_profile : numpy.ndarray or None, optional
             :meth:`get_photden_profile` already evaluated on a tabulated
             *ph_E* grid, to reuse across calls; ``None`` (default) evaluates it.
+        energy_weighted : bool, optional
+            Weight by the energy profile ``E n(E)`` instead of ``n(E)``
+            (default ``False``).
 
         Returns
         -------
@@ -705,15 +745,12 @@ class Radiation:
             if isinstance(ph_E, np.ndarray)
             else group.nph_profile
         )
+        norm = group.photden
+        if energy_weighted:
+            profile = profile * ph_E
+            norm = group.eden
 
-        return (
-            smart_integrate(
-                xsec * profile,
-                ph_E,
-                (group.lower, group.upper),
-            )
-            / group.photden
-        )
+        return smart_integrate(xsec * profile, ph_E, (group.lower, group.upper)) / norm
 
     def integrate_over_groups(self, spectrum: sp.Expr) -> List[sp.Expr]:
         """Integrate an emitted spectrum over each group, in density-equation units.
