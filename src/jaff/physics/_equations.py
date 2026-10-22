@@ -263,17 +263,25 @@ def get_sradodes(net: "Network", order: int = 0) -> list[Expr]:
     for group in rad_groups:
         group_rate = group_rates[group.index]
 
+        # Absorption by the medium: -c <α>_i den_i.  Added before the den → rflux
+        # substitution it also attenuates the flux; afterwards only the density.
+        absorption: Expr = Float(0.0)
+        if group.absorption_coefficient is not None:
+            absorption = -net.radiation.c * group.absorption_coefficient * group.sym
+
+        if net.radiation.absorption_attenuates_flux:
+            group_rate += absorption
+            absorption = Float(0.0)
+
         # The flux-moment equation is obtained by substituting den → rflux in
         # the density-moment equation (two-moment closure).
         flux = group_rate.xreplace(flux_map)
+        group_rate += absorption
 
         # Emission is isotropic, so it feeds the density equation only.
         group_rate += group_emissions[group.index]
         if group.emissivity is not None:
             group_rate += group.emissivity
-        # Absorption by the medium; the flux equation is left unchanged.
-        if group.absorption_coefficient is not None:
-            group_rate -= net.radiation.c * group.absorption_coefficient * group.sym
 
         if net.dust is not None:
             group_rate, flux = handle_dust_reduction(net, group, group_rate, flux, rflux)

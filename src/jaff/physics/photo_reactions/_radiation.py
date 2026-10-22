@@ -349,6 +349,8 @@ class Radiation:
         self.pi_database: str = props.pi_database
         self.override_custom_rate: bool = props.override_custom_rate
         self.override_custom_cross_section: bool = props.override_custom_cross_section
+        # Whether the global absorption coefficient also attenuates the flux.
+        self.absorption_attenuates_flux: bool = props.absorption_attenuates_flux
 
         self.nbands: int = len(self.bands) - 1
         # Symbolic radiation density variable: energy density (erg/cm³) or

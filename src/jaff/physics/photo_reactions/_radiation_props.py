@@ -59,6 +59,22 @@ def validate_override_custom_cross_section(value: object) -> bool:
     return value
 
 
+def validate_absorption_attenuates_flux(value: object) -> bool:
+    """Validate an ``absorption_attenuates_flux`` flag and return it.
+
+    Raises
+    ------
+    ParserError
+        If *value* is not a bool.
+    """
+    if not isinstance(value, bool):
+        raise ParserError(
+            f"Invalid absorption_attenuates_flux {value!r}. It must be true or false"
+        )
+
+    return value
+
+
 class RadiationProps:
     """Radiation-field configuration passed to :class:`Network` / :class:`Radiation`.
 
@@ -95,6 +111,9 @@ class RadiationProps:
     override_custom_cross_section : bool
         When ``True``, a photo reaction with a ``.jfunc`` ``photoCrossSection``
         uses the database cross sections instead.
+    absorption_attenuates_flux : bool
+        When ``True``, the ``globalAbsorptionCoefficient`` also removes
+        radiation from the flux equations, not only the density equations.
     """
 
     # Vaiid modes
@@ -123,6 +142,7 @@ class RadiationProps:
         pi_database: str = "norad",
         override_custom_rate: bool = False,
         override_custom_cross_section: bool = False,
+        absorption_attenuates_flux: bool = True,
     ):
         """Validate and store the radiation-field configuration.
 
@@ -164,6 +184,10 @@ class RadiationProps:
             ``photoCrossSection`` (default ``False``: it is used).  A reaction's
             own ``override_custom_cross_section`` in ``jaffgen.toml`` /
             ``jaff.toml`` takes precedence.
+        absorption_attenuates_flux : bool, optional
+            Whether the ``globalAbsorptionCoefficient`` also attenuates the
+            radiation flux, ``c <α>_i rflux_i`` per group (default ``True``);
+            ``False`` applies it to the density equations only.
 
         Raises
         ------
@@ -184,6 +208,9 @@ class RadiationProps:
         )
         self.override_custom_cross_section: bool = validate_override_custom_cross_section(
             override_custom_cross_section
+        )
+        self.absorption_attenuates_flux: bool = validate_absorption_attenuates_flux(
+            absorption_attenuates_flux
         )
 
     def _validate_c(self, c) -> float | str:

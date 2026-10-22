@@ -376,15 +376,17 @@ The `globalAbsorptionCoefficient` function gives absorption by the medium itself
     | Mass opacity $\kappa$                  | cm² g⁻¹    | $\rho\,\kappa$ ($\rho$ in g cm⁻³) |
     | Optical depth per path length          | cm⁻¹       | $d\tau/ds$               |
 
-With radiation transport enabled, JAFF averages $\alpha$ over each radiation group, weighted by the group's assumed spectrum, and removes the absorbed radiation from that group's **density** equation:
+With radiation transport enabled, JAFF averages $\alpha$ over each radiation group, weighted by the group's assumed spectrum, and removes the absorbed radiation from that group's density and flux equations:
 
 $$
 \frac{d\,den_i}{dt} \supset -\,c\,\langle\alpha\rangle_i\, den_i,
 \qquad
+\frac{d\,F_i}{dt} \supset -\,c\,\langle\alpha\rangle_i\, F_i,
+\qquad
 \langle\alpha\rangle_i = \frac{\int_\text{group} \alpha(E)\, w(E)\, dE}{\int_\text{group} w(E)\, dE}
 $$
 
-with $w(E) = E\,n(E)$ in `"u"` mode (the energy density loses each photon's energy) and $w(E) = n(E)$ in `"nph"` mode (the photon density loses photons). The averages are stored on `group.absorption_coefficient` (with `n_X` symbols resolved to the species densities) and the spectrum on `net.radiation.absorption_coefficient`. The flux equations are not changed. Other symbols such as `tgas` stay symbolic, which needs a closed-form integral over every group (else `ValueError`). Without radiation it has no effect. A `.jaff` file stores it.
+with $w(E) = E\,n(E)$ in `"u"` mode (the energy density loses each photon's energy) and $w(E) = n(E)$ in `"nph"` mode (the photon density loses photons). The averages are stored on `group.absorption_coefficient` (with `n_X` symbols resolved to the species densities) and the spectrum on `net.radiation.absorption_coefficient`. Absorption removes radiation from every direction in proportion to the intensity, so it also attenuates the flux $F_i$ (`rflux[i]`), with the same $\langle\alpha\rangle_i$. Set `absorption_attenuates_flux = false` (in `[network.radiation]` of [`jaffgen.toml`](../code-generation/jaffgen-toml.md#networkradiation-section), or `RadiationProps(..., absorption_attenuates_flux=False)`) to apply it to the density equations only. Other symbols such as `tgas` stay symbolic, which needs a closed-form integral over every group (else `ValueError`). Without radiation it has no effect. A `.jaff` file stores it.
 
 <!-- prettier-ignore -->
 !!! warning "Dust module"

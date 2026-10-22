@@ -179,6 +179,7 @@ use_proxy_photoreaction = true      # look up xsecs under the proxy key (CHx -> 
 pi_database = "norad"               # photoionization xsecs: norad | verner | leiden
 override_custom_rate = false        # true: recompute .jfunc chemRate photo rates from xsecs
 override_custom_cross_section = false  # true: ignore .jfunc photoCrossSection, use the database
+absorption_attenuates_flux = true    # false: globalAbsorptionCoefficient leaves the flux equations alone
 ```
 
 | Key                       | Type                     | Default                 | Description                                                                                                      |
@@ -192,6 +193,7 @@ override_custom_cross_section = false  # true: ignore .jfunc photoCrossSection, 
 | `pi_database`             | `str`                    | `"norad"`               | Photoionization cross-section database: `"norad"`, `"verner"` or `"leiden"` (case-insensitive)                   |
 | `override_custom_rate`    | `bool`                   | `false`                 | Recompute the rate of photo reactions with a `.jfunc` `chemRate<N>` from their cross sections instead; see [per-reaction `override_custom_rate`](#per-reaction-override_custom_rate) |
 | `override_custom_cross_section` | `bool`             | `false`                 | Ignore `.jfunc` `photoCrossSection<N>` functions and use the database cross sections; see [per-reaction `override_custom_cross_section`](#per-reaction-override_custom_cross_section) |
+| `absorption_attenuates_flux` | `bool`              | `true`                  | Whether the [`globalAbsorptionCoefficient`](../designing-networks/auxiliary-functions.md#global-absorption-coefficient-globalabsorptioncoefficient) also attenuates the flux equations; `false` applies it to the density equations only |
 
 `profile_index` is used to configure the weight factor of the photo-reaction cross-sections (Refer to the [Photochemistry](../designing-networks/photochemistry.md) section for more information). A scalar applies the same index to every band; a list such as `profile_index = [0, 1]` sets one index per band and must have exactly `len(bands) - 1` entries.
 

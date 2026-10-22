@@ -284,6 +284,8 @@ class JaffGen:
                 sn.override_custom_rate = v
             if (v := nr.get("override_custom_cross_section")) is not None:
                 sn.override_custom_cross_section = v
+            if (v := nr.get("absorption_attenuates_flux")) is not None:
+                sn.absorption_attenuates_flux = v
 
         # The presence of a [network.dust] table enables the dust module
         # (photoelectric emission, ...); it is a network-level module, not a
@@ -678,6 +680,7 @@ class JaffGen:
                     pi_database=sn.pi_database,
                     override_custom_rate=sn.override_custom_rate,
                     override_custom_cross_section=sn.override_custom_cross_section,
+                    absorption_attenuates_flux=sn.absorption_attenuates_flux,
                 )
                 if sn.rad_bands
                 else None

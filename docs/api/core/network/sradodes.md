@@ -29,7 +29,8 @@ emit, plus the network
 [`globalEmissivity`](../../../user-guide/designing-networks/auxiliary-functions.md#global-emissivity-globalemissivity),
 and removes what the network
 [`globalAbsorptionCoefficient`](../../../user-guide/designing-networks/auxiliary-functions.md#global-absorption-coefficient-globalabsorptioncoefficient)
-absorbs; the flux equations only carry the photo-reaction absorption.
+absorbs. The flux equations carry the photo-reaction absorption and, unless
+`absorption_attenuates_flux` is off, the `globalAbsorptionCoefficient` absorption too.
 
 Default is `0`.
 

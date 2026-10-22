@@ -1,10 +1,14 @@
 # ABOUTME: globalAbsorptionCoefficient aux function: network-wide absorption coefficient
 # ABOUTME: α(ph_E) [cm^-1], averaged per group and removed from the density equations
 
+from types import SimpleNamespace
+
 import pytest
 import sympy as sp
 
 from jaff import Network
+from jaff.cli import JaffGen
+from jaff.errors import ParserError
 from jaff.physics import RadiationProps
 
 BANDS = [6.0, 13.6, 100.0]
@@ -100,16 +104,75 @@ def test_symbols_reported_in_network_variables(absorbing_network):
     assert net.symbols.tgas in net.symbols.variables
 
 
-def test_removes_radiation_from_density_equations_only(absorbing_network):
-    net = absorbing_network(radiation_props=RadiationProps(bands=BANDS))
+def _absorption_losses(net):
+    """Expected density and flux losses -c<α>_i·den_i and -c<α>_i·rflux_i."""
     rad = net.radiation
-    odes = net.sradodes(order=2)
-    nb = rad.nbands
+    rflux = sp.IndexedBase("rflux", shape=(rad.nbands,))
+    density = [
+        -rad.c * g.absorption_coefficient * rad.den[i] for i, g in enumerate(rad.groups)
+    ]
+    flux = [
+        -rad.c * g.absorption_coefficient * rflux[i] for i, g in enumerate(rad.groups)
+    ]
 
-    for i, group in enumerate(rad.groups):
-        loss = -rad.c * group.absorption_coefficient * rad.den[i]
-        assert sp.simplify(odes[i] - loss) == 0
+    return density, flux
+
+
+def test_absorbs_from_density_and_flux_by_default(absorbing_network):
+    net = absorbing_network(radiation_props=RadiationProps(bands=BANDS))
+    assert net.radiation.absorption_attenuates_flux is True
+    odes = net.sradodes(order=2)
+    nb = net.radiation.nbands
+    density, flux = _absorption_losses(net)
+
+    for i in range(nb):
+        assert sp.simplify(odes[i] - density[i]) == 0
+        assert sp.simplify(odes[nb + i] - flux[i]) == 0
+
+
+def test_flag_off_leaves_flux_unchanged(absorbing_network):
+    props = RadiationProps(bands=BANDS, absorption_attenuates_flux=False)
+    net = absorbing_network(radiation_props=props)
+    odes = net.sradodes(order=2)
+    nb = net.radiation.nbands
+    density, _ = _absorption_losses(net)
+
+    for i in range(nb):
+        assert sp.simplify(odes[i] - density[i]) == 0
         assert odes[nb + i].is_zero
+
+
+@pytest.mark.parametrize("value", ["false", 0, None])
+def test_flag_must_be_bool(value):
+    with pytest.raises(ParserError, match="absorption_attenuates_flux"):
+        RadiationProps(bands=BANDS, absorption_attenuates_flux=value)
+
+
+def test_jaffgen_flag_reaches_radiation(tmp_path):
+    cfg = tmp_path / "jaffgen.toml"
+    cfg.write_text(
+        "[network.radiation]\nbands = [6, 13.6, 100]\n"
+        "absorption_attenuates_flux = false\n"
+    )
+    gen = JaffGen(
+        SimpleNamespace(
+            network="h_photoionization",
+            config=str(cfg),
+            label=None,
+            funcfile=None,
+            duplicate_policy=None,
+            expand_nuclei=None,
+            errors=None,
+            network_config=None,
+            outdir=str(tmp_path / "out"),
+            indir=None,
+            files=None,
+            template="microphysics",
+        )
+    )
+
+    assert gen.net.radiation is not None
+    assert gen.net.radiation.absorption_attenuates_flux is False
 
 
 def test_jaff_round_trip_keeps_coefficient(absorbing_network, tmp_path):
